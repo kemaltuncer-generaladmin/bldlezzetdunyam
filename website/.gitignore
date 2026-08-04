@@ -1,0 +1,22 @@
+# Next.js
+/.next/
+/out/
+next-env.d.ts
+
+# Bağımlılıklar
+/node_modules/
+
+# Ortam — yalnızca .env.example commitlenir (AGENTS.md §2.2)
+.env
+.env.local
+.env*.local
+
+# Test çıktıları
+/playwright-report/
+/test-results/
+/blob-report/
+/.playwright/
+
+# Çeşitli
+*.tsbuildinfo
+.DS_Store

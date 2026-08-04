@@ -25,7 +25,7 @@ info:
     |---|---|
     | `/auth/*` | 10 istek / dakika / IP |
     | `POST /orders` | 20 istek / saat / hesap |
-    | `/kitchen/*` | 600 istek / saat / cihaz |
+    | `/kitchen/*` | 1200 istek / saat / cihaz (5 sn polling = 720/saat, üstüne heartbeat ve durum trafiği) |
     | Diğer | 120 istek / dakika / IP |
 
     Sınır aşılırsa `429 RATE_LIMITED`.

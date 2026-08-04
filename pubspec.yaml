@@ -7,10 +7,10 @@ publish_to: none
 environment:
   sdk: ^3.9.0
 
-# Şu an yalnızca saf Dart paketleri üyedir; kök dizinde `dart pub get` çalışır.
-# musteriapp/ ve mutfakapp/ (Flutter) K-01 ve M-01 görevlerinde eklenecektir;
-# o noktadan sonra kökteki komut `flutter pub get` olur.
+# mutfakapp/ (Flutter Linux desktop) K-01'de eklendi; kökteki komut artık
+# `flutter pub get`'tir. musteriapp/ M-01'de eklenecektir.
 workspace:
   - packages/core
   - packages/api_client
   - packages/design_system
+  - mutfakapp

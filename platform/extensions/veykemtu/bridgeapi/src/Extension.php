@@ -95,7 +95,7 @@ class Extension extends BaseExtension
         RateLimiter::for('bld-order', static fn(Request $request): Limit => Limit::perHour(20)
             ->by((string) ($request->user()?->getKey() ?? $request->ip())));
 
-        RateLimiter::for('bld-kitchen', static fn(Request $request): Limit => Limit::perHour(600)
+        RateLimiter::for('bld-kitchen', static fn(Request $request): Limit => Limit::perHour(1200)
             ->by((string) ($request->user()?->getKey() ?? $request->ip())));
     }
 

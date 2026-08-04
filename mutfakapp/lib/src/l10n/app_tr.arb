@@ -1,0 +1,111 @@
+{
+  "@@locale": "tr",
+
+  "appTitle": "Mutfak Ekranı",
+  "@appTitle": { "description": "Pencere başlığı" },
+
+  "productionStripTitle": "ÜRETİM LİSTESİ",
+  "@productionStripTitle": { "description": "Üst şeridin etiketi" },
+
+  "productionStripEmpty": "Hazırlanacak ürün yok",
+  "@productionStripEmpty": { "description": "Üretim listesi boşken" },
+
+  "columnNew": "YENİ",
+  "@columnNew": { "description": "Birinci sütun başlığı" },
+
+  "columnPreparing": "HAZIRLANIYOR",
+  "@columnPreparing": { "description": "İkinci sütun başlığı" },
+
+  "columnReady": "HAZIR",
+  "@columnReady": { "description": "Üçüncü sütun başlığı" },
+
+  "columnHeader": "{title} ({count})",
+  "@columnHeader": {
+    "description": "Sütun başlığı ve kart sayısı",
+    "placeholders": {
+      "title": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+
+  "columnEmpty": "Sipariş yok",
+  "@columnEmpty": { "description": "Sütunda kart olmadığında" },
+
+  "actionConfirm": "ONAYLA",
+  "@actionConfirm": { "description": "yeni → onaylandi" },
+
+  "actionStart": "BAŞLA",
+  "@actionStart": { "description": "onaylandi → hazirlaniyor" },
+
+  "actionReady": "HAZIR",
+  "@actionReady": { "description": "hazirlaniyor → hazir" },
+
+  "actionDispatch": "YOLA ÇIKTI",
+  "@actionDispatch": { "description": "hazir → yolda, yalnızca adrese gönderim" },
+
+  "actionDeliver": "TESLİM EDİLDİ",
+  "@actionDeliver": { "description": "hazir/yolda → teslim_edildi" },
+
+  "notePrefix": "NOT",
+  "@notePrefix": { "description": "Sipariş notu etiketi" },
+
+  "requestedAtPrefix": "Teslim",
+  "@requestedAtPrefix": { "description": "İstenen teslim saati etiketi" },
+
+  "connectionConnected": "Bağlı",
+  "@connectionConnected": { "description": "Durum çubuğu bağlantı göstergesi" },
+
+  "connectionConnecting": "Bağlanıyor",
+  "@connectionConnecting": { "description": "Durum çubuğu bağlantı göstergesi" },
+
+  "connectionDisconnected": "Bağlantı yok",
+  "@connectionDisconnected": { "description": "Durum çubuğu bağlantı göstergesi" },
+
+  "connectionRevoked": "Cihaz eşlemesi iptal edildi",
+  "@connectionRevoked": { "description": "403 DEVICE_REVOKED sonrası" },
+
+  "printerReady": "Yazıcı hazır",
+  "@printerReady": { "description": "Yazıcı cihaz dosyası erişilebilir" },
+
+  "printerUnavailable": "Yazıcı yok",
+  "@printerUnavailable": { "description": "Yazıcı cihaz dosyası bulunamadı" },
+
+  "printQueueCount": "Kuyruk: {count}",
+  "@printQueueCount": {
+    "description": "Bekleyen yazdırma işi sayısı",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "settings": "Ayarlar",
+  "@settings": { "description": "Durum çubuğundaki ayarlar düğmesi" },
+
+  "deviceInfoTitle": "Cihaz bilgisi",
+  "@deviceInfoTitle": { "description": "Ayarlar düğmesinin açtığı pencere" },
+
+  "deviceInfoServer": "Sunucu",
+  "@deviceInfoServer": { "description": "API taban adresi satırı" },
+
+  "deviceInfoPrinter": "Yazıcı",
+  "@deviceInfoPrinter": { "description": "Yazıcı cihaz yolu satırı" },
+
+  "deviceInfoVersion": "Sürüm",
+  "@deviceInfoVersion": { "description": "Uygulama sürümü satırı" },
+
+  "close": "Kapat",
+  "@close": { "description": "Pencere kapatma düğmesi" },
+
+  "devicePairingRequired": "Cihaz eşlenmedi",
+  "@devicePairingRequired": { "description": "Kayıtlı mutfak token'ı yokken" },
+
+  "devicePairingHint": "Yönetici panelinden alınan eşleme kodu girilmeden sipariş alınamaz.",
+  "@devicePairingHint": { "description": "Eşleme yapılmadığında gösterilen açıklama" },
+
+  "boardEmpty": "Bekleyen sipariş yok",
+  "@boardEmpty": { "description": "Üç sütun da boşken" },
+
+  "statusChangeFailed": "Durum güncellenemedi: {message}",
+  "@statusChangeFailed": {
+    "description": "Durum ilerletme isteği başarısız olduğunda",
+    "placeholders": { "message": { "type": "String" } }
+  }
+}

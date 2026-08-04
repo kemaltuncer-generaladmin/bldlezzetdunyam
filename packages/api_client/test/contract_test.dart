@@ -358,10 +358,9 @@ void main() {
     });
 
     test('yalnızca geçici hatalar tekrar denenir', () {
-      ApiException withCode(String code) =>
-          ApiException.fromResponse({
-            'error': {'code': code, 'message': '.'},
-          }, 500);
+      ApiException withCode(String code) => ApiException.fromResponse({
+        'error': {'code': code, 'message': '.'},
+      }, 500);
 
       expect(withCode('SERVER_ERROR').isRetryable, isTrue);
       expect(withCode('RATE_LIMITED').isRetryable, isTrue);
@@ -382,10 +381,7 @@ void main() {
     });
 
     test('kapıda ödemede yönlendirme yok', () {
-      final payment = Payment.fromJson({
-        'method': 'cash',
-        'status': 'pending',
-      });
+      final payment = Payment.fromJson({'method': 'cash', 'status': 'pending'});
       expect(payment.requiresRedirect, isFalse);
       expect(payment.redirectUrl, isNull);
     });

@@ -1,8 +1,9 @@
 # Ortak Dart paketleri — packages/core, api_client, design_system
 #
 # Ayrı bir hat: bu paketler hem mutfakapp'in hem musteriapp'in tabanı.
-# Burada kırılan bir şey iki istemciyi birden durdurur, o yüzden en hızlı
-# geri bildirimi vermesi gerekiyor (Flutter kurulumu beklemeden).
+# Burada kırılan bir şey iki istemciyi birden durdurur, o yüzden istemci
+# derlemelerini beklemeden koşar. Paketlerin kendisi saf Dart'tır; Flutter
+# SDK'sı yalnızca workspace çözümlemesi için kurulur (aşağıdaki nota bakın).
 name: dart-paketleri
 
 on:
@@ -18,12 +19,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dart-lang/setup-dart@v1
+      # K-01'de `mutfakapp` pub workspace'e üye oldu (kök `pubspec.yaml`).
+      # Workspace'te bir Flutter paketi bulunduğu an çözümleme Flutter SDK'sını
+      # gerektirir: çıplak `dart-lang/setup-dart` ile `dart pub get`
+      # "mutfakapp depends on flutter_test from sdk which doesn't exist" verir.
+      # Adımların geri kalanı saf Dart olarak kalır — Flutter yalnızca
+      # bağımlılık çözümü için gerekli.
+      - uses: subosito/flutter-action@v2
         with:
-          sdk: stable
+          channel: stable
 
       - name: Bağımlılıklar
-        run: dart pub get
+        run: flutter pub get
 
       - name: Üretilen dosyalar güncel mi
         # freezed/json_serializable çıktıları commitleniyor (AGENTS.md §4).

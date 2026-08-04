@@ -401,8 +401,19 @@ Laravel Reverb. Bağlantı: `wss://api.benimlezzetdunyam.com.tr/app/<key>`
 |---|---|
 | `/api/auth/*` | 10 istek / dakika / IP |
 | `/api/orders` (POST) | 20 istek / saat / hesap |
-| `/api/kitchen/*` | 600 istek / saat / cihaz (5 sn polling'e yeter) |
+| `/api/kitchen/*` | **1200 istek / saat / cihaz** |
 | Diğer | 120 istek / dakika / IP |
+
+**Mutfak sınırı neden 1200:** doküman önce 600 diyordu ve gerekçesi "5 sn
+polling'e yeter" idi — bu aritmetik olarak yanlıştı. 5 saniyelik polling tek
+başına saatte **720** istek eder (3600 ÷ 5). Üstüne 60 heartbeat, durum
+geçişleri, fiş çekmeleri ve ack'ler biner. 600'lük sınır, KDS'i yoğun serviste
+sessizce `429`'a düşürür ve mutfak ekranı donar — sahada teşhisi en zor
+arıza türü.
+
+1200, 5 sn polling + heartbeat + yoğun bir servisin durum trafiğini iki kat
+payla karşılar. Sınır **cihaz başınadır**, IP başına değil: kasa ve yönetici
+çoğu zaman aynı ağdan çıkar ve IP sınırı ikisini birbirine kırdırırdı.
 
 ## 9. OpenAPI
 

@@ -93,9 +93,10 @@ abstract final class OrderStatusMachine {
     OrderStatus.yeni => OrderStatus.onaylandi,
     OrderStatus.onaylandi => OrderStatus.hazirlaniyor,
     OrderStatus.hazirlaniyor => OrderStatus.hazir,
-    OrderStatus.hazir => deliveryType == DeliveryType.delivery
-        ? OrderStatus.yolda
-        : OrderStatus.teslimEdildi,
+    OrderStatus.hazir =>
+      deliveryType == DeliveryType.delivery
+          ? OrderStatus.yolda
+          : OrderStatus.teslimEdildi,
     OrderStatus.yolda => OrderStatus.teslimEdildi,
     OrderStatus.teslimEdildi || OrderStatus.iptal => null,
   };

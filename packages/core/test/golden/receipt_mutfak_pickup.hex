@@ -1,0 +1,37 @@
+# receipt_mutfak_pickup — beklenen ESC/POS baytları (257 bayt)
+# Üreten: packages/core/test/escpos_golden_test.dart
+# Yenileme: BLD_UPDATE_GOLDEN=1 dart test
+#
+# Okunabilir karşılığı (kontrol baytları noktayla gösterilir):
+#   *** GEL-AL ***
+#   SİPARİŞ S-5013
+#   04.08.2026 14:32
+#   ------------------------------------------------
+#   12× KARNIYARIK
+#   
+#   3×  ŞEHRİYE ÇORBASI
+#       (Büyük, Limonlu)
+#   ------------------------------------------------
+#   
+#   
+#   
+#   
+#   
+
+1B 40 1B 74 1D 1B 61 01 1D 21 11 1B 45 01 2A 2A
+2A 20 47 45 4C 2D 41 4C 20 2A 2A 2A 0A 1D 21 00
+53 98 50 41 52 98 9E 20 53 2D 35 30 31 33 0A 1B
+45 00 30 34 2E 30 38 2E 32 30 32 36 20 31 34 3A
+33 32 0A 1B 61 00 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 0A 1D 21 11 1B 45 01 31 32 E8
+20 4B 41 52 4E 49 59 41 52 49 4B 0A 1D 21 00 1B
+45 00 0A 1D 21 11 1B 45 01 33 E8 20 20 9E 45 48
+52 98 59 45 20 80 4F 52 42 41 53 49 0A 1D 21 00
+1B 45 00 20 20 20 20 28 42 81 79 81 6B 2C 20 4C
+69 6D 6F 6E 6C 75 29 0A 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 0A 0A 0A 0A 0A 1D 56 42
+00

@@ -1,0 +1,4 @@
+/** Koşullu Tailwind sınıfı birleştirici. Harici bağımlılık gerektirmez. */
+export function cn(...values: Array<string | false | null | undefined>): string {
+  return values.filter((value): value is string => Boolean(value)).join(' ');
+}

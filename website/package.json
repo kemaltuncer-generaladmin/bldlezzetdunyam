@@ -1,0 +1,44 @@
+{
+  "name": "bld-website",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Benim Lezzet Dünyam — müşteri sipariş sitesi (docs/06-website.md)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "api:generate": "openapi-typescript ../docs/openapi.yaml --output lib/api/schema.ts --root-types",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@tanstack/react-query": "^5.90.5",
+    "next": "15.5.22",
+    "next-intl": "^4.13.5",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-hook-form": "^7.64.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@types/node": "^22.18.9",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.1",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.37.0",
+    "eslint-config-next": "15.5.22",
+    "eslint-config-prettier": "^10.1.8",
+    "openapi-typescript": "^7.13.0",
+    "postcss": "^8.5.6",
+    "prettier": "^3.6.2",
+    "prettier-plugin-tailwindcss": "^0.6.14",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.9.3"
+  }
+}

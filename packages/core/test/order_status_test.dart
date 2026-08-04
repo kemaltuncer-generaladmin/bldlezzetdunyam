@@ -216,7 +216,8 @@ void main() {
           expect(
             OrderStatusMachine.canTransition(from, next, type),
             isTrue,
-            reason: 'nextForward matrisle çelişiyor: ${from.wireName} → '
+            reason:
+                'nextForward matrisle çelişiyor: ${from.wireName} → '
                 '${next.wireName} (${type.wireName})',
           );
         }

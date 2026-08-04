@@ -88,9 +88,7 @@ class ApiException implements Exception {
       code: ApiErrorCode.parse(error['code'] as String?),
       message: (error['message'] as String?) ?? 'Beklenmeyen bir hata oluştu.',
       statusCode: statusCode,
-      details: rawDetails is Map
-          ? Map<String, dynamic>.from(rawDetails)
-          : null,
+      details: rawDetails is Map ? Map<String, dynamic>.from(rawDetails) : null,
     );
   }
 
