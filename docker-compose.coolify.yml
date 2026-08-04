@@ -59,9 +59,13 @@ services:
     restart: unless-stopped
     depends_on: [app]
     environment:
-      # Coolify bu değişkeni görünce Traefik yönlendirmesini ve TLS'i
-      # kendisi kurar. Alan adı gelene kadar sunucu IP'si kullanılır.
-      SERVICE_FQDN_WEB_80: ${API_FQDN:-/}
+      # ÇIPLAK ANAHTAR, DEĞER VERİLMEZ. Coolify bu deseni görünce alan
+      # adını üretir, Traefik etiketlerini ekler ve konteyneri `coolify`
+      # ağına bağlar. Değer atandığında (örn. `${API_FQDN:-/}`) sihirli
+      # değişken işlenmiyor: konteyner etiketsiz kalıyor, proxy ağına
+      # girmiyor ve dışarıdan 404 dönüyor. Alan adı Coolify arayüzündeki
+      # "Domains" alanından verilir, compose'dan değil.
+      - SERVICE_FQDN_WEB_80
     # Bind mount YOK: Caddyfile imaja gömülü (bkz. Dockerfile.web).
     # Coolify repo kaynağını sunucuda tutmaz; bind mount kaynağı bulamaz
     # ve Docker oraya klasör oluşturup konteyneri hiç başlatmaz.
