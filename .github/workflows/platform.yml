@@ -1,0 +1,135 @@
+# Backend hattı — docs/08-kurulum-deploy.md §3
+name: platform
+
+on:
+  push:
+    branches: [main]
+    paths: ['platform/**', 'docs/openapi.yaml', '.github/workflows/platform.yml']
+  pull_request:
+    paths: ['platform/**', 'docs/openapi.yaml', '.github/workflows/platform.yml']
+
+jobs:
+  cekirdege-dokunulmadi-mi:
+    # ADR-02'nin CI güvencesi. En başta koşar: çekirdek kirletilmişse
+    # diğer adımların yeşil olması bir şey ifade etmez.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: platform/vendor izlenmiyor olmalı
+        run: |
+          # vendor/ .gitignore'da; izlenen tek dosya bile ihlaldir.
+          if git ls-files --error-unmatch 'platform/vendor/*' >/dev/null 2>&1; then
+            echo "::error::platform/vendor/ altında izlenen dosya var — ADR-02 ihlali."
+            git ls-files 'platform/vendor/*' | head -20
+            exit 1
+          fi
+          echo "platform/vendor/ temiz."
+
+      - name: Özel kod yalnızca extensions/veykemtu altında olmalı
+        run: |
+          # TastyIgniter'ın kendi klasörlerine sızmış dosya var mı?
+          KACAK=$(git ls-files 'platform/app/**' 'platform/themes/**' \
+            | grep -v '^platform/themes/veykemtu' || true)
+          if [ -n "$KACAK" ]; then
+            echo "::error::Özel kod yanlış yerde — extensions/veykemtu/ altında olmalı:"
+            echo "$KACAK"
+            exit 1
+          fi
+          echo "Özel kod doğru yerde."
+
+  lint-ve-test:
+    runs-on: ubuntu-latest
+    needs: cekirdege-dokunulmadi-mi
+
+    services:
+      mysql:
+        # Sürüm sabit — kayan `mysql:8` etiketi 8.4'e geçtiğinde
+        # --default-authentication-plugin kaldırıldığı için yığın kırılmıştı.
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci
+          MYSQL_DATABASE: bld_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          # GLOB_BRACE glibc'ye özgüdür; ubuntu-latest zaten glibc.
+          extensions: pdo_mysql, mysqli, gd, zip, bcmath, intl, exif
+          coverage: none
+
+      - name: Composer bağımlılıkları
+        working-directory: platform
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Ortam
+        working-directory: platform
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          {
+            echo "APP_ENV=testing"
+            echo "DB_HOST=127.0.0.1"
+            echo "DB_PORT=3306"
+            echo "DB_DATABASE=bld_test"
+            echo "DB_USERNAME=root"
+            echo "DB_PASSWORD=ci"
+          } >> .env
+
+      - name: Kurulum
+        working-directory: platform
+        run: |
+          php artisan igniter:install --no-interaction
+          php artisan veykemtu:setup
+          php artisan veykemtu:demo-menu
+
+      - name: Testler
+        working-directory: platform
+        run: php artisan test
+
+  sozlesme-uyumu:
+    # Sunucu sözleşmeden sapamaz — E-01'in otomatikleşmiş hali.
+    runs-on: ubuntu-latest
+    needs: cekirdege-dokunulmadi-mi
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: openapi.yaml geçerli mi
+        run: npx --yes @redocly/cli@latest lint docs/openapi.yaml --format=stylish
+
+      - name: Sözleşmedeki her uç rotalarda tanımlı mı
+        run: |
+          # openapi.yaml'daki yolları routes/api.php ile karşılaştırır.
+          # Tam bir eşleşme kontrolü değil; sözleşmeye uç eklenip
+          # uygulanmadığı durumu yakalar — en sık kaçan hata budur.
+          node -e '
+            const fs = require("fs");
+            const spec = fs.readFileSync("docs/openapi.yaml", "utf8");
+            const routes = fs.readFileSync(
+              "platform/extensions/veykemtu/bridgeapi/routes/api.php", "utf8");
+            const paths = [...spec.matchAll(/^  (\/[a-z0-9{}\/_-]+):/gmi)]
+              .map(m => m[1]);
+            const eksik = paths.filter(p => {
+              const parca = p.split("/").filter(Boolean)
+                .filter(s => !s.startsWith("{"))[0];
+              return parca && !routes.includes(parca);
+            });
+            if (eksik.length) {
+              console.error("::error::Sözleşmede var, rotalarda yok: " + eksik.join(", "));
+              process.exit(1);
+            }
+            console.log(paths.length + " uç rotalarda karşılığını buldu.");
+          '

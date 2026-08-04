@@ -1,0 +1,63 @@
+# Mutfak ekranı — Flutter Linux desktop (ADR-04)
+name: mutfakapp
+
+on:
+  push:
+    branches: [main]
+    paths: ['mutfakapp/**', 'packages/**', '.github/workflows/mutfakapp.yml']
+  pull_request:
+    paths: ['mutfakapp/**', 'packages/**', '.github/workflows/mutfakapp.yml']
+
+jobs:
+  android-hedefi-yok-mu:
+    # ADR-04'ün CI güvencesi. Android planı iptaldir; bir kez sızarsa
+    # bağımlılık ağacı sessizce büyür ve geri almak zorlaşır.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: mutfakapp/android olmamalı
+        run: |
+          if [ -d mutfakapp/android ] || [ -d mutfakapp/ios ]; then
+            echo "::error::mutfakapp yalnızca Linux desktop hedefler (ADR-04)."
+            exit 1
+          fi
+          if git ls-files 'mutfakapp/android/*' 'mutfakapp/ios/*' | grep -q .; then
+            echo "::error::Android/iOS dosyaları izleniyor — ADR-04 ihlali."
+            exit 1
+          fi
+          echo "Yalnızca Linux hedefi var."
+
+  analiz-test-derle:
+    runs-on: ubuntu-latest
+    needs: android-hedefi-yok-mu
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Linux masaüstü bağımlılıkları
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev
+
+      - run: flutter config --enable-linux-desktop
+      - run: flutter pub get
+        working-directory: mutfakapp
+
+      - name: Analiz (sıfır uyarı)
+        working-directory: mutfakapp
+        run: flutter analyze
+
+      - name: Testler
+        working-directory: mutfakapp
+        # ESC/POS golden testleri ve PC857 çevirisi burada koşar.
+        # Bunlar kırılırsa mutfak fişi yanlış basar — en pahalı hata.
+        run: flutter test
+
+      - name: Linux derlemesi
+        working-directory: mutfakapp
+        run: flutter build linux --release

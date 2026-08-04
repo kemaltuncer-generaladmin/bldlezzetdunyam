@@ -1,0 +1,87 @@
+# Müşteri web sitesi — Next.js 15
+name: website
+
+on:
+  push:
+    branches: [main]
+    paths: ['website/**', 'docs/openapi.yaml', '.github/workflows/website.yml']
+  pull_request:
+    paths: ['website/**', 'docs/openapi.yaml', '.github/workflows/website.yml']
+
+jobs:
+  lint-test-derle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - run: npm ci
+        working-directory: website
+
+      - name: any kullanımı olmamalı
+        # AGENTS.md §4: `any` yasak, bilinmeyen tip için `unknown` + daraltma.
+        # tsc bunu yakalamaz (any geçerli TypeScript'tir), lint yakalar —
+        # ama lint kuralı kapatılabilir, bu adım kapatılamaz.
+        run: |
+          if grep -rnE ':\s*any\b|<any>|as any' website/app website/lib website/components 2>/dev/null; then
+            echo '::error::any kullanımı bulundu — unknown + tip daraltma kullanın.'
+            exit 1
+          fi
+          echo "any yok."
+
+      - name: Tip denetimi
+        working-directory: website
+        run: npx tsc --noEmit
+
+      - name: Lint
+        working-directory: website
+        run: npm run lint
+
+      - name: Derleme
+        working-directory: website
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4010/api
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+        run: npm run build
+
+  e2e:
+    # Playwright, mock API'ye karşı koşar — backend'e bağımlı değil.
+    runs-on: ubuntu-latest
+    needs: lint-test-derle
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Mock API'yi başlat
+        run: |
+          cd infra/mock && npm install --omit=dev && node src/server.js &
+          for i in $(seq 1 30); do
+            curl -sf -H 'X-App-Id: website' -H 'X-App-Version: 1.0.0' \
+              http://localhost:4010/api/health && break
+            sleep 1
+          done
+
+      - name: Sözleşme duman testi
+        # Mock'un sözleşmeye uyduğunu doğrular; website testleri buna güvenir.
+        run: ./infra/e2e.sh http://localhost:4010
+
+      - name: Playwright
+        working-directory: website
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4010/api
+        run: |
+          if [ -f playwright.config.ts ]; then
+            npm ci
+            npx playwright install --with-deps chromium
+            npm run test:e2e
+          else
+            echo "Playwright henüz kurulmadı (W-06) — adım atlandı."
+          fi

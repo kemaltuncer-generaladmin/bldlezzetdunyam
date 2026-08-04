@@ -1,0 +1,47 @@
+# Ortak Dart paketleri — packages/core, api_client, design_system
+#
+# Ayrı bir hat: bu paketler hem mutfakapp'in hem musteriapp'in tabanı.
+# Burada kırılan bir şey iki istemciyi birden durdurur, o yüzden en hızlı
+# geri bildirimi vermesi gerekiyor (Flutter kurulumu beklemeden).
+name: dart-paketleri
+
+on:
+  push:
+    branches: [main]
+    paths: ['packages/**', 'pubspec.yaml', '.github/workflows/dart.yml']
+  pull_request:
+    paths: ['packages/**', 'pubspec.yaml', '.github/workflows/dart.yml']
+
+jobs:
+  analiz-ve-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Bağımlılıklar
+        run: dart pub get
+
+      - name: Üretilen dosyalar güncel mi
+        # freezed/json_serializable çıktıları commitleniyor (AGENTS.md §4).
+        # Elle düzenlenmiş veya bayat bir üretim dosyası, kaynakla sessizce
+        # ayrışır ve hata çalışma anında ortaya çıkar.
+        run: |
+          dart run build_runner build
+          if ! git diff --quiet -- 'packages/**/*.freezed.dart' 'packages/**/*.g.dart'; then
+            echo '::error::Üretilen dosyalar bayat. dart run build_runner build koşup commitleyin.'
+            git diff --stat -- 'packages/**/*.freezed.dart' 'packages/**/*.g.dart'
+            exit 1
+          fi
+
+      - name: Analiz
+        run: dart analyze packages/
+
+      - name: Testler
+        run: dart test packages/
+
+      - name: Biçimlendirme
+        run: dart format --output=none --set-exit-if-changed packages/
