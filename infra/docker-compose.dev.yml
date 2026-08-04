@@ -69,6 +69,10 @@ services:
   app:
     build:
       context: ./platform
+      args:
+        # Host kullanıcısıyla hizala — bkz. infra/platform/Dockerfile'daki not.
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
     container_name: bld-app
     restart: unless-stopped
     depends_on:
