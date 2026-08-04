@@ -273,6 +273,66 @@ abstract class AppL10n {
   /// **'Yönetici panelinden alınan eşleme kodu girilmeden sipariş alınamaz.'**
   String get devicePairingHint;
 
+  /// Eşleme ekranının başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Mutfak ekranını eşle'**
+  String get pairingTitle;
+
+  /// Eşleme ekranı alanı
+  ///
+  /// In tr, this message translates to:
+  /// **'Sunucu adresi'**
+  String get pairingServerLabel;
+
+  /// Eşleme ekranı alanı
+  ///
+  /// In tr, this message translates to:
+  /// **'Eşleme kodu'**
+  String get pairingCodeLabel;
+
+  /// Eşleme kodu biçim örneği
+  ///
+  /// In tr, this message translates to:
+  /// **'ABCD-1234'**
+  String get pairingCodeHint;
+
+  /// Eşleme ekranı alanı
+  ///
+  /// In tr, this message translates to:
+  /// **'Cihaz adı'**
+  String get pairingDeviceNameLabel;
+
+  /// Eşleme ekranı düğmesi
+  ///
+  /// In tr, this message translates to:
+  /// **'EŞLE'**
+  String get pairingSubmit;
+
+  /// Doğrulama hatası
+  ///
+  /// In tr, this message translates to:
+  /// **'Sunucu adresi boş olamaz.'**
+  String get pairingServerRequired;
+
+  /// Doğrulama hatası
+  ///
+  /// In tr, this message translates to:
+  /// **'Eşleme kodu 4-4 biçiminde olmalı (ABCD-1234).'**
+  String get pairingCodeRequired;
+
+  /// Doğrulama hatası
+  ///
+  /// In tr, this message translates to:
+  /// **'Cihaz adı boş olamaz.'**
+  String get pairingDeviceNameRequired;
+
+  /// 403 DEVICE_REVOKED sonrası
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu cihazın yetkisi kaldırıldı. Yeni bir eşleme kodu girin.'**
+  String get pairingRevokedNotice;
+
   /// Üç sütun da boşken
   ///
   /// In tr, this message translates to:

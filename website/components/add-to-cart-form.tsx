@@ -51,7 +51,7 @@ export function AddToCartForm({
         type="submit"
         disabled={disabled || pending}
         aria-disabled={disabled || pending}
-        className="w-full rounded-lg bg-brand-600 px-4 py-3 text-sm font-semibold text-neutral-0 transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-600"
+        className="w-full rounded-lg bg-brand-700 px-4 py-3 text-sm font-semibold text-neutral-0 transition-colors hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-600"
       >
         {pending ? 'Ekleniyor…' : disabled ? (disabledReason ?? 'Eklenemez') : label}
       </button>
@@ -64,9 +64,7 @@ export function AddToCartForm({
         <p
           className={cn(
             'rounded-md px-3 py-2 text-sm',
-            state.status === 'error'
-              ? 'bg-danger/10 text-danger'
-              : 'bg-success/10 text-[#14532D]',
+            state.status === 'error' ? 'bg-danger/10 text-danger' : 'bg-success/10 text-[#14532D]',
           )}
         >
           {state.message}

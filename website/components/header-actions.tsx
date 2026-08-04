@@ -60,7 +60,7 @@ export function HeaderActions() {
         </svg>
         <span className="hidden sm:inline">{t('cart')}</span>
         {cartCount > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-brand-600 px-1 text-xs font-bold text-neutral-0 sm:static sm:h-5">
+          <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-brand-700 px-1 text-xs font-bold text-neutral-0 sm:static sm:h-5">
             {cartCount}
           </span>
         )}
@@ -79,7 +79,7 @@ export function HeaderActions() {
       ) : (
         <Link
           href="/giris"
-          className="rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-neutral-0 hover:bg-brand-700"
+          className="rounded-md bg-brand-700 px-3 py-2 text-sm font-semibold text-neutral-0 hover:bg-brand-800"
         >
           {t('login')}
         </Link>

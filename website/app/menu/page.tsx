@@ -6,6 +6,7 @@ import { OrderingClosedBanner } from '@/components/ordering-banner';
 import { ProductCard } from '@/components/product-card';
 import { SITE_URL } from '@/lib/api/client';
 import { fetchCatalog, isOrderingOpen } from '@/lib/api/catalog';
+import { schemaOrgPrice } from '@/lib/format';
 import { productSlug } from '@/lib/slug';
 import type { CatalogSnapshot } from '@/lib/api/catalog';
 
@@ -42,9 +43,7 @@ function menuJsonLd(snapshot: CatalogSnapshot): Record<string, unknown> {
         url: `${SITE_URL}/urun/${productSlug(item)}`,
         offers: {
           '@type': 'Offer',
-          // schema.org fiyatı TL cinsinden ondalıklı ister; kuruş tam sayıdan
-          // metin olarak üretilir, float aritmetiği yapılmaz.
-          price: `${Math.floor(item.price / 100)}.${String(item.price % 100).padStart(2, '0')}`,
+          price: schemaOrgPrice(item.price),
           priceCurrency: item.currency,
           availability: item.is_available
             ? 'https://schema.org/InStock'

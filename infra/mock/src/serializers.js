@@ -12,6 +12,7 @@ export function locationOut(location) {
     ordering_enabled: location.ordering_enabled,
     order_cutoff: location.order_cutoff,
     min_order_total: location.min_order_total,
+    delivery_fee: location.delivery_fee,
     payment_methods: location.payment_methods,
   };
 }

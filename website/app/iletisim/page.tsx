@@ -28,7 +28,7 @@ export default function IletisimPage() {
           </p>
           <Link
             href="/menu"
-            className="mt-4 inline-block rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-neutral-0 hover:bg-brand-700"
+            className="mt-4 inline-block rounded-lg bg-brand-700 px-5 py-2.5 text-sm font-semibold text-neutral-0 hover:bg-brand-800"
           >
             Menüyü aç
           </Link>

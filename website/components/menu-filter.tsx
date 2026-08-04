@@ -69,7 +69,7 @@ function FilterChip({
       className={cn(
         'shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition-colors',
         active
-          ? 'border-brand-600 bg-brand-600 text-neutral-0'
+          ? 'border-brand-700 bg-brand-700 text-neutral-0'
           : 'border-neutral-200 bg-neutral-0 text-neutral-800 hover:bg-neutral-100',
       )}
     >

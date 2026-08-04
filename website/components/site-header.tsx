@@ -17,9 +17,10 @@ export async function SiteHeader() {
           className="flex shrink-0 items-center gap-2 rounded-md text-neutral-900"
           aria-label={t('home')}
         >
+          {/* Koyu metin açık turuncu üzerine: #1C1917 / #F97316 = 6,0:1 (AA). */}
           <span
             aria-hidden="true"
-            className="grid h-9 w-9 place-items-center rounded-lg bg-brand-500 text-base font-bold text-neutral-0"
+            className="grid h-9 w-9 place-items-center rounded-lg bg-brand-500 text-base font-bold text-neutral-900"
           >
             BL
           </span>

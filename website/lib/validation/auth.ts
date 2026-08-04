@@ -32,11 +32,7 @@ export type LoginValues = z.infer<typeof loginSchema>;
 export const registerSchema = z
   .object({
     first_name: z.string().trim().min(1, 'Adınızı girin.').max(64, 'Ad en fazla 64 karakter.'),
-    last_name: z
-      .string()
-      .trim()
-      .min(1, 'Soyadınızı girin.')
-      .max(64, 'Soyad en fazla 64 karakter.'),
+    last_name: z.string().trim().min(1, 'Soyadınızı girin.').max(64, 'Soyad en fazla 64 karakter.'),
     email: emailField,
     telephone: z
       .string()

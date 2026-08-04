@@ -109,7 +109,7 @@ export default async function HomePage() {
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
               href="/menu"
-              className="rounded-lg bg-brand-600 px-6 py-3 text-base font-semibold text-neutral-0 hover:bg-brand-700"
+              className="rounded-lg bg-brand-700 px-6 py-3 text-base font-semibold text-neutral-0 hover:bg-brand-800"
             >
               Sipariş ver
             </Link>

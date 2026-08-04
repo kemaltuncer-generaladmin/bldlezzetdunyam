@@ -14,7 +14,7 @@ import {
   flattenItems,
   isOrderingOpen,
 } from '@/lib/api/catalog';
-import { formatPrice } from '@/lib/format';
+import { formatPrice, schemaOrgPrice } from '@/lib/format';
 import { menuIdFromSlug, productSlug } from '@/lib/slug';
 import type { MenuItem } from '@/lib/api/types';
 
@@ -48,11 +48,7 @@ async function loadItem(slug: string): Promise<{ item: MenuItem; canonicalSlug: 
   return { item, canonicalSlug: productSlug(item) };
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<Params>;
-}): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { slug } = await params;
 
   let found: Awaited<ReturnType<typeof loadItem>> = null;
@@ -87,8 +83,6 @@ export async function generateMetadata({
 
 function productJsonLd(item: MenuItem, canonicalSlug: string): Record<string, unknown> {
   const url = `${SITE_URL}/urun/${canonicalSlug}`;
-  // Kuruş tam sayısından metin üretilir; float aritmetiği yapılmaz.
-  const price = `${Math.floor(item.price / 100)}.${String(item.price % 100).padStart(2, '0')}`;
 
   return {
     '@context': 'https://schema.org',
@@ -104,7 +98,7 @@ function productJsonLd(item: MenuItem, canonicalSlug: string): Record<string, un
         offers: {
           '@type': 'Offer',
           url,
-          price,
+          price: schemaOrgPrice(item.price),
           priceCurrency: item.currency,
           availability: item.is_available
             ? 'https://schema.org/InStock'
@@ -225,7 +219,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
             </div>
           )}
 
-          <div className="mt-6 bld-card p-4 sm:p-5">
+          <div className="bld-card mt-6 p-4 sm:p-5">
             <AddToCartForm
               menuId={item.id}
               disabled={soldOut || !orderingOpen}

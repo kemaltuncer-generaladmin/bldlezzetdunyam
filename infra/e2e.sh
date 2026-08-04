@@ -47,6 +47,10 @@ is "online ödeme Faz 1'de kapalı" "false" \
   "$(echo "$LOC" | j '.data[0].payment_methods.includes("online")')"
 is "ordering_enabled alanı var" "true" \
   "$(echo "$LOC" | j '.data[0].ordering_enabled!==undefined')"
+# Müşteri toplamı onaydan ÖNCE görebilmeli — alan yoksa web sitesi
+# yalnızca ara toplam gösterebiliyordu (mesafeli satış sorunu).
+is "delivery_fee vitrinde ilan ediliyor" "true" \
+  "$(echo "$LOC" | j '.data[0].delivery_fee!==undefined')"
 
 MENU=$(curl -s "${H[@]}" "$API/locations/$LID/menu")
 is "3 kategori" 3 "$(echo "$MENU" | j '.data.length')"

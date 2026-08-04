@@ -28,7 +28,10 @@ type Props = {
 export function OrderSteps({ status, deliveryType }: Props) {
   if (status === 'iptal') {
     return (
-      <p role="status" className="rounded-card bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
+      <p
+        role="status"
+        className="rounded-card bg-danger/10 px-4 py-3 text-sm font-medium text-danger"
+      >
         Bu sipariş iptal edildi.
       </p>
     );
@@ -58,7 +61,11 @@ export function OrderSteps({ status, deliveryType }: Props) {
                 aria-hidden="true"
                 className={cn(
                   'h-0.5 flex-1',
-                  index === 0 ? 'bg-transparent' : done || active ? 'bg-brand-500' : 'bg-neutral-200',
+                  index === 0
+                    ? 'bg-transparent'
+                    : done || active
+                      ? 'bg-brand-500'
+                      : 'bg-neutral-200',
                 )}
               />
               <span
@@ -76,7 +83,11 @@ export function OrderSteps({ status, deliveryType }: Props) {
                 aria-hidden="true"
                 className={cn(
                   'h-0.5 flex-1',
-                  index === flow.length - 1 ? 'bg-transparent' : done ? 'bg-brand-500' : 'bg-neutral-200',
+                  index === flow.length - 1
+                    ? 'bg-transparent'
+                    : done
+                      ? 'bg-brand-500'
+                      : 'bg-neutral-200',
                 )}
               />
             </div>

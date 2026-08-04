@@ -22,17 +22,12 @@ class KdsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final connection = ref.watch(connectionProvider).value;
-    final isRevoked = connection == OrderSourceConnection.revoked;
-
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
             ProductionStrip(totals: ref.watch(productionTotalsProvider)),
-            Expanded(
-              child: isRevoked ? const _PairingRequired() : const _Board(),
-            ),
+            const Expanded(child: _Board()),
             const KdsStatusBar(),
           ],
         ),
@@ -103,47 +98,5 @@ class _Board extends ConsumerWidget {
         ),
       );
     }
-  }
-}
-
-/// Cihaz eşlenmemiş ya da eşleme iptal edilmiş (`docs/05` §7 adım 5).
-///
-/// Eşleme ekranının kendisi `K-07`'de gelir; buraya kadar olan kısım
-/// personelin neyin eksik olduğunu görmesi içindir.
-class _PairingRequired extends StatelessWidget {
-  const _PairingRequired();
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppL10n.of(context);
-
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.link_off,
-            size: 64,
-            color: Color(KdsColors.statusDown),
-          ),
-          const SizedBox(height: BldSpacing.md),
-          Text(
-            l10n.devicePairingRequired,
-            style: const TextStyle(
-              fontSize: KdsTextScale.columnHeader,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: BldSpacing.sm),
-          Text(
-            l10n.devicePairingHint,
-            style: const TextStyle(
-              fontSize: KdsTextScale.statusBar,
-              color: Color(KdsColors.onSurfaceMuted),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

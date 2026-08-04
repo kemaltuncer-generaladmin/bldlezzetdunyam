@@ -51,7 +51,7 @@ export default async function AccountPage() {
       <div className="mt-6 flex flex-wrap gap-3">
         <Link
           href="/siparislerim"
-          className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-neutral-0 hover:bg-brand-700"
+          className="rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-neutral-0 hover:bg-brand-800"
         >
           Siparişlerim
         </Link>

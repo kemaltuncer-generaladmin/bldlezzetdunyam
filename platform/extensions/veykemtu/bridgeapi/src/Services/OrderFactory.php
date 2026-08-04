@@ -56,7 +56,7 @@ class OrderFactory
         $this->gate->assertMeetsMinimum($location, $subtotal);
 
         $deliveryFee = $deliveryType === Order::DELIVERY
-            ? $this->deliveryFee($location)
+            ? $this->gate->deliveryFee($location)
             : 0;
 
         return DB::transaction(function () use (
@@ -257,26 +257,6 @@ class OrderFactory
         }
     }
 
-    /**
-     * Teslimat ücreti.
-     *
-     * Faz 1'de vitrin başına sabittir. Bölge/mesafe bazlı ücretlendirme
-     * `BILINMEYENLER` #10'da açık soru olarak duruyor; karar gelince yalnızca
-     * bu metot değişir.
-     */
-    private function deliveryFee(Location $location): int
-    {
-        $configured = DB::table('location_options')
-            ->where('location_id', $location->location_id)
-            ->where('item', 'bld_delivery_fee')
-            ->value('value');
-
-        if ($configured === null) {
-            return 0;
-        }
-
-        return (int) (json_decode((string) $configured, true) ?? 0);
-    }
 
     /** @param array<string, mixed>|null $address */
     private function storeAddress(ApiCustomer $customer, ?array $address): int

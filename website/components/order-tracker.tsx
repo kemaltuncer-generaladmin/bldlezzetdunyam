@@ -80,8 +80,7 @@ export function OrderTracker({ initialOrder }: { initialOrder: OrderDetail }) {
       <section className="bld-card p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-lg font-semibold text-neutral-900">
-            Sipariş durumu:{' '}
-            <span className="text-brand-700">{orderStatusLabel(order.status)}</span>
+            Sipariş durumu: <span className="text-brand-700">{orderStatusLabel(order.status)}</span>
           </h2>
           <span className="text-sm text-neutral-600">{deliveryTypeLabel(order.delivery_type)}</span>
         </div>
@@ -101,7 +100,10 @@ export function OrderTracker({ initialOrder }: { initialOrder: OrderDetail }) {
         )}
 
         {isError && (
-          <p role="status" className="mt-3 rounded-md bg-warning/10 px-3 py-2 text-sm text-neutral-900">
+          <p
+            role="status"
+            className="mt-3 rounded-md bg-warning/10 px-3 py-2 text-sm text-neutral-900"
+          >
             Durum bilgisi şu an yenilenemiyor. Son bilinen durum gösteriliyor.
           </p>
         )}
@@ -202,7 +204,8 @@ export function OrderTracker({ initialOrder }: { initialOrder: OrderDetail }) {
           <div>
             <dt className="text-neutral-600">Ödeme</dt>
             <dd className="font-medium text-neutral-900">
-              {paymentMethodLabel(order.payment.method)} — {paymentStatusLabel(order.payment.status)}
+              {paymentMethodLabel(order.payment.method)} —{' '}
+              {paymentStatusLabel(order.payment.status)}
             </dd>
           </div>
 

@@ -42,8 +42,8 @@ export default function KvkkPage() {
         <section>
           <h2 className="text-lg font-semibold text-neutral-900">3. Hukuki sebep</h2>
           <p className="mt-2">
-            Veriler; sözleşmenin kurulması ve ifası, hukuki yükümlülüğün yerine getirilmesi ve
-            meşru menfaat hukuki sebeplerine dayanılarak, kayıt sırasında verdiğiniz açık onay ile
+            Veriler; sözleşmenin kurulması ve ifası, hukuki yükümlülüğün yerine getirilmesi ve meşru
+            menfaat hukuki sebeplerine dayanılarak, kayıt sırasında verdiğiniz açık onay ile
             işlenir.
           </p>
         </section>

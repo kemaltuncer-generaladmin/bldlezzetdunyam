@@ -11,7 +11,7 @@ export default async function NotFound() {
       <p className="mx-auto mt-3 max-w-md text-sm text-neutral-600">{t('notFoundBody')}</p>
       <Link
         href="/menu"
-        className="mt-6 inline-block rounded-lg bg-brand-600 px-6 py-3 text-sm font-semibold text-neutral-0 hover:bg-brand-700"
+        className="mt-6 inline-block rounded-lg bg-brand-700 px-6 py-3 text-sm font-semibold text-neutral-0 hover:bg-brand-800"
       >
         {t('goToMenu')}
       </Link>

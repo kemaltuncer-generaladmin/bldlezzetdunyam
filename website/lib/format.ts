@@ -26,6 +26,15 @@ export function formatPriceDelta(kurus: number): string {
   return kurus > 0 ? `+${formatPrice(kurus)}` : formatPrice(kurus);
 }
 
+/**
+ * schema.org `Offer.price` biçimi: nokta ayraçlı, gruplamasız (`185.00`).
+ * Kuruş tam sayısından **metin** olarak üretilir, float aritmetiği yapılmaz.
+ */
+export function schemaOrgPrice(kurus: number): string {
+  const safe = Math.max(0, Math.trunc(kurus));
+  return `${Math.floor(safe / 100)}.${String(safe % 100).padStart(2, '0')}`;
+}
+
 /** Kuruş toplamı — tamsayı çarpımı, asla float. */
 export function multiplyPrice(unitKurus: number, quantity: number): number {
   return Math.trunc(unitKurus) * Math.trunc(quantity);

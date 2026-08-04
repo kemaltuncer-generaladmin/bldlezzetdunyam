@@ -1,13 +1,7 @@
 import 'server-only';
 
 import { apiFetch, REVALIDATE_SECONDS, type RequestOptions } from './client';
-import type {
-  Location,
-  LocationListResponse,
-  MenuCategory,
-  MenuItem,
-  MenuResponse,
-} from './types';
+import type { Location, LocationListResponse, MenuCategory, MenuItem, MenuResponse } from './types';
 
 export const CATALOG_TAG = 'catalog';
 
@@ -61,9 +55,7 @@ export type CatalogSnapshot = {
 };
 
 /** Vitrin + menü tek çağrıda; sayfaların çoğu ikisine birden ihtiyaç duyar. */
-export async function fetchCatalog(
-  freshness: CatalogFreshness = 'isr',
-): Promise<CatalogSnapshot> {
+export async function fetchCatalog(freshness: CatalogFreshness = 'isr'): Promise<CatalogSnapshot> {
   const location = await fetchPrimaryLocation(freshness);
   if (!location) return { location: null, categories: [] };
   const categories = await fetchMenu(location.id, freshness);

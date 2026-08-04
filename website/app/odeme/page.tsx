@@ -100,9 +100,7 @@ export default async function CheckoutPage() {
                       {line.optionValues.map((value) => value.name).join(', ')}
                     </span>
                   )}
-                  {line.note && (
-                    <span className="block text-neutral-600">Not: {line.note}</span>
-                  )}
+                  {line.note && <span className="block text-neutral-600">Not: {line.note}</span>}
                 </span>
                 <span className="shrink-0 font-medium text-neutral-900">
                   {formatPrice(line.lineTotal)}

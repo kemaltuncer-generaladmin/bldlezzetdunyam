@@ -32,6 +32,17 @@ dependencies:
   # Cihaz token'ı ve ayarlar (docs/05 §2).
   shared_preferences: ^2.5.5
 
+  # Kuyruk veritabanının yeri (XDG uygulama veri klasörü).
+  path_provider: ^2.1.5
+
+  # Kalıcı yazdırma kuyruğu (docs/05 §2, §5.4).
+  #
+  # `sqlite3_flutter_libs` bilinçli olarak KULLANILMADI: sürümü `0.6.0+eol`,
+  # yani terk edilmiş. Ubuntu'da `libsqlite3.so.0` zaten kurulu geliyor
+  # (`libsqlite3-0` paketi); kütüphane oradan açılıyor. `.deb` paketlenirken
+  # `libsqlite3-0` bağımlılık olarak yazılmalı.
+  sqlite3: ^3.5.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

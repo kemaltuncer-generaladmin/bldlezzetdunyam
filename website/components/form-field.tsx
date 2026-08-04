@@ -5,7 +5,11 @@ type Props = {
   label: string;
   error?: string;
   hint?: string;
-  children: (props: { id: string; describedBy: string | undefined; invalid: boolean }) => React.ReactNode;
+  children: (props: {
+    id: string;
+    describedBy: string | undefined;
+    invalid: boolean;
+  }) => React.ReactNode;
 };
 
 /**

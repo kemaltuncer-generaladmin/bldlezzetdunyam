@@ -147,7 +147,11 @@ export function RegisterForm({ next }: { next: string }) {
         )}
       </FormField>
 
-      <FormField id="password_confirm" label="Parola (tekrar)" error={fieldError('password_confirm')}>
+      <FormField
+        id="password_confirm"
+        label="Parola (tekrar)"
+        error={fieldError('password_confirm')}
+      >
         {({ id, describedBy, invalid }) => (
           <input
             {...register('password_confirm')}
@@ -191,7 +195,7 @@ export function RegisterForm({ next }: { next: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-lg bg-brand-600 px-4 py-3 text-sm font-semibold text-neutral-0 hover:bg-brand-700 disabled:bg-neutral-200 disabled:text-neutral-600"
+        className="w-full rounded-lg bg-brand-700 px-4 py-3 text-sm font-semibold text-neutral-0 hover:bg-brand-800 disabled:bg-neutral-200 disabled:text-neutral-600"
       >
         {pending ? 'Hesap oluşturuluyor…' : 'Hesap oluştur'}
       </button>

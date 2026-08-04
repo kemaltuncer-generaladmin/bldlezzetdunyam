@@ -175,7 +175,10 @@ export default async function CartPage() {
             )}
 
             {cart.hasUnavailable && (
-              <p role="status" className="mt-4 rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+              <p
+                role="status"
+                className="mt-4 rounded-md bg-danger/10 px-3 py-2 text-sm text-danger"
+              >
                 Sepetinizde tükenen ürün var. Devam etmek için çıkarın.
               </p>
             )}
@@ -183,7 +186,7 @@ export default async function CartPage() {
             {canCheckout ? (
               <Link
                 href="/odeme"
-                className="mt-5 block rounded-lg bg-brand-600 px-4 py-3 text-center text-sm font-semibold text-neutral-0 hover:bg-brand-700"
+                className="mt-5 block rounded-lg bg-brand-700 px-4 py-3 text-center text-sm font-semibold text-neutral-0 hover:bg-brand-800"
               >
                 Siparişi tamamla
               </Link>

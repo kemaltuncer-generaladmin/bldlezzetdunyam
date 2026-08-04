@@ -104,6 +104,7 @@ class CatalogController extends ApiController
             'ordering_enabled' => $this->gate->orderingEnabled($location),
             'order_cutoff' => $this->gate->orderCutoff($location),
             'min_order_total' => $this->gate->minOrderTotal($location),
+            'delivery_fee' => $this->gate->deliveryFee($location),
             'payment_methods' => $this->gate->paymentMethods($location),
         ];
     }

@@ -39,7 +39,10 @@ export function CartLineControls({ lineKey, quantity, itemName }: Props) {
 
   return (
     <div className="flex items-center gap-3">
-      <form action={updateAction} className="flex items-center rounded-lg border border-neutral-200">
+      <form
+        action={updateAction}
+        className="flex items-center rounded-lg border border-neutral-200"
+      >
         <input type="hidden" name="line_key" value={lineKey} />
         <button
           type="submit"

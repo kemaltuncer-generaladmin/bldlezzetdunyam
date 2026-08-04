@@ -1,9 +1,4 @@
-import type {
-  DeliveryType,
-  OrderStatus,
-  PaymentMethod,
-  PaymentStatus,
-} from '@/lib/api/types';
+import type { DeliveryType, OrderStatus, PaymentMethod, PaymentStatus } from '@/lib/api/types';
 
 const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   yeni: 'Alındı',

@@ -18,11 +18,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function OrderTrackingPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function OrderTrackingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const orderId = Number.parseInt(id, 10);
   if (!Number.isSafeInteger(orderId) || orderId <= 0) notFound();

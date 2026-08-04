@@ -13,7 +13,9 @@ function invalid(message: string, fieldErrors: Record<string, string> = {}): Aut
   return { status: 'error', message, fieldErrors };
 }
 
-function zodFieldErrors(issues: { path: PropertyKey[]; message: string }[]): Record<string, string> {
+function zodFieldErrors(
+  issues: { path: PropertyKey[]; message: string }[],
+): Record<string, string> {
   const out: Record<string, string> = {};
   for (const issue of issues) {
     const field = issue.path[0];
@@ -68,7 +70,8 @@ export async function registerAction(
     telephone: text(formData, 'telephone'),
     password: text(formData, 'password'),
     password_confirm: text(formData, 'password_confirm'),
-    kvkk_accepted: formData.get('kvkk_accepted') === 'on' || formData.get('kvkk_accepted') === 'true',
+    kvkk_accepted:
+      formData.get('kvkk_accepted') === 'on' || formData.get('kvkk_accepted') === 'true',
   });
 
   if (!parsed.success) {

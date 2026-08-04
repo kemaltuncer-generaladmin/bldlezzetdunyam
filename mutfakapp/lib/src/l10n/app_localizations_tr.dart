@@ -104,6 +104,38 @@ class AppL10nTr extends AppL10n {
       'Yönetici panelinden alınan eşleme kodu girilmeden sipariş alınamaz.';
 
   @override
+  String get pairingTitle => 'Mutfak ekranını eşle';
+
+  @override
+  String get pairingServerLabel => 'Sunucu adresi';
+
+  @override
+  String get pairingCodeLabel => 'Eşleme kodu';
+
+  @override
+  String get pairingCodeHint => 'ABCD-1234';
+
+  @override
+  String get pairingDeviceNameLabel => 'Cihaz adı';
+
+  @override
+  String get pairingSubmit => 'EŞLE';
+
+  @override
+  String get pairingServerRequired => 'Sunucu adresi boş olamaz.';
+
+  @override
+  String get pairingCodeRequired =>
+      'Eşleme kodu 4-4 biçiminde olmalı (ABCD-1234).';
+
+  @override
+  String get pairingDeviceNameRequired => 'Cihaz adı boş olamaz.';
+
+  @override
+  String get pairingRevokedNotice =>
+      'Bu cihazın yetkisi kaldırıldı. Yeni bir eşleme kodu girin.';
+
+  @override
   String get boardEmpty => 'Bekleyen sipariş yok';
 
   @override

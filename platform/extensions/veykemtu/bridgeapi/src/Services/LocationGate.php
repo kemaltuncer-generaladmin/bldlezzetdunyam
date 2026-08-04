@@ -89,6 +89,18 @@ class LocationGate
         return (int) $this->option($location, self::KEY_MIN_TOTAL, 0);
     }
 
+    /**
+     * Adrese gönderim ücreti (kuruş). Gel-al siparişte uygulanmaz.
+     *
+     * Sözleşmede `Location.delivery_fee` olarak açılır: istemci kullanıcıya
+     * toplamı onaydan ÖNCE gösterebilsin diye. Bağlayıcı olan yine sunucunun
+     * sipariş anındaki hesabıdır.
+     */
+    public function deliveryFee(Location $location): int
+    {
+        return (int) $this->option($location, self::KEY_DELIVERY_FEE, 0);
+    }
+
     /** @return list<string> */
     public function paymentMethods(Location $location): array
     {

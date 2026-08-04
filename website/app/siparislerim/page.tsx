@@ -87,9 +87,7 @@ export default async function MyOrdersPage({
                   className="bld-card flex flex-wrap items-center justify-between gap-3 p-4 transition-shadow hover:shadow-md"
                 >
                   <div className="min-w-0">
-                    <p className="text-base font-semibold text-neutral-900">
-                      {order.order_number}
-                    </p>
+                    <p className="text-base font-semibold text-neutral-900">{order.order_number}</p>
                     <p className="mt-0.5 text-sm text-neutral-600">
                       {formatDateTime(order.created_at)} · {order.item_count} ürün
                     </p>

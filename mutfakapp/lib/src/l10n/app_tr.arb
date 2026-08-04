@@ -100,6 +100,36 @@
   "devicePairingHint": "Yönetici panelinden alınan eşleme kodu girilmeden sipariş alınamaz.",
   "@devicePairingHint": { "description": "Eşleme yapılmadığında gösterilen açıklama" },
 
+  "pairingTitle": "Mutfak ekranını eşle",
+  "@pairingTitle": { "description": "Eşleme ekranının başlığı" },
+
+  "pairingServerLabel": "Sunucu adresi",
+  "@pairingServerLabel": { "description": "Eşleme ekranı alanı" },
+
+  "pairingCodeLabel": "Eşleme kodu",
+  "@pairingCodeLabel": { "description": "Eşleme ekranı alanı" },
+
+  "pairingCodeHint": "ABCD-1234",
+  "@pairingCodeHint": { "description": "Eşleme kodu biçim örneği" },
+
+  "pairingDeviceNameLabel": "Cihaz adı",
+  "@pairingDeviceNameLabel": { "description": "Eşleme ekranı alanı" },
+
+  "pairingSubmit": "EŞLE",
+  "@pairingSubmit": { "description": "Eşleme ekranı düğmesi" },
+
+  "pairingServerRequired": "Sunucu adresi boş olamaz.",
+  "@pairingServerRequired": { "description": "Doğrulama hatası" },
+
+  "pairingCodeRequired": "Eşleme kodu 4-4 biçiminde olmalı (ABCD-1234).",
+  "@pairingCodeRequired": { "description": "Doğrulama hatası" },
+
+  "pairingDeviceNameRequired": "Cihaz adı boş olamaz.",
+  "@pairingDeviceNameRequired": { "description": "Doğrulama hatası" },
+
+  "pairingRevokedNotice": "Bu cihazın yetkisi kaldırıldı. Yeni bir eşleme kodu girin.",
+  "@pairingRevokedNotice": { "description": "403 DEVICE_REVOKED sonrası" },
+
   "boardEmpty": "Bekleyen sipariş yok",
   "@boardEmpty": { "description": "Üç sütun da boşken" },
 
