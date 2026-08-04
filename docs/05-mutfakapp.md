@@ -103,9 +103,40 @@ Temel komut seti (`packages/core/lib/escpos/`):
 | Çift boy | `1D 21 11` (normal: `1D 21 00`) |
 | Satır besle | `0A` |
 | Kağıt kes | `1D 56 42 00` |
-| Türkçe karakter | Kod sayfası **PC857** (`1B 74 0D`) — metin bu tabloya çevrilir |
+| Türkçe karakter | Kod sayfası seçimi `1B 74 1D` (**ESC t 29**) — aşağıdaki nota bakın |
 
-**Türkçe karakter zorunluluğu:** ç ğ ı ö ş ü İ Ş Ğ Ü Ö Ç doğru basılmalı. UTF-8 metin PC857'ye çevrilir; çeviri tablosu `packages/core/lib/escpos/pc857.dart`. Bu bir golden test ile doğrulanır.
+### Kod sayfası — gerçek donanımdan doğrulandı (04.08.2026)
+
+Bu doküman başlangıçta `ESC t 13` (PC857) diyordu. **Sahadaki yazıcıda çalışmıyor.**
+
+Donanım: `0483:5720` — `aaaait Printer`, seri `11101800002`, `/dev/usb/lp1`.
+
+`ESC t 13` gönderildiğinde Türkçe baytlar **boşluk** olarak basıldı (o kod
+sayfasında glif yok). `n = 0..47` taraması yapıldı; Türkçe karakterler
+yalnızca **`n = 29`** ile doğru çıktı.
+
+```
+1B 74 1D      ESC t 29 — bu yazıcıda Türkçe kod sayfası
+```
+
+Bayt karşılıkları (PC857 düzeniyle aynı, yalnızca seçim numarası farklı):
+
+| Harf | Bayt | Harf | Bayt |
+|---|---|---|---|
+| ç | `87` | Ç | `80` |
+| ğ | `A7` | Ğ | `A6` |
+| ı | `8D` | İ | `98` |
+| ö | `94` | Ö | `99` |
+| ş | `9F` | Ş | `9E` |
+| ü | `81` | Ü | `9A` |
+
+**Ders:** ESC/POS kod sayfası numaraları üreticiye göre değişir; standart
+değildir. Yazıcı değişirse tarama tekrarlanmalıdır — `infra/kasa/`
+altındaki `kodsayfasi-tara.sh` bunu tek komutla yapar.
+
+**Türkçe karakter zorunluluğu:** ç ğ ı ö ş ü İ Ş Ğ Ü Ö Ç doğru basılmalı.
+UTF-8 metin bu tabloya çevrilir; çeviri `packages/core/lib/src/escpos/pc857.dart`
+içindedir ve golden test ile doğrulanır.
 
 ### 5.3 Fiş şablonları
 
