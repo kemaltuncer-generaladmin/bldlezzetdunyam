@@ -5,6 +5,11 @@ import createNextIntlPlugin from 'next-intl/plugin';
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 const nextConfig: NextConfig = {
+  // Konteyner dağıtımı için: `next build` çalıştırılabilir bir sunucu ve
+  // yalnızca gerçekten kullanılan node_modules'ü .next/standalone altına
+  // toplar. Onsuz imaja tüm bağımlılık ağacını kopyalamak gerekir —
+  // ~800 MB yerine ~180 MB.
+  output: 'standalone',
   reactStrictMode: true,
   poweredByHeader: false,
   images: {

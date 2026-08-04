@@ -80,6 +80,31 @@ services:
       timeout: 5s
       retries: 3
 
+  # ── Müşteri web sitesi (Next.js) ─────────────────────────────────────
+  site:
+    build:
+      context: .
+      dockerfile: website/Dockerfile
+      args:
+        # NEXT_PUBLIC_* değişkenleri DERLEME ANINDA gömülür; çalışma anında
+        # değiştirilemezler. Bu yüzden ortam değişkeni değil build arg'ı
+        # olarak veriliyorlar — Coolify'da değiştirilince yeniden derleme
+        # gerekir, sadece yeniden başlatma yetmez.
+        NEXT_PUBLIC_API_URL: ${SITE_API_URL:-https://api.benimlezzetdunyam.com.tr/api}
+        NEXT_PUBLIC_SITE_URL: ${SITE_URL:-https://benimlezzetdunyam.com.tr}
+    restart: unless-stopped
+    depends_on: [web]
+    environment:
+      - SERVICE_FQDN_SITE_3000
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
   # ── MySQL ────────────────────────────────────────────────────────────
   db:
     # Sürüm sabit: kayan `mysql:8` etiketi 8.4'e geçince
