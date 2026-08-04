@@ -30,6 +30,17 @@ code() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 
 echo "== Sözleşme uçtan uca testi: $BASE =="
 
+# Hız sınırına takılıysak DUR. 429 alındığında her uç aynı gövdeyi döner
+# ve paketin tamamı kırmızıya boyanır — 30 uydurma başarısızlık, tek
+# gerçek sebep. Bu yüzden peşin bakıyoruz: art arda koşulan testler
+# `bld-order` penceresini (saatte 20) tüketebilir.
+if [ "$(code "${H[@]}" -X POST "$API/orders" -d '{}')" = "429" ]; then
+  printf '\033[31mDURDU:\033[0m hız sınırı etkin (429). Pencere dolana kadar\n'
+  printf '       sonuçlar anlamsız olur. Bir sonraki saati bekleyin ya da\n'
+  printf '       sunucuda sayaçları sıfırlayın: artisan cache:clear\n'
+  exit 2
+fi
+
 # ── Sağlık ve zorunlu başlıklar ──────────────────────────────────────────
 echo "Sağlık ve başlıklar"
 is "başlıksız istek 422" 422 "$(code "$API/health")"
@@ -96,7 +107,11 @@ if [ "$(code "${KHDR[@]}" -X POST "$API/kitchen/pair" -d "{\"pairing_code\":\"$C
   # değişir: yerelde docker compose, sunucuda ssh + docker exec.
   # BLD_ARTISAN ile dışarıdan verilebilir.
   ARTISAN="${BLD_ARTISAN:-docker compose -f $(dirname "$0")/docker-compose.dev.yml exec -T -e HOME=/tmp app php artisan}"
-  CODE=$($ARTISAN veykemtu:kds --new="E2E $(date +%s)" 2>/dev/null \
+  # Cihaz adında BOŞLUK OLMAMALI. Uzak koşumda ($ARTISAN bir ssh
+  # komutudur) argümanları bir de karşı taraftaki kabuk ayrıştırır ve
+  # "E2E 123" iki argümana bölünür — komut "No arguments expected" ile
+  # düşer, eşleme sessizce atlanır ve mutfak testlerinin tamamı kaybolur.
+  CODE=$($ARTISAN veykemtu:kds --new=E2E-$(date +%s) 2>/dev/null \
     | sed 's/\x1b\[[0-9;]*m//g' | grep -oE '[A-Z0-9]{4}-[A-Z0-9]{4}' | head -1)
 fi
 KT=$(curl -s "${KHDR[@]}" -X POST "$API/kitchen/pair" -d "{\"pairing_code\":\"$CODE\",\"device_name\":\"E2E\"}" | j '.token')
@@ -138,6 +153,24 @@ ONL=$(curl -s "${CH[@]}" -X POST "$API/orders" \
 is "online sipariş pending doğar" pending "$(echo "$ONL" | j '.payment.status')"
 is "online siparişte yönlendirme adresi var" "true" \
   "$(echo "$ONL" | j '.payment.redirect_url!==undefined&&JSON.parse(d).payment.redirect_url!==null')"
+# Yönlendirme adresinin VAR OLMASI yetmez, ÇALIŞMASI gerekir. Üretimde
+# FRONTEND_URL bir kez `www.` alt alanına bakacak şekilde kaldı; o kayıt
+# DNS'te yoktu ve müşteri ödemeyi bitirdikten sonra ölü bir adrese
+# düşüyordu. Sipariş "paid" olduğu için hiçbir uç hata vermiyordu —
+# yalnızca müşteri kayboluyordu. Bu yüzden hem ödeme sayfasını hem de
+# dönüş adresinin gerçekten cevap verdiğini sınıyoruz.
+RU=$(echo "$ONL" | j '.payment.redirect_url')
+if [ "$RU" != "YOK" ]; then
+  is "ödeme sayfası açılıyor" 200 "$(code "$RU")"
+  DONUS=$(curl -s "$RU" | grep -oE 'return=[^"&]+' | head -1 | sed 's/^return=//')
+  DONUS=$(printf '%b' "${DONUS//%/\\x}")
+  if [ -n "$DONUS" ]; then
+    is "ödeme dönüş adresi cevap veriyor" 200 "$(code -L "$DONUS")"
+  else
+    skip "ödeme dönüş adresi" "formda return parametresi yok"
+  fi
+fi
+
 is "adressiz delivery reddedilir" VALIDATION_FAILED \
   "$(curl -s "${CH[@]}" -X POST "$API/orders" -d "{\"location_id\":$LID,\"items\":[{\"menu_id\":$TAVUK,\"quantity\":2}],\"delivery_type\":\"delivery\",\"payment_method\":\"cash\"}" | j '.error.code')"
 is "asgari tutar altı reddedilir" VALIDATION_FAILED \

@@ -123,11 +123,16 @@ Kapandı.
 - [ ] `OrderSource` soyutlaması var (WebSocket'e geçiş hazır)
 
 ### Website (`website/`)
-- [ ] `npm run lint` ve `tsc --noEmit` temiz, `any` yok
-- [ ] Playwright senaryoları geçiyor
-- [ ] Lighthouse: Performance ≥ 90, Accessibility ≥ 95
-- [ ] `sitemap.xml`, `robots.txt`, ürün JSON-LD var
-- [ ] Mobil görünüm 360px genişlikte bozulmuyor
+- [x] `npm run lint` ve `tsc --noEmit` temiz, `any` yok
+- [ ] Playwright senaryoları geçiyor — **yazılmadı**
+- [ ] Lighthouse: Performance ≥ 90, Accessibility ≥ 95 — **ölçülmedi**
+- [x] `sitemap.xml`, `robots.txt`, ürün JSON-LD var — canlıda 200, apex host
+- [ ] Mobil görünüm 360px genişlikte bozulmuyor — **gerçek cihazda bakılmadı**
+- [x] Üretim imajı derleniyor ve canlıda koşuyor (`site` servisi, 342 MB)
+
+> `robots.txt` çıktısının başında **Cloudflare'in yönetilen bloğu** var
+> (`GPTBot`, `ClaudeBot`, `CCBot`… engelli). Bunu biz yazmadık, Cloudflare
+> ekliyor. Bizim kurallarımız altta duruyor ve geçerli.
 
 ### Müşteri app (`musteriapp/`)
 - [ ] `flutter analyze` sıfır uyarı
@@ -166,6 +171,10 @@ Kapandı.
 - [ ] `veykemtu:demo-menu` ile yüklenen deneme ürünleri silindi
 - [ ] `APP_DEBUG=false`
 - [ ] Coolify API token'ı ve tüm geçici parolalar yenilendi
+- [ ] `www.benimlezzetdunyam.com.tr` DNS kaydı eklendi ve Coolify'da
+      `site` servisinin alan adlarına yazıldı (şu an **yok**; apex çalışıyor)
+- [ ] `FRONTEND_URL` çözülebilir adresi gösteriyor — doğrulama:
+      `infra/e2e.sh` içindeki "ödeme dönüş adresi cevap veriyor" yeşil
 
 **Canlıya alma kararı:** S1, S3, S4, S5 ve S6 zorunlu. S2 (gel-al) ve S7 (yük) eksik kalırsa gerekçesi ve kapatma tarihi yazılarak canlıya çıkılabilir.
 

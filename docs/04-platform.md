@@ -18,9 +18,15 @@ APP_URL=https://api.benimlezzetdunyam.com.tr
 DB_CONNECTION=mysql
 DB_HOST=db
 DB_DATABASE=catering
-SANCTUM_STATEFUL_DOMAINS=<website domain>
-FRONTEND_URL=https://<website domain>
+SANCTUM_STATEFUL_DOMAINS=benimlezzetdunyam.com.tr
+FRONTEND_URL=https://benimlezzetdunyam.com.tr
 ```
+
+`FRONTEND_URL` **çözülebilir bir adres olmalıdır.** Ödeme dönüşü buradan
+kurulur; yanlışsa müşteri ödemeyi tamamladıktan sonra ölü bir adrese
+düşer ve hiçbir uç hata vermez. Ayrıca açık yönlendirme koruması bu
+değere dayanır: istemcinin verdiği `?return=` yalnızca aynı host ise
+kabul edilir. Bu yüzden `www.` yazmak, site apex'te duruyorsa hatadır.
 
 ## 2. Kurulum sonrası zorunlu yapılandırma
 

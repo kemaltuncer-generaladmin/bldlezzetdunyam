@@ -44,6 +44,7 @@ dağıtım topolojisi artık Coolify'ın kuralarına tabi.
 | `infra/platform/Dockerfile.prod` | php-fpm; `composer install` derleme anında |
 | `infra/platform/Dockerfile.web` | Caddy + uygulama imajından kopyalanan statik dosyalar |
 | `infra/Caddyfile.internal` | Yalnızca iç FastCGI önyüzü, dışarı port açmaz |
+| `website/Dockerfile` | Next.js üretim imajı (üç aşamalı, standalone) |
 
 **Caddy neden hâlâ var:** Traefik FastCGI konuşamaz. php-fpm'in önünde bir
 HTTP sunucusu şart; Caddy o rolde, dışarı açık değil.
@@ -55,12 +56,26 @@ Coolify ortam değişkenlerinde elle tanımlanır.
 **Traefik etiketi elle yazılmaz.** `SERVICE_FQDN_WEB_80` değişkenini gören
 Coolify yönlendirmeyi ve sertifikayı kendisi kurar.
 
-#### Alan adı gelene kadar
+> **Sihirli değişken tuzağı — sahada yaşandı.** Değeri olmayan liste
+> girdisi (`- SERVICE_FQDN_SITE_3000`) Coolify tarafından ortam haritasına
+> çevrilirken anahtar olarak **liste indeksi** kullanılabiliyor. Sonuç
+> `0: SERVICE_FQDN_SITE_3000` olur ve derleme
+> `non-string key in services.<servis>.environment: 0` ile düşer.
+>
+> Alan adı Coolify'ın kalıcı `docker_compose_domains` kaydında zaten
+> varsa sihirli değişkene hiç gerek yoktur — Traefik etiketleri oradan
+> üretilir. `site` servisi bu yüzden değişkeni taşımıyor.
 
-DNS yok; erişim sunucu IP'si (`62.238.102.197`) üzerinden ve **düz HTTP**.
-Let's Encrypt alan adı olmadan sertifika veremez. `@`, `www` ve `api`
-kayıtları sunucuya yönlendirildiğinde Coolify'daki alan adı alanına
-yazmak yeterli — kod ve compose değişmez.
+#### Alan adları
+
+| Servis | Adres | Durum |
+|---|---|---|
+| `web` (API + admin) | `https://api.benimlezzetdunyam.com.tr` | canlı, LE sertifikası |
+| `site` (müşteri sitesi) | `https://benimlezzetdunyam.com.tr` | canlı, LE sertifikası |
+| — | `www.benimlezzetdunyam.com.tr` | **DNS kaydı yok** |
+
+`www` kaydı eklendiğinde yapılacak tek şey Coolify'da `site` servisinin
+alan adı alanına virgülle eklemektir; kod ve compose değişmez.
 
 #### Dağıtım akışı
 
@@ -124,6 +139,25 @@ imkânı verir.
 bilmeden kuramaz; `web` servisinde `expose: ["80"]` olmadan konteyner
 etiketsiz kalır ve dışarıdan 404 döner. `ports` değil `expose` — dışarı
 açılmıyor, yalnızca proxy'nin ulaşacağı port ilan ediliyor.
+
+#### Müşteri sitesi (Next.js)
+
+Aynı compose yığınında `site` servisi olarak koşar. İki nokta önemli:
+
+**`output: 'standalone'`** (`website/next.config.ts`): `next build` yalnızca
+gerçekten kullanılan bağımlılıkları toplar. Onsuz imaja tüm bağımlılık
+ağacını kopyalamak gerekirdi — ~800 MB yerine **342 MB**.
+
+**`NEXT_PUBLIC_*` derleme anında gömülür.** Bunlar ortam değişkeni değil,
+**build arg**'dır. Coolify'da değiştirildiğinde yeniden **derleme** gerekir;
+yalnızca yeniden başlatmak eski adresi kullanmaya devam eder.
+
+> **`FRONTEND_URL` tuzağı — sahada yaşandı.** Bu değişken `www.` alt
+> alanına bakacak şekilde kalmıştı ve o kayıt DNS'te yoktu. Ödeme
+> simülasyonu siparişi doğru şekilde `paid` yapıyor, sonra müşteriyi
+> **çözülemeyen bir adrese** yolluyordu. Hiçbir uç hata döndürmüyordu;
+> yalnızca müşteri kayboluyordu. `infra/e2e.sh` artık dönüş adresinin
+> gerçekten 200 döndüğünü sınıyor.
 
 ### 1.3 Dağıtım geri alma
 
