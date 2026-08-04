@@ -1,29 +1,30 @@
-# Termal yazıcı için kalıcı cihaz adı ve izin — docs/05-mutfakapp.md §5.1
+# Termal yazıcı — kalıcı cihaz adı ve izin (docs/05-mutfakapp.md §5.1)
 #
-# ╔══════════════════════════════════════════════════════════════════════════╗
-# ║ YER TUTUCU — XXXX ve YYYY GERÇEK DEĞERLERLE DEĞİŞTİRİLMEDEN ÇALIŞMAZ.     ║
-# ╚══════════════════════════════════════════════════════════════════════════╝
+# GERÇEK DONANIMDAN DOĞRULANDI (04.08.2026, MSI kasa):
+#   VID:PID  0483:5720
+#   üretici  aaaait
+#   ürün     Printer
+#   seri     11101800002
+#   çekirdek /dev/usb/lp1  (usblp modülü, SUBSYSTEM=usbmisc)
 #
-# Gün 1'de yazıcı bağlanır ve değerler `lsusb` çıktısından alınır:
+# Neden sembolik bağ: çekirdek cihazı lp0 mı lp1 mi diye adlandıracağı,
+# takılma sırasına ve başka bir usblp cihazının varlığına bağlıdır — sahada
+# lp1 çıktı, lp0 değil. Uygulama /dev/thermal0'ı kullanır ve port değişse de
+# bozulmaz.
 #
-#   $ lsusb
-#   Bus 001 Device 005: ID 0416:5011 Winbond Electronics Corp. POS Printer
-#                          ^^^^ ^^^^
-#                          VID  PID
-#
-# Sonra ham bayt testi (udev kuralı olmadan, doğrudan):
-#
-#   $ echo -e "Test\n\n\n\x1D\x56\x42\x00" > /dev/usb/lp0
-#
-# Fiş çıkmıyorsa DURULUR ve bildirilir — projenin en büyük donanım riski
-# budur (docs/09-gorev-plani.md §8). Çıkıyorsa değerler aşağıya yazılır.
-#
-# Neden sembolik bağ: uygulama /dev/usb/lp0 yerine /dev/thermal0 kullanır;
-# USB portu değişse veya başka bir usblp cihazı takılsa da bozulmaz.
+# Neden MODE=0666: KDS uygulaması masaüstü kullanıcısı olarak çalışır ve
+# cihaza ham ESC/POS baytları yazar (ADR-07, CUPS kullanılmaz). Kasa tek
+# amaçlı bir mutfak makinesidir; yazıcıya herkesin yazabilmesi kabul edilen
+# bir ödünçtür. Alternatif — kullanıcıyı lp grubuna almak — oturum
+# yeniden açılmasını gerektirir ve elektrik kesintisi sonrası otomatik
+# açılışta sessizce bozulabilir.
 
-SUBSYSTEM=="usb", ATTRS{idVendor}=="XXXX", ATTRS{idProduct}=="YYYY", MODE="0666", SYMLINK+="thermal0", GROUP="lp"
+SUBSYSTEM=="usbmisc", KERNEL=="lp[0-9]*", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="5720", MODE="0666", GROUP="lp", SYMLINK+="thermal0"
 
-# Kurulumdan sonra:
-#   sudo cp 99-thermal-printer.rules /etc/udev/rules.d/
+# Kurulum:
+#   sudo cp infra/kasa/99-thermal-printer.rules /etc/udev/rules.d/
 #   sudo udevadm control --reload-rules && sudo udevadm trigger
-#   ls -l /dev/thermal0
+#   ls -l /dev/thermal0        # -> /dev/usb/lp1'e bağ, mode 0666
+#
+# Doğrulama (fiş çıkmalı):
+#   printf 'BLD test\n\n\n\x1D\x56\x42\x00' > /dev/thermal0

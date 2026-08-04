@@ -41,11 +41,19 @@ RUN groupmod -o -g "${GID}" www-data \
  && usermod  -o -u "${UID}" -g "${GID}" www-data
 
 # TastyIgniter medya yüklemeleri ve önbellek için makul sınırlar.
+# date.timezone: imaj Europe/London ile geliyor ve Laravel bunu ezmiyor.
+# Sonuç, veritabanına yazılan zaman damgalarının bir saat kayması oluyordu
+# (fiş denetimi yanlış saat gösterdi). Depolama her yerde UTC'dir; Türkiye
+# saatine çevirme yalnızca gösterimde, Support\BusinessTime üzerinden yapılır.
+#
+# NOT: aşağıdaki blokta kabuk yorumu KULLANILMAZ — Docker satırları birleştirir
+# ve `#` sonrası her şey, kapanış süslü parantezi dahil, yoruma düşer.
 RUN { \
       echo 'memory_limit=512M'; \
       echo 'upload_max_filesize=32M'; \
       echo 'post_max_size=32M'; \
       echo 'max_execution_time=120'; \
+      echo 'date.timezone=UTC'; \
     } > /usr/local/etc/php/conf.d/bld.ini
 
 WORKDIR /var/www/platform
