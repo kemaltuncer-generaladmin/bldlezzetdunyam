@@ -463,7 +463,12 @@ app.get('/api/app-version', (req, res) => {
       notes: 'Mock sürüm kaydı.',
     });
   }
-  return fail(res, 'NOT_FOUND', 'Uygulama bulunamadı.');
+  // Geçersiz enum değeri bir DOĞRULAMA hatasıdır, "kayıt yok" değil.
+  // (E-01 provasında mock 404, gerçek backend 422 dönüyordu; sözleşme
+  //  422'de netleştirildi.)
+  return fail(res, 'VALIDATION_FAILED', 'Geçersiz uygulama kimliği.', {
+    app_id: 'musteriapp veya mutfakapp olmalı.',
+  });
 });
 
 // ──────────────────────── Yalnızca mock — test kancaları ───────────────────

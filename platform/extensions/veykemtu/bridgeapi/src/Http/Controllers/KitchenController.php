@@ -94,7 +94,13 @@ class KitchenController extends ApiController
         }
 
         if ($request->filled('since')) {
-            $query->where('updated_at', '>', Carbon::parse((string) $request->query('since')));
+            // Gelen değer UTC'dir; `updated_at` depolama zaman diliminde
+            // saklanır. Dönüştürmeden karşılaştırmak, saat farkı kadar
+            // geçmişteki her siparişi "yeni güncellenmiş" gösterir ve
+            // artımlı polling'i tamamen etkisiz kılar.
+            $query->where('updated_at', '>', BusinessTime::forStorage(
+                Carbon::parse((string) $request->query('since')),
+            ));
         }
 
         $orders = $query->get();
@@ -163,7 +169,7 @@ class KitchenController extends ApiController
         PrintJob::record(
             (int) $model->order_id,
             $data['type'],
-            Carbon::parse($data['printed_at']),
+            BusinessTime::forStorage(Carbon::parse($data['printed_at'])),
             (int) $device->id,
         );
 

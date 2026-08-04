@@ -48,4 +48,29 @@ final class BusinessTime
     {
         return self::now()->toDateString();
     }
+
+    /**
+     * Dışarıdan gelen (UTC) bir anı **veritabanına yazılmaya hazır** hale getirir.
+     *
+     * NEDEN GEREKLİ — sessiz ve pahalı bir tuzak:
+     *
+     * TastyIgniter, PHP'nin varsayılan zaman dilimini `timezone` ayarından
+     * (Europe/Istanbul) belirliyor. Eloquent bir `datetime` alanını **okurken**
+     * bu varsayılanı kullanıyor, ama **yazarken** Carbon nesnesinin kendi
+     * zaman dilimini kullanıyor. Sonuç: `Carbon::parse("...11:30:00Z")` UTC
+     * olarak kaydediliyor, geri okunurken İstanbul sanılıyor ve zaman damgası
+     * 3 saat kayıyor.
+     *
+     * Bu, `printed_at` alanında yakalandı: fiş 11:30'da basıldı, denetim
+     * kaydı 08:30 gösterdi. Aynı hata `updated_at > since` karşılaştırmasını
+     * da bozuyordu — KDS'in artımlı polling'i her seferinde tüm siparişleri
+     * getiriyordu.
+     *
+     * Kural: veritabanına yazılacak veya veritabanı değeriyle karşılaştırılacak
+     * her Carbon bu metottan geçer.
+     */
+    public static function forStorage(Carbon $moment): Carbon
+    {
+        return $moment->copy()->setTimezone(date_default_timezone_get());
+    }
 }

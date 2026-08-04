@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Veykemtu\BridgeApi\Services;
 
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Veykemtu\BridgeApi\Support\BusinessTime;
 
 /**
  * Üretim listesi — `docs/02-veri-modeli.md` §4.

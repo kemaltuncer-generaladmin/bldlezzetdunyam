@@ -637,7 +637,14 @@ paths:
                     format: uri
                     description: Yalnızca `mutfakapp` için dolu (`.deb` adresi).
                   notes: { type: [string, 'null'] }
-        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          description: |
+            `app_id` eksik veya enum dışı. Geçersiz enum bir **doğrulama**
+            hatasıdır, "kayıt yok" değil — mock ile sunucu bu noktada
+            ayrışmıştı, sözleşme 422'de netleştirildi.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
 # ══════════════════════════════ COMPONENTS ══════════════════════════════
 

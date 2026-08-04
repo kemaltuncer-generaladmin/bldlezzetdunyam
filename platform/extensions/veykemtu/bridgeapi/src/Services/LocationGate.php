@@ -38,6 +38,8 @@ class LocationGate
 
     private const string KEY_PAYMENTS = 'bld_payment_methods';
 
+    private const string KEY_DELIVERY_FEE = 'bld_delivery_fee';
+
     /** Sözleşmedeki ödeme yöntemleri — `docs/openapi.yaml` `PaymentMethod`. */
     public const array ALL_PAYMENT_METHODS = ['online', 'cash', 'account'];
 
@@ -203,5 +205,9 @@ class LocationGate
         $this->setOption($location, self::KEY_ORDERING, true);
         $this->setOption($location, self::KEY_MIN_TOTAL, $minOrderTotalKurus);
         $this->setOption($location, self::KEY_PAYMENTS, self::DEFAULT_PAYMENT_METHODS);
+        // Teslimat ücreti mock ile AYNI (40,00 TL) — E-01'de "sözleşme mi
+        // bozuk, veri mi farklı" sorusunu doğurmasın. Bölge bazlı
+        // ücretlendirme BILINMEYENLER #10'da açık soru.
+        $this->setOption($location, self::KEY_DELIVERY_FEE, 4000);
     }
 }
