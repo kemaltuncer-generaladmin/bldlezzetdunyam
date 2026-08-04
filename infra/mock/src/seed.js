@@ -13,7 +13,7 @@ export const LOCATION = {
   order_cutoff: '16:00',
   min_order_total: 25000,
   delivery_fee: 4000,
-  payment_methods: ['cash', 'account'],
+  payment_methods: ['cash', 'account', 'online'],
 };
 
 export const DELIVERY_FEE = 4000;

@@ -49,6 +49,7 @@ class SetupCommand extends Command
     public function handle(): int
     {
         $this->seedTimezone();
+        $this->syncPaymentGateways();
         $this->seedStatuses();
         $this->seedLocation();
         $this->seedCustomerGroup();
@@ -84,6 +85,35 @@ class SetupCommand extends Command
 
         $this->components->info('Zaman dilimi ayarlandı: '.BusinessTime::ZONE);
         $this->components->twoColumnDetail('  önceki', (string) ($current ?? '-'));
+    }
+
+    /**
+     * Ödeme geçitlerini `payments` tablosuna işler.
+     *
+     * NEDEN GEREKLİ: TastyIgniter `orders.payment` alanını `payments.code`
+     * ile eşleştirir. Kod karşılığı olmayan bir sipariş için
+     * `Order::$payment_method` ilişkisi `null` döner ve ödeme günlüğü
+     * "property on null" ile patlar — bu, ödeme akışının ortasında çıkan
+     * ve sebebi görünmeyen bir hatadır.
+     *
+     * Geçitler PASİF olarak eklenir; müşteriye hangi yöntemin görüneceğini
+     * vitrinin `payment_methods` listesi belirler, admin panelindeki
+     * etkinlik bayrağı değil.
+     */
+    private function syncPaymentGateways(): void
+    {
+        $sinif = 'Igniter\\PayRegister\\Models\\Payment';
+
+        if (!class_exists($sinif)) {
+            return;
+        }
+
+        $sinif::syncAll();
+
+        $kodlar = $sinif::whereIn('code', ['cash', 'account', 'online'])
+            ->pluck('code')->sort()->implode(', ');
+
+        $this->components->twoColumnDetail('  ödeme geçitleri', $kodlar !== '' ? $kodlar : '-');
     }
 
     private function seedStatuses(): void
@@ -169,7 +199,17 @@ class SetupCommand extends Command
 
         // Sipariş alım şalteri, asgari tutar ve açık ödeme yöntemleri.
         // Asgari tutar 250,00 TL (25000 kuruş) — docs/03 §3 örneği.
-        app(LocationGate::class)->seedDefaults($location, 25000);
+        //
+        // `online` yalnızca çalışan bir ödeme geçidi VARSA açılır. Faz 1'de
+        // bu geçit simülasyondur ve üretimde kapalıdır; yöntem listesine
+        // çalışmayan bir seçenek koymak, müşteriye tıklayınca hiçbir şey
+        // olmayan bir düğme göstermek demektir.
+        $yontemler = LocationGate::DEFAULT_PAYMENT_METHODS;
+        if ($this->onlineOdemeKullanilabilir()) {
+            $yontemler[] = 'online';
+        }
+
+        app(LocationGate::class)->seedDefaults($location, 25000, $yontemler);
 
         $this->components->twoColumnDetail(
             '  catering',
@@ -190,6 +230,31 @@ class SetupCommand extends Command
                 'Silinmedi; admin panelden geri açılabilir.',
             );
         }
+    }
+
+    /**
+     * Online ödeme sunulabilir mi?
+     *
+     * Şu an tek geçit simülasyon; gerçek POS gelince bu kontrol ona da
+     * bakacak. Sınıf yoksa (eklenti kurulmamışsa) sessizce hayır denir —
+     * `veykemtu/payment` isteğe bağlı bir eklentidir.
+     */
+    private function onlineOdemeKullanilabilir(): bool
+    {
+        $sinif = 'Veykemtu\\Payment\\Payments\\SimulatedPos';
+
+        if (!class_exists($sinif)) {
+            return false;
+        }
+
+        $acik = $sinif::isAllowed();
+
+        $this->components->twoColumnDetail(
+            '  online ödeme',
+            $acik ? 'açık (SİMÜLASYON — gerçek tahsilat yok)' : 'kapalı',
+        );
+
+        return $acik;
     }
 
     private function seedCustomerGroup(): void

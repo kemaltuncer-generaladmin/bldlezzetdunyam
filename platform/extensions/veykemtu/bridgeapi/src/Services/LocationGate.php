@@ -44,10 +44,11 @@ class LocationGate
     public const array ALL_PAYMENT_METHODS = ['online', 'cash', 'account'];
 
     /**
-     * Faz 1 varsayılanı: online kapalı.
+     * Güvenli varsayılan: yalnızca sistem dışı tahsilat.
      *
-     * Sanal POS (Kuveyt Türk) sağlayıcı sözleşmesi tamamlanınca yalnızca bu
-     * liste değişir — istemci sürümü değişmez (`docs/03` §4).
+     * `online` bu listeye **otomatik eklenmez** — `veykemtu:setup` yalnızca
+     * çalışan bir ödeme geçidi varsa ekler. Çalışmayan bir yöntemi listeye
+     * koymak, müşteriye tıklayınca hiçbir şey olmayan bir düğme göstermektir.
      */
     public const array DEFAULT_PAYMENT_METHODS = ['cash', 'account'];
 
@@ -211,12 +212,23 @@ class LocationGate
         );
     }
 
-    /** Kurulum yardımcısı — `veykemtu:setup` çağırır. */
-    public function seedDefaults(Location $location, int $minOrderTotalKurus): void
-    {
+    /**
+     * Kurulum yardımcısı — `veykemtu:setup` çağırır.
+     *
+     * @param  list<string>  $paymentMethods
+     */
+    public function seedDefaults(
+        Location $location,
+        int $minOrderTotalKurus,
+        ?array $paymentMethods = null,
+    ): void {
         $this->setOption($location, self::KEY_ORDERING, true);
         $this->setOption($location, self::KEY_MIN_TOTAL, $minOrderTotalKurus);
-        $this->setOption($location, self::KEY_PAYMENTS, self::DEFAULT_PAYMENT_METHODS);
+        $this->setOption(
+            $location,
+            self::KEY_PAYMENTS,
+            $paymentMethods ?? self::DEFAULT_PAYMENT_METHODS,
+        );
         // Teslimat ücreti mock ile AYNI (40,00 TL) — E-01'de "sözleşme mi
         // bozuk, veri mi farklı" sorusunu doğurmasın. Bölge bazlı
         // ücretlendirme BILINMEYENLER #10'da açık soru.

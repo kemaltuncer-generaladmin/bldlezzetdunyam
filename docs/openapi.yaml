@@ -764,7 +764,9 @@ components:
       enum: [online, cash, account]
       description: |
         `online` = sanal POS, `cash` = kapıda ödeme, `account` = cari hesap.
-        Faz 1'de `online` hiçbir vitrinin `payment_methods` listesinde bulunmaz.
+
+        Faz 1'de `online`, gerçek tahsilat yapmayan bir **simülasyon**
+        geçidine bağlıdır; akış gerçek POS ile aynıdır.
 
     PaymentStatus:
       type: string
@@ -1026,7 +1028,15 @@ components:
         redirect_url:
           type: [string, 'null']
           format: uri
-          description: Yalnızca `online` yönteminde dolu; istemci kullanıcıyı buraya yönlendirir.
+          description: |
+            Yalnızca `online` yönteminde ve sipariş **henüz ödenmemişken**
+            dolu; istemci kullanıcıyı buraya yönlendirir. Ödendikten sonra
+            `null` döner — kullanıcı ikinci kez ödeme sayfasına
+            gönderilmemelidir.
+
+            Faz 1'de bu adres bir **simülasyon** sayfasıdır (gerçek tahsilat
+            yok). Akış gerçek sanal POS ile birebir aynıdır; sağlayıcı
+            devreye girdiğinde yalnızca adresin işaret ettiği sayfa değişir.
 
     OrderCreated:
       type: object

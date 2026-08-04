@@ -43,7 +43,7 @@ echo "Katalog"
 LOC=$(curl -s "${H[@]}" "$API/locations")
 is "tek vitrin döner" 1 "$(echo "$LOC" | j '.data.length')"
 LID=$(echo "$LOC" | j '.data[0].id')
-is "online ödeme Faz 1'de kapalı" "false" \
+is "online ödeme sunuluyor (simülasyon geçidi)" "true" \
   "$(echo "$LOC" | j '.data[0].payment_methods.includes("online")')"
 is "ordering_enabled alanı var" "true" \
   "$(echo "$LOC" | j '.data[0].ordering_enabled!==undefined')"
@@ -128,8 +128,16 @@ is "istemcinin gönderdiği tutar yok sayıldı" "true" \
   "$(echo "$NEW" | j '.total>1')"
 is "tükenmiş ürün ITEM_UNAVAILABLE" ITEM_UNAVAILABLE \
   "$(curl -s "${CH[@]}" -X POST "$API/orders" -d "{\"location_id\":$LID,\"items\":[{\"menu_id\":$KOFTE,\"quantity\":2}],\"delivery_type\":\"pickup\",\"payment_method\":\"cash\"}" | j '.error.code')"
-is "kapalı ödeme yöntemi reddedilir" VALIDATION_FAILED \
-  "$(curl -s "${CH[@]}" -X POST "$API/orders" -d "{\"location_id\":$LID,\"items\":[{\"menu_id\":$TAVUK,\"quantity\":2}],\"delivery_type\":\"pickup\",\"payment_method\":\"online\"}" | j '.error.code')"
+is "tanımsız ödeme yöntemi reddedilir" VALIDATION_FAILED \
+  "$(curl -s "${CH[@]}" -X POST "$API/orders" -d "{\"location_id\":$LID,\"items\":[{\"menu_id\":$TAVUK,\"quantity\":2}],\"delivery_type\":\"pickup\",\"payment_method\":\"kripto\"}" | j '.error.code')"
+
+# Online ödeme: sipariş yönlendirme adresi döndürmeli, ödenmeden `pending`
+# kalmalı. Sağlayıcı simülasyon da olsa gerçek de olsa sözleşme aynı.
+ONL=$(curl -s "${CH[@]}" -X POST "$API/orders" \
+  -d "{\"location_id\":$LID,\"items\":[{\"menu_id\":$TAVUK,\"quantity\":2}],\"delivery_type\":\"pickup\",\"payment_method\":\"online\"}")
+is "online sipariş pending doğar" pending "$(echo "$ONL" | j '.payment.status')"
+is "online siparişte yönlendirme adresi var" "true" \
+  "$(echo "$ONL" | j '.payment.redirect_url!==undefined&&JSON.parse(d).payment.redirect_url!==null')"
 is "adressiz delivery reddedilir" VALIDATION_FAILED \
   "$(curl -s "${CH[@]}" -X POST "$API/orders" -d "{\"location_id\":$LID,\"items\":[{\"menu_id\":$TAVUK,\"quantity\":2}],\"delivery_type\":\"delivery\",\"payment_method\":\"cash\"}" | j '.error.code')"
 is "asgari tutar altı reddedilir" VALIDATION_FAILED \

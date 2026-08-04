@@ -1,0 +1,28 @@
+{
+    "name": "veykemtu/payment",
+    "type": "tastyigniter-package",
+    "description": "Sanal POS. Faz 1'de simülasyon geçidi; Kuveyt Türk geldiğinde yanına eklenir.",
+    "license": "proprietary",
+    "require": {
+        "tastyigniter/core": "^v4.0",
+        "tastyigniter/ti-ext-payregister": "^v4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Veykemtu\\Payment\\": "src/"
+        }
+    },
+    "extra": {
+        "tastyigniter-extension": {
+            "code": "veykemtu.payment",
+            "name": "BLD Ödeme",
+            "icon": {
+                "class": "fa fa-credit-card",
+                "color": "#FFFFFF",
+                "backgroundColor": "#F97316"
+            }
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

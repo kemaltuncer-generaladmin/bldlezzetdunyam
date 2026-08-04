@@ -119,7 +119,8 @@ Faz 1'de tek vitrin döner. Dizi biçimi korunur (ileride vitrin eklenirse kır�
   { "id":1, "name":"Benim Lezzet Dünyam", "slug":"catering",
     "is_open":true, "ordering_enabled":true,
     "order_cutoff":"16:00", "min_order_total":25000,
-    "payment_methods":["cash","account"] }
+    "delivery_fee":4000,
+    "payment_methods":["cash","account","online"] }
 ]}
 ```
 
@@ -129,6 +130,7 @@ Faz 1'de tek vitrin döner. Dizi biçimi korunur (ileride vitrin eklenirse kır�
 | `ordering_enabled` | Yöneticinin admin panelden çevirdiği **elle ana şalter**. `false` ise saat uygun olsa bile sipariş alınmaz. |
 | `order_cutoff` | Günlük son sipariş saati (`HH:mm`, Europe/Istanbul) veya `null`. Admin panelden yönetilir. |
 | `min_order_total` | Kuruş. Altında sipariş `422 VALIDATION_FAILED`. |
+| `delivery_fee` | Kuruş. `delivery` siparişe eklenir, `pickup`'ta uygulanmaz. İstemci toplamı **onaydan önce** gösterebilsin diye ilan edilir; bağlayıcı olan sunucunun sipariş anındaki hesabıdır. |
 | `payment_methods` | Bu vitrinde **açık** olan ödeme yöntemleri. İstemci ödeme ekranında yalnızca bunları gösterir. Listede olmayan bir yöntemle sipariş → `422 VALIDATION_FAILED`. |
 
 `is_open` **veya** `ordering_enabled` false ise sipariş oluşturma `422 LOCATION_CLOSED` döner.
@@ -201,7 +203,21 @@ Faz 1'de tek vitrin döner. Dizi biçimi korunur (ileride vitrin eklenirse kır�
 ```
 `payment.redirect_url` yalnızca `online` yönteminde dolu; istemci kullanıcıyı buraya yönlendirir.
 
-**Faz 1 notu — online ödeme kapalı.** Sanal POS (Kuveyt Türk) sağlayıcı sözleşmesi tamamlanana kadar `online`, hiçbir vitrinin `payment_methods` listesinde bulunmaz. İstemci ödeme ekranını `online` destekleyecek şekilde yazar ama şalter sunucudadır; sağlayıcı hazır olunca yalnızca `payment_methods` değişir, istemci sürümü değişmez.
+**Faz 1 notu — online ödeme SİMÜLASYON geçidiyle çalışıyor.**
+
+Kuveyt Türk sağlayıcı sözleşmesi tamamlanana kadar `online` yöntemi
+`veykemtu/payment` eklentisindeki **simülasyon geçidine** bağlıdır: girilen
+her kartı onaylar, **gerçek tahsilat yapmaz**.
+
+İstemciler için önemli olan şudur: **akış gerçek POS ile birebir aynıdır.**
+Sipariş `pending` doğar, `payment.redirect_url` dolu gelir, kullanıcı oraya
+yönlendirilir, ödeme sonrası dönüş adresine `?durum=odendi` ile döner.
+Kuveyt Türk devreye girdiğinde yalnızca o adresin işaret ettiği sayfa
+değişir — sözleşme, istemci kodu ve akış aynı kalır.
+
+Simülasyon geçidi `APP_ENV=production` iken **kendini kapatır**;
+`POS_ALLOW_SIMULATION=true` verilmedikçe çalışmayı reddeder. Aksi hâlde
+üretimde her sipariş bedava olurdu.
 
 ### GET /api/orders
 Kendi siparişleri, en yeni önce.

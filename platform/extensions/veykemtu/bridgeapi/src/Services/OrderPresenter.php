@@ -188,14 +188,37 @@ class OrderPresenter
     public function payment(Order $order): array
     {
         $method = (string) ($order->payment ?? 'cash');
+        $odendi = (bool) $order->processed;
 
-        // Faz 1'de online kapalı; `paid` durumu sanal POS callback'i ile
-        // gelecek (docs/04 §5). O gelene kadar her sipariş `pending` doğar.
         return array_filter([
             'method' => $method,
-            'status' => (bool) $order->processed ? 'paid' : 'pending',
-            'redirect_url' => null,
+            'status' => $odendi ? 'paid' : 'pending',
+            'redirect_url' => $this->redirectUrl($order, $method, $odendi),
         ], static fn($value): bool => $value !== null);
+    }
+
+    /**
+     * Online ödemede sağlayıcının ödeme sayfası.
+     *
+     * Faz 1'de bu adres **simülasyon** sayfasıdır; gerçek tahsilat yapmaz
+     * (`veykemtu/payment`). Kuveyt Türk entegrasyonu geldiğinde yalnızca
+     * bu metodun ürettiği adres değişir — sözleşme ve istemciler aynı kalır.
+     *
+     * Ödenmiş siparişte `null` döner: istemci kullanıcıyı ikinci kez ödeme
+     * sayfasına göndermemeli.
+     */
+    private function redirectUrl(Order $order, string $method, bool $odendi): ?string
+    {
+        if ($method !== 'online' || $odendi) {
+            return null;
+        }
+
+        $hash = (string) ($order->hash ?? '');
+        if ($hash === '') {
+            return null;
+        }
+
+        return rtrim((string) config('app.url'), '/').'/odeme-simulasyon/'.$hash;
     }
 
     /** @return list<array<string, mixed>> */
