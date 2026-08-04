@@ -48,5 +48,9 @@ RUN composer dump-autoload --optimize --no-dev \
  && mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
  && chown -R www-data:www-data storage bootstrap/cache
 
+COPY infra/platform/entrypoint.sh /usr/local/bin/bld-entrypoint
+RUN chmod +x /usr/local/bin/bld-entrypoint
+
 EXPOSE 9000
+ENTRYPOINT ["/usr/local/bin/bld-entrypoint"]
 CMD ["php-fpm"]
