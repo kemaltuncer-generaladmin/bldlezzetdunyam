@@ -231,6 +231,25 @@ WantedBy=default.target
 4. Sonraki açılışlarda doğrudan sipariş ekranı gelir.
 5. Token iptal edilirse (`403 DEVICE_REVOKED`) uygulama eşleme ekranına döner.
 
+Kod üretme (sunucuda):
+
+```bash
+A=$(docker ps -qf name=^app- | head -1)
+docker exec -u www-data -e HOME=/tmp "$A" php artisan veykemtu:kds --new=MSI-Mutfak-Kasasi
+```
+
+Kod **10 dakika** geçerlidir; kasanın başında değilken üretmeyin.
+
+> **KAYITLI ADRES DERLEMEYİ EZER.** `kitchen_base_url` bir kez
+> `shared_preferences`'a yazıldıktan sonra `--dart-define` ile verilen
+> adres **kullanılmaz**. Kasa daha önce mock ya da staging'e bağlandıysa,
+> üretim adresiyle yeniden derlemek onu üretime taşımaz — sabah sipariş
+> gelmez ve sebebi görünmez. Ayarlar ekranından (K-08) değiştirin ya da
+> `~/.local/share/*/shared_preferences.json` dosyasını silin.
+>
+> 05.08.2026'da MSI kasada bu dosyanın **olmadığı** doğrulandı; ilk
+> açılışta derlemedeki üretim adresi kullanılacak.
+
 ## 8. Ayarlar ekranı (gizli, PIN korumalı)
 
 - Sunucu adresi

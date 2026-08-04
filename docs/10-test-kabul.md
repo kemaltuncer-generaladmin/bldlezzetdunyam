@@ -170,6 +170,10 @@ Kapandı.
 - [ ] Vitrinin `payment_methods` listesinde `online` varsa, arkasında
       **gerçek** bir sanal POS olduğu doğrulandı
 - [ ] `veykemtu:demo-menu` ile yüklenen deneme ürünleri silindi
+- [ ] **`infra/e2e.sh` üretimde çöp bırakır.** Her koşu deneme müşterisi,
+      deneme siparişi ve mutfak cihazı yaratır. Canlıya almadan önce
+      temizlenir: `veykemtu:kds --revoke=<id>` ile cihazlar (05.08.2026'da
+      9 tanesi temizlendi), sipariş ve müşteriler admin panelden.
 - [ ] `APP_DEBUG=false`
 - [ ] Coolify API token'ı ve tüm geçici parolalar yenilendi
 - [ ] `www.benimlezzetdunyam.com.tr` DNS kaydı eklendi ve Coolify'da
