@@ -94,8 +94,15 @@ services:
         NEXT_PUBLIC_SITE_URL: ${SITE_URL:-https://benimlezzetdunyam.com.tr}
     restart: unless-stopped
     depends_on: [web]
-    environment:
-      - SERVICE_FQDN_SITE_3000
+    # DİKKAT: burada `web`deki gibi çıplak bir `SERVICE_FQDN_SITE_3000`
+    # sihirli değişkeni YOK. Coolify onu ortam haritasına çevirirken
+    # anahtar olarak liste indeksini kullanıyor (`0: SERVICE_FQDN_SITE_3000`)
+    # ve compose "non-string key in services.site.environment: 0" ile
+    # patlıyor. Alan adı zaten Coolify'ın kalıcı `docker_compose_domains`
+    # kaydından geliyor; Traefik etiketleri oradan üretiliyor.
+    #
+    # Traefik hedef portu `expose` üzerinden otomatik bulunur: konteyner
+    # tek port açtığı için ayrıca loadbalancer etiketi gerekmiyor.
     expose:
       - "3000"
     healthcheck:
