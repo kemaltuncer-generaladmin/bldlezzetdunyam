@@ -18,9 +18,31 @@ class HealthController extends ApiController
 {
     public function show(): JsonResponse
     {
-        return $this->json([
+        return $this->json(array_filter([
             'status' => 'ok',
             'server_time' => Carbon::now()->utc()->toIso8601ZuluString(),
-        ]);
+            // Tehlikeli durum kendini duyurur. Simülasyon geçidi üretim
+            // ortamında açıksa her sipariş bedavadır; bunu yalnızca bir
+            // ortam değişkenine gömüp unutulmasına izin vermek yerine
+            // sağlık ucundan ilan ediyoruz. İzleme servisi de görür.
+            'payment_simulation_active' => $this->simulationWarning(),
+        ], static fn($v): bool => $v !== null));
+    }
+
+    /**
+     * Üretimde simülasyon açıksa uyarı, değilse `null` (alan hiç görünmez).
+     *
+     * Geliştirme ve staging'de simülasyonun açık olması normaldir ve
+     * bildirilmez — her yerde uyarı basmak, uyarıyı görünmez yapar.
+     */
+    private function simulationWarning(): ?bool
+    {
+        $sinif = 'Veykemtu\\Payment\\Payments\\SimulatedPos';
+
+        if (!class_exists($sinif) || config('app.env') !== 'production') {
+            return null;
+        }
+
+        return $sinif::isAllowed() ? true : null;
     }
 }

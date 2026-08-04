@@ -155,6 +155,18 @@ Kapandı.
 | S6 Durum geçişleri | ☐ Geçti ☐ Kaldı | |
 | S7 Yük | ☐ Geçti ☐ Kaldı | |
 
+### Canlıya almadan ÖNCE kapatılacaklar
+
+- [ ] **`POS_ALLOW_SIMULATION` kaldırıldı.** Açık kalırsa simülasyon geçidi
+      her kartı onaylar ve **her sipariş bedava olur.** Doğrulama:
+      `GET /api/health` yanıtında `payment_simulation_active` alanı
+      **görünmemeli**; görünüyorsa bayrak hâlâ açık.
+- [ ] Vitrinin `payment_methods` listesinde `online` varsa, arkasında
+      **gerçek** bir sanal POS olduğu doğrulandı
+- [ ] `veykemtu:demo-menu` ile yüklenen deneme ürünleri silindi
+- [ ] `APP_DEBUG=false`
+- [ ] Coolify API token'ı ve tüm geçici parolalar yenilendi
+
 **Canlıya alma kararı:** S1, S3, S4, S5 ve S6 zorunlu. S2 (gel-al) ve S7 (yük) eksik kalırsa gerekçesi ve kapatma tarihi yazılarak canlıya çıkılabilir.
 
 ## 4. Bilinen sınırlar (kabul edilen)
