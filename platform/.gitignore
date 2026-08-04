@@ -6,9 +6,11 @@
 phpunit.dusk.xml
 auth.json
 
-# Ignore all vendor files included by composer and the lock file
+# Ignore all vendor files included by composer
 /vendor
-composer.lock
+# composer.lock COMMITLENIR: uygulama deposunda kilit dosyasi olmadan
+# staging ve prod farkli surumler kurabilir (docs/08 §1.3 deploy adimi
+# `composer install` degil `docker compose build` uzerinden gidiyor).
 node_modules
 
 /public/vendor

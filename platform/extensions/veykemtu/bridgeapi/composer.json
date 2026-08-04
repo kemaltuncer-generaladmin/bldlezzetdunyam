@@ -1,0 +1,27 @@
+{
+    "name": "veykemtu/bridgeapi",
+    "type": "tastyigniter-package",
+    "description": "docs/openapi.yaml sözleşmesini uygulayan API katmanı: istemci ve KDS uçları.",
+    "license": "proprietary",
+    "require": {
+        "tastyigniter/core": "^v4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Veykemtu\\BridgeApi\\": "src/"
+        }
+    },
+    "extra": {
+        "tastyigniter-extension": {
+            "code": "veykemtu.bridgeapi",
+            "name": "BLD Köprü API",
+            "icon": {
+                "class": "fa fa-plug",
+                "color": "#FFFFFF",
+                "backgroundColor": "#F97316"
+            }
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

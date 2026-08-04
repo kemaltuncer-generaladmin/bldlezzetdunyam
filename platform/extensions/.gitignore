@@ -1,3 +1,13 @@
 *
 !igniter/demo/
 !.gitignore
+
+# İSTİSNA — kendi eklentilerimiz repoya girer.
+#
+# TastyIgniter bu klasörü tümüyle yok sayar çünkü eklentiler normalde
+# marketplace'ten composer ile kurulur. Bizim `veykemtu/*` eklentilerimiz
+# ise projenin kendisidir: tüm API, durum makinesi ve kurulum komutları
+# burada yaşıyor. Yok sayılırlarsa backend'in tamamı sürüm kontrolü
+# dışında kalır — ve bu sessizce olur, `git status` temiz görünür.
+!veykemtu/
+!veykemtu/**

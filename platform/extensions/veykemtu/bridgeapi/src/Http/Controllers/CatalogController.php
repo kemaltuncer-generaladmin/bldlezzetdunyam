@@ -1,0 +1,157 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Veykemtu\BridgeApi\Http\Controllers;
+
+use Igniter\Cart\Models\Menu;
+use Igniter\Local\Models\Location;
+use Illuminate\Http\JsonResponse;
+use Veykemtu\BridgeApi\Exceptions\ApiException;
+use Veykemtu\BridgeApi\Services\LocationGate;
+use Veykemtu\BridgeApi\Support\Money;
+
+/**
+ * Katalog uçları — `docs/openapi.yaml` §Katalog. Kimlik gerektirmez.
+ *
+ * Web sitesi bunları SSR sırasında çağırır; hızlı ve token'sız olmaları
+ * SEO gereksinimidir (`docs/06-website.md` §2).
+ */
+class CatalogController extends ApiController
+{
+    public function __construct(private readonly LocationGate $gate) {}
+
+    /**
+     * Faz 1'de tek vitrin döner ama biçim **dizidir**.
+     *
+     * Tek nesne döndürmek bugün daha basit olurdu; ileride ikinci bir vitrin
+     * eklendiğinde tüm istemcileri kırardı (ADR-09: alan tipi değişemez).
+     */
+    public function locations(): JsonResponse
+    {
+        $locations = Location::query()
+            ->where('location_status', true)
+            ->orderByDesc('is_default')
+            ->get()
+            ->map(fn(Location $location): array => $this->locationPayload($location))
+            ->all();
+
+        return $this->json(['data' => $locations]);
+    }
+
+    public function menu(int $location): JsonResponse
+    {
+        $model = Location::query()
+            ->where('location_id', $location)
+            ->where('location_status', true)
+            ->first();
+
+        if ($model === null) {
+            throw ApiException::notFound('Vitrin bulunamadı.');
+        }
+
+        // Bağıntı adları kurulu sürümden doğrulandı (B-02): MenuItemOption'ın
+        // değerleri `menu_option_values`'tır, `option_values` değil.
+        $items = Menu::query()
+            ->with([
+                'categories',
+                'allergens',
+                'menu_options.option',
+                'menu_options.menu_option_values.option_value',
+            ])
+            ->get();
+
+        // Kategoriye göre grupla. Kategorisiz ürün menüde görünmez —
+        // vitrinde yeri olmayan ürün istemciye gönderilmemeli.
+        $grouped = [];
+        foreach ($items as $item) {
+            foreach ($item->categories as $category) {
+                $grouped[$category->category_id]['category'] = $category;
+                $grouped[$category->category_id]['items'][] = $item;
+            }
+        }
+
+        uasort(
+            $grouped,
+            static fn(array $a, array $b): int
+                => ($a['category']->priority ?? 0) <=> ($b['category']->priority ?? 0),
+        );
+
+        $data = [];
+        foreach ($grouped as $entry) {
+            $data[] = [
+                'id' => (int) $entry['category']->category_id,
+                'name' => (string) $entry['category']->name,
+                'sort' => (int) ($entry['category']->priority ?? 0),
+                'items' => array_map(
+                    fn(Menu $menu): array => $this->menuItemPayload($menu),
+                    $entry['items'],
+                ),
+            ];
+        }
+
+        return $this->json(['data' => $data]);
+    }
+
+    /** @return array<string, mixed> */
+    private function locationPayload(Location $location): array
+    {
+        return [
+            'id' => (int) $location->location_id,
+            'name' => (string) $location->location_name,
+            'slug' => (string) ($location->permalink_slug ?? ''),
+            'is_open' => $this->gate->isOpen($location),
+            'ordering_enabled' => $this->gate->orderingEnabled($location),
+            'order_cutoff' => $this->gate->orderCutoff($location),
+            'min_order_total' => $this->gate->minOrderTotal($location),
+            'payment_methods' => $this->gate->paymentMethods($location),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function menuItemPayload(Menu $menu): array
+    {
+        $options = [];
+        foreach ($menu->menu_options as $menuOption) {
+            $option = $menuOption->option;
+            if ($option === null) {
+                continue;
+            }
+
+            $values = [];
+            foreach ($menuOption->menu_option_values as $menuOptionValue) {
+                $values[] = [
+                    'id' => (int) $menuOptionValue->menu_option_value_id,
+                    'name' => (string) ($menuOptionValue->option_value->value ?? ''),
+                    'price_delta' => Money::toKurus($menuOptionValue->price ?? 0),
+                ];
+            }
+
+            $options[] = [
+                'id' => (int) $menuOption->menu_option_id,
+                'name' => (string) $option->option_name,
+                'type' => (string) $option->display_type,
+                'required' => (bool) $menuOption->is_required,
+                'values' => $values,
+            ];
+        }
+
+        return [
+            'id' => (int) $menu->menu_id,
+            'name' => (string) $menu->menu_name,
+            'description' => $menu->menu_description !== null
+                ? (string) $menu->menu_description
+                : null,
+            'price' => Money::toKurus($menu->menu_price),
+            'currency' => 'TRY',
+            'image_url' => null,
+            // Satışta olmayan ürün listede KALIR, soluk gösterilir (docs/03 §3).
+            'is_available' => (bool) $menu->menu_status,
+            'allergens' => $menu->allergens
+                ->map(static fn($ingredient): string => (string) $ingredient->name)
+                ->values()
+                ->all(),
+            'options' => $options,
+        ];
+    }
+}
