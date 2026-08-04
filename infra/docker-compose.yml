@@ -48,9 +48,9 @@ services:
     expose: ["3000"]
 
   db:
-    image: mysql:8
+    # Sürüm sabit — bkz. docker-compose.dev.yml'deki not.
+    image: mysql:8.4
     restart: always
-    command: --default-authentication-plugin=caching_sha2_password
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD gerekli}
       MYSQL_DATABASE: ${DB_DATABASE:?DB_DATABASE gerekli}

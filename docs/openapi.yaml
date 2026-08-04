@@ -34,9 +34,9 @@ info:
     identifier: LicenseRef-Proprietary
 
 servers:
-  - url: https://api.bld.example.com/api
-    description: Prod (alan adı henüz kesin değil — BILINMEYENLER KOL-D)
-  - url: https://staging-api.bld.example.com/api
+  - url: https://api.benimlezzetdunyam.com.tr/api
+    description: Prod
+  - url: https://staging-api.benimlezzetdunyam.com.tr/api
     description: Staging
   - url: http://localhost:4010/api
     description: Mock sunucu (infra/mock)

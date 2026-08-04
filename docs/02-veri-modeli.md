@@ -13,7 +13,7 @@ TastyIgniter'ın kendi şeması (menü, kategori, müşteri, sipariş, vitrin) *
 | `customer_groups` | Tek grup: `Catering Müşterisi`. |
 | `orders` | Sipariş başlığı. |
 | `order_menus` | Sipariş kalemleri. |
-| `statuses` | Sipariş durumları — bizim durum makinemize göre yapılandırılır (§3). |
+| `statuses` | Sipariş durumları — bizim durum makinemize göre yapılandırılır (§3). Kolonları: `status_id`, `status_name`, `status_comment`, `notify_customer`, `status_for`, `status_color`. **Kod alanı yoktur**, `bridgeapi` migration'ı ekler. |
 | `status_history` | Durum geçiş geçmişi. Kim, ne zaman. |
 
 ## 2. Eklediğimiz tablolar
@@ -124,11 +124,16 @@ KDS kendi kuyruğunu diskte tutar; bu tablo yalnızca **denetim** içindir (hang
 Tablo değildir, sorgudur. Aktif siparişlerin (`onaylandi` + `hazirlaniyor`) ürün bazında toplamı:
 
 ```sql
+-- DİKKAT: orders tablosunda status_code diye bir kolon YOKTUR (B-02'de
+-- kurulu sürümden doğrulandı). orders.status_id bir tamsayı FK'dir ve
+-- statuses tablosunda da kod alanı bulunmaz — kod kolonunu bizim
+-- migration'ımız ekler (bkz. BILINMEYENLER, "7 durum kodu nasıl saklanacak").
 SELECT m.menu_name, SUM(om.quantity) AS toplam
 FROM order_menus om
-JOIN orders o ON o.order_id = om.order_id
-JOIN menus m ON m.menu_id = om.menu_id
-WHERE o.status_code IN ('onaylandi','hazirlaniyor')
+JOIN orders o  ON o.order_id  = om.order_id
+JOIN menus m   ON m.menu_id   = om.menu_id
+JOIN statuses s ON s.status_id = o.status_id
+WHERE s.status_code IN ('onaylandi','hazirlaniyor')
   AND DATE(o.order_date) = CURDATE()
 GROUP BY m.menu_id
 ORDER BY toplam DESC;

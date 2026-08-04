@@ -30,19 +30,19 @@ ufw allow OpenSSH && ufw allow 80 && ufw allow 443 && ufw enable
 | `caddy` | caddy:2 | TLS otomatik, 80/443 |
 | `app` | özel PHP 8.3-fpm imajı | TastyIgniter |
 | `web` | node:22 (Next.js standalone) | Website |
-| `db` | mysql:8 | Yalnızca iç ağ, port dışa açılmaz |
+| `db` | mysql:**8.4** (sabit) | Yalnızca iç ağ, port dışa açılmaz. Etiket sabitlenmiştir: kayan `mysql:8` 8.4'e geçince `--default-authentication-plugin` kaldırıldığı için konteyner açılmıyordu. |
 | `reverb` | app imajı, farklı komut | Faz 1.5 |
 
 **Caddyfile:**
 ```
-api.<domain> {
+api.benimlezzetdunyam.com.tr {
     root * /var/www/platform/public
     php_fastcgi app:9000
     file_server
     encode gzip
 }
 
-<domain>, www.<domain> {
+benimlezzetdunyam.com.tr, www.benimlezzetdunyam.com.tr {
     reverse_proxy web:3000
     encode gzip
 }
@@ -170,7 +170,7 @@ mutfakapp-v1.0.0   → .deb üretimi + app_releases kaydı
 ## 5. İzleme
 
 Minimal ve yeterli:
-- Uptime kontrolü: `https://api.<domain>/api/health` (basit 200 dönen uç) — harici bir uptime servisi
+- Uptime kontrolü: `https://api.benimlezzetdunyam.com.tr/api/health` (basit 200 dönen uç) — harici bir uptime servisi
 - Disk/bellek uyarısı: sunucuda `netdata` veya basit cron + e-posta
 - Laravel log: `storage/logs`, logrotate ile 14 gün
 - **Kasa canlılık:** `heartbeat` ucundaki `last_seen_at` 5 dakikadan eskiyse admin panelde uyarı — mutfak ekranı düşmüşse yönetici hemen görsün

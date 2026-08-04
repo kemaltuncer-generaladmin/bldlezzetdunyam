@@ -14,7 +14,7 @@ php artisan igniter:install   # etkileşimli; DB bilgileri .env'den
 
 `.env` kritik alanlar:
 ```
-APP_URL=https://api.<domain>
+APP_URL=https://api.benimlezzetdunyam.com.tr
 DB_CONNECTION=mysql
 DB_HOST=db
 DB_DATABASE=catering

@@ -36,10 +36,13 @@ services:
 
   # ── MySQL ────────────────────────────────────────────────────────────────
   db:
-    image: mysql:8
+    # Sürüm sabit: `mysql:8` etiketi 8.4'e kaydı ve
+    # --default-authentication-plugin kaldırıldığı için konteyner açılmadı.
+    # Kayan etiket, çalışan bir yığını haber vermeden kırar.
+    # (caching_sha2_password 8.0'dan beri zaten varsayılan; bayrak gereksizdi.)
+    image: mysql:8.4
     container_name: bld-db
     restart: unless-stopped
-    command: --default-authentication-plugin=caching_sha2_password
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-gelistirme}
       MYSQL_DATABASE: ${DB_DATABASE:-bld}

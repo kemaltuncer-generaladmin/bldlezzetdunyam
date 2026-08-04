@@ -64,8 +64,8 @@
 ## 6. Ortam değişkenleri (`.env.example`)
 
 ```
-NEXT_PUBLIC_API_URL=https://api.<domain>/api
-NEXT_PUBLIC_SITE_URL=https://<domain>
+NEXT_PUBLIC_API_URL=https://api.benimlezzetdunyam.com.tr/api
+NEXT_PUBLIC_SITE_URL=https://benimlezzetdunyam.com.tr
 REVALIDATE_SECONDS=60
 ```
 Sır içeren değer yoktur; ödeme sağlayıcı anahtarları yalnızca `platform/` tarafındadır.

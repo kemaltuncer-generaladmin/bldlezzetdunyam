@@ -2,7 +2,7 @@
 
 **Bu doküman tek doğruluk kaynağıdır.** Sunucu bunu uygular, istemciler buna göre yazılır. Değişiklik önce burada yapılır, sonra kodda.
 
-Taban adres: `https://api.<domain>/api`
+Taban adres: `https://api.benimlezzetdunyam.com.tr/api`
 Tüm istek/yanıtlar `application/json; charset=utf-8`.
 
 ## 1. Ortak kurallar
@@ -373,7 +373,7 @@ KDS'in canlı olduğunu bildirir; `last_seen_at` güncellenir.
 
 ## 7. WebSocket (Faz 1.5)
 
-Laravel Reverb. Bağlantı: `wss://api.<domain>/app/<key>`
+Laravel Reverb. Bağlantı: `wss://api.benimlezzetdunyam.com.tr/app/<key>`
 
 **Yayın kanalı:** `private-kitchen` — cihaz token'ı ile yetkilendirilir.
 
