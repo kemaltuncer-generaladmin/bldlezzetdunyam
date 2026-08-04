@@ -52,4 +52,5 @@ Bunlar teknik değil, **işletmenin cevaplaması gereken** sorular. Cevapsız ka
 | Kasa betikleri | `infra/ubuntu/kur.sh`, `99-termal-yazici.rules` | `infra/kasa/setup.sh`, `99-thermal-printer.rules` | Doküman kazanır |
 | Dev compose | `infra/docker-compose.dev.yml` | `infra/docker-compose.yml` | Çelişki değil, ikisi de var: `.dev.yml` = dev (mysql + platform + mock), `.yml` = prod (`docs/08` §1.2) |
 | api_client kaynağı | `openapi.yaml`'dan üretilsin | `platform/openapi.json`'dan (`docs/03` §9) | `docs/openapi.yaml` normatif tohumdur; `platform`'un ürettiği `openapi.json` buna uymak zorunda, CI fark kontrolü yapar (`E-01`) |
-| Boş gövde | "`UnimplementedError` olabilir" | `AGENTS.md` §2.5 "placeholder bırakma" | Çelişki değil: Oturum 0 çıktısı **iskelettir**, "bitti" değildir. Kalan `UnimplementedError`'lar `X-03` kabulünde kapatılır. |
+| Boş gövde | "`UnimplementedError` olabilir" | `AGENTS.md` §2.5 "placeholder bırakma" | Çelişki değil: Oturum 0 çıktısı **iskelettir**, "bitti" değildir. `X-03` gövdeleri boş bırakılmadı, gerçekten uygulandı — kalan `UnimplementedError` yok. |
+| Katalog ucunun adı | Bitirme ölçütünde `GET /api/catalog` | Sözleşmede böyle bir uç yok: `GET /api/locations` + `GET /api/locations/{id}/menu` (`docs/03` §3) | Doküman kazanır. Ölçüt "mock örnek katalog verisi dönüyor" olarak yorumlandı ve iki uçla da doğrulandı. |
