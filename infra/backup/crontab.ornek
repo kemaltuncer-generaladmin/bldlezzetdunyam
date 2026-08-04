@@ -1,0 +1,10 @@
+# BLD gecelik yedekleme — docs/08 §1.4
+# Kurulum:  crontab -e  ile deploy kullanıcısına ekleyin.
+#
+# 03:00 seçildi: servis kapalı, sipariş trafiği yok.
+0 3 * * * cd /opt/bld && ./infra/backup/backup.sh >> /var/log/bld-backup.log 2>&1
+
+# Aylık geri dönüş tatbikatı hatırlatıcısı — ayın 1'i 09:00.
+# Tatbikat ELLE yapılır; bu satır yalnızca log'a not düşer ki
+# unutulduğunda görülsün.
+0 9 1 * * echo "$(date): GERİ DÖNÜŞ TATBİKATI ZAMANI — ./infra/backup/restore.sh <yedek> --hedef=bld_tatbikat" >> /var/log/bld-backup.log

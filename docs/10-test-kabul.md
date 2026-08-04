@@ -100,6 +100,19 @@ Her senaryo elle koşulur ve sonuç tabloya işlenir. Hepsi geçmeden canlıya a
 - [ ] `platform/vendor/` dokunulmamış
 - [ ] Sır yok, `.env.example` güncel
 
+### Donanım — GERÇEK YAZICIDA DOĞRULANDI (04.08.2026)
+
+- [x] Yazıcı tanındı: `0483:5720` `aaaait Printer`, `/dev/usb/lp1`
+- [x] udev kuralı kurulu, `/dev/thermal0` sembolik bağı yazılabilir
+- [x] Fiş basıyor
+- [x] Türkçe kod sayfası bulundu: **`ESC t 29`** (doküman `13` diyordu, yanlıştı)
+- [x] 12 Türkçe harf doğru basıyor: ç ğ ı ö ş ü Ç Ğ İ Ö Ş Ü
+- [x] Dört golden fiş (2 tip × 2 teslimat) **kâğıda basıldı ve gözle doğrulandı** —
+      düzen, hizalama, punto ve kesme doğru
+
+Bu, `docs/09` §8'in "projenin en büyük tek donanım riski" dediği maddedir.
+Kapandı.
+
 ### Mutfak (`mutfakapp/`)
 - [ ] `flutter analyze` sıfır uyarı
 - [ ] ESC/POS golden testleri geçiyor (2 fiş tipi × 2 teslimat tipi)
