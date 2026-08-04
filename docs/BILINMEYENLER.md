@@ -16,7 +16,8 @@
 
 ### Kol D — Altyapı
 
-- [KOL-D][04.08] Alan adı (`<domain>`) ve Hetzner sunucusu henüz yok. | Etkilenen: `infra/Caddyfile`, tüm `.env.example` | Geçici çözüm: `bld.example.com` yer tutucusu; `I-03`'te gerçek değerle değişecek.
+- [KOL-D][04.08] Alan adı (`<domain>`) henüz yok. | Etkilenen: `infra/Caddyfile`, tüm `.env.example` | Geçici çözüm: `bld.example.com` yer tutucusu; `I-03`'te gerçek değerle değişecek. **Sunucu hazır:** `62.238.102.197` (`bldmain`), root SSH erişimi var.
+- [KOL-D][04.08] Sunucu **Ubuntu 26.04 LTS**, dokümanlar 24.04 varsayıyor (`docs/08` §1). | Etkilenen: `docs/08-kurulum-deploy.md`, `infra/docker-compose.yml` | Geçici çözüm: yığın tamamen Docker içinde çalıştığı için fark büyük ihtimalle zararsız. `I-03`'te doğrulanacak: `get.docker.com` betiği 26.04'ü tanıyor mu, `ufw`/`unattended-upgrades` paket adları aynı mı. **Kasa (MSI) ayrı bir makinedir ve orada 24.04 kararı geçerlidir** (`docs/08` §2.1) — sunucu sürümü kasayı bağlamaz.
 - [KOL-D][04.08] Termal yazıcının markası/modeli ve USB VID:PID'si bilinmiyor. | Etkilenen: `infra/kasa/99-thermal-printer.rules` | Geçici çözüm: udev kuralında `XXXX`/`YYYY` yer tutucusu duruyor. **Gün 1'de fiziksel doğrulama yapılmadan `K-03` başlamaz** (bkz. `docs/09` §8).
 - [KOL-D][04.08] Geliştirme makinesinde araç zinciri kurulu değildi (git/docker/node/dart/php yok, apt indeksi boş). | Etkilenen: tüm hatlar | Geçici çözüm: Node 22 ve Dart SDK `~/.local/sdk` altına sudo'suz kuruldu; git + docker + Flutter Linux masaüstü bağımlılıkları için sudo gerekti, kullanıcı elle koştu.
 
