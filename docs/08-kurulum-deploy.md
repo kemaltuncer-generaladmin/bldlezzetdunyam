@@ -97,11 +97,28 @@ tanımsız kalır; API çalışır ama sipariş oluşturulamaz.
 > Konteyner yeniden başlarsa giriş betiği sahipliği düzeltir; ama komutu
 > doğru koşmak bunu hiç yaşamamayı sağlar.
 
-#### Erişim adresi (alan adı gelene kadar)
+#### Erişim adresi
 
-Coolify sslip.io joker DNS'iyle otomatik bir adres verir:
-`http://<uuid>.62.238.102.197.sslip.io`. Gerçek DNS gerektirmez, doğrudan
-sunucu IP'sine çözülür — staging bu adresle test edilebilir.
+**`https://api.benimlezzetdunyam.com.tr`** — Let's Encrypt sertifikası
+Traefik tarafından alındı ve otomatik yenilenir.
+
+Alan adı **Cloudflare arkasında** (proxy açık). Bu, kurulumda bir tuzak
+çıkardı ve kaydı burada:
+
+Cloudflare'in SSL/TLS modu **Full** olduğunda kenar sunucudan origin'e
+**HTTPS** ile gidilir. Origin yalnızca HTTP sunuyorsa Cloudflare
+`503 no available server` döner — ve bu hata origin loglarında hiç
+görünmez, çünkü istek origin'e hiç ulaşmaz. Çözüm origin'e de gerçek
+sertifika almaktır: Coolify'daki alan adı `https://` şemasıyla yazılır,
+Traefik Let's Encrypt'ten sertifikayı alır.
+
+Let's Encrypt HTTP-01 doğrulaması Cloudflare proxy'si açıkken de çalışır:
+`/.well-known/acme-challenge/` isteği kenar sunucudan origin'in 80
+portuna iletilir.
+
+Geçiş dönemi için Coolify'ın sslip.io joker adresi de tanımlı bırakıldı
+(`http://<uuid>.62.238.102.197.sslip.io`); DNS'e bağımlı olmadan test
+imkânı verir.
 
 **`expose` bildirimi zorunludur.** Coolify, Traefik hizmetini portu
 bilmeden kuramaz; `web` servisinde `expose: ["80"]` olmadan konteyner

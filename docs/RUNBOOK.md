@@ -9,7 +9,7 @@ Panik etmeden önce bunu hatırla.
 
 | Hızlı erişim | |
 |---|---|
-| API / Admin panel | `http://wl1c5om85ryn8qpj3nhv4c13.62.238.102.197.sslip.io` — alan adı gelince değişir |
+| API / Admin panel | `https://api.benimlezzetdunyam.com.tr` |
 | Coolify | `http://62.238.102.197:8000` |
 | Sunucu | `ssh root@62.238.102.197` |
 | Kasa | mutfaktaki MSI, kullanıcı `mutfak` |
@@ -142,7 +142,7 @@ Bağlantı gelince kaçırılanlar otomatik yüklenir.
 ping -c3 8.8.8.8                                   # internet var mı
 curl -s -o /dev/null -w '%{http_code}\n' \
   -H 'X-App-Id: mutfakapp' -H 'X-App-Version: 1.0.0' \
-  http://wl1c5om85ryn8qpj3nhv4c13.62.238.102.197.sslip.io/api/health   # sunucu ayakta mı
+  https://api.benimlezzetdunyam.com.tr/api/health   # sunucu ayakta mı
 ```
 
 - `ping` başarısız → mutfağın interneti yok. Modem/switch kontrol et.
@@ -201,7 +201,7 @@ gerekmez.
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' \
   -H 'X-App-Id: website' -H 'X-App-Version: 1.0.0' \
-  http://wl1c5om85ryn8qpj3nhv4c13.62.238.102.197.sslip.io/api/health
+  https://api.benimlezzetdunyam.com.tr/api/health
 ssh root@62.238.102.197 'uptime && df -h / && free -m'
 ```
 
