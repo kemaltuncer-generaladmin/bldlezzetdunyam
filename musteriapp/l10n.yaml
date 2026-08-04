@@ -1,0 +1,9 @@
+# Tek dil: Türkçe (AGENTS.md §4 — sabit metinler koda yazılmaz).
+# Üretilen dosyalar lib/src/l10n altına yazılır ve commitlenir; böylece
+# klonlayan ajan `flutter gen-l10n` koşmadan derleyebilir.
+arb-dir: lib/src/l10n
+template-arb-file: app_tr.arb
+output-dir: lib/src/l10n
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+nullable-getter: false

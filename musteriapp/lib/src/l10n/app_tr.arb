@@ -1,0 +1,201 @@
+{
+  "@@locale": "tr",
+
+  "appTitle": "Benim Lezzet Dünyam",
+
+  "commonRetry": "Tekrar dene",
+  "commonCancel": "Vazgeç",
+  "commonRequired": "Zorunlu",
+
+  "offlineBadge": "Çevrimdışı",
+  "offlineMenuNotice": "Çevrimdışısınız. Menü son kaydedilen haliyle gösteriliyor.",
+  "offlineOrderBlocked": "Sipariş vermek için internet bağlantısı gerekir.",
+
+  "errorUnauthenticated": "Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.",
+  "errorForbidden": "Bu işlem için yetkiniz yok.",
+  "errorNotFound": "Aradığınız kayıt bulunamadı.",
+  "errorValidationFailed": "Gönderilen bilgilerde eksik veya hatalı alan var.",
+  "errorInvalidTransition": "Sipariş bu aşamada bu işleme uygun değil.",
+  "errorLocationClosed": "Şu anda sipariş alınmıyor.",
+  "errorItemUnavailable": "Sepetinizdeki bir ürün şu anda satışta değil.",
+  "errorDeviceRevoked": "Cihaz erişimi kaldırıldı.",
+  "errorRateLimited": "Çok fazla deneme yaptınız. Lütfen biraz sonra tekrar deneyin.",
+  "errorServerError": "Sunucuda bir hata oluştu. Lütfen daha sonra tekrar deneyin.",
+  "errorNetwork": "Bağlantı kurulamadı. İnternetinizi kontrol edin.",
+  "errorUnknown": "Beklenmeyen bir hata oluştu.",
+
+  "splashChecking": "Bağlanılıyor…",
+
+  "updateTitle": "Güncelleme gerekli",
+  "updateBody": "Uygulamanın bu sürümü artık desteklenmiyor. Devam etmek için Google Play üzerinden güncelleyin.",
+  "updateCurrentVersion": "Yüklü sürüm: {version}",
+  "@updateCurrentVersion": {
+    "placeholders": { "version": { "type": "String" } }
+  },
+  "updateMinimumVersion": "En düşük desteklenen sürüm: {version}",
+  "@updateMinimumVersion": {
+    "placeholders": { "version": { "type": "String" } }
+  },
+  "updateRecheck": "Yeniden denetle",
+
+  "loginTitle": "Giriş yap",
+  "loginSubtitle": "Sipariş vermek için hesabınıza girin.",
+  "loginEmail": "E-posta",
+  "loginPassword": "Şifre",
+  "loginSubmit": "Giriş yap",
+  "loginToRegister": "Hesabınız yok mu? Kayıt olun",
+  "loginBrowseMenu": "Menüye göz at",
+
+  "registerTitle": "Kayıt ol",
+  "registerFirstName": "Ad",
+  "registerLastName": "Soyad",
+  "registerTelephone": "Telefon",
+  "registerTelephoneHelp": "Başında 0 olmadan 10 hane. Örnek: 5551234567",
+  "registerPasswordHelp": "En az 8 karakter",
+  "registerKvkk": "KVKK aydınlatma metnini okudum, kişisel verilerimin işlenmesini kabul ediyorum.",
+  "registerKvkkRequired": "Devam etmek için KVKK onayı gerekir.",
+  "registerSubmit": "Hesap oluştur",
+  "registerToLogin": "Zaten hesabınız var mı? Giriş yapın",
+
+  "validationRequired": "Bu alan boş bırakılamaz.",
+  "validationEmail": "Geçerli bir e-posta adresi girin.",
+  "validationPasswordShort": "Şifre en az 8 karakter olmalı.",
+  "validationTelephone": "Telefon, başında 0 olmadan 10 hane olmalı.",
+
+  "navMenu": "Menü",
+  "navOrders": "Siparişlerim",
+  "navAccount": "Hesabım",
+
+  "menuTitle": "Menü",
+  "menuSearchHint": "Ürün ara",
+  "menuSearchEmpty": "Aramanıza uygun ürün yok.",
+  "menuEmpty": "Menü şu anda boş.",
+  "menuItemUnavailable": "Satışta değil",
+  "menuOrderingClosed": "Şu anda sipariş alınmıyor. Menüyü inceleyebilirsiniz.",
+  "menuCutoff": "Son sipariş saati {time}",
+  "@menuCutoff": {
+    "placeholders": { "time": { "type": "String" } }
+  },
+  "menuMinOrderTotal": "En az sipariş tutarı {amount}",
+  "@menuMinOrderTotal": {
+    "placeholders": { "amount": { "type": "String" } }
+  },
+  "menuCartButton": "Sepet · {amount}",
+  "@menuCartButton": {
+    "placeholders": { "amount": { "type": "String" } }
+  },
+
+  "productAddToCart": "Sepete ekle",
+  "productQuantity": "Adet",
+  "productNote": "Ürün notu (isteğe bağlı)",
+  "productNoteHint": "Örn. soğansız",
+  "productOptionPickOne": "Bir seçenek seçin",
+  "productOptionPickMany": "İstediğiniz kadar seçebilirsiniz",
+  "productMissingRequiredOption": "Zorunlu seçenekleri işaretleyin.",
+  "productAllergens": "Alerjenler: {list}",
+  "@productAllergens": {
+    "placeholders": { "list": { "type": "String" } }
+  },
+  "productAdded": "{name} sepete eklendi.",
+  "@productAdded": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "productUnavailableNotice": "Bu ürün şu anda satışta değil.",
+
+  "cartTitle": "Sepet",
+  "cartEmpty": "Sepetiniz boş.",
+  "cartGoToMenu": "Menüye git",
+  "cartSubtotal": "Ara toplam",
+  "cartClear": "Sepeti boşalt",
+  "cartRemove": "Kaldır",
+  "cartCheckout": "Siparişi tamamla",
+  "cartServerCalculatesTotal": "Nihai tutar sipariş oluşturulurken sunucu tarafından hesaplanır.",
+  "cartMinOrderNotMet": "En az sipariş tutarı {amount}. {missing} daha eklemeniz gerekiyor.",
+  "@cartMinOrderNotMet": {
+    "placeholders": {
+      "amount": { "type": "String" },
+      "missing": { "type": "String" }
+    }
+  },
+  "cartItemCount": "{count} kalem",
+  "@cartItemCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "checkoutTitle": "Ödeme",
+  "checkoutDeliveryType": "Teslimat tipi",
+  "deliveryTypeDelivery": "Adrese gönderim",
+  "deliveryTypePickup": "Gel-al",
+  "checkoutAddressSection": "Teslimat adresi",
+  "addressLine1": "Adres",
+  "addressDistrict": "İlçe",
+  "addressCity": "İl",
+  "addressNote": "Adres tarifi (isteğe bağlı)",
+  "checkoutRequestedAt": "İstenen teslim zamanı",
+  "checkoutRequestedAtAsap": "En kısa sürede",
+  "checkoutPickDateTime": "Zaman seç",
+  "checkoutClearRequestedAt": "Temizle",
+  "checkoutPaymentMethod": "Ödeme yöntemi",
+  "checkoutPaymentMethodsEmpty": "Bu vitrin için açık ödeme yöntemi bildirilmedi.",
+  "checkoutCustomerNote": "Sipariş notu (isteğe bağlı)",
+  "checkoutSubmit": "Siparişi onayla",
+  "checkoutOrderingClosed": "Şu anda sipariş alınmıyor.",
+  "checkoutRedirectNeeded": "Ödemeyi tamamlamak için yönlendirilmeniz gerekiyor: {url}",
+  "@checkoutRedirectNeeded": {
+    "placeholders": { "url": { "type": "String" } }
+  },
+
+  "paymentMethodOnline": "Online ödeme",
+  "paymentMethodCash": "Kapıda ödeme",
+  "paymentMethodAccount": "Cari hesap",
+  "paymentMethodUnknown": "Bilinmeyen yöntem",
+  "paymentStatusPending": "Bekliyor",
+  "paymentStatusPaid": "Ödendi",
+  "paymentStatusUnknown": "Belirsiz",
+
+  "orderStatusYeni": "Yeni",
+  "orderStatusOnaylandi": "Onaylandı",
+  "orderStatusHazirlaniyor": "Hazırlanıyor",
+  "orderStatusHazir": "Hazır",
+  "orderStatusYolda": "Yolda",
+  "orderStatusTeslimEdildi": "Teslim edildi",
+  "orderStatusIptal": "İptal",
+
+  "ordersTitle": "Siparişlerim",
+  "ordersEmpty": "Henüz siparişiniz yok.",
+  "orderNumberLabel": "Sipariş {number}",
+  "@orderNumberLabel": {
+    "placeholders": { "number": { "type": "String" } }
+  },
+  "orderPlacedBody": "Sipariş numaranız {number}.",
+  "@orderPlacedBody": {
+    "placeholders": { "number": { "type": "String" } }
+  },
+
+  "trackingTitle": "Sipariş takibi",
+  "trackingLive": "Canlı takip ediliyor",
+  "trackingStale": "Güncellenemiyor — bağlantı yok.",
+  "trackingCancelAction": "Siparişi iptal et",
+  "trackingCancelConfirmTitle": "Sipariş iptal edilsin mi?",
+  "trackingCancelConfirmBody": "Bu işlem geri alınamaz.",
+  "trackingCancelConfirmAction": "Siparişi iptal et",
+  "trackingCancelled": "Siparişiniz iptal edildi.",
+  "trackingItems": "Ürünler",
+  "trackingSubtotal": "Ara toplam",
+  "trackingDeliveryFee": "Teslimat ücreti",
+  "trackingTotal": "Toplam",
+  "trackingPayment": "Ödeme",
+  "trackingAddress": "Teslimat adresi",
+  "trackingRequestedAt": "İstenen teslim zamanı",
+  "trackingCreatedAt": "Oluşturulma",
+  "trackingCustomerNote": "Sipariş notu",
+  "trackingDeliveryType": "Teslimat tipi",
+
+  "accountTitle": "Hesabım",
+  "accountGuest": "Giriş yapmadınız.",
+  "accountLogin": "Giriş yap",
+  "accountLogout": "Çıkış yap",
+  "accountEmail": "E-posta",
+  "accountTelephone": "Telefon",
+  "accountName": "Ad soyad"
+}
