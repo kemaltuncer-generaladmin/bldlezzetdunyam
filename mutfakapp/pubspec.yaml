@@ -37,11 +37,14 @@ dependencies:
 
   # Kalıcı yazdırma kuyruğu (docs/05 §2, §5.4).
   #
-  # `sqlite3_flutter_libs` bilinçli olarak KULLANILMADI: sürümü `0.6.0+eol`,
-  # yani terk edilmiş. Ubuntu'da `libsqlite3.so.0` zaten kurulu geliyor
-  # (`libsqlite3-0` paketi); kütüphane oradan açılıyor. `.deb` paketlenirken
-  # `libsqlite3-0` bağımlılık olarak yazılmalı.
-  sqlite3: ^3.5.0
+  # `sqlite3_flutter_libs` KULLANILMADI: sürümü `0.6.0+eol`, terk edilmiş.
+  #
+  # Sürüm 3.3+ KULLANILMADI: kütüphaneyi Dart'ın **deneysel** native assets
+  # mekanizmasıyla (`@DefaultAsset`) yüklüyor ve `open.dart` kaldırılmış.
+  # Mutfak kasası deneysel derleme bayrağına bağlanamaz. 2.9.x, sistemdeki
+  # `libsqlite3`'ü açar; Ubuntu'da `libsqlite3-0` paketi zaten kuruludur ve
+  # `.deb` paketlenirken bağımlılık olarak yazılmalıdır.
+  sqlite3: ">=2.4.0 <3.0.0"
 
 dev_dependencies:
   flutter_test:

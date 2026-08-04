@@ -1,0 +1,52 @@
+# TastyIgniter üretim imajı — bağımlılıklar imaja gömülür.
+#
+# Geliştirme imajından (infra/platform/Dockerfile) farkı: kaynak bind mount
+# ile bağlanmaz, imaja kopyalanır ve `composer install` derleme anında koşar.
+# Böylece dağıtım tekrarlanabilir olur — sunucuda composer çalıştırmak,
+# her deploy'da farklı bir bağımlılık ağacı riski demektir.
+#
+# NEDEN ALPINE DEĞİL: çekirdek `ExtensionManager.php` GLOB_BRACE kullanıyor;
+# glibc'ye özgüdür, musl sağlamaz ve kurulum ilk adımda patlar.
+# Ayrıntı: infra/platform/Dockerfile.
+FROM php:8.3-fpm-bookworm
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      git curl unzip ca-certificates \
+      libicu-dev libzip-dev libonig-dev \
+      libfreetype6-dev libjpeg62-turbo-dev libpng-dev \
+      default-mysql-client \
+ && docker-php-ext-configure gd --with-freetype --with-jpeg \
+ && docker-php-ext-install -j"$(nproc)" \
+      pdo_mysql mysqli gd zip bcmath intl exif opcache \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# date.timezone: imaj Europe/London ile geliyor. TastyIgniter bunu kendi
+# `timezone` ayarından yeniden belirler (veykemtu:setup Europe/Istanbul
+# yazar) ama ayar okunana kadarki kısa pencerede de doğru olsun.
+RUN { \
+      echo 'memory_limit=512M'; \
+      echo 'upload_max_filesize=32M'; \
+      echo 'post_max_size=32M'; \
+      echo 'max_execution_time=120'; \
+      echo 'date.timezone=Europe/Istanbul'; \
+      echo 'opcache.enable=1'; \
+      echo 'opcache.validate_timestamps=0'; \
+    } > /usr/local/etc/php/conf.d/bld.ini
+
+WORKDIR /var/www/platform
+
+# Bağımlılıklar önce: kaynak değişince composer katmanı yeniden kurulmasın.
+COPY platform/composer.json platform/composer.lock ./
+RUN composer install --no-interaction --prefer-dist --no-progress \
+      --no-dev --no-scripts --no-autoloader
+
+COPY platform/ ./
+
+RUN composer dump-autoload --optimize --no-dev \
+ && mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
+ && chown -R www-data:www-data storage bootstrap/cache
+
+EXPOSE 9000
+CMD ["php-fpm"]

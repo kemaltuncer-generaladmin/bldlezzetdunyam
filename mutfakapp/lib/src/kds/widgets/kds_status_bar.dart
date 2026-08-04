@@ -26,7 +26,7 @@ class KdsStatusBar extends ConsumerWidget {
     final printer =
         ref.watch(printerStatusProvider).value ??
         PrinterAvailability.unavailable;
-    final queueCount = ref.watch(printQueueCountProvider);
+    final queueCount = ref.watch(printQueueCountProvider).value ?? 0;
 
     return Container(
       color: const Color(KdsColors.surface),

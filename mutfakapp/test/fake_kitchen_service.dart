@@ -29,6 +29,18 @@ class FakeKitchenService implements KitchenService {
   final List<(int, OrderStatus)> statusCalls = <(int, OrderStatus)>[];
   int heartbeatCount = 0;
 
+  /// Sipariş kimliğine göre hazır fiş verisi. Eksikse çağrı `NOT_FOUND` atar.
+  final Map<int, KitchenReceipt> kitchenReceipts = <int, KitchenReceipt>{};
+  final Map<int, CustomerReceipt> customerReceipts = <int, CustomerReceipt>{};
+
+  /// Kaç kez fiş verisi istendi — payload'ın bir kez çekildiğini doğrular.
+  int receiptCalls = 0;
+
+  final List<(int, ReceiptType)> ackCalls = <(int, ReceiptType)>[];
+
+  /// `true` ise `ack` hata atar; fişin basılmış sayılması buna bağlı olmamalı.
+  bool ackFails = false;
+
   @override
   Future<KitchenOrderPage> orders({
     int? after,
@@ -72,16 +84,32 @@ class FakeKitchenService implements KitchenService {
       throw UnsupportedError('Bu testte kullanılmıyor');
 
   @override
-  Future<KitchenReceipt> kitchenReceipt(int orderId) =>
-      throw UnsupportedError('Bu testte kullanılmıyor');
+  Future<KitchenReceipt> kitchenReceipt(int orderId) async {
+    receiptCalls++;
+    final receipt = kitchenReceipts[orderId];
+    if (receipt == null) throw _notFound(orderId);
+    return receipt;
+  }
 
   @override
-  Future<CustomerReceipt> customerReceipt(int orderId) =>
-      throw UnsupportedError('Bu testte kullanılmıyor');
+  Future<CustomerReceipt> customerReceipt(int orderId) async {
+    receiptCalls++;
+    final receipt = customerReceipts[orderId];
+    if (receipt == null) throw _notFound(orderId);
+    return receipt;
+  }
 
   @override
-  Future<void> ackPrint(int orderId, PrintAckRequest request) =>
-      throw UnsupportedError('Bu testte kullanılmıyor');
+  Future<void> ackPrint(int orderId, PrintAckRequest request) async {
+    if (ackFails) throw const ApiException.network();
+    ackCalls.add((orderId, request.type));
+  }
+
+  static ApiException _notFound(int orderId) => ApiException(
+    code: ApiErrorCode.notFound,
+    message: 'Sipariş $orderId için fiş yok.',
+    statusCode: 404,
+  );
 
   @override
   Future<ProductionList> productionList() =>

@@ -13,7 +13,6 @@
 library;
 
 import 'package:bld_api_client/bld_api_client.dart';
-import 'package:bld_core/bld_core.dart';
 
 /// Sipariş listesindeki değişimleri yazdırma işlerine çeviren saf mantık.
 ///
@@ -59,7 +58,9 @@ class PrintTriggerJob {
 
   @override
   bool operator ==(Object other) =>
-      other is PrintTriggerJob && other.orderId == orderId && other.type == type;
+      other is PrintTriggerJob &&
+      other.orderId == orderId &&
+      other.type == type;
 
   @override
   int get hashCode => Object.hash(orderId, type);

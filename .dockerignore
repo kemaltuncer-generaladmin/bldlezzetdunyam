@@ -1,0 +1,53 @@
+# Derleme bağlamı — repo kökü. Buraya girmeyen her şey imaj boyutunu ve
+# derleme süresini düşürür, bazıları ise derlemeyi doğrudan bozar.
+
+# ── Derlemeyi BOZANLAR ───────────────────────────────────────────────────
+# Geliştirme sırasında oluşan eklenti önbelleği, dev bağımlılıklarına
+# (Laravel Pail gibi) atıf tutar. `composer install --no-dev` ile o sınıflar
+# imajda yoktur ve `package:discover` "Class not found" ile patlar.
+# Önbellek imajda sıfırdan üretilmeli.
+platform/bootstrap/cache/*.php
+platform/bootstrap/cache/*.json
+!platform/bootstrap/cache/disabled-addons.json
+
+# vendor/ imajda `composer install` ile kurulur; host kopyası farklı
+# platformda derlenmiş uzantılar taşıyabilir.
+platform/vendor/
+platform/.env
+platform/storage/framework/cache/*
+platform/storage/framework/sessions/*
+platform/storage/framework/views/*
+platform/storage/logs/*
+platform/public/storage
+
+# ── Bağlamı şişirenler ───────────────────────────────────────────────────
+.git/
+.github/
+node_modules/
+**/node_modules/
+.dart_tool/
+**/.dart_tool/
+**/build/
+musteriapp/
+mutfakapp/
+packages/
+website/node_modules/
+website/.next/
+infra/backup/dumps/
+infra/mock/node_modules/
+
+# ── Sırlar (bir daha, bilerek) ───────────────────────────────────────────
+.env
+**/.env
+*.keystore
+*.jks
+*.p12
+*.pem
+keys/
+
+# ── Gereksiz ─────────────────────────────────────────────────────────────
+*.md
+!platform/README.md
+.vscode/
+.idea/
+.claude/

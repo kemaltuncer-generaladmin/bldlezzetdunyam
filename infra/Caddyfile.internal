@@ -1,0 +1,22 @@
+# Coolify dağıtımında Caddy YALNIZCA iç FastCGI önyüzüdür.
+#
+# TLS, alan adı ve yönlendirme Coolify'ın Traefik'inde. Caddy dışarı port
+# açmaz; Traefik ona `coolify` ağı üzerinden 80'den ulaşır. Traefik
+# FastCGI konuşamadığı için php-fpm'in önünde bir HTTP sunucusu şart.
+:80 {
+	root * /var/www/platform/public
+	php_fastcgi app:9000
+	file_server
+	encode gzip
+
+	# Traefik zaten X-Forwarded-* gönderiyor; Laravel'in doğru şemayı
+	# görmesi için (yönlendirmeler ve üretilen bağlantılar https olmalı).
+	header {
+		-Server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

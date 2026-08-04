@@ -60,7 +60,10 @@ class PrintService {
   final StreamController<int> _pending = StreamController<int>.broadcast();
 
   Future<void>? _loop;
-  Completer<void>? _wakeUp;
+
+  /// Süren beklemeyi erken bitirir. Yeni iş gelince ya da kapanırken çağrılır.
+  void Function()? _wakeUp;
+
   bool _disposed = false;
 
   /// Bekleyen iş sayısı akışı — durum çubuğu bunu dinler.
@@ -78,9 +81,17 @@ class PrintService {
         : retrySchedule.last;
   }
 
+  /// Basılmış işlerin diskte tutulma süresi.
+  ///
+  /// Tekillik kısıtı basılmış satırlara da dayandığı için silmek, o siparişin
+  /// fişini yeniden basılabilir kılar. Bir haftadan eski siparişin mutfağa
+  /// geri dönmesi mümkün değildir; tablo sonsuza dek büyümesin.
+  static const Duration keepPrintedFor = Duration(days: 7);
+
   /// İşçiyi başlatır. Yeniden başlatmada diskteki işler kaldığı yerden sürer.
   void start() {
     if (_disposed || _loop != null) return;
+    _queue.purgePrinted(olderThan: _now().subtract(keepPrintedFor));
     _loop = _run();
     _emitPending();
   }
@@ -196,15 +207,28 @@ class PrintService {
   }
 
   /// Uyandırılabilir bekleme: yeni iş gelince ya da kapanınca hemen döner.
-  Future<void> _sleep(Duration duration) async {
-    if (_disposed || duration <= Duration.zero) return;
-    final waiter = _wakeUp = Completer<void>();
-    await Future.any([Future<void>.delayed(duration), waiter.future]);
-    _wakeUp = null;
+  ///
+  /// Zamanlayıcı erken uyanışta **iptal edilir**. `Future.any` ile beklemek
+  /// yeterli değildi: kazanan taraf uyandırma olsa bile gecikme zamanlayıcısı
+  /// arkada asılı kalıyordu.
+  Future<void> _sleep(Duration duration) {
+    if (_disposed || duration <= Duration.zero) return Future<void>.value();
+
+    final completer = Completer<void>();
+    final timer = Timer(duration, () {
+      if (!completer.isCompleted) completer.complete();
+    });
+
+    _wakeUp = () {
+      timer.cancel();
+      if (!completer.isCompleted) completer.complete();
+    };
+
+    return completer.future.whenComplete(() {
+      timer.cancel();
+      _wakeUp = null;
+    });
   }
 
-  void _wake() {
-    final waiter = _wakeUp;
-    if (waiter != null && !waiter.isCompleted) waiter.complete();
-  }
+  void _wake() => _wakeUp?.call();
 }

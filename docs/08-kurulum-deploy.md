@@ -2,61 +2,91 @@
 
 ## 1. Sunucu (Hetzner VPS)
 
-**Öneri:** CPX21 veya üstü (3 vCPU, 4 GB RAM, 80 GB SSD), Ubuntu 24.04.
+**Mevcut:** `62.238.102.197` — 2 vCPU, 3.8 GB RAM, 75 GB SSD, Ubuntu 26.04 LTS.
 
 ### 1.1 İlk hazırlık
 
+Sunucu: **`62.238.102.197`** (`bldmain`, Ubuntu 26.04 LTS, 2 vCPU / 3.8 GB
+/ 75 GB). Docker ve **Coolify** kurulu geliyor; Coolify kendi Traefik'ini
+80/443'te çalıştırır.
+
+Kalan sertleştirme adımları:
+
 ```bash
-# root olarak
-adduser deploy && usermod -aG sudo deploy
-# SSH anahtarını deploy kullanıcısına kopyala
-# /etc/ssh/sshd_config: PasswordAuthentication no, PermitRootLogin no
+# SSH: parola girişini kapat (anahtar zaten kurulu)
+sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' \
+  /etc/ssh/sshd_config.d/50-cloud-init.conf
 systemctl restart ssh
 
-# Docker
-curl -fsSL https://get.docker.com | sh
-usermod -aG docker deploy
-
-# Güvenlik duvarı
-ufw allow OpenSSH && ufw allow 80 && ufw allow 443 && ufw enable
+# Güvenlik duvarı — 8000 Coolify arayüzü
+ufw allow OpenSSH && ufw allow 80 && ufw allow 443 && ufw allow 8000
+ufw --force enable
 ```
 
-### 1.2 Docker Compose
+> **Uyarı:** Coolify arayüzü (`:8000`) alan adı ve TLS gelene kadar düz
+> HTTP üzerinden erişilebilir. Yönetim arayüzünü internete açık bırakmak
+> geçici bir durumdur; DNS geldiğinde Coolify'ın kendi alan adı ayarı
+> yapılıp 8000 güvenlik duvarından kapatılmalıdır.
 
-`infra/docker-compose.yml` servisleri:
+### 1.2 Dağıtım: Coolify
 
-| Servis | İmaj | Not |
-|---|---|---|
-| `caddy` | caddy:2 | TLS otomatik, 80/443 |
-| `app` | özel PHP 8.3-fpm imajı | TastyIgniter |
-| `web` | node:22 (Next.js standalone) | Website |
-| `db` | mysql:**8.4** (sabit) | Yalnızca iç ağ, port dışa açılmaz. Etiket sabitlenmiştir: kayan `mysql:8` 8.4'e geçince `--default-authentication-plugin` kaldırıldığı için konteyner açılmıyordu. |
-| `reverb` | app imajı, farklı komut | Faz 1.5 |
+**Karar (05.08.2026):** sunucuda **Coolify** kurulu ve Traefik 80/443'ü
+yönetiyor. Kendi Caddy'mizle ikinci bir ters vekil çalıştırmak aynı portlar
+için yarışmak demekti; Coolify üzerinden dağıtıyoruz.
 
-**Caddyfile:**
-```
-api.benimlezzetdunyam.com.tr {
-    root * /var/www/platform/public
-    php_fastcgi app:9000
-    file_server
-    encode gzip
-}
+Bu kararın getirdikleri: TLS, git'ten otomatik dağıtım, log görüntüleme,
+ortam değişkeni yönetimi ve dağıtım geri alma hazır geliyor. Götürdüğü:
+dağıtım topolojisi artık Coolify'ın kuralarına tabi.
 
-benimlezzetdunyam.com.tr, www.benimlezzetdunyam.com.tr {
-    reverse_proxy web:3000
-    encode gzip
-}
-```
+| Dosya | Ne |
+|---|---|
+| `docker-compose.coolify.yml` | Coolify'ın okuduğu yığın (repo kökünde) |
+| `infra/platform/Dockerfile.prod` | php-fpm; `composer install` derleme anında |
+| `infra/platform/Dockerfile.web` | Caddy + uygulama imajından kopyalanan statik dosyalar |
+| `infra/Caddyfile.internal` | Yalnızca iç FastCGI önyüzü, dışarı port açmaz |
 
-### 1.3 Dağıtım
+**Caddy neden hâlâ var:** Traefik FastCGI konuşamaz. php-fpm'in önünde bir
+HTTP sunucusu şart; Caddy o rolde, dışarı açık değil.
+
+**Sırlar repoda durmaz.** Compose, Coolify'ın `SERVICE_PASSWORD_*` sihirli
+değişkenlerini kullanır — parolaları Coolify üretir ve saklar. `APP_KEY`
+Coolify ortam değişkenlerinde elle tanımlanır.
+
+**Traefik etiketi elle yazılmaz.** `SERVICE_FQDN_WEB_80` değişkenini gören
+Coolify yönlendirmeyi ve sertifikayı kendisi kurar.
+
+#### Alan adı gelene kadar
+
+DNS yok; erişim sunucu IP'si (`62.238.102.197`) üzerinden ve **düz HTTP**.
+Let's Encrypt alan adı olmadan sertifika veremez. `@`, `www` ve `api`
+kayıtları sunucuya yönlendirildiğinde Coolify'daki alan adı alanına
+yazmak yeterli — kod ve compose değişmez.
+
+#### Dağıtım akışı
+
+1. Coolify → BLD projesi → yeni **Docker Compose** kaynağı
+2. Kaynak: GitHub App ile bağlanmış `bldlezzetdunyam` deposu
+3. Compose yolu: `docker-compose.coolify.yml`
+4. Ortam değişkenleri: `APP_KEY` (bir kez `php artisan key:generate --show`
+   ile üretilip yapıştırılır), gerekirse `MYSQL_DATABASE`, `MYSQL_USER`
+5. Deploy. GitHub webhook'u sonraki itmelerde otomatik tetikler.
+
+#### İlk dağıtımdan sonra — zorunlu
 
 ```bash
-cd /opt/catering && git pull
-docker compose build app web
-docker compose up -d
-docker compose exec app php artisan migrate --force
-docker compose exec app php artisan config:cache
+docker compose exec app php artisan igniter:install --no-interaction
+docker compose exec app php artisan veykemtu:setup
+docker compose exec app php artisan veykemtu:admin <e-posta> --super
 ```
+
+`veykemtu:setup` olmadan sipariş durumları, vitrin ve ödeme yöntemleri
+tanımsız kalır; API çalışır ama sipariş oluşturulamaz.
+
+### 1.3 Dağıtım geri alma
+
+Coolify her dağıtımı sürümler; arayüzden önceki dağıtıma dönülebilir.
+Elle geri alma gerekiyorsa `docs/RUNBOOK.md` §7.
+
 
 ### 1.4 Yedekleme
 
@@ -142,19 +172,23 @@ echo -e "TEST\n\n\n" > /dev/thermal0   # udev kuralından sonra
 
 | Dosya | Tetik | İş |
 |---|---|---|
-| `platform.yml` | `platform/**` | composer install, lint, `php artisan test`, `vendor/` diff kontrolü, staging deploy |
-| `website.yml` | `website/**`, `packages/**` | npm ci, lint, build, Playwright, staging deploy |
+| `platform.yml` | `platform/**`, `docs/openapi.yaml` | composer install, `php artisan test`, `vendor/` izlenmiyor kontrolü, openapi geçerliliği + uç karşılaştırması |
+| `website.yml` | `website/**`, `docs/openapi.yaml` | npm ci, `any` yasağı, tsc, lint, build, mock e2e |
+| `dart.yml` | `packages/**` | üretilen dosyalar güncel mi, analyze, test, format |
 | `musteriapp.yml` | `musteriapp/**`, `packages/**` | flutter analyze, test, AAB build, Play kapalı test yükleme |
 | `mutfakapp.yml` | `mutfakapp/**`, `packages/**` | flutter analyze, test, `flutter build linux`, `.deb` paketleme, sürüm kaydı |
 
-**`vendor/` koruma adımı** (`platform.yml` içinde zorunlu):
-```yaml
-- name: Cekirdege dokunulmadi mi
-  run: |
-    if git diff --name-only origin/main...HEAD | grep -q '^platform/vendor/'; then
-      echo "HATA: platform/vendor/ degistirilmis (ADR-02 ihlali)"; exit 1
-    fi
-```
+**Dağıtım CI'da değil, Coolify'ın GitHub webhook'unda.** CI yalnızca
+doğrular; `main`'e itilen kod Coolify tarafından dağıtılır.
+
+**ADR kapıları** — bunlar test değil, mimari kuralın CI karşılığıdır:
+
+| Kural | Kapı |
+|---|---|
+| ADR-02: çekirdeğe dokunma | `platform/vendor/` altında **izlenen** dosya varsa kırmızı |
+| ADR-04: Android planı iptal | `mutfakapp/android` veya `ios` varsa kırmızı |
+| AGENTS.md §2.4 | `musteriapp/lib` içinde `package:dio`/`package:http` varsa kırmızı |
+| AGENTS.md §4 | `website` içinde `any` kullanımı varsa kırmızı |
 
 **Sırlar:** GitHub Actions secrets — `SSH_KEY`, `ANDROID_KEYSTORE`, `PLAY_SERVICE_ACCOUNT`, `FCM_SERVICE_ACCOUNT`. Repoda sır dosyası bulunmaz; yalnızca `.env.example`.
 

@@ -3,6 +3,8 @@
 /// Ağ yoktur: [OrderSource] sahtelenir, ekran yalnızca gelen listeyi çizer.
 library;
 
+import 'dart:typed_data';
+
 import 'package:bld_api_client/bld_api_client.dart';
 import 'package:bld_core/bld_core.dart';
 import 'package:bld_design_system/bld_design_system.dart';
@@ -10,9 +12,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mutfakapp/src/app.dart';
+import 'package:mutfakapp/src/data/device_session.dart';
 import 'package:mutfakapp/src/data/printer_probe.dart';
 import 'package:mutfakapp/src/data/providers.dart';
+import 'package:mutfakapp/src/printing/print_queue.dart';
+import 'package:mutfakapp/src/printing/print_service.dart';
+import 'package:mutfakapp/src/printing/printer_device.dart';
 
+import 'fake_device_session_store.dart';
 import 'fake_kitchen_service.dart';
 
 class FakeOrderSource implements OrderSource {
@@ -51,14 +58,39 @@ Future<void> pumpKds(
   await tester.binding.setSurfaceSize(const Size(1920, 1080));
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
+  final queue = PrintQueue.inMemory();
+  addTearDown(queue.close);
+
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        // Eşlenmiş cihaz: kök bileşen KDS ekranını gösterir.
+        deviceSessionStoreProvider.overrideWithValue(
+          FakeDeviceSessionStore(
+            baseUrl: 'http://test/api',
+            token: 'kdev_test',
+          ),
+        ),
+        initialDeviceSessionProvider.overrideWithValue(
+          const DeviceSession(baseUrl: 'http://test/api', token: 'kdev_test'),
+        ),
         orderSourceProvider.overrideWithValue(
           FakeOrderSource(orders: orders, state: state),
         ),
         printerStatusProvider.overrideWith(
           (ref) => Stream<PrinterAvailability>.value(printer),
+        ),
+        printQueueProvider.overrideWithValue(queue),
+        printerDeviceProvider.overrideWithValue(_NullPrinter()),
+        kitchenServiceProvider.overrideWithValue(FakeKitchenService()),
+        // İşçi BAŞLATILMAZ: ekran testi yazdırmayı değil çizimi ölçer,
+        // çalışan bir kuyruk döngüsü testte asılı zamanlayıcı bırakır.
+        printServiceProvider.overrideWith(
+          (ref) => PrintService(
+            queue: queue,
+            device: _NullPrinter(),
+            kitchen: FakeKitchenService(),
+          ),
         ),
       ],
       child: const MutfakApp(),
@@ -71,6 +103,12 @@ Future<void> pumpKds(
 /// Zamanlayıcı taşıyan parçaları (saat, yanıp sönme) söker.
 Future<void> tearDownTree(WidgetTester tester) =>
     tester.pumpWidget(const SizedBox.shrink());
+
+/// Hiçbir şey yapmayan yazıcı: ekran testleri fiş basmamalı.
+class _NullPrinter implements PrinterDevice {
+  @override
+  Future<void> write(Uint8List bytes) async {}
+}
 
 void main() {
   testWidgets('üç sütun başlığı ve sayaçları görünür', (tester) async {
@@ -275,16 +313,20 @@ void main() {
     await tearDownTree(tester);
   });
 
-  testWidgets('cihaz iptal edilince pano yerine eşleme uyarısı çıkar', (
-    tester,
-  ) async {
+  testWidgets('cihaz iptal edilince eşleme ekranına dönülür', (tester) async {
     await pumpKds(
       tester,
       orders: [makeOrder(id: 1)],
       state: OrderSourceConnection.revoked,
     );
+    await tester.pump();
 
-    expect(find.text('Cihaz eşlenmedi'), findsOneWidget);
+    // `docs/05` §7 adım 5: pano kalkar, eşleme ekranı gelir.
+    expect(find.text('Mutfak ekranını eşle'), findsOneWidget);
+    expect(
+      find.text('Bu cihazın yetkisi kaldırıldı. Yeni bir eşleme kodu girin.'),
+      findsOneWidget,
+    );
     expect(find.text('S-1'), findsNothing);
 
     await tearDownTree(tester);

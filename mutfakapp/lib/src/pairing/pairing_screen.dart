@@ -108,7 +108,8 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
                     controller: _server,
                     label: l10n.pairingServerLabel,
                     keyboardType: TextInputType.url,
-                    validator: (value) => (value == null || value.trim().isEmpty)
+                    validator: (value) =>
+                        (value == null || value.trim().isEmpty)
                         ? l10n.pairingServerRequired
                         : null,
                   ),
@@ -119,19 +120,17 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
                     hint: l10n.pairingCodeHint,
                     // Sözleşmedeki desen: ^[A-Z0-9]{4}-[A-Z0-9]{4}$
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(
-                        RegExp('[A-Za-z0-9-]'),
-                      ),
+                      FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9-]')),
                       LengthLimitingTextInputFormatter(9),
                       TextInputFormatter.withFunction(
-                        (_, next) => next.copyWith(
-                          text: next.text.toUpperCase(),
-                        ),
+                        (_, next) =>
+                            next.copyWith(text: next.text.toUpperCase()),
                       ),
                     ],
                     validator: (value) =>
-                        RegExp(r'^[A-Z0-9]{4}-[A-Z0-9]{4}$')
-                            .hasMatch((value ?? '').trim().toUpperCase())
+                        RegExp(
+                          r'^[A-Z0-9]{4}-[A-Z0-9]{4}$',
+                        ).hasMatch((value ?? '').trim().toUpperCase())
                         ? null
                         : l10n.pairingCodeRequired,
                   ),
@@ -139,7 +138,8 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
                   _Field(
                     controller: _deviceName,
                     label: l10n.pairingDeviceNameLabel,
-                    validator: (value) => (value == null || value.trim().isEmpty)
+                    validator: (value) =>
+                        (value == null || value.trim().isEmpty)
                         ? l10n.pairingDeviceNameRequired
                         : null,
                   ),

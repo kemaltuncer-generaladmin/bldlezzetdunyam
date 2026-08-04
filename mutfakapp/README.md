@@ -45,6 +45,38 @@ flutter run -d linux \
 | `BLD_POLL_SECONDS` | `5` | Sipariş çekme aralığı |
 | `BLD_KITCHEN_TOKEN` | *(boş)* | Kurulumda önceden verilen cihaz token'ı |
 
+`BLD_API_BASE_URL` yalnızca **ilk açılış** varsayılanıdır; eşleme ekranından
+girilen adres `shared_preferences`'a yazılır ve sonraki açılışlarda o kullanılır.
+
+## Eşleme
+
+İlk açılışta sunucu adresi + eşleme kodu istenir (`docs/05` §7). Kod yönetici
+panelinden alınır:
+
+```bash
+docker compose -f infra/docker-compose.dev.yml exec -T -e HOME=/tmp app \
+  php artisan veykemtu:kds --new="Mutfak Kasası"
+```
+
+Token iptal edilirse (`403 DEVICE_REVOKED`) uygulama kendiliğinden eşleme
+ekranına döner.
+
+## Yazdırma kuyruğu
+
+Her fiş önce **diske** yazılır (`print_queue` tablosu, SQLite), sonra basılır.
+Kuyruk dosyası `~/.local/share/tr.com.benimlezzetdunyam.mutfakapp/print_queue.sqlite`.
+
+- İş kimliği `(order_id, type)` çiftidir ve tabloda `UNIQUE` kısıtıyla
+  korunur — aynı fiş iki kez basılmaz, uygulama yeniden başlasa bile.
+- Basım başarısızsa `attempts++` ve geri çekilmeli tekrar: 2s → 5s → 15s → 60s.
+- Yazıcı yoksa işler kuyrukta bekler; durum çubuğunda sayaç ve kalıcı uyarı.
+- Basımdan sonra `POST /api/kitchen/print-jobs/{id}/ack` gönderilir;
+  başarısız olursa sessizce yutulur.
+
+`sqlite3` paketi **2.9.x'e sabitlenmiştir**: 3.3+ kütüphaneyi deneysel native
+assets ile yüklüyor. Sistem kütüphanesi kullanılır, bu yüzden `.deb`
+paketlenirken **`libsqlite3-0` bağımlılık olarak yazılmalıdır**.
+
 ## Yazıcı
 
 Donanım doğrulandı: `0483:5720` "aaaait Printer", `/dev/usb/lp1`, udev kuralı

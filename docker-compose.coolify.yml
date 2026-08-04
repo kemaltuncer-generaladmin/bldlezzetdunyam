@@ -1,0 +1,98 @@
+# Coolify dağıtımı — docs/08-kurulum-deploy.md §1.2
+#
+# Coolify bu dosyayı repo kökünden okur ve Traefik yönlendirmesini
+# `SERVICE_FQDN_*` sihirli değişkenlerinden üretir. Bu yüzden burada
+# Traefik etiketi ELLE yazılmaz; Coolify ekler.
+#
+# NEDEN KÖKTE: derleme bağlamları (`platform/`, `website/`) repo köküne
+# göreli. Compose'u infra/ altına koymak her bağlamı `../` ile yazmayı
+# gerektirir ve Coolify'ın taban dizin ayarıyla kolayca bozulur.
+#
+# Portlar DIŞARI AÇILMAZ: 80/443 Coolify'ın Traefik'inde. `web` ve `site`
+# servislerine Traefik iç ağdan ulaşır.
+
+services:
+  # ── TastyIgniter API + admin panel ───────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: infra/platform/Dockerfile.prod
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_NAME: "Benim Lezzet Dunyam"
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: ${APP_KEY:?Coolify ortam degiskenlerinde APP_KEY tanimlayin}
+      APP_URL: ${API_URL:-http://62.238.102.197}
+      APP_LOCALE: tr
+      IGNITER_LOCATION_MODE: single
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_DATABASE: ${MYSQL_DATABASE:-bld}
+      DB_USERNAME: ${MYSQL_USER:-bld}
+      DB_PASSWORD: ${SERVICE_PASSWORD_MYSQL}
+      BROADCAST_DRIVER: log
+      CACHE_DRIVER: file
+      QUEUE_CONNECTION: sync
+      SESSION_DRIVER: file
+      MAIL_MAILER: log
+    volumes:
+      # Yüklenen medya ve loglar imajda değil, kalıcı birimde durur —
+      # yeni sürüm dağıtıldığında silinmemeleri gerekir.
+      - platform-storage:/var/www/platform/storage/app
+      - platform-logs:/var/www/platform/storage/logs
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(0);'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── Caddy: yalnızca php-fpm önyüzü, dışarı açık değil ────────────────
+  web:
+    build:
+      context: .
+      dockerfile: infra/platform/Dockerfile.web
+    restart: unless-stopped
+    depends_on: [app]
+    environment:
+      # Coolify bu değişkeni görünce Traefik yönlendirmesini ve TLS'i
+      # kendisi kurar. Alan adı gelene kadar sunucu IP'si kullanılır.
+      SERVICE_FQDN_WEB_80: ${API_FQDN:-/}
+    volumes:
+      - ./infra/Caddyfile.internal:/etc/caddy/Caddyfile:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 0"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── MySQL ────────────────────────────────────────────────────────────
+  db:
+    # Sürüm sabit: kayan `mysql:8` etiketi 8.4'e geçince
+    # --default-authentication-plugin kaldırıldığı için yığın kırılmıştı.
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      # SERVICE_PASSWORD_* Coolify'ın ürettiği rastgele paroladır;
+      # repoda hiçbir sır durmaz.
+      MYSQL_ROOT_PASSWORD: ${SERVICE_PASSWORD_MYSQLROOT}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-bld}
+      MYSQL_USER: ${MYSQL_USER:-bld}
+      MYSQL_PASSWORD: ${SERVICE_PASSWORD_MYSQL}
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+volumes:
+  db-data:
+  platform-storage:
+  platform-logs:

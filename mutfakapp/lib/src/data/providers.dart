@@ -56,15 +56,18 @@ class DeviceSessionController extends Notifier<DeviceSession> {
     required String pairingCode,
     required String deviceName,
   }) async {
-    await ref.read(deviceSessionStoreProvider).writeBaseUrl(baseUrl);
+    final store = ref.read(deviceSessionStoreProvider);
+    await store.writeBaseUrl(baseUrl);
     state = DeviceSession(baseUrl: baseUrl);
 
-    // `BldApi.kitchen.pair` dönen token'ı zaten TokenStore'a yazar.
     final response = await ref
-        .read(bldApiProvider)
-        .kitchen
+        .read(kitchenServiceProvider)
         .pair(PairRequest(pairingCode: pairingCode, deviceName: deviceName));
 
+    // `BldApi.kitchen.pair` token'ı kendi deposuna zaten yazar; burada
+    // açıkça yazmak bu yan etkiye bağımlılığı kaldırır — kaydın olduğundan
+    // emin olmadan durumu "eşlendi"ye çevirmeyiz.
+    await store.tokens.write(response.token);
     state = DeviceSession(baseUrl: baseUrl, token: response.token);
   }
 

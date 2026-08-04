@@ -133,10 +133,10 @@ class PrintQueue {
     [payload, id],
   );
 
-  void incrementAttempts(int id) =>
-      _db.execute('UPDATE print_queue SET attempts = attempts + 1 WHERE id = ?', [
-        id,
-      ]);
+  void incrementAttempts(int id) => _db.execute(
+    'UPDATE print_queue SET attempts = attempts + 1 WHERE id = ?',
+    [id],
+  );
 
   void markPrinted(int id, DateTime printedAt) => _db.execute(
     'UPDATE print_queue SET printed_at = ? WHERE id = ?',
@@ -146,9 +146,10 @@ class PrintQueue {
   /// Basılmış işleri temizler. Kuyruk tablosu denetim kaydı değildir; sunucu
   /// tarafındaki `ack` o işi görüyor.
   int purgePrinted({required DateTime olderThan}) {
-    _db.execute('DELETE FROM print_queue WHERE printed_at IS NOT NULL AND printed_at < ?', [
-      olderThan.toUtc().toIso8601String(),
-    ]);
+    _db.execute(
+      'DELETE FROM print_queue WHERE printed_at IS NOT NULL AND printed_at < ?',
+      [olderThan.toUtc().toIso8601String()],
+    );
     return _db.updatedRows;
   }
 
