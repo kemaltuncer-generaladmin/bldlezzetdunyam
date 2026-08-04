@@ -15,6 +15,21 @@ KOK="$(cd "$(dirname "$0")/../.." && pwd)"
 # ve orada denemek zaten istemediğimiz şey.
 COMPOSE="docker compose -f ${BLD_COMPOSE:-$KOK/infra/docker-compose.yml}"
 
+# BLD_DB_CONTAINER verilirse compose hiç kullanılmaz; Coolify sunucusunda
+# repo çalışma kopyası yok ve konteyner adlarının soneki her dağıtımda
+# değişiyor, bu yüzden ÖRÜNTÜ alıp her koşuda yeniden çözüyoruz.
+# Gerekçenin tamamı backup.sh içinde.
+db_exec() {
+  if [ -n "${BLD_DB_CONTAINER:-}" ]; then
+    local c
+    c=$(docker ps -qf "name=$BLD_DB_CONTAINER" | head -1)
+    [ -n "$c" ] || { echo "HATA: '$BLD_DB_CONTAINER' örüntüsüne uyan konteyner yok." >&2; exit 1; }
+    docker exec -i "$c" "$@"
+  else
+    $COMPOSE exec -T db "$@"
+  fi
+}
+
 DOSYA="${1:-}"
 HEDEF=""
 ONAYLA=0
@@ -38,10 +53,11 @@ fi
 
 # .env yüklenir ama UID/GID atlanır: bunlar docker compose için konuldu
 # ve bash'te salt-okunur oldukları için `set -a` ile kaynaklamak hata basar.
-if [ -f "$KOK/infra/.env" ]; then
+ENV_DOSYASI="${BLD_ENV_FILE:-$KOK/infra/.env}"
+if [ -f "$ENV_DOSYASI" ]; then
   set -a
   # shellcheck source=/dev/null
-  . <(grep -vE '^(UID|GID)=' "$KOK/infra/.env")
+  . <(grep -vE '^(UID|GID)=' "$ENV_DOSYASI")
   set +a
 fi
 
@@ -120,17 +136,17 @@ fi
 
 # ── 2. Yükleme ────────────────────────────────────────────────────────────
 echo "  hedef veritabanı hazırlanıyor..."
-$COMPOSE exec -T db mysql -u"$YONETICI_KULLANICI" -p"$YONETICI_PAROLA" \
+db_exec mysql -u"$YONETICI_KULLANICI" -p"$YONETICI_PAROLA" \
   -e "CREATE DATABASE IF NOT EXISTS \`$HEDEF\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 echo "  yükleniyor..."
-$COMPOSE exec -T db mysql -u"$YONETICI_KULLANICI" -p"$YONETICI_PAROLA" "$HEDEF" < "$GECICI"
+db_exec mysql -u"$YONETICI_KULLANICI" -p"$YONETICI_PAROLA" "$HEDEF" < "$GECICI"
 
 # ── 3. Doğrulama ──────────────────────────────────────────────────────────
 # "Komut hata vermedi" ile "veri geldi" aynı şey değil.
 echo
 echo "  doğrulama:"
-$COMPOSE exec -T db mysql -u"$YONETICI_KULLANICI" -p"$YONETICI_PAROLA" "$HEDEF" -N -e "
+db_exec mysql -u"$YONETICI_KULLANICI" -p"$YONETICI_PAROLA" "$HEDEF" -N -e "
   SELECT CONCAT('    tablo sayısı : ', COUNT(*))
     FROM information_schema.tables WHERE table_schema='$HEDEF';
   SELECT CONCAT('    sipariş      : ', COUNT(*)) FROM orders;
@@ -141,13 +157,22 @@ $COMPOSE exec -T db mysql -u"$YONETICI_KULLANICI" -p"$YONETICI_PAROLA" "$HEDEF" 
 
 echo
 if [ "$TATBIKAT" = 1 ]; then
+  # `db_exec` bu betiğin içinde tanımlı bir fonksiyondur; kullanıcıya
+  # olduğu gibi göstermek kopyalayınca "command not found" demektir.
+  # Hangi yolla bağlandıysak ona uyan gerçek komutu basıyoruz.
+  if [ -n "${BLD_DB_CONTAINER:-}" ]; then
+    TEMIZLE_KOMUTU="docker exec -i \$(docker ps -qf name=$BLD_DB_CONTAINER | head -1) mysql -u$YONETICI_KULLANICI -p'<parola>' -e 'DROP DATABASE \`$HEDEF\`;'"
+  else
+    TEMIZLE_KOMUTU="$COMPOSE exec -T db mysql -u$YONETICI_KULLANICI -p'<parola>' -e 'DROP DATABASE \`$HEDEF\`;'"
+  fi
+
   cat <<SON
 Tatbikat tamam. Yukarıdaki sayılar makul görünüyorsa yedek sağlamdır.
 
 Durum kodu sayısı 7 OLMALI — değilse veykemtu:setup koşmamış bir yedektir.
 
 Tatbikat veritabanını temizlemek için:
-  $COMPOSE exec -T db mysql -u$YONETICI_KULLANICI -p'***' -e "DROP DATABASE \\\`$HEDEF\\\`;"
+  $TEMIZLE_KOMUTU
 SON
 else
   cat <<SON

@@ -168,12 +168,43 @@ Elle geri alma gerekiyorsa `docs/RUNBOOK.md` §7.
 ### 1.4 Yedekleme
 
 `infra/backup/backup.sh` — gecelik cron (03:00):
-- `mysqldump` → şifreli arşiv
-- `platform/storage/app` medya klasörü
-- Hetzner dışı bir hedefe kopyalanır (nesne depolama / ayrı sunucu)
+- `mysqldump` → şifreli arşiv (AES-256, `BACKUP_PASSPHRASE`)
+- medya klasörü
+- sunucu dışı bir hedefe kopyalanır (`BACKUP_REMOTE`)
 - 7 günlük + 4 haftalık + 3 aylık saklama
 
 **Ayda bir geri dönüş tatbikatı zorunlu:** yedek boş bir ortama açılır, sistem ayağa kalkıyor mu doğrulanır.
+
+#### Sunucudaki kurulum (yapıldı — 05.08.2026)
+
+Coolify sunucusunda **repo çalışma kopyası yoktur**; betikler tek başına
+`/opt/bld/infra/backup/` altına kopyalandı, ayarlar `/opt/bld/infra/.env`
+(mod 600) içinde. Cron `/etc/cron.d/bld-yedekleme`.
+
+```
+BLD_DB_CONTAINER=^db-wl1c5om85          # AD DEĞİL, ÖRÜNTÜ
+BLD_APP_CONTAINER=^app-wl1c5om85
+BLD_MEDIA_PATH=/var/www/platform/storage/app
+```
+
+> **Konteyner adı neden örüntü:** Coolify konteyner adlarına her
+> dağıtımda değişen bir sonek ekler (`db-<uuid>-233152209364`). Sabit ad
+> yazmak, ilk dağıtımdan sonra **sessizce çalışmayan** bir yedekleme
+> demekti — cron her gece koşar, her gece "konteyner yok" der ve kimse
+> bakmaz. Betik örüntüyü her koşuda yeniden çözer.
+
+Doğrulandı: gerçek yedek alındı (85 tablo), **geri dönüş tatbikatı
+yapıldı** (85 tablo / 31 sipariş / 7 durum kodu), ve betik **çıplak cron
+ortamında** (`env -i`) da koşuyor.
+
+> **AÇIK EKSİK: `BACKUP_REMOTE` tanımlı değil.** Yedekler şu an yalnızca
+> aynı sunucuda duruyor; disk arızasında yedek de gider. Betik bunu her
+> koşuda uyarı olarak basıyor. Kapatmak için nesne depolama ya da ikinci
+> bir sunucu adresi gerekiyor.
+>
+> **`BACKUP_PASSPHRASE` kaybolursa hiçbir yedek açılamaz.** Parola
+> `/opt/bld/infra/.env` içinde ve başka hiçbir yerde yok — parola
+> yöneticisine alınmalı.
 
 ---
 

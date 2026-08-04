@@ -144,8 +144,9 @@ Kapandı.
 ### Altyapı (`infra/`)
 - [ ] Docker Compose tek komutla ayağa kalkıyor
 - [ ] 4 CI hattı da yeşil
-- [ ] Yedek alınıyor ve **geri dönüş tatbikatı yapıldı**
-- [ ] TLS sertifikası otomatik yenileniyor
+- [x] Yedek alınıyor ve **geri dönüş tatbikatı yapıldı** — üretim sunucusunda, 85 tablo / 31 sipariş geri geldi
+- [x] TLS sertifikası otomatik yenileniyor — Traefik + Let's Encrypt, iki alan adı
+- [ ] **`BACKUP_REMOTE` tanımlı değil** — yedekler yalnızca aynı sunucuda
 - [ ] `heartbeat` gecikmesi admin panelde uyarı üretiyor
 
 ## 3. Sonuç tablosu (Gün 7'de doldurulur)

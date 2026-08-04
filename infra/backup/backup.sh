@@ -29,12 +29,30 @@ done
 
 # .env yüklenir ama UID/GID atlanır: bunlar docker compose için konuldu
 # ve bash'te salt-okunur oldukları için `set -a` ile kaynaklamak hata basar.
-if [ -f "$KOK/infra/.env" ]; then
+ENV_DOSYASI="${BLD_ENV_FILE:-$KOK/infra/.env}"
+if [ -f "$ENV_DOSYASI" ]; then
   set -a
   # shellcheck source=/dev/null
-  . <(grep -vE '^(UID|GID)=' "$KOK/infra/.env")
+  . <(grep -vE '^(UID|GID)=' "$ENV_DOSYASI")
   set +a
 fi
+
+# Konteynerlere nasıl ulaşılacağı iki türlü olabilir:
+#
+#   compose ile  — geliştirme ve kendi yönettiğimiz yığın
+#   ada göre     — Coolify sunucusu: repo çalışma kopyası YOKTUR, compose
+#                  dosyası Coolify'ın ürettiği yolda durur ve konteyner
+#                  adlarının soneki HER DAĞITIMDA DEĞİŞİR
+#
+# Bu yüzden BLD_DB_CONTAINER bir ad değil, bir ad ÖRÜNTÜSÜDÜR ve her
+# koşuda yeniden çözülür. Sabit ad yazmak, ilk dağıtımdan sonra sessizce
+# çalışmayan bir yedekleme demekti.
+konteyner() {
+  local bulunan
+  bulunan=$(docker ps -qf "name=$1" | head -1)
+  [ -n "$bulunan" ] || { echo "HATA: '$1' örüntüsüne uyan çalışan konteyner yok." >&2; exit 1; }
+  echo "$bulunan"
+}
 
 : "${DB_DATABASE:?infra/.env içinde DB_DATABASE yok}"
 : "${DB_USERNAME:?infra/.env içinde DB_USERNAME yok}"
@@ -66,7 +84,14 @@ echo "  veritabanı dökümü..."
 HAM="$(mktemp -t bld-dump-XXXXXX.sql)"
 trap 'rm -f "$HAM"' EXIT
 
-if ! $COMPOSE exec -T db mysqldump \
+if [ -n "${BLD_DB_CONTAINER:-}" ]; then
+  DB_EXEC=(docker exec -i "$(konteyner "$BLD_DB_CONTAINER")")
+else
+  # shellcheck disable=SC2206
+  DB_EXEC=($COMPOSE exec -T db)
+fi
+
+if ! "${DB_EXEC[@]}" mysqldump \
       --single-transaction --quick --no-tablespaces \
       --routines --triggers --events \
       -u"$DB_USERNAME" -p"$DB_PASSWORD" "$DB_DATABASE" > "$HAM" 2>"$HAM.err"; then
@@ -100,13 +125,22 @@ echo "  veritabanı: $(du -h "$DUMP_DIZINI/$AD.sql.gz.enc" | cut -f1), $TABLO ta
 
 # ── 2. Medya ──────────────────────────────────────────────────────────────
 MEDYA="$KOK/platform/storage/app"
-if [ -d "$MEDYA" ]; then
+MEDYA_HEDEF="$DUMP_DIZINI/$AD-medya.tar.gz.enc"
+if [ -n "${BLD_APP_CONTAINER:-}" ]; then
+  # Coolify'da medya konteynerin içindedir, diskte erişilebilir bir
+  # klasör olarak durmaz.
+  echo "  medya arşivi (konteynerden)..."
+  docker exec "$(konteyner "$BLD_APP_CONTAINER")" \
+      tar -czf - -C "${BLD_MEDIA_PATH:-/var/www/html/storage/app}" . \
+    | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
+        -pass "pass:$BACKUP_PASSPHRASE" -out "$MEDYA_HEDEF"
+  echo "  medya: $(du -h "$MEDYA_HEDEF" | cut -f1)"
+elif [ -d "$MEDYA" ]; then
   echo "  medya arşivi..."
   tar -czf - -C "$MEDYA" . \
     | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
-        -pass "pass:$BACKUP_PASSPHRASE" \
-        -out "$DUMP_DIZINI/$AD-medya.tar.gz.enc"
-  echo "  medya: $(du -h "$DUMP_DIZINI/$AD-medya.tar.gz.enc" | cut -f1)"
+        -pass "pass:$BACKUP_PASSPHRASE" -out "$MEDYA_HEDEF"
+  echo "  medya: $(du -h "$MEDYA_HEDEF" | cut -f1)"
 else
   echo "  medya klasörü yok, atlandı"
 fi
