@@ -9,10 +9,21 @@ Panik etmeden önce bunu hatırla.
 
 | Hızlı erişim | |
 |---|---|
-| Admin panel | `https://api.benimlezzetdunyam.com.tr/admin` |
-| Sunucu | `ssh deploy@62.238.102.197` |
+| API / Admin panel | `http://wl1c5om85ryn8qpj3nhv4c13.62.238.102.197.sslip.io` — alan adı gelince değişir |
+| Coolify | `http://62.238.102.197:8000` |
+| Sunucu | `ssh root@62.238.102.197` |
 | Kasa | mutfaktaki MSI, kullanıcı `mutfak` |
 | Yazıcı | `/dev/thermal0` → USB `0483:5720` |
+
+**Sunucuda komut çalıştırma.** Konteyner adları her dağıtımda değişir;
+adı sabit yazma, ara:
+
+```bash
+A=$(docker ps --format '{{.Names}}' | grep '^app-' | head -1)
+docker exec -u www-data -e HOME=/tmp "$A" php artisan <komut>
+```
+
+`-u www-data` ATLANMAZ — sebebi §4.5.
 
 ---
 
@@ -131,7 +142,7 @@ Bağlantı gelince kaçırılanlar otomatik yüklenir.
 ping -c3 8.8.8.8                                   # internet var mı
 curl -s -o /dev/null -w '%{http_code}\n' \
   -H 'X-App-Id: mutfakapp' -H 'X-App-Version: 1.0.0' \
-  https://api.benimlezzetdunyam.com.tr/api/health   # sunucu ayakta mı
+  http://wl1c5om85ryn8qpj3nhv4c13.62.238.102.197.sslip.io/api/health   # sunucu ayakta mı
 ```
 
 - `ping` başarısız → mutfağın interneti yok. Modem/switch kontrol et.
@@ -144,8 +155,9 @@ Kasanın token'ı admin panelden iptal edilmiş. Yeniden eşle:
 
 ```bash
 # Sunucuda yeni eşleme kodu üret (10 dakika geçerli)
-ssh deploy@62.238.102.197 \
-  'cd /opt/bld && docker compose exec -T app php artisan veykemtu:kds --new="Mutfak Kasası"'
+ssh root@62.238.102.197 \
+  'A=$(docker ps --format "{{.Names}}" | grep "^app-" | head -1);
+   docker exec -u www-data -e HOME=/tmp "$A" php artisan veykemtu:kds --new="Mutfak Kasası"'
 ```
 
 Kodu KDS'in eşleme ekranına gir.
@@ -187,8 +199,10 @@ gerekmez.
 ### 4.1 Ayakta mı
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' https://api.benimlezzetdunyam.com.tr/api/health
-ssh deploy@62.238.102.197 'uptime && df -h / && free -m'
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -H 'X-App-Id: website' -H 'X-App-Version: 1.0.0' \
+  http://wl1c5om85ryn8qpj3nhv4c13.62.238.102.197.sslip.io/api/health
+ssh root@62.238.102.197 'uptime && df -h / && free -m'
 ```
 
 - **SSH bağlanmıyor** → sunucu kapalı veya ağ sorunu. Hetzner panelinden
@@ -198,26 +212,19 @@ ssh deploy@62.238.102.197 'uptime && df -h / && free -m'
 
 ### 4.2 Servisler
 
-```bash
-ssh deploy@62.238.102.197
-cd /opt/bld
-docker compose ps                    # hangisi ayakta değil
-docker compose logs --tail=100 app   # PHP hataları
-docker compose logs --tail=50 caddy  # TLS / yönlendirme
-docker compose logs --tail=50 db     # veritabanı
-```
-
-Tek servis düşmüşse:
+Yığın Coolify tarafından yönetiliyor; `docker compose` ile elle
+karışmak Coolify'ın durum kaydıyla çelişir.
 
 ```bash
-docker compose up -d <servis>
+ssh root@62.238.102.197
+docker ps -a --format '{{.Names}}\t{{.Status}}' | grep -viE '^coolify'
+docker logs --tail=100 "$(docker ps -a --format '{{.Names}}' | grep '^app-' | head -1)"
+docker logs --tail=50  "$(docker ps -a --format '{{.Names}}' | grep '^web-' | head -1)"
+docker logs --tail=50  "$(docker ps -a --format '{{.Names}}' | grep '^db-'  | head -1)"
 ```
 
-Hepsi karışmışsa (**veri kaybolmaz**, veritabanı ayrı bir birimdedir):
-
-```bash
-docker compose down && docker compose up -d
-```
+Yeniden başlatma ve geri alma **Coolify arayüzünden** yapılır
+(`http://62.238.102.197:8000` → BLD → Redeploy / önceki dağıtım).
 
 ### 4.3 Disk doldu
 
@@ -225,14 +232,31 @@ docker compose down && docker compose up -d
 docker system df                     # ne yer yiyor
 docker system prune -af --volumes=false   # DİKKAT: --volumes YOK, veri silinmez
 sudo journalctl --vacuum-time=7d
-du -sh /opt/bld/platform/storage/logs/*
+docker exec "$(docker ps --format '{{.Names}}' | grep '^app-' | head -1)" du -sh storage/logs
 ```
 
 `--volumes` bayrağını **asla ekleme**: veritabanı ve medya orada.
 
-### 4.4 TLS sertifikası alınamıyor
+### 4.4 Dışarıdan 404 "page not found" geliyor
 
-Caddy sürekli yeniden deniyorsa neredeyse her zaman DNS sebebidir:
+Bu **Traefik'in** 404'ü, bizim JSON hatamız değil — istek uygulamaya hiç
+ulaşmıyor demektir. İki olağan şüpheli:
+
+```bash
+W=$(docker ps --format '{{.Names}}' | grep '^web-' | head -1)
+docker inspect "$W" --format '{{json .Config.Labels}}' | grep -c traefik
+```
+
+- **0 etiket** → Coolify proxy yapılandırmasını uygulamamış. `web`
+  servisinde `expose: ["80"]` var mı ve `SERVICE_FQDN_WEB_80` **çıplak
+  anahtar** olarak mı yazılmış (değer atanmamış) kontrol et. İkisi de
+  gerekli; biri eksikse etiket üretilmiyor.
+- **Etiket var ama yine 404** → Coolify arayüzünden alan adını kontrol et
+  ve yeniden dağıt.
+
+### 4.4b TLS sertifikası alınamıyor
+
+Alan adı alındıktan sonra geçerli. Neredeyse her zaman DNS sebebidir:
 
 ```bash
 dig +short benimlezzetdunyam.com.tr
@@ -240,7 +264,7 @@ dig +short api.benimlezzetdunyam.com.tr
 ```
 
 İkisi de `62.238.102.197` dönmeli. Dönmüyorsa DNS kaydı eksik veya henüz
-yayılmamış — Caddy'yi kurcalama, DNS'i düzelt ve bekle.
+yayılmamış — proxy'yi kurcalama, DNS'i düzelt ve bekle.
 
 ---
 
@@ -265,8 +289,8 @@ Tekrarlamaması için artisan **her zaman** `-u www-data` ile koşulmalı.
 ortamda dene.
 
 ```bash
-ssh deploy@62.238.102.197
-cd /opt/bld
+ssh root@62.238.102.197
+cd /opt/bld                          # yedek betikleri buraya klonlanır
 ls -lh infra/backup/dumps/           # en son yedek hangisi
 
 # GERİ YÜKLEMEDEN ÖNCE mevcut hâlin yedeğini al
@@ -309,14 +333,8 @@ Neyin eksik olduğunu **hiçbir şeyi değiştirmeden** görmek için:
 
 Yeni sürüm sorun çıkardıysa:
 
-```bash
-ssh deploy@62.238.102.197
-cd /opt/bld
-git log --oneline -5                 # hangi sürümdeyiz
-git checkout <önceki-commit>
-docker compose build app web && docker compose up -d
-docker compose exec app php artisan migrate --force
-```
+Coolify her dağıtımı saklar: arayüz → BLD → **Deployments** → önceki
+dağıtımda **Redeploy**. Elle git işlemi gerekmez.
 
 **Migration geri alma:** `php artisan migrate:rollback` yalnızca son toplu
 işlemi geri alır ve **veri kaybettirebilir**. Şema değişikliği içeren bir
