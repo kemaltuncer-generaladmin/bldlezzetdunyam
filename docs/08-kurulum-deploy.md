@@ -73,14 +73,40 @@ yazmak yeterli — kod ve compose değişmez.
 
 #### İlk dağıtımdan sonra — zorunlu
 
+**Artisan HER ZAMAN `-u www-data` ile koşulur.** Sebebi aşağıda.
+
 ```bash
-docker compose exec app php artisan igniter:install --no-interaction
-docker compose exec app php artisan veykemtu:setup
-docker compose exec app php artisan veykemtu:admin <e-posta> --super
+A=$(docker ps --format '{{.Names}}' | grep '^app-' | head -1)
+docker exec -u www-data -e HOME=/tmp "$A" php artisan igniter:install --no-interaction
+docker exec -u www-data -e HOME=/tmp "$A" php artisan veykemtu:setup
+docker exec -u www-data -e HOME=/tmp "$A" php artisan veykemtu:admin <e-posta> --super
 ```
 
 `veykemtu:setup` olmadan sipariş durumları, vitrin ve ödeme yöntemleri
 tanımsız kalır; API çalışır ama sipariş oluşturulamaz.
+
+> **`-u www-data` neden zorunlu — sahada yaşandı.**
+>
+> Artisan'ı root olarak koşmak `storage/framework/cache` altında **root'a
+> ait** dosyalar bırakır. php-fpm `www-data` koşar ve o dosyalara yazamaz.
+> Sonuç: oran sınırlayıcı gibi önbelleğe yazan her uç **500** döner, ama
+> yalnızca BAZI uçlar — sorunun kaynağı görünmez olur. Bizde
+> `POST /api/kitchen/pair` 500 verirken `GET /api/kitchen/orders` sorunsuz
+> çalışıyordu ve hata mesajı da loglanamıyordu.
+>
+> Konteyner yeniden başlarsa giriş betiği sahipliği düzeltir; ama komutu
+> doğru koşmak bunu hiç yaşamamayı sağlar.
+
+#### Erişim adresi (alan adı gelene kadar)
+
+Coolify sslip.io joker DNS'iyle otomatik bir adres verir:
+`http://<uuid>.62.238.102.197.sslip.io`. Gerçek DNS gerektirmez, doğrudan
+sunucu IP'sine çözülür — staging bu adresle test edilebilir.
+
+**`expose` bildirimi zorunludur.** Coolify, Traefik hizmetini portu
+bilmeden kuramaz; `web` servisinde `expose: ["80"]` olmadan konteyner
+etiketsiz kalır ve dışarıdan 404 döner. `ports` değil `expose` — dışarı
+açılmıyor, yalnızca proxy'nin ulaşacağı port ilan ediliyor.
 
 ### 1.3 Dağıtım geri alma
 

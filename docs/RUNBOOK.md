@@ -244,6 +244,21 @@ yayılmamış — Caddy'yi kurcalama, DNS'i düzelt ve bekle.
 
 ---
 
+## 4.5 Bazı uçlar 500 dönüyor, bazıları çalışıyor
+
+Neredeyse her zaman **dosya sahipliği**dir. Artisan bir komut root olarak
+koşulmuşsa `storage` altında root'a ait dosyalar kalır; php-fpm
+(`www-data`) onlara yazamaz ve yalnızca oraya yazmaya çalışan uçlar
+patlar. Hata da loglanamadığı için sebebi görünmez.
+
+```bash
+A=$(docker ps --format '{{.Names}}' | grep '^app-' | head -1)
+docker exec "$A" find storage bootstrap/cache ! -user www-data | head
+docker exec "$A" chown -R www-data:www-data storage bootstrap/cache
+```
+
+Tekrarlamaması için artisan **her zaman** `-u www-data` ile koşulmalı.
+
 ## 5. Veri geri yükleme
 
 **Tatbikatı yapılmamış yedek, yedek değildir.** Ayda bir bunu boş bir

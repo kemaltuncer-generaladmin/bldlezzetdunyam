@@ -92,8 +92,11 @@ is "geçersiz eşleme kodu 404" 404 \
 # Eşleme kodu: mock'ta sabit, gerçekte artisan komutu üretir.
 CODE="BLD1-MOCK"
 if [ "$(code "${KHDR[@]}" -X POST "$API/kitchen/pair" -d "{\"pairing_code\":\"$CODE\",\"device_name\":\"E2E\"}")" != "200" ]; then
-  CODE=$(docker compose -f "$(dirname "$0")/docker-compose.dev.yml" exec -T -e HOME=/tmp app \
-    php artisan veykemtu:kds --new="E2E $(date +%s)" 2>/dev/null \
+  # Eşleme kodu artisan ile üretilir. Nerede koşulacağı ortama göre
+  # değişir: yerelde docker compose, sunucuda ssh + docker exec.
+  # BLD_ARTISAN ile dışarıdan verilebilir.
+  ARTISAN="${BLD_ARTISAN:-docker compose -f $(dirname "$0")/docker-compose.dev.yml exec -T -e HOME=/tmp app php artisan}"
+  CODE=$($ARTISAN veykemtu:kds --new="E2E $(date +%s)" 2>/dev/null \
     | sed 's/\x1b\[[0-9;]*m//g' | grep -oE '[A-Z0-9]{4}-[A-Z0-9]{4}' | head -1)
 fi
 KT=$(curl -s "${KHDR[@]}" -X POST "$API/kitchen/pair" -d "{\"pairing_code\":\"$CODE\",\"device_name\":\"E2E\"}" | j '.token')
