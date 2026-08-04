@@ -66,6 +66,11 @@ services:
       # girmiyor ve dışarıdan 404 dönüyor. Alan adı Coolify arayüzündeki
       # "Domains" alanından verilir, compose'dan değil.
       - SERVICE_FQDN_WEB_80
+    # Coolify'ın Traefik hizmetini kurabilmesi için portun bildirilmesi
+    # gerekir; `ports` değil `expose` — dışarı açılmayacak, yalnızca
+    # proxy'nin iç ağdan ulaşacağı port ilan ediliyor.
+    expose:
+      - "80"
     # Bind mount YOK: Caddyfile imaja gömülü (bkz. Dockerfile.web).
     # Coolify repo kaynağını sunucuda tutmaz; bind mount kaynağı bulamaz
     # ve Docker oraya klasör oluşturup konteyneri hiç başlatmaz.
