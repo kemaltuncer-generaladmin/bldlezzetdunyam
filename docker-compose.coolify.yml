@@ -62,8 +62,9 @@ services:
       # Coolify bu değişkeni görünce Traefik yönlendirmesini ve TLS'i
       # kendisi kurar. Alan adı gelene kadar sunucu IP'si kullanılır.
       SERVICE_FQDN_WEB_80: ${API_FQDN:-/}
-    volumes:
-      - ./infra/Caddyfile.internal:/etc/caddy/Caddyfile:ro
+    # Bind mount YOK: Caddyfile imaja gömülü (bkz. Dockerfile.web).
+    # Coolify repo kaynağını sunucuda tutmaz; bind mount kaynağı bulamaz
+    # ve Docker oraya klasör oluşturup konteyneri hiç başlatmaz.
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 0"]
       interval: 30s

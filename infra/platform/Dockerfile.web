@@ -31,4 +31,17 @@ COPY platform/ ./
 RUN composer dump-autoload --optimize --no-dev
 
 FROM caddy:2-alpine
+
 COPY --from=build /var/www/platform/public /var/www/platform/public
+
+# Yapılandırma imaja GÖMÜLÜR, bind mount edilmez.
+#
+# NEDEN: Coolify repo kaynağını uygulama dizininde tutmaz — derleme ayrı
+# bir konteynerde yapılır ve kaynak atılır; geriye yalnızca .env ve
+# çözümlenmiş docker-compose.yaml kalır. `./infra/Caddyfile.internal`
+# gibi bir bind mount kaynağı bulamaz, Docker oraya boş bir KLASÖR
+# oluşturur ve konteyner "not a directory" ile hiç başlamaz.
+#
+# Yapılandırmayı imaja gömmek zaten daha doğru: sunulan dosyalarla onları
+# sunan yapılandırma aynı yapıda, birlikte sürümleniyor.
+COPY infra/Caddyfile.internal /etc/caddy/Caddyfile
