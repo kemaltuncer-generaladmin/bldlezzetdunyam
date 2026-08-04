@@ -1,0 +1,30 @@
+# Mutfak KDS — systemd user servisi (docs/05-mutfakapp.md §6, ADR-06).
+#
+# Kurulum:
+#   mkdir -p ~/.config/systemd/user
+#   cp mutfakapp.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now mutfakapp
+#   sudo loginctl enable-linger mutfak
+#
+# Amaç: elektrik kesintisinden sonra kimsenin müdahale etmesi gerekmemeli.
+
+[Unit]
+Description=Mutfak KDS
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/opt/mutfakapp/mutfakapp
+Restart=always
+RestartSec=5
+Environment=DISPLAY=:0
+
+# Çökme döngüsünde sonsuza kadar denemeyi bırakmasın: systemd varsayılanı
+# 10 sn'de 5 denemeden sonra pes eder, biz istemiyoruz — kasa her hâlükârda
+# ekranı geri getirmeli (docs/10 S4 adım 7).
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=default.target

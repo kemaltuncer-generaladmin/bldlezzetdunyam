@@ -1,0 +1,29 @@
+# Termal yazıcı için kalıcı cihaz adı ve izin — docs/05-mutfakapp.md §5.1
+#
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║ YER TUTUCU — XXXX ve YYYY GERÇEK DEĞERLERLE DEĞİŞTİRİLMEDEN ÇALIŞMAZ.     ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+#
+# Gün 1'de yazıcı bağlanır ve değerler `lsusb` çıktısından alınır:
+#
+#   $ lsusb
+#   Bus 001 Device 005: ID 0416:5011 Winbond Electronics Corp. POS Printer
+#                          ^^^^ ^^^^
+#                          VID  PID
+#
+# Sonra ham bayt testi (udev kuralı olmadan, doğrudan):
+#
+#   $ echo -e "Test\n\n\n\x1D\x56\x42\x00" > /dev/usb/lp0
+#
+# Fiş çıkmıyorsa DURULUR ve bildirilir — projenin en büyük donanım riski
+# budur (docs/09-gorev-plani.md §8). Çıkıyorsa değerler aşağıya yazılır.
+#
+# Neden sembolik bağ: uygulama /dev/usb/lp0 yerine /dev/thermal0 kullanır;
+# USB portu değişse veya başka bir usblp cihazı takılsa da bozulmaz.
+
+SUBSYSTEM=="usb", ATTRS{idVendor}=="XXXX", ATTRS{idProduct}=="YYYY", MODE="0666", SYMLINK+="thermal0", GROUP="lp"
+
+# Kurulumdan sonra:
+#   sudo cp 99-thermal-printer.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+#   ls -l /dev/thermal0

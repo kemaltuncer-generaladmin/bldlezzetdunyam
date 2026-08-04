@@ -1,0 +1,14 @@
+name: bld_core
+description: >
+  Sipariş durum makinesi, para ve tarih biçimleme. Saf Dart — Flutter'a bağımlı
+  değildir, hem istemciler hem araçlar kullanabilir.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.9.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0

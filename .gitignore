@@ -1,0 +1,96 @@
+# ── Sırlar — asla commit edilmez (AGENTS.md §2.2) ────────────────────────────
+keys/
+secrets/
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.local
+*.keystore
+*.jks
+*.p12
+*.pem
+*.key
+!**/lib/**/*.key
+google-services.json
+GoogleService-Info.plist
+service-account*.json
+firebase-adminsdk*.json
+
+# ── PHP / TastyIgniter (platform/) ───────────────────────────────────────────
+vendor/
+platform/storage/framework/cache/*
+platform/storage/framework/sessions/*
+platform/storage/framework/views/*
+platform/storage/logs/*
+platform/bootstrap/cache/*
+platform/public/storage
+platform/openapi.json
+!platform/storage/**/.gitkeep
+
+# ── Node / Next.js (website/, infra/mock/) ───────────────────────────────────
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+.pnpm-store/
+playwright-report/
+test-results/
+.playwright/
+
+# ── Dart / Flutter (packages/, musteriapp/, mutfakapp/) ──────────────────────
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+**/doc/api/
+coverage/
+*.iml
+
+# musteriapp: yalnızca Android hedefi
+musteriapp/ios/
+musteriapp/macos/
+musteriapp/windows/
+musteriapp/linux/
+musteriapp/web/
+musteriapp/android/key.properties
+musteriapp/android/app/upload-keystore.jks
+
+# mutfakapp: yalnızca Linux hedefi (ADR-04 — Android planı iptaldir)
+mutfakapp/android/
+mutfakapp/ios/
+mutfakapp/macos/
+mutfakapp/windows/
+mutfakapp/web/
+
+# ── Altyapı ──────────────────────────────────────────────────────────────────
+infra/data/
+infra/caddy_data/
+infra/caddy_config/
+infra/backup/dumps/
+*.sql
+*.sql.gz
+*.dump
+
+# ── Editör / ajan araçları ───────────────────────────────────────────────────
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.shared.json
+# Kişiye/makineye özel ajan izinleri — paylaşılan ayar .claude/settings.json'dur.
+.claude/settings.local.json
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# ── Geçici ───────────────────────────────────────────────────────────────────
+tmp/
+.tmp/
+*.log

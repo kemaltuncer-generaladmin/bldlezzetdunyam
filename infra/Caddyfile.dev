@@ -1,0 +1,12 @@
+# Geliştirme — TLS yok, tek port. Üretim yapılandırması: infra/Caddyfile
+:80 {
+	root * /var/www/platform/public
+	php_fastcgi app:9000
+	file_server
+	encode gzip
+
+	log {
+		output stdout
+		format console
+	}
+}

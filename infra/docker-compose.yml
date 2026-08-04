@@ -1,0 +1,89 @@
+# Üretim yığını — docs/08-kurulum-deploy.md §1.2.
+#
+#   docker compose -f infra/docker-compose.yml up -d
+#
+# Geliştirme yığını ayrı dosyadadır: infra/docker-compose.dev.yml
+# Buradaki tüm sırlar infra/.env'den gelir; repoda yalnızca .env.example var.
+
+name: bld
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    depends_on: [app, web]
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN gerekli}
+      API_DOMAIN: ${API_DOMAIN:?API_DOMAIN gerekli}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../platform:/var/www/platform:ro
+      - caddy-data:/data
+      - caddy-config:/config
+      - caddy-logs:/var/log/caddy
+
+  app:
+    build:
+      context: ./platform
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: [.env]
+    volumes:
+      - ../platform:/var/www/platform
+      - media:/var/www/platform/storage/app
+
+  web:
+    build:
+      context: ../website
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    expose: ["3000"]
+
+  db:
+    image: mysql:8
+    restart: always
+    command: --default-authentication-plugin=caching_sha2_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD gerekli}
+      MYSQL_DATABASE: ${DB_DATABASE:?DB_DATABASE gerekli}
+      MYSQL_USER: ${DB_USERNAME:?DB_USERNAME gerekli}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD gerekli}
+    # Port DIŞA AÇILMAZ — yalnızca iç ağ (docs/08 §1.2).
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root",
+             "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # Faz 1.5 — WebSocket (docs/03 §7, ADR-05). Devreye girene kadar
+  # `--profile realtime` olmadan başlatılmaz.
+  reverb:
+    build:
+      context: ./platform
+    restart: always
+    profiles: [realtime]
+    depends_on: [app]
+    env_file: [.env]
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    volumes:
+      - ../platform:/var/www/platform
+    expose: ["8080"]
+
+volumes:
+  db-data:
+  media:
+  caddy-data:
+  caddy-config:
+  caddy-logs:

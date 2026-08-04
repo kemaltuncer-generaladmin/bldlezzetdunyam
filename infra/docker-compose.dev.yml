@@ -1,0 +1,102 @@
+# Geliştirme yığını.
+#
+#   docker compose -f infra/docker-compose.dev.yml up mock-api   # yalnız mock
+#   docker compose -f infra/docker-compose.dev.yml up -d         # tam yığın
+#
+# Üretim yığını ayrı dosyadadır: infra/docker-compose.yml (docs/08 §1.2).
+# Buradaki parolalar geliştirme içindir ve .env.example'dan gelir; gerçek
+# değerler repoya girmez (AGENTS.md §2.2).
+
+name: bld-dev
+
+services:
+  # ── Mock API — istemci hatlarının backend'i beklemeden çalışması için ────
+  mock-api:
+    build:
+      context: ./mock
+    container_name: bld-mock-api
+    restart: unless-stopped
+    ports:
+      - "${MOCK_PORT:-4010}:4010"
+    environment:
+      PORT: 4010
+    healthcheck:
+      # Zorunlu başlıklar olmadan /api/health 422 döner — sağlık kontrolü de
+      # sözleşmeye uymak zorunda.
+      test:
+        - CMD-SHELL
+        - >-
+          wget -qO- --header='X-App-Id: website'
+          --header='X-App-Version: 1.0.0'
+          http://127.0.0.1:4010/api/health || exit 1
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # ── MySQL ────────────────────────────────────────────────────────────────
+  db:
+    image: mysql:8
+    container_name: bld-db
+    restart: unless-stopped
+    command: --default-authentication-plugin=caching_sha2_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-gelistirme}
+      MYSQL_DATABASE: ${DB_DATABASE:-bld}
+      MYSQL_USER: ${DB_USERNAME:-bld}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-gelistirme}
+    ports:
+      # Yalnızca geliştirmede dışa açılır — üretimde asla (docs/08 §1.2).
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root",
+             "-p${DB_ROOT_PASSWORD:-gelistirme}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ── TastyIgniter (PHP-FPM) ───────────────────────────────────────────────
+  # platform/ B-01'de doldurulana kadar bu konteyner boş bir dizin sunar;
+  # kurulum onun içinde koşulur:
+  #   docker compose -f infra/docker-compose.dev.yml exec app \
+  #     composer create-project tastyigniter/tastyigniter . --stability=stable
+  app:
+    build:
+      context: ./platform
+    container_name: bld-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ../platform:/var/www/platform
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-bld}
+      DB_USERNAME: ${DB_USERNAME:-bld}
+      DB_PASSWORD: ${DB_PASSWORD:-gelistirme}
+
+  # ── Caddy — platform'u tarayıcıdan erişilir kılar ────────────────────────
+  web:
+    image: caddy:2-alpine
+    container_name: bld-web
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    volumes:
+      - ./Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - ../platform:/var/www/platform:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:

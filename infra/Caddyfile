@@ -1,0 +1,50 @@
+# Üretim — otomatik TLS (docs/08-kurulum-deploy.md §1.2).
+#
+# {$DOMAIN} ve {$API_DOMAIN} ortam değişkenlerinden gelir; alan adı henüz
+# kesin değil (BILINMEYENLER KOL-D).
+
+{$API_DOMAIN} {
+	root * /var/www/platform/public
+	php_fastcgi app:9000
+	file_server
+	encode gzip
+
+	# Reverb WebSocket — Faz 1.5 (docs/03 §7). Devreye girene kadar zararsız.
+	handle /app/* {
+		reverse_proxy reverb:8080
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	log {
+		output file /var/log/caddy/api.log {
+			roll_size 20mb
+			roll_keep 14
+		}
+	}
+}
+
+{$DOMAIN}, www.{$DOMAIN} {
+	reverse_proxy web:3000
+	encode gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	log {
+		output file /var/log/caddy/web.log {
+			roll_size 20mb
+			roll_keep 14
+		}
+	}
+}

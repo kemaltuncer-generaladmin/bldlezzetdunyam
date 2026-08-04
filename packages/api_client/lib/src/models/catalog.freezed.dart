@@ -1,0 +1,1452 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// coverage:ignore-file
+// ignore_for_file: type=lint
+// ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
+
+part of 'catalog.dart';
+
+// **************************************************************************
+// FreezedGenerator
+// **************************************************************************
+
+// dart format off
+T _$identity<T>(T value) => value;
+
+/// @nodoc
+mixin _$Location {
+
+ int get id; String get name; String get slug;/// Çalışma saatlerinden türetilir — şu an sipariş saati içinde miyiz?
+ bool get isOpen;/// Yöneticinin admin panelden çevirdiği elle ana şalter.
+ bool get orderingEnabled;/// Kuruş. Altında sipariş `422 VALIDATION_FAILED`.
+ int get minOrderTotal;/// Bu vitrinde **açık** olan ödeme yöntemleri. İstemci yalnızca bunları gösterir.
+@PaymentMethodConverter() List<PaymentMethod> get paymentMethods;/// Günlük son sipariş saati (`HH:mm`, Europe/Istanbul) veya `null`.
+ String? get orderCutoff;
+/// Create a copy of Location
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LocationCopyWith<Location> get copyWith => _$LocationCopyWithImpl<Location>(this as Location, _$identity);
+
+  /// Serializes this Location to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Location&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.slug, slug) || other.slug == slug)&&(identical(other.isOpen, isOpen) || other.isOpen == isOpen)&&(identical(other.orderingEnabled, orderingEnabled) || other.orderingEnabled == orderingEnabled)&&(identical(other.minOrderTotal, minOrderTotal) || other.minOrderTotal == minOrderTotal)&&const DeepCollectionEquality().equals(other.paymentMethods, paymentMethods)&&(identical(other.orderCutoff, orderCutoff) || other.orderCutoff == orderCutoff));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,name,slug,isOpen,orderingEnabled,minOrderTotal,const DeepCollectionEquality().hash(paymentMethods),orderCutoff);
+
+@override
+String toString() {
+  return 'Location(id: $id, name: $name, slug: $slug, isOpen: $isOpen, orderingEnabled: $orderingEnabled, minOrderTotal: $minOrderTotal, paymentMethods: $paymentMethods, orderCutoff: $orderCutoff)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LocationCopyWith<$Res>  {
+  factory $LocationCopyWith(Location value, $Res Function(Location) _then) = _$LocationCopyWithImpl;
+@useResult
+$Res call({
+ int id, String name, String slug, bool isOpen, bool orderingEnabled, int minOrderTotal,@PaymentMethodConverter() List<PaymentMethod> paymentMethods, String? orderCutoff
+});
+
+
+
+
+}
+/// @nodoc
+class _$LocationCopyWithImpl<$Res>
+    implements $LocationCopyWith<$Res> {
+  _$LocationCopyWithImpl(this._self, this._then);
+
+  final Location _self;
+  final $Res Function(Location) _then;
+
+/// Create a copy of Location
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? slug = null,Object? isOpen = null,Object? orderingEnabled = null,Object? minOrderTotal = null,Object? paymentMethods = null,Object? orderCutoff = freezed,}) {
+  return _then(_self.copyWith(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,slug: null == slug ? _self.slug : slug // ignore: cast_nullable_to_non_nullable
+as String,isOpen: null == isOpen ? _self.isOpen : isOpen // ignore: cast_nullable_to_non_nullable
+as bool,orderingEnabled: null == orderingEnabled ? _self.orderingEnabled : orderingEnabled // ignore: cast_nullable_to_non_nullable
+as bool,minOrderTotal: null == minOrderTotal ? _self.minOrderTotal : minOrderTotal // ignore: cast_nullable_to_non_nullable
+as int,paymentMethods: null == paymentMethods ? _self.paymentMethods : paymentMethods // ignore: cast_nullable_to_non_nullable
+as List<PaymentMethod>,orderCutoff: freezed == orderCutoff ? _self.orderCutoff : orderCutoff // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [Location].
+extension LocationPatterns on Location {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _Location value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _Location() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _Location value)  $default,){
+final _that = this;
+switch (_that) {
+case _Location():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _Location value)?  $default,){
+final _that = this;
+switch (_that) {
+case _Location() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _Location() when $default != null:
+return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff)  $default,) {final _that = this;
+switch (_that) {
+case _Location():
+return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff)?  $default,) {final _that = this;
+switch (_that) {
+case _Location() when $default != null:
+return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _Location extends Location {
+  const _Location({required this.id, required this.name, required this.slug, required this.isOpen, required this.orderingEnabled, required this.minOrderTotal, @PaymentMethodConverter() required final  List<PaymentMethod> paymentMethods, this.orderCutoff}): _paymentMethods = paymentMethods,super._();
+  factory _Location.fromJson(Map<String, dynamic> json) => _$LocationFromJson(json);
+
+@override final  int id;
+@override final  String name;
+@override final  String slug;
+/// Çalışma saatlerinden türetilir — şu an sipariş saati içinde miyiz?
+@override final  bool isOpen;
+/// Yöneticinin admin panelden çevirdiği elle ana şalter.
+@override final  bool orderingEnabled;
+/// Kuruş. Altında sipariş `422 VALIDATION_FAILED`.
+@override final  int minOrderTotal;
+/// Bu vitrinde **açık** olan ödeme yöntemleri. İstemci yalnızca bunları gösterir.
+ final  List<PaymentMethod> _paymentMethods;
+/// Bu vitrinde **açık** olan ödeme yöntemleri. İstemci yalnızca bunları gösterir.
+@override@PaymentMethodConverter() List<PaymentMethod> get paymentMethods {
+  if (_paymentMethods is EqualUnmodifiableListView) return _paymentMethods;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_paymentMethods);
+}
+
+/// Günlük son sipariş saati (`HH:mm`, Europe/Istanbul) veya `null`.
+@override final  String? orderCutoff;
+
+/// Create a copy of Location
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$LocationCopyWith<_Location> get copyWith => __$LocationCopyWithImpl<_Location>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$LocationToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Location&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.slug, slug) || other.slug == slug)&&(identical(other.isOpen, isOpen) || other.isOpen == isOpen)&&(identical(other.orderingEnabled, orderingEnabled) || other.orderingEnabled == orderingEnabled)&&(identical(other.minOrderTotal, minOrderTotal) || other.minOrderTotal == minOrderTotal)&&const DeepCollectionEquality().equals(other._paymentMethods, _paymentMethods)&&(identical(other.orderCutoff, orderCutoff) || other.orderCutoff == orderCutoff));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,name,slug,isOpen,orderingEnabled,minOrderTotal,const DeepCollectionEquality().hash(_paymentMethods),orderCutoff);
+
+@override
+String toString() {
+  return 'Location(id: $id, name: $name, slug: $slug, isOpen: $isOpen, orderingEnabled: $orderingEnabled, minOrderTotal: $minOrderTotal, paymentMethods: $paymentMethods, orderCutoff: $orderCutoff)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$LocationCopyWith<$Res> implements $LocationCopyWith<$Res> {
+  factory _$LocationCopyWith(_Location value, $Res Function(_Location) _then) = __$LocationCopyWithImpl;
+@override @useResult
+$Res call({
+ int id, String name, String slug, bool isOpen, bool orderingEnabled, int minOrderTotal,@PaymentMethodConverter() List<PaymentMethod> paymentMethods, String? orderCutoff
+});
+
+
+
+
+}
+/// @nodoc
+class __$LocationCopyWithImpl<$Res>
+    implements _$LocationCopyWith<$Res> {
+  __$LocationCopyWithImpl(this._self, this._then);
+
+  final _Location _self;
+  final $Res Function(_Location) _then;
+
+/// Create a copy of Location
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? slug = null,Object? isOpen = null,Object? orderingEnabled = null,Object? minOrderTotal = null,Object? paymentMethods = null,Object? orderCutoff = freezed,}) {
+  return _then(_Location(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,slug: null == slug ? _self.slug : slug // ignore: cast_nullable_to_non_nullable
+as String,isOpen: null == isOpen ? _self.isOpen : isOpen // ignore: cast_nullable_to_non_nullable
+as bool,orderingEnabled: null == orderingEnabled ? _self.orderingEnabled : orderingEnabled // ignore: cast_nullable_to_non_nullable
+as bool,minOrderTotal: null == minOrderTotal ? _self.minOrderTotal : minOrderTotal // ignore: cast_nullable_to_non_nullable
+as int,paymentMethods: null == paymentMethods ? _self._paymentMethods : paymentMethods // ignore: cast_nullable_to_non_nullable
+as List<PaymentMethod>,orderCutoff: freezed == orderCutoff ? _self.orderCutoff : orderCutoff // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
+mixin _$MenuCategory {
+
+ int get id; String get name; int get sort; List<MenuItem> get items;
+/// Create a copy of MenuCategory
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$MenuCategoryCopyWith<MenuCategory> get copyWith => _$MenuCategoryCopyWithImpl<MenuCategory>(this as MenuCategory, _$identity);
+
+  /// Serializes this MenuCategory to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is MenuCategory&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.sort, sort) || other.sort == sort)&&const DeepCollectionEquality().equals(other.items, items));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,name,sort,const DeepCollectionEquality().hash(items));
+
+@override
+String toString() {
+  return 'MenuCategory(id: $id, name: $name, sort: $sort, items: $items)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $MenuCategoryCopyWith<$Res>  {
+  factory $MenuCategoryCopyWith(MenuCategory value, $Res Function(MenuCategory) _then) = _$MenuCategoryCopyWithImpl;
+@useResult
+$Res call({
+ int id, String name, int sort, List<MenuItem> items
+});
+
+
+
+
+}
+/// @nodoc
+class _$MenuCategoryCopyWithImpl<$Res>
+    implements $MenuCategoryCopyWith<$Res> {
+  _$MenuCategoryCopyWithImpl(this._self, this._then);
+
+  final MenuCategory _self;
+  final $Res Function(MenuCategory) _then;
+
+/// Create a copy of MenuCategory
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? sort = null,Object? items = null,}) {
+  return _then(_self.copyWith(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,sort: null == sort ? _self.sort : sort // ignore: cast_nullable_to_non_nullable
+as int,items: null == items ? _self.items : items // ignore: cast_nullable_to_non_nullable
+as List<MenuItem>,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [MenuCategory].
+extension MenuCategoryPatterns on MenuCategory {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _MenuCategory value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _MenuCategory() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _MenuCategory value)  $default,){
+final _that = this;
+switch (_that) {
+case _MenuCategory():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _MenuCategory value)?  $default,){
+final _that = this;
+switch (_that) {
+case _MenuCategory() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  int sort,  List<MenuItem> items)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _MenuCategory() when $default != null:
+return $default(_that.id,_that.name,_that.sort,_that.items);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  int sort,  List<MenuItem> items)  $default,) {final _that = this;
+switch (_that) {
+case _MenuCategory():
+return $default(_that.id,_that.name,_that.sort,_that.items);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  int sort,  List<MenuItem> items)?  $default,) {final _that = this;
+switch (_that) {
+case _MenuCategory() when $default != null:
+return $default(_that.id,_that.name,_that.sort,_that.items);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _MenuCategory implements MenuCategory {
+  const _MenuCategory({required this.id, required this.name, required this.sort, required final  List<MenuItem> items}): _items = items;
+  factory _MenuCategory.fromJson(Map<String, dynamic> json) => _$MenuCategoryFromJson(json);
+
+@override final  int id;
+@override final  String name;
+@override final  int sort;
+ final  List<MenuItem> _items;
+@override List<MenuItem> get items {
+  if (_items is EqualUnmodifiableListView) return _items;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_items);
+}
+
+
+/// Create a copy of MenuCategory
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$MenuCategoryCopyWith<_MenuCategory> get copyWith => __$MenuCategoryCopyWithImpl<_MenuCategory>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$MenuCategoryToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MenuCategory&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.sort, sort) || other.sort == sort)&&const DeepCollectionEquality().equals(other._items, _items));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,name,sort,const DeepCollectionEquality().hash(_items));
+
+@override
+String toString() {
+  return 'MenuCategory(id: $id, name: $name, sort: $sort, items: $items)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$MenuCategoryCopyWith<$Res> implements $MenuCategoryCopyWith<$Res> {
+  factory _$MenuCategoryCopyWith(_MenuCategory value, $Res Function(_MenuCategory) _then) = __$MenuCategoryCopyWithImpl;
+@override @useResult
+$Res call({
+ int id, String name, int sort, List<MenuItem> items
+});
+
+
+
+
+}
+/// @nodoc
+class __$MenuCategoryCopyWithImpl<$Res>
+    implements _$MenuCategoryCopyWith<$Res> {
+  __$MenuCategoryCopyWithImpl(this._self, this._then);
+
+  final _MenuCategory _self;
+  final $Res Function(_MenuCategory) _then;
+
+/// Create a copy of MenuCategory
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? sort = null,Object? items = null,}) {
+  return _then(_MenuCategory(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,sort: null == sort ? _self.sort : sort // ignore: cast_nullable_to_non_nullable
+as int,items: null == items ? _self._items : items // ignore: cast_nullable_to_non_nullable
+as List<MenuItem>,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
+mixin _$MenuItem {
+
+ int get id; String get name;/// Kuruş.
+ int get price; String get currency;/// `false` ürün listede **kalır**; soluk gösterilir, sepete eklenemez.
+ bool get isAvailable; String? get description; String? get imageUrl; List<String> get allergens; List<MenuOption> get options;
+/// Create a copy of MenuItem
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$MenuItemCopyWith<MenuItem> get copyWith => _$MenuItemCopyWithImpl<MenuItem>(this as MenuItem, _$identity);
+
+  /// Serializes this MenuItem to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is MenuItem&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.price, price) || other.price == price)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.isAvailable, isAvailable) || other.isAvailable == isAvailable)&&(identical(other.description, description) || other.description == description)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&const DeepCollectionEquality().equals(other.allergens, allergens)&&const DeepCollectionEquality().equals(other.options, options));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,name,price,currency,isAvailable,description,imageUrl,const DeepCollectionEquality().hash(allergens),const DeepCollectionEquality().hash(options));
+
+@override
+String toString() {
+  return 'MenuItem(id: $id, name: $name, price: $price, currency: $currency, isAvailable: $isAvailable, description: $description, imageUrl: $imageUrl, allergens: $allergens, options: $options)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $MenuItemCopyWith<$Res>  {
+  factory $MenuItemCopyWith(MenuItem value, $Res Function(MenuItem) _then) = _$MenuItemCopyWithImpl;
+@useResult
+$Res call({
+ int id, String name, int price, String currency, bool isAvailable, String? description, String? imageUrl, List<String> allergens, List<MenuOption> options
+});
+
+
+
+
+}
+/// @nodoc
+class _$MenuItemCopyWithImpl<$Res>
+    implements $MenuItemCopyWith<$Res> {
+  _$MenuItemCopyWithImpl(this._self, this._then);
+
+  final MenuItem _self;
+  final $Res Function(MenuItem) _then;
+
+/// Create a copy of MenuItem
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? price = null,Object? currency = null,Object? isAvailable = null,Object? description = freezed,Object? imageUrl = freezed,Object? allergens = null,Object? options = null,}) {
+  return _then(_self.copyWith(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,price: null == price ? _self.price : price // ignore: cast_nullable_to_non_nullable
+as int,currency: null == currency ? _self.currency : currency // ignore: cast_nullable_to_non_nullable
+as String,isAvailable: null == isAvailable ? _self.isAvailable : isAvailable // ignore: cast_nullable_to_non_nullable
+as bool,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
+as String?,imageUrl: freezed == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
+as String?,allergens: null == allergens ? _self.allergens : allergens // ignore: cast_nullable_to_non_nullable
+as List<String>,options: null == options ? _self.options : options // ignore: cast_nullable_to_non_nullable
+as List<MenuOption>,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [MenuItem].
+extension MenuItemPatterns on MenuItem {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _MenuItem value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _MenuItem() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _MenuItem value)  $default,){
+final _that = this;
+switch (_that) {
+case _MenuItem():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _MenuItem value)?  $default,){
+final _that = this;
+switch (_that) {
+case _MenuItem() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  int price,  String currency,  bool isAvailable,  String? description,  String? imageUrl,  List<String> allergens,  List<MenuOption> options)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _MenuItem() when $default != null:
+return $default(_that.id,_that.name,_that.price,_that.currency,_that.isAvailable,_that.description,_that.imageUrl,_that.allergens,_that.options);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  int price,  String currency,  bool isAvailable,  String? description,  String? imageUrl,  List<String> allergens,  List<MenuOption> options)  $default,) {final _that = this;
+switch (_that) {
+case _MenuItem():
+return $default(_that.id,_that.name,_that.price,_that.currency,_that.isAvailable,_that.description,_that.imageUrl,_that.allergens,_that.options);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  int price,  String currency,  bool isAvailable,  String? description,  String? imageUrl,  List<String> allergens,  List<MenuOption> options)?  $default,) {final _that = this;
+switch (_that) {
+case _MenuItem() when $default != null:
+return $default(_that.id,_that.name,_that.price,_that.currency,_that.isAvailable,_that.description,_that.imageUrl,_that.allergens,_that.options);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _MenuItem extends MenuItem {
+  const _MenuItem({required this.id, required this.name, required this.price, required this.currency, required this.isAvailable, this.description, this.imageUrl, final  List<String> allergens = const <String>[], final  List<MenuOption> options = const <MenuOption>[]}): _allergens = allergens,_options = options,super._();
+  factory _MenuItem.fromJson(Map<String, dynamic> json) => _$MenuItemFromJson(json);
+
+@override final  int id;
+@override final  String name;
+/// Kuruş.
+@override final  int price;
+@override final  String currency;
+/// `false` ürün listede **kalır**; soluk gösterilir, sepete eklenemez.
+@override final  bool isAvailable;
+@override final  String? description;
+@override final  String? imageUrl;
+ final  List<String> _allergens;
+@override@JsonKey() List<String> get allergens {
+  if (_allergens is EqualUnmodifiableListView) return _allergens;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_allergens);
+}
+
+ final  List<MenuOption> _options;
+@override@JsonKey() List<MenuOption> get options {
+  if (_options is EqualUnmodifiableListView) return _options;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_options);
+}
+
+
+/// Create a copy of MenuItem
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$MenuItemCopyWith<_MenuItem> get copyWith => __$MenuItemCopyWithImpl<_MenuItem>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$MenuItemToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MenuItem&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.price, price) || other.price == price)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.isAvailable, isAvailable) || other.isAvailable == isAvailable)&&(identical(other.description, description) || other.description == description)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&const DeepCollectionEquality().equals(other._allergens, _allergens)&&const DeepCollectionEquality().equals(other._options, _options));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,name,price,currency,isAvailable,description,imageUrl,const DeepCollectionEquality().hash(_allergens),const DeepCollectionEquality().hash(_options));
+
+@override
+String toString() {
+  return 'MenuItem(id: $id, name: $name, price: $price, currency: $currency, isAvailable: $isAvailable, description: $description, imageUrl: $imageUrl, allergens: $allergens, options: $options)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$MenuItemCopyWith<$Res> implements $MenuItemCopyWith<$Res> {
+  factory _$MenuItemCopyWith(_MenuItem value, $Res Function(_MenuItem) _then) = __$MenuItemCopyWithImpl;
+@override @useResult
+$Res call({
+ int id, String name, int price, String currency, bool isAvailable, String? description, String? imageUrl, List<String> allergens, List<MenuOption> options
+});
+
+
+
+
+}
+/// @nodoc
+class __$MenuItemCopyWithImpl<$Res>
+    implements _$MenuItemCopyWith<$Res> {
+  __$MenuItemCopyWithImpl(this._self, this._then);
+
+  final _MenuItem _self;
+  final $Res Function(_MenuItem) _then;
+
+/// Create a copy of MenuItem
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? price = null,Object? currency = null,Object? isAvailable = null,Object? description = freezed,Object? imageUrl = freezed,Object? allergens = null,Object? options = null,}) {
+  return _then(_MenuItem(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,price: null == price ? _self.price : price // ignore: cast_nullable_to_non_nullable
+as int,currency: null == currency ? _self.currency : currency // ignore: cast_nullable_to_non_nullable
+as String,isAvailable: null == isAvailable ? _self.isAvailable : isAvailable // ignore: cast_nullable_to_non_nullable
+as bool,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
+as String?,imageUrl: freezed == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
+as String?,allergens: null == allergens ? _self._allergens : allergens // ignore: cast_nullable_to_non_nullable
+as List<String>,options: null == options ? _self._options : options // ignore: cast_nullable_to_non_nullable
+as List<MenuOption>,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
+mixin _$MenuOption {
+
+ int get id; String get name;/// Bilinen değerler: `radio`, `checkbox`, `select`. Kapalı enum değildir —
+/// TastyIgniter'ın gerçek kümesi `B-02`'de doğrulanacak (BILINMEYENLER).
+ String get type; bool get required; List<MenuOptionValue> get values;
+/// Create a copy of MenuOption
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$MenuOptionCopyWith<MenuOption> get copyWith => _$MenuOptionCopyWithImpl<MenuOption>(this as MenuOption, _$identity);
+
+  /// Serializes this MenuOption to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is MenuOption&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.type, type) || other.type == type)&&(identical(other.required, required) || other.required == required)&&const DeepCollectionEquality().equals(other.values, values));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,name,type,required,const DeepCollectionEquality().hash(values));
+
+@override
+String toString() {
+  return 'MenuOption(id: $id, name: $name, type: $type, required: $required, values: $values)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $MenuOptionCopyWith<$Res>  {
+  factory $MenuOptionCopyWith(MenuOption value, $Res Function(MenuOption) _then) = _$MenuOptionCopyWithImpl;
+@useResult
+$Res call({
+ int id, String name, String type, bool required, List<MenuOptionValue> values
+});
+
+
+
+
+}
+/// @nodoc
+class _$MenuOptionCopyWithImpl<$Res>
+    implements $MenuOptionCopyWith<$Res> {
+  _$MenuOptionCopyWithImpl(this._self, this._then);
+
+  final MenuOption _self;
+  final $Res Function(MenuOption) _then;
+
+/// Create a copy of MenuOption
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? type = null,Object? required = null,Object? values = null,}) {
+  return _then(_self.copyWith(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
+as String,required: null == required ? _self.required : required // ignore: cast_nullable_to_non_nullable
+as bool,values: null == values ? _self.values : values // ignore: cast_nullable_to_non_nullable
+as List<MenuOptionValue>,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [MenuOption].
+extension MenuOptionPatterns on MenuOption {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _MenuOption value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _MenuOption() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _MenuOption value)  $default,){
+final _that = this;
+switch (_that) {
+case _MenuOption():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _MenuOption value)?  $default,){
+final _that = this;
+switch (_that) {
+case _MenuOption() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  String type,  bool required,  List<MenuOptionValue> values)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _MenuOption() when $default != null:
+return $default(_that.id,_that.name,_that.type,_that.required,_that.values);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  String type,  bool required,  List<MenuOptionValue> values)  $default,) {final _that = this;
+switch (_that) {
+case _MenuOption():
+return $default(_that.id,_that.name,_that.type,_that.required,_that.values);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  String type,  bool required,  List<MenuOptionValue> values)?  $default,) {final _that = this;
+switch (_that) {
+case _MenuOption() when $default != null:
+return $default(_that.id,_that.name,_that.type,_that.required,_that.values);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _MenuOption extends MenuOption {
+  const _MenuOption({required this.id, required this.name, required this.type, required this.required, required final  List<MenuOptionValue> values}): _values = values,super._();
+  factory _MenuOption.fromJson(Map<String, dynamic> json) => _$MenuOptionFromJson(json);
+
+@override final  int id;
+@override final  String name;
+/// Bilinen değerler: `radio`, `checkbox`, `select`. Kapalı enum değildir —
+/// TastyIgniter'ın gerçek kümesi `B-02`'de doğrulanacak (BILINMEYENLER).
+@override final  String type;
+@override final  bool required;
+ final  List<MenuOptionValue> _values;
+@override List<MenuOptionValue> get values {
+  if (_values is EqualUnmodifiableListView) return _values;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_values);
+}
+
+
+/// Create a copy of MenuOption
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$MenuOptionCopyWith<_MenuOption> get copyWith => __$MenuOptionCopyWithImpl<_MenuOption>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$MenuOptionToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MenuOption&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.type, type) || other.type == type)&&(identical(other.required, required) || other.required == required)&&const DeepCollectionEquality().equals(other._values, _values));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,name,type,required,const DeepCollectionEquality().hash(_values));
+
+@override
+String toString() {
+  return 'MenuOption(id: $id, name: $name, type: $type, required: $required, values: $values)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$MenuOptionCopyWith<$Res> implements $MenuOptionCopyWith<$Res> {
+  factory _$MenuOptionCopyWith(_MenuOption value, $Res Function(_MenuOption) _then) = __$MenuOptionCopyWithImpl;
+@override @useResult
+$Res call({
+ int id, String name, String type, bool required, List<MenuOptionValue> values
+});
+
+
+
+
+}
+/// @nodoc
+class __$MenuOptionCopyWithImpl<$Res>
+    implements _$MenuOptionCopyWith<$Res> {
+  __$MenuOptionCopyWithImpl(this._self, this._then);
+
+  final _MenuOption _self;
+  final $Res Function(_MenuOption) _then;
+
+/// Create a copy of MenuOption
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? type = null,Object? required = null,Object? values = null,}) {
+  return _then(_MenuOption(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
+as String,required: null == required ? _self.required : required // ignore: cast_nullable_to_non_nullable
+as bool,values: null == values ? _self._values : values // ignore: cast_nullable_to_non_nullable
+as List<MenuOptionValue>,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
+mixin _$MenuOptionValue {
+
+ int get id; String get name;/// Kuruş cinsinden **işaretli** fark; negatif olabilir.
+ int get priceDelta;
+/// Create a copy of MenuOptionValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$MenuOptionValueCopyWith<MenuOptionValue> get copyWith => _$MenuOptionValueCopyWithImpl<MenuOptionValue>(this as MenuOptionValue, _$identity);
+
+  /// Serializes this MenuOptionValue to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is MenuOptionValue&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.priceDelta, priceDelta) || other.priceDelta == priceDelta));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,name,priceDelta);
+
+@override
+String toString() {
+  return 'MenuOptionValue(id: $id, name: $name, priceDelta: $priceDelta)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $MenuOptionValueCopyWith<$Res>  {
+  factory $MenuOptionValueCopyWith(MenuOptionValue value, $Res Function(MenuOptionValue) _then) = _$MenuOptionValueCopyWithImpl;
+@useResult
+$Res call({
+ int id, String name, int priceDelta
+});
+
+
+
+
+}
+/// @nodoc
+class _$MenuOptionValueCopyWithImpl<$Res>
+    implements $MenuOptionValueCopyWith<$Res> {
+  _$MenuOptionValueCopyWithImpl(this._self, this._then);
+
+  final MenuOptionValue _self;
+  final $Res Function(MenuOptionValue) _then;
+
+/// Create a copy of MenuOptionValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? priceDelta = null,}) {
+  return _then(_self.copyWith(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,priceDelta: null == priceDelta ? _self.priceDelta : priceDelta // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [MenuOptionValue].
+extension MenuOptionValuePatterns on MenuOptionValue {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _MenuOptionValue value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _MenuOptionValue() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _MenuOptionValue value)  $default,){
+final _that = this;
+switch (_that) {
+case _MenuOptionValue():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _MenuOptionValue value)?  $default,){
+final _that = this;
+switch (_that) {
+case _MenuOptionValue() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  int priceDelta)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _MenuOptionValue() when $default != null:
+return $default(_that.id,_that.name,_that.priceDelta);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  int priceDelta)  $default,) {final _that = this;
+switch (_that) {
+case _MenuOptionValue():
+return $default(_that.id,_that.name,_that.priceDelta);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  int priceDelta)?  $default,) {final _that = this;
+switch (_that) {
+case _MenuOptionValue() when $default != null:
+return $default(_that.id,_that.name,_that.priceDelta);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _MenuOptionValue implements MenuOptionValue {
+  const _MenuOptionValue({required this.id, required this.name, required this.priceDelta});
+  factory _MenuOptionValue.fromJson(Map<String, dynamic> json) => _$MenuOptionValueFromJson(json);
+
+@override final  int id;
+@override final  String name;
+/// Kuruş cinsinden **işaretli** fark; negatif olabilir.
+@override final  int priceDelta;
+
+/// Create a copy of MenuOptionValue
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$MenuOptionValueCopyWith<_MenuOptionValue> get copyWith => __$MenuOptionValueCopyWithImpl<_MenuOptionValue>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$MenuOptionValueToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MenuOptionValue&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.priceDelta, priceDelta) || other.priceDelta == priceDelta));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,name,priceDelta);
+
+@override
+String toString() {
+  return 'MenuOptionValue(id: $id, name: $name, priceDelta: $priceDelta)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$MenuOptionValueCopyWith<$Res> implements $MenuOptionValueCopyWith<$Res> {
+  factory _$MenuOptionValueCopyWith(_MenuOptionValue value, $Res Function(_MenuOptionValue) _then) = __$MenuOptionValueCopyWithImpl;
+@override @useResult
+$Res call({
+ int id, String name, int priceDelta
+});
+
+
+
+
+}
+/// @nodoc
+class __$MenuOptionValueCopyWithImpl<$Res>
+    implements _$MenuOptionValueCopyWith<$Res> {
+  __$MenuOptionValueCopyWithImpl(this._self, this._then);
+
+  final _MenuOptionValue _self;
+  final $Res Function(_MenuOptionValue) _then;
+
+/// Create a copy of MenuOptionValue
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? priceDelta = null,}) {
+  return _then(_MenuOptionValue(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,priceDelta: null == priceDelta ? _self.priceDelta : priceDelta // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+
+}
+
+// dart format on

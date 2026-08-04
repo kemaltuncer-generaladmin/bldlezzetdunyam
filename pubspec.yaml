@@ -1,0 +1,16 @@
+name: bld_workspace
+description: >
+  Benim Lezzet Dünyam — pub workspace kökü. Kendisi bir paket değildir, yalnızca
+  packages/ altındaki paketleri tek bağımlılık çözümünde toplar (ADR-10).
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+
+# Şu an yalnızca saf Dart paketleri üyedir; kök dizinde `dart pub get` çalışır.
+# musteriapp/ ve mutfakapp/ (Flutter) K-01 ve M-01 görevlerinde eklenecektir;
+# o noktadan sonra kökteki komut `flutter pub get` olur.
+workspace:
+  - packages/core
+  - packages/api_client
+  - packages/design_system

@@ -1,0 +1,14 @@
+name: bld_design_system
+description: >
+  Marka tasarım belirteçleri (renk, aralık, tipografi). Saf Dart — Flutter'a
+  bağımlı değildir ki hem Flutter uygulamaları hem araçlar aynı değerleri okusun.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.9.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0

@@ -1,0 +1,18 @@
+{
+  "name": "bld-mock-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "docs/openapi.yaml sözleşmesinin durum tutan mock uygulaması (X-04)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
