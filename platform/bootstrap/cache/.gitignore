@@ -1,2 +1,6 @@
 *
 !.gitignore
+# İstisna — hangi çekirdek eklentisinin kapalı olduğu bir PROJE KARARIDIR,
+# derleme çıktısı değil. igniter.api burada kapatılıyor (docs/04 §3);
+# commitlenmezse klonlayan ajanda geri açılır ve /api rotalarımızı işgal eder.
+!disabled-addons.json

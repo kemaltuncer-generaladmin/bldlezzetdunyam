@@ -33,25 +33,49 @@ FRONTEND_URL=https://<website domain>
 
 Tüm özel kod: `platform/extensions/veykemtu/<modul>/`
 
-Standart iskelet:
+Standart iskelet (**v4.3.4'te gerçek yapıdan doğrulandı** — `extension.json` diye
+bir dosya yoktur, meta veri `composer.json` içindedir):
 ```
 veykemtu/bridgeapi/
 ├── composer.json          # "type": "tastyigniter-package"
-├── extension.json
+│                          # extra.tastyigniter-extension.code = "veykemtu.bridgeapi"
+│                          # autoload.psr-4: { "Veykemtu\\BridgeApi\\": "src/" }
 ├── src/
-│   ├── Extension.php      # register/boot
+│   ├── Extension.php      # Igniter\System\Classes\BaseExtension'dan türer
+│   ├── Console/
 │   ├── Http/Controllers/
 │   ├── Http/Requests/
 │   ├── Http/Resources/    # API yanıt biçimleri
 │   ├── Models/
 │   ├── Services/
 │   └── Middleware/
-├── database/migrations/
+├── database/migrations/   # `php artisan igniter:up` ile koşar
 ├── routes/api.php
 └── tests/
 ```
 
-`Extension.php` içinde route dosyası ve migration'lar kaydedilir. **`vendor/` altına asla dokunulmaz** — çekirdek davranışı değiştirmek gerekirse Laravel event listener veya TastyIgniter hook kullanılır.
+`Extension.php` içinde route dosyası, komutlar ve olay dinleyicileri kaydedilir;
+migration'lar `database/migrations/` altında otomatik bulunur. Yeni eklenti
+eklendikten sonra `php artisan igniter:package-discover` çalıştırılır.
+
+**`vendor/` altına asla dokunulmaz** — çekirdek davranışı değiştirmek gerekirse
+Laravel event listener veya TastyIgniter hook kullanılır. Mevcut bir çekirdek
+tablosuna **eklemeli** migration yazmak ihlal değildir (`bridgeapi`'nin
+`statuses.status_code` kolonu böyledir).
+
+### `igniter.api` devre dışıdır
+
+TastyIgniter, `tastyigniter/ti-ext-api` eklentisiyle gelir ve `/api` önekinde
+82 rota kaydeder — `GET /api/locations`, `/api/orders`, `/api/menus` dahil.
+Bunlar bizim sözleşmemizle **aynı yolları farklı gövdelerle** işgal ediyordu.
+
+Karar (04.08): eklenti kapatıldı, sözleşme `bridgeapi`'de sıfırdan uygulanıyor.
+Paket çekirdeğin zorunlu bağımlılığı olduğu için composer'dan kaldırılamaz;
+kapatma `platform/bootstrap/cache/disabled-addons.json` dosyasındadır ve bu
+dosya **commitlenir** (`.gitignore`'da istisnası vardır). `laravel/sanctum`
+ayrı bir pakettir, durmaya devam eder.
+
+Yeniden açmak `/api` rotalarımızı sessizce gölgeler — açmayın.
 
 ## 4. Yazılacak eklentiler
 

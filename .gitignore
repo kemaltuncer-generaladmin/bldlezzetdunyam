@@ -27,6 +27,10 @@ platform/bootstrap/cache/*
 platform/public/storage
 platform/openapi.json
 !platform/storage/**/.gitkeep
+# İstisna: hangi çekirdek eklentisinin kapalı olduğu bir PROJE KARARIDIR,
+# derleme çıktısı değil. igniter.api burada kapatılıyor — commitlenmezse
+# klonlayan ajanda geri açılır ve /api rotalarımızı işgal eder.
+!platform/bootstrap/cache/disabled-addons.json
 
 # ── Node / Next.js (website/, infra/mock/) ───────────────────────────────────
 node_modules/

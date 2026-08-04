@@ -8,7 +8,7 @@
 
 ### Kol A — Platform
 
-- [KOL-A][04.08] **KARAR GEREKLİ — `ti-ext-api` rota çakışması.** TastyIgniter `tastyigniter/ti-ext-api` 4.2.3 ile birlikte geliyor ve **82 rota** kaydediyor; bunların arasında `GET /api/locations`, `GET /api/orders`, `GET /api/menus`, `POST /api/token` var. Bizim sözleşmemiz **aynı yolları** farklı gövdelerle tanımlıyor (kuruş tamsayı, bizim 7 durum kodumuz, `kitchen` kapsamı). İki API aynı `/api` önekinde yaşayamaz. | Etkilenen: `bridgeapi`, `docs/03` tamamı | **Önerim:** `ti-ext-api` eklentisi devre dışı bırakılsın, sözleşme `bridgeapi`'de sıfırdan uygulansın. Gerekçe: 4 istemci sözleşmeye göre yazılıyor, ti-ext-api'nin gövdeleri uymuyor ve uydurmak için her kaynağı sarmalamak sıfırdan yazmaktan uzun sürer. `laravel/sanctum` 4.3.3 ayrı paket, kalıyor. **Mimariyi etkilediği için kod yazılmadan önce onay bekliyor (AGENTS.md §6.3).**
+_(Kol A'nın açık maddesi kalmadı — B-02'nin iki mimari sorusu da karara bağlandı, aşağıya bakın.)_
 
 ## Çözülenler — B-02 doğrulaması (04.08, gerçek kurulumdan okundu)
 
@@ -32,7 +32,23 @@ Sonuç: `docs/02-veri-modeli.md` §4'teki üretim listesi sorgusu (`o.status_cod
 
 Varsayılan durumlar da bizimkiler değil: `Received, Pending, Preparation, Delivery, Completed, Canceled`.
 
-- [KOL-A][04.08] **KARAR GEREKLİ — 7 durum kodu nasıl saklanacak?** | Etkilenen: `docs/02` §3, `docs/04` §2.3, `bridgeapi` | Üç seçenek: **(a)** `status_name` alanına doğrudan kodu yaz (`hazirlaniyor`) — admin panelinde yönetici ham kod görür, kötü. **(b)** Türkçe adlarla 7 durum oluştur, kod↔id eşlemesini eklenti yapılandırmasında tut — eşleme koddan kopabilir. **(c)** `bridgeapi` migration'ı `statuses` tablosuna `status_code` kolonu **ekler** (çekirdek dosyaya dokunmaz, ADR-02 ihlali değil), seeder 7 satırı doldurur. **Önerim (c)** — admin dostu ad + koda göre güvenilir sorgu, ve `docs/02` §4 sorgusu tek `JOIN` ile çalışır.
+### B-02'nin iki mimari sorusu — karara bağlandı (04.08, işletme onayı)
+
+| Soru | Karar | Uygulama |
+|---|---|---|
+| `ti-ext-api` 82 rotayla `/api` önekini işgal ediyor | **Devre dışı bırakıldı**, sözleşme `bridgeapi`'de sıfırdan uygulanacak | Paket çekirdeğin **zorunlu bağımlılığı** olduğu için composer'dan kaldırılamadı. Kapatma `platform/bootstrap/cache/disabled-addons.json` içindedir ve `.gitignore` istisnasıyla **commitlenir** — yoksa klonlayan ajanda geri açılırdı. Doğrulandı: `/api` rotası 0, `/admin` rotası 47 (panel sağlam). `laravel/sanctum` 4.3.3 duruyor. |
+| 7 durum kodu nerede saklanacak | **`statuses` tablosuna `status_code` kolonu eklendi** | `bridgeapi` migration'ı (eklemeli, çekirdek dosyaya dokunmaz — ADR-02 ihlali değil). `veykemtu:setup` komutu 7 satırı yazar, `default_order_status`'u `yeni`ye ayarlar, vitrini ve müşteri grubunu açar. İdempotenttir. Admin panelde "Hazırlanıyor" görünür, API `hazirlaniyor` döner. |
+
+### B-02 sırasında düzeltilen varsayımlarım
+
+| Varsaydığım | Gerçek |
+|---|---|
+| `locations.location_slug` | **`permalink_slug`** |
+| `setting()->set()` + `->save()` | `set()` kendisi kaydeder; ek `save()` boş satır insert edip `1062` verir |
+| Eklenti meta verisi `extension.json`'da | **`composer.json` → `extra.tastyigniter-extension`** (`docs/04` §3 düzeltildi) |
+| Alpine tabanlı PHP imajı yeterli | **Yetersiz** — `GLOB_BRACE` musl'da yok, Debian'a geçildi |
+
+- [KOL-A][04.08] `igniter:install` sonrası TastyIgniter'ın kendi "Default" vitrini (#1) ve "Default group" (#1) kaydı duruyor. | Etkilenen: admin paneli görünümü | Geçici çözüm: `veykemtu:setup` bunları **silmiyor**, uyarı veriyor — silme geri alınamaz ve bağlı veri olup olmadığını komut bilemez. Yönetici admin panelden temizlemeli. API zaten yalnızca `catering` vitrinini döndürecek.
 - [KOL-A][04.08] `ordering_enabled` TastyIgniter'da hangi katmana yazılacak? Vitrin (`locations`) ayarı mı, ayrı `settings` kaydı mı? | Etkilenen: `docs/03-api-sozlesmesi.md` §3, `bridgeapi` | Geçici çözüm: sözleşmede vitrin alanı olarak tanımlandı. Kurulu sürümün `locations` şeması okununca saklama yeri kesinleşir; **API sözleşmesi değişmez.**
 - [KOL-A][04.08] `order_cutoff`, TastyIgniter'ın kendi çalışma saati (`working_hours`) mekanizmasıyla çakışıyor mu? `is_open` bundan mı türetilecek? | Etkilenen: `bridgeapi`, `docs/03` §3 | Geçici çözüm: `is_open` = çalışma saatinden türetilir, `ordering_enabled` = elle şalter, `order_cutoff` = ayrı alan. Üçü bağımsız tanımlandı; kod okununca sadeleşebilir.
 - [KOL-A][04.08] `MenuOption.type` alanının gerçek değer kümesi nedir? Sözleşmede yalnızca `radio` örneği vardı. | Etkilenen: `docs/openapi.yaml` `MenuOption`, `website/`, `musteriapp/` | Geçici çözüm: kapalı enum **yazılmadı**, serbest string bırakıldı; bilinen değerler açıklamada. TastyIgniter'ın gerçek kümesi `B-02`'de okunup enum'a çevrilecek (ekleme değil daraltma olacağı için sözleşme değişikliği sayılır, önce burada karara bağlanmalı).
