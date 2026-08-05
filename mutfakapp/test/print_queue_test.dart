@@ -246,13 +246,60 @@ void main() {
       queue.close();
     });
 
-    PrintService build() => service = PrintService(
+    PrintService build({
+      Duration settle = const Duration(milliseconds: 5),
+    }) => service = PrintService(
       queue: queue,
       device: printer,
       kitchen: kitchen,
       idlePollInterval: const Duration(milliseconds: 5),
+      settleBetweenReceipts: settle,
       retrySchedule: const [Duration(milliseconds: 10)],
     );
+
+    test('arka arkaya fişler yazıcıyı yormadan basılır', () async {
+      // SAHADA YAŞANDI: kuyrukta 28 iş birikmişti ve döngü hepsini yazıcı
+      // baytları kabul ettiği hızda gönderdi. Kesici hâlâ hareket ederken
+      // sonraki fiş akmaya başlıyor; takılma ve bozuk çıktı böyle oluyor.
+      for (final id in [1, 2, 3]) {
+        kitchen.kitchenReceipts[id] = receiptFor(id);
+      }
+
+      build(settle: const Duration(milliseconds: 60)).start();
+      for (final id in [1, 2, 3]) {
+        service.enqueue(id, ReceiptType.mutfak);
+      }
+
+      final basladi = DateTime.now();
+      await settle(400);
+      final gecen = DateTime.now().difference(basladi);
+
+      expect(printer.written, hasLength(3));
+      // Üç fiş arasında İKİ bekleme var, üç değil: son fişten sonra
+      // beklemek yalnızca mutfağı geciktirirdi.
+      expect(
+        gecen,
+        greaterThanOrEqualTo(const Duration(milliseconds: 110)),
+        reason: 'Fişler arasında soluklanma payı olmalı.',
+      );
+    });
+
+    test('tek fiş basılırken bekleme eklenmez', () async {
+      kitchen.kitchenReceipts[7] = receiptFor(7);
+
+      build(settle: const Duration(seconds: 30)).start();
+      service.enqueue(7, ReceiptType.mutfak);
+
+      final basladi = DateTime.now();
+      await settle(200);
+
+      expect(printer.written, hasLength(1));
+      expect(
+        DateTime.now().difference(basladi),
+        lessThan(const Duration(seconds: 5)),
+        reason: 'Sıradaki iş yokken beklemek mutfağı geciktirir.',
+      );
+    });
 
     test('fiş verisi sunucudan alınır ve basılır', () async {
       kitchen.kitchenReceipts[5012] = receiptFor(5012);

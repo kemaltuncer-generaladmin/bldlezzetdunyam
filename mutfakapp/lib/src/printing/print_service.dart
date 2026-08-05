@@ -30,6 +30,7 @@ class PrintService {
     required KitchenService kitchen,
     ReceiptStyle style = ReceiptStyle.standard,
     this.idlePollInterval = const Duration(seconds: 1),
+    this.settleBetweenReceipts = defaultSettleBetweenReceipts,
     this.retrySchedule = defaultRetrySchedule,
     DateTime Function()? clock,
   }) : _queue = queue,
@@ -37,6 +38,15 @@ class PrintService {
        _kitchen = kitchen,
        _style = style,
        _now = clock ?? (() => DateTime.now().toUtc());
+
+  /// Kesicinin ve kâğıt beslemesinin bitmesi için yeterli süre.
+  ///
+  /// Ölçüyle değil, gözlemle seçildi: fişin kesilip düşmesi bir saniyenin
+  /// biraz altında sürüyor. Daha kısası kesiciyi yakalar, daha uzunu
+  /// yoğun saatte mutfağı bekletir.
+  static const Duration defaultSettleBetweenReceipts = Duration(
+    milliseconds: 1200,
+  );
 
   /// `docs/05` §5.4'teki geri çekilme basamakları. Son değer tekrarlanır.
   static const List<Duration> defaultRetrySchedule = [
@@ -54,6 +64,17 @@ class PrintService {
 
   /// Kuyruk boşken ne sıklıkla bakılacağı.
   final Duration idlePollInterval;
+
+  /// İki fiş arasında yazıcıya verilen soluklanma payı.
+  ///
+  /// SAHADA YAŞANDI: kuyrukta 28 iş birikmişti ve döngü bunları arka
+  /// arkaya, yazıcı baytları kabul ettiği hızda gönderdi. Kesici hâlâ
+  /// hareket ederken bir sonraki fişin baytları akmaya başlıyor; ucuz
+  /// termal yazıcılarda bu takılma ve bozuk çıktı demek.
+  ///
+  /// Bekleme YALNIZCA sıradaki başka bir iş varken uygulanır — tek fiş
+  /// basılıyorsa gecikme eklemek anlamsız olurdu.
+  final Duration settleBetweenReceipts;
 
   final List<Duration> retrySchedule;
 
@@ -172,6 +193,13 @@ class PrintService {
         // Aynı iş sırayı tıkar ama bu bilinçlidir: fişler sırayla basılmalı
         // ve yazıcı yokken sonraki işi denemenin anlamı yok.
         await _sleep(retryDelay(job.attempts + 1));
+        continue;
+      }
+
+      // Sıradaki iş varsa yazıcıya soluklanma payı ver. Tek fiş
+      // basılıyorsa beklemek yalnızca mutfağı geciktirirdi.
+      if (_queue.nextPending() != null) {
+        await _sleep(settleBetweenReceipts);
       }
     }
   }

@@ -213,6 +213,23 @@ tetiği kaçırmaktansa fazladan çağırmak yeğdir — kuyruktaki
 doğrudan oraya geçer ve arada bir yayın kaçarsa müşteri fişi hiç
 basılmazdı.
 
+#### Fişler arası soluklanma payı (05.08.2026)
+
+İki fiş arasında **1,2 saniye** beklenir — yalnızca sırada başka iş varsa.
+
+> **SAHADA YAŞANDI.** Kuyrukta 28 iş birikmişti ve işçi bunları arka
+> arkaya, yazıcı baytları kabul ettiği hızda gönderdi. Kesici hâlâ
+> hareket ederken bir sonraki fişin baytları akmaya başlıyor; ucuz termal
+> yazıcılarda bu takılma ve bozuk çıktı demek. Operatörün tarifi:
+> *"açtım tak tak tak yazdırdı."*
+
+Süre ölçüyle değil gözlemle seçildi: fişin kesilip düşmesi bir saniyenin
+biraz altında sürüyor. Daha kısası kesiciyi yakalar, daha uzunu yoğun
+saatte mutfağı bekletir.
+
+Tek fiş basılırken bekleme **eklenmez** — sıradaki iş yokken beklemek
+yalnızca mutfağı geciktirirdi. İkisinin de testi var.
+
 #### Açılış test fişi (05.08.2026)
 
 Uygulama **her açılışta** bir test fişi basar. Amaç yazıcının çalıştığını
