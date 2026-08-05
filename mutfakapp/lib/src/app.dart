@@ -4,12 +4,16 @@
 /// eşlenmiş mi? (`docs/05-mutfakapp.md` §7)
 library;
 
+import 'dart:async';
+
 import 'package:bld_api_client/bld_api_client.dart';
+import 'package:bld_core/escpos.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'data/providers.dart';
+import 'printing/startup_test_print.dart';
 import 'kds/kds_screen.dart';
 import 'lock/unlock_screen.dart';
 import 'l10n/app_localizations.dart';
@@ -46,6 +50,27 @@ class AppRoot extends ConsumerStatefulWidget {
 }
 
 class _AppRootState extends ConsumerState<AppRoot> {
+  @override
+  void initState() {
+    super.initState();
+
+    // Açılış test fişi — yazıcının çalıştığı KÂĞIT ÜZERİNDE görülsün.
+    // Kâğıdın bittiğini ya da USB'nin çıktığını ilk siparişte öğrenmek
+    // geç: o sipariş basılmadan mutfağa düşer ve kimse fark etmez.
+    //
+    // Kilitten ÖNCE basılıyor: personel parolayı girerken fiş çıkmış
+    // olur, ayrıca bir işlem yapması gerekmez.
+    final config = ref.read(appConfigProvider);
+    unawaited(
+      printStartupTestReceipt(
+        print: ref.read(printServiceProvider).printDiagnostic,
+        devicePath: config.printerDevicePath,
+        now: DateTime.now(),
+        style: ReceiptStyle(codePage: config.printerCodePage),
+      ),
+    );
+  }
+
   /// Eşleme ekranına iptal yüzünden mi düşüldü? Yalnızca uyarı metni içindir.
   bool _revoked = false;
 

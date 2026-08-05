@@ -213,6 +213,32 @@ tetiği kaçırmaktansa fazladan çağırmak yeğdir — kuyruktaki
 doğrudan oraya geçer ve arada bir yayın kaçarsa müşteri fişi hiç
 basılmazdı.
 
+#### Açılış test fişi (05.08.2026)
+
+Uygulama **her açılışta** bir test fişi basar. Amaç yazıcının çalıştığını
+kâğıt üzerinde göstermek: kâğıdın bittiğini, kapağın açık kaldığını ya da
+USB'nin çıktığını ilk siparişte öğrenmek geçtir — o sipariş basılmadan
+mutfağa düşer ve kimse fark etmez.
+
+Fiş kilit ekranından **önce** basılır; personel parolayı girerken fiş
+çıkmış olur ve ayrıca bir işlem yapması gerekmez.
+
+> **ÇÖKME DÖNGÜSÜ KORUMASI.** `mutfakapp.service` `Restart=always` ve
+> `RestartSec=5` ile koşuyor. Uygulama açılışta çökerse servis onu her
+> beş saniyede yeniden başlatır; korumasız her denemede bir fiş basar ve
+> rulo dakikalar içinde biter. Bu yüzden son açılış fişinin zamanı
+> saklanıyor ve **3 dakika** içindeki tekrarlar atlanıyor. Süre kasten
+> kısa: gerçek bir yeniden başlatma (güncelleme, elektrik, personelin
+> kapatıp açması) fişi görmeli.
+
+Damga fiş **basılmadan önce** yazılır. Sonraya bırakılsaydı, yazma
+sırasında çöken bir uygulama damgayı hiç yazamaz ve yeniden başlayıp
+tekrar basardı — korumanın engellemesi gereken döngünün ta kendisi.
+
+İşlev hiçbir hatayı yukarı atmaz (`Object` yakalanır, `Exception` değil):
+mutfak, yazıcı arızalı ya da bir depo erişilemez diye sipariş göremez
+hâle gelemez.
+
 ## 6. Kiosk davranışı
 
 **Ubuntu ayarları** (`infra/kasa/setup.sh` bunları yapar):
