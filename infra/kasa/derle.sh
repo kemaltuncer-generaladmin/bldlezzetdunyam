@@ -100,6 +100,33 @@ rm -rf "$KURULUM"
 cp -r "$PAKET" "$KURULUM"
 cp "$KOK/infra/kasa/$SERVIS.service" "$HOME/.config/systemd/user/"
 
+# ── Simge ve masaüstü girişi ──────────────────────────────────────────────
+#
+# İkon adı (`bld-mutfakapp`) hem `.desktop` girişinde hem de GTK penceresinde
+# kullanılıyor; ikisi ayrışırsa görev çubuğunda genel bir dişli görünür.
+#
+# `hicolor` teması standart konum: masaüstü ortamının hangisi olduğunu
+# bilmemize gerek kalmıyor.
+for boyut in 16 24 32 48 64 128 256 512; do
+  KAYNAK="$KOK/mutfakapp/assets/icons/bld_${boyut}.png"
+  [ -f "$KAYNAK" ] || continue
+  HEDEF="$HOME/.local/share/icons/hicolor/${boyut}x${boyut}/apps"
+  mkdir -p "$HEDEF"
+  cp "$KAYNAK" "$HEDEF/bld-mutfakapp.png"
+done
+
+mkdir -p "$HOME/.local/share/applications"
+cp "$KOK/infra/kasa/bld-mutfakapp.desktop" "$HOME/.local/share/applications/"
+
+# Önbellek yenilenmezse ikon menüde eski hâliyle kalır. Araç yoksa
+# sessizce geçiyoruz: kurulumu bir önbellek yüzünden durdurmak yanlış.
+command -v gtk-update-icon-cache >/dev/null \
+  && gtk-update-icon-cache -qtf "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
+command -v update-desktop-database >/dev/null \
+  && update-desktop-database -q "$HOME/.local/share/applications" 2>/dev/null || true
+
+echo "  ✓ simge ve masaüstü girişi kuruldu"
+
 systemctl --user daemon-reload
 systemctl --user enable "$SERVIS" >/dev/null
 systemctl --user restart "$SERVIS"

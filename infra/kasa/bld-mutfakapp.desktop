@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Benim Lezzet Dünyam — Mutfak
+Comment=Mutfak sipariş ekranı (KDS)
+Exec=%h/.local/opt/mutfakapp/mutfakapp
+Icon=bld-mutfakapp
+Terminal=false
+Categories=Utility;
+StartupWMClass=mutfakapp
+# Tek örnek: iki KDS penceresi aynı yazıcıya yazar ve fişler karışır.
+SingleMainWindow=true

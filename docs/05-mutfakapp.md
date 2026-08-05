@@ -442,7 +442,63 @@ python3 -c "import hashlib;print(hashlib.sha256(('bld-mutfak-kasasi-v1'+'YENİ')
 # unlockPasswordDigest sabitine yazın, yeniden derleyin
 ```
 
+## 7.9 Kurulum ve simge (05.08.2026)
+
+`infra/kasa/derle.sh` derlemeyi yapar, `~/.local/opt/mutfakapp` altına
+kurar, simgeyi ve masaüstü girişini yerleştirir, servisi başlatır.
+
+Simge `mutfakapp/assets/icons/bld_*.png` (8 boyut, 16–512). Marka
+turuncusu degradesi üzerinde beyaz servis kapağı — catering'in evrensel
+işareti ve 16 pikselde bile okunur.
+
+> **İkon adı iki yerde AYNI olmalı:** `.desktop` girişindeki `Icon=` ve
+> GTK'daki `gtk_window_set_icon_name`. Ayrışırlarsa görev çubuğunda genel
+> bir dişli görünür. İkisi de `bld-mutfakapp`.
+
+`SingleMainWindow=true`: iki KDS penceresi aynı yazıcıya yazar ve fişler
+karışır.
+
 ## 8. Ayarlar ekranı
+
+### Ayarların tek kaynağı SUNUCUDUR (05.08.2026)
+
+Dokuz ayarın tamamı admin panelden yönetilir ve sağlık bildiriminin
+yanıtıyla kasaya iner: ses, yoklama aralığı, uyarı eşiği, geciken eşiği,
+yazıcı yolu, kod sayfası, sağlık sıklığı, bağlantı uyarısı aralığı ve
+alarmın susturulabilirliği.
+
+> **`null` = "yönetici dokunmadı"**, "kapalı" değil. O alanda kasa kendi
+> derleme varsayılanını korur. `null`'ı "varsayılana dön" diye yorumlamak,
+> yönetici tek bir ayarı değiştirdiğinde diğer sekizini sıfırlardı.
+
+Sınırlar **iki yerde** uygulanır — sunucuda ve kasada. Sunucuya güvenip
+kasada atlamak, elle veritabanı düzenlemesinin ya da eski bir sunucu
+sürümünün kasayı bozmasına izin vermek olurdu.
+
+### Komutlar
+
+Admin panel kasaya tek seferlik komut gönderir; sağlık yanıtıyla iner,
+sonuç bir sonraki bildirimle döner.
+
+| Komut | Ne yapar |
+|---|---|
+| `test_receipt` | Test fişi basar |
+| `reprint` | Bir siparişin fişini yeniden basar |
+| `clear_failed` | Basılamamış işleri kuyruktan düşürür |
+| `silence_alarm` | Çalan yeni sipariş alarmını susturur |
+| `restart` | Uygulamayı yeniden başlatır (systemd geri getirir) |
+
+> **Ayar değil komut olmaları şart.** Ayar "şu andan itibaren böyle olsun"
+> der ve kalıcıdır; komut "şunu bir kez yap" der ve tüketilir. "Test fişi
+> bas" bir ayar olsaydı her yoklamada kâğıt harcardı.
+
+Komutlar **sırayla** çalışır — "kuyruğu temizle" ile "fişi yeniden bas"
+aynı anda koşarsa hangisinin kazandığı belirsiz olur. Biri patlarsa
+diğerleri yine çalışır. Bilinmeyen komut sessizce yutulmaz, gerekçeyle
+başarısız döner.
+
+Sonucu gelmeyen komut **10 dakika sonra yeniden gönderilir**: kasa komutu
+alıp çökmüş olabilir ve komutun hiç çalışmaması sessiz bir başarısızlıktır.
 
 **PIN KALDIRILDI (05.08.2026).** Önceki plan ayarları ayrı bir PIN
 arkasına almaktı; açılış kilidi geldiği için ikinci bir parola katmanı

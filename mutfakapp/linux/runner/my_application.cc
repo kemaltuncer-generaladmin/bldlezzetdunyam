@@ -45,12 +45,17 @@ static void my_application_activate(GApplication* application) {
   if (use_header_bar) {
     GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
     gtk_widget_show(GTK_WIDGET(header_bar));
-    gtk_header_bar_set_title(header_bar, "mutfakapp");
+    gtk_header_bar_set_title(header_bar, "Benim Lezzet Dünyam — Mutfak");
     gtk_header_bar_set_show_close_button(header_bar, TRUE);
     gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
   } else {
-    gtk_window_set_title(window, "mutfakapp");
+    gtk_window_set_title(window, "Benim Lezzet Dünyam — Mutfak");
   }
+
+  // PENCERE İKONU. `gtk_window_set_icon_name` kurulu ikon temasından
+  // arar; `.desktop` girişiyle birlikte kurulan `bld-mutfakapp` adını
+  // veriyoruz. Tema bulunamazsa GTK varsayılana düşer, çökmez.
+  gtk_window_set_icon_name(window, "bld-mutfakapp");
 
   gtk_window_set_default_size(window, 1280, 720);
 
