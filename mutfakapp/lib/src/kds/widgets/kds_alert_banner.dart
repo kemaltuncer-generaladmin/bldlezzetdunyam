@@ -25,6 +25,8 @@ class KdsAlertBanner extends ConsumerWidget {
     final l10n = AppL10n.of(context);
     final connection = ref.watch(connectionProvider).value;
     final printer = ref.watch(printerStatusProvider).value;
+    final failedCount = ref.watch(printQueueFailedCountProvider);
+    final alarm = ref.watch(newOrderAlarmProvider);
 
     // Sıra önemlidir: bağlantı yoksa yazıcı uyarısı ikinci derecededir,
     // iki bant üst üste koymak paydan yer çalar.
@@ -43,11 +45,29 @@ class KdsAlertBanner extends ConsumerWidget {
       ),
       // `revoked` durumunda kök bileşen zaten eşleme ekranına geçiyor;
       // burada da uyarmak çift mesaj olurdu.
+      //
+      // Onay bekleyen sipariş varken ses çıkmıyorsa bu, yazıcıdan da önemli:
+      // personel ekrana bakmadığı sürece siparişi hiç görmeyecek.
+      _ when alarm.silentWhileWaiting => _Banner(
+        color: const Color(BldColors.danger),
+        icon: Icons.volume_off,
+        title: l10n.alarmMutedTitle,
+        body: l10n.alarmMutedBody,
+      ),
       _ when printer == PrinterAvailability.unavailable => _Banner(
         color: const Color(BldColors.warning),
         icon: Icons.print_disabled_outlined,
         title: l10n.printerBannerTitle,
         body: l10n.printerBannerBody,
+      ),
+      // Yazıcı cihazı yerinde ama basım başarısız oluyor: kâğıt bitmiş,
+      // kapak açık kalmış ya da kablo oynamış. Cihaz dosyası var olduğu için
+      // "yazıcı yok" uyarısı bu durumu YAKALAMAZ.
+      _ when failedCount > 0 => _Banner(
+        color: const Color(BldColors.danger),
+        icon: Icons.print_disabled_outlined,
+        title: l10n.queueBacklogTitle,
+        body: l10n.queueBacklogBody(failedCount),
       ),
       _ => null,
     };

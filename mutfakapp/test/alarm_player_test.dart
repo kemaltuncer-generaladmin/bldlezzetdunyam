@@ -42,6 +42,22 @@ class FakeProcess implements Process {
   IOSink get stdin => throw UnsupportedError('Bu testte kullanılmıyor');
 }
 
+/// [condition] gerçekleşene kadar **gerçek zamanda** bekler.
+///
+/// `pumpEventQueue` yalnızca mikro görev kuyruğunu boşaltır. Oynatıcı arayışı
+/// `which` ile gerçek bir alt süreç açıyor ve süreç yük altında birkaç
+/// milisaniye sürebiliyor; tek bir `pumpEventQueue` bitmesini beklemiyordu ve
+/// test dolu bir paket koşusunda rastgele düşüyordu.
+Future<void> waitUntil(
+  bool Function() condition, {
+  Duration timeout = const Duration(seconds: 5),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (!condition() && DateTime.now().isBefore(deadline)) {
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
+}
+
 void main() {
   late List<FakeProcess> spawned;
 
@@ -63,20 +79,21 @@ void main() {
   test('başlayınca çalar', () async {
     final player = build();
     await player.start();
-    await pumpEventQueue();
+    await waitUntil(() => spawned.isNotEmpty);
 
     expect(player.isPlaying, isTrue);
     expect(spawned, hasLength(1));
+    await player.stop();
   });
 
   test('ses bitince YENİDEN başlar — onaylanana kadar susmaz', () async {
     // Tek bir bip mutfakta duyulmaz. Israrcı alarmın tamamı bu davranışta.
     final player = build();
     await player.start();
-    await pumpEventQueue();
+    await waitUntil(() => spawned.isNotEmpty);
 
     spawned.first.finish();
-    await pumpEventQueue();
+    await waitUntil(() => spawned.length >= 2);
 
     expect(spawned, hasLength(2), reason: 'Parça bitince yenisi başlamalı.');
     await player.stop();
@@ -86,7 +103,7 @@ void main() {
     // Üst üste binen sesler alarmı gürültüye çevirir.
     final player = build();
     await player.start();
-    await pumpEventQueue();
+    await waitUntil(() => spawned.isNotEmpty);
     await pumpEventQueue();
 
     expect(spawned, hasLength(1));
@@ -96,7 +113,7 @@ void main() {
   test('durdurunca süreci öldürür ve döngü biter', () async {
     final player = build();
     await player.start();
-    await pumpEventQueue();
+    await waitUntil(() => spawned.isNotEmpty);
 
     await player.stop();
     await pumpEventQueue();
@@ -110,7 +127,7 @@ void main() {
     final player = build();
     await player.start();
     await player.start();
-    await pumpEventQueue();
+    await waitUntil(() => spawned.isNotEmpty);
 
     expect(spawned, hasLength(1));
     await player.stop();
@@ -119,7 +136,7 @@ void main() {
   test('oynatıcı yoksa susturulmuş sayılır ve çökmez', () async {
     final player = build(commands: ['boyle-bir-komut-yok']);
     await player.start();
-    await pumpEventQueue();
+    await waitUntil(() => player.isMuted);
 
     expect(player.isMuted, isTrue);
     expect(player.isPlaying, isFalse);
@@ -131,7 +148,7 @@ void main() {
       materialize: (_) async => throw const FileSystemException('yok'),
     );
     await player.start();
-    await pumpEventQueue();
+    await waitUntil(() => player.isMuted);
 
     expect(player.isMuted, isTrue);
     expect(player.isPlaying, isFalse);

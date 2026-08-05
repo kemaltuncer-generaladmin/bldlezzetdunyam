@@ -110,6 +110,13 @@ class _PairedRoot extends ConsumerWidget {
     // burada açıkça canlı tutulur; yoksa sağlayıcı hiç kurulmaz ve fiş basmaz.
     ref.watch(printTriggersProvider);
 
+    // Alarm ve sağlık bildirimi de aynı sebeple: ikisi de arayüzde
+    // görünmedikleri anlarda (ayarlar ekranı açıkken, pano boşken) çalışmaya
+    // devam etmeli. Bir dinleyicisi olmayan sağlayıcı hiç kurulmaz.
+    ref
+      ..watch(newOrderAlarmProvider)
+      ..watch(kitchenHealthProvider);
+
     ref.listen<AsyncValue<OrderSourceConnection>>(connectionProvider, (
       _,
       next,

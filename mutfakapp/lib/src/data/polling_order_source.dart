@@ -13,21 +13,52 @@ import 'dart:async';
 
 import 'package:bld_api_client/bld_api_client.dart';
 
+/// Listenin ne zaman tazelendiğini bildirebilen kaynak.
+///
+/// `OrderSource` `packages/api_client`'ta ve bu görevin kapsamı dışında;
+/// sözleşmeye alan eklemek yerine yerel bir arayüzle genişletiyoruz. Arayüzü
+/// uygulamayan bir kaynak (ör. testteki sahte) yalnızca yaş göstergesini
+/// kaybeder, ekranın kalanı çalışır.
+abstract interface class TimestampedOrderSource {
+  /// Sunucudan en son başarıyla liste alındığı an (UTC); hiç alınmadıysa `null`.
+  DateTime? get lastUpdatedAt;
+}
+
 /// Sunucudan periyodik olarak sipariş çeken [OrderSource] uygulaması.
 ///
 /// Faz 1.5'te yerini `WebSocketOrderSource` alacak; ekran kodu değişmeyecek.
-class PollingOrderSource implements OrderSource {
+class PollingOrderSource implements OrderSource, TimestampedOrderSource {
   PollingOrderSource({
     required KitchenService kitchen,
-    this.interval = const Duration(seconds: 5),
+    Duration interval = const Duration(seconds: 5),
     this.maxBackoff = const Duration(seconds: 60),
     this.heartbeatInterval = const Duration(seconds: 60),
-  }) : _kitchen = kitchen;
+    DateTime Function()? clock,
+  }) : _kitchen = kitchen,
+       _interval = interval,
+       _clock = clock ?? (() => DateTime.now().toUtc());
 
   final KitchenService _kitchen;
 
+  Duration _interval;
+
   /// Normal çekme aralığı.
-  final Duration interval;
+  Duration get interval => _interval;
+
+  /// Aralığı çalışırken değiştirir ve bekleyen yoklamayı yeniden planlar.
+  ///
+  /// DEĞİŞTİRİLEBİLİR OLMASI ŞART. Önceden ayarlar ekranındaki aralık
+  /// değişikliği sağlayıcıyı yeniden kuruyordu: eski kaynak kapanıyor,
+  /// yenisi **boş bir anlık görüntüyle** açılıyor ve mutfak ekranı ilk
+  /// yanıt gelene kadar bomboş kalıyordu. Bir ayarı kurcalamak, ekrandaki
+  /// siparişleri silmemeli.
+  set interval(Duration value) {
+    if (value == _interval || _disposed) return;
+    _interval = value;
+    // Geri çekilme sırasında araya girmeyiz: hata durumundaki bekleme yeni
+    // aralıktan daha uzundur ve kısaltmak sunucuyu döverdi.
+    if (_consecutiveFailures == 0) _scheduleNext(value);
+  }
 
   /// Geri çekilmenin üst sınırı.
   final Duration maxBackoff;
@@ -46,7 +77,10 @@ class PollingOrderSource implements OrderSource {
   List<KitchenOrder> _snapshot = const <KitchenOrder>[];
   OrderSourceConnection _connectionState = OrderSourceConnection.connecting;
 
+  final DateTime Function() _clock;
+
   DateTime? _since;
+  DateTime? _lastUpdatedAt;
   int _consecutiveFailures = 0;
 
   /// Bir sonraki başarılı çekme tam liste mi olsun?
@@ -64,22 +98,55 @@ class PollingOrderSource implements OrderSource {
   bool _disposed = false;
 
   @override
-  Stream<List<KitchenOrder>> watch() async* {
-    yield _snapshot;
-    yield* _orders.stream;
-  }
+  Stream<List<KitchenOrder>> watch() =>
+      _withCurrentValue(_orders.stream, () => _snapshot);
 
   @override
-  Stream<OrderSourceConnection> get connection async* {
-    yield _connectionState;
-    yield* _connection.stream;
-  }
+  Stream<OrderSourceConnection> get connection =>
+      _withCurrentValue(_connection.stream, () => _connectionState);
 
   /// Son yayımlanan liste. Yeniden çizim gerektirmeyen okumalar için.
   List<KitchenOrder> get snapshot => _snapshot;
 
   /// Son bağlantı durumu.
   OrderSourceConnection get connectionState => _connectionState;
+
+  /// Sunucudan en son başarıyla liste alındığı an (UTC); hiç alınmadıysa `null`.
+  ///
+  /// Bağlantı koptuğunda ekranda duran liste "son bilinen durum"dur ve
+  /// personelin ona ne kadar güvenebileceği tek bir sayıya bağlıdır: yaşı.
+  @override
+  DateTime? get lastUpdatedAt => _lastUpdatedAt;
+
+  /// Yayına, dinlemeye başlayanın kaçırdığı **güncel değeri** önekler.
+  ///
+  /// `async*` içinde `yield mevcut; yield* akış;` yazmak yetmiyordu: iki adım
+  /// arasında yayın akışına düşen bir olay hiçbir dinleyiciye ulaşmadan
+  /// kayboluyor. Burada abonelik ÖNCE kurulur, güncel değer sonra yazılır;
+  /// arada boşluk kalmaz.
+  static Stream<T> _withCurrentValue<T>(
+    Stream<T> source,
+    T Function() current,
+  ) {
+    late final StreamController<T> controller;
+    StreamSubscription<T>? subscription;
+
+    controller = StreamController<T>(
+      onListen: () {
+        subscription = source.listen(
+          controller.add,
+          onError: controller.addError,
+          onDone: controller.close,
+        );
+        controller.add(current());
+      },
+      onPause: () => subscription?.pause(),
+      onResume: () => subscription?.resume(),
+      onCancel: () => subscription?.cancel(),
+    );
+
+    return controller.stream;
+  }
 
   /// Zamanlayıcıları başlatır. Yapıcıda değil ayrı bir çağrıda olması
   /// bilinçlidir: nesne kurmak ağ trafiği başlatmamalı, testler kontrolü
@@ -96,10 +163,16 @@ class PollingOrderSource implements OrderSource {
 
   @override
   Future<void> refresh() async {
-    _needsFullRefresh = true;
     // Süren bir istek varsa o eski `since` ile başlamıştır; tam yenileme onun
     // ardından yapılmalı, yoksa çağrı yenileme yapmadan döner.
+    //
+    // BAYRAK BEKLEMEDEN SONRA KURULUR. Önce kurulsaydı, o sırada tamamlanan
+    // istek başarıyla bitip bayrağı `false`'a çekiyor ve elle yenileme sessizce
+    // artımlı bir çekmeye dönüşüyordu — kaçırılmış durum değişimleri de
+    // toparlanmıyordu.
     await _inFlight;
+    if (_disposed) return;
+    _needsFullRefresh = true;
     await _tick();
   }
 
@@ -168,9 +241,10 @@ class PollingOrderSource implements OrderSource {
       _applyPage(page, replaceAll: fullRefresh);
       _needsFullRefresh = false;
       _hasSucceeded = true;
+      _lastUpdatedAt = _clock();
       _consecutiveFailures = 0;
       _emitConnection(OrderSourceConnection.connected);
-      _scheduleNext(interval);
+      _scheduleNext(_interval);
     } on Object catch (error) {
       if (_disposed) return;
 
@@ -190,7 +264,7 @@ class PollingOrderSource implements OrderSource {
       _emitConnection(OrderSourceConnection.disconnected);
       _scheduleNext(
         backoffDelay(
-          base: interval,
+          base: _interval,
           consecutiveFailures: _consecutiveFailures,
           max: maxBackoff,
         ),

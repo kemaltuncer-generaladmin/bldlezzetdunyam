@@ -15,6 +15,9 @@ import '../../data/providers.dart';
 import '../../l10n/app_localizations.dart';
 import '../../settings/settings_screen.dart';
 import '../../window/kiosk_window.dart';
+import '../kds_screen.dart';
+import 'health_panel_dialog.dart';
+import 'keyboard_help_dialog.dart';
 
 class KdsStatusBar extends ConsumerWidget {
   const KdsStatusBar({super.key});
@@ -73,6 +76,10 @@ class KdsStatusBar extends ConsumerWidget {
                       label: l10n.queueFailedCount(failedCount),
                     ),
                   ],
+                  const SizedBox(width: BldSpacing.lg),
+                  const _TodayCounter(),
+                  const SizedBox(width: BldSpacing.lg),
+                  const _Freshness(),
                 ],
               ),
             ),
@@ -81,7 +88,25 @@ class KdsStatusBar extends ConsumerWidget {
           const _BusyToggle(),
           const SizedBox(width: BldSpacing.lg),
           const _Clock(),
-          const SizedBox(width: BldSpacing.lg),
+          const SizedBox(width: BldSpacing.sm),
+          IconButton(
+            tooltip: l10n.healthOpen,
+            iconSize: 22,
+            icon: const Icon(Icons.monitor_heart_outlined),
+            onPressed: () => unawaited(showHealthPanelDialog(context)),
+          ),
+          IconButton(
+            tooltip: l10n.refreshNow,
+            iconSize: 22,
+            icon: const Icon(Icons.refresh),
+            onPressed: () => unawaited(refreshBoard(context, ref)),
+          ),
+          IconButton(
+            tooltip: '${l10n.shortcutsTitle} (${l10n.shortcutsHint})',
+            iconSize: 22,
+            icon: const Icon(Icons.keyboard_outlined),
+            onPressed: () => unawaited(showKeyboardHelpDialog(context)),
+          ),
           TextButton.icon(
             onPressed: () =>
                 unawaited(Navigator.of(context).push(SettingsScreen.route())),
@@ -93,6 +118,69 @@ class KdsStatusBar extends ConsumerWidget {
           ),
           const _WindowButtons(),
         ],
+      ),
+    );
+  }
+}
+
+/// Bugün girilen sipariş sayısı — sunucudan gelir (`POST /kitchen/health`).
+///
+/// Yerelde hesaplanamaz: mutfak listesi yalnızca aktif siparişleri taşır,
+/// teslim edilenler düşer. Sayı gelmeden gösterge hiç çizilmez; sıfır yazmak
+/// "bugün hiç sipariş girmedi" demek olurdu ve bu yanlış olabilir.
+class _TodayCounter extends ConsumerWidget {
+  const _TodayCounter();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(kitchenHealthProvider).status;
+    if (status == null) return const SizedBox.shrink();
+
+    return Text(
+      AppL10n.of(context).statusToday(status.ordersToday),
+      style: const TextStyle(
+        fontSize: KdsTextScale.statusBar,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+}
+
+/// Listenin yaşı: "şu an güncel" mi, "on dakikadır donmuş" mu?
+///
+/// Kesinti şeridi bağlantının koptuğunu söyler ama ekrandaki listeye ne kadar
+/// güvenilebileceğini söylemez. İkisi farklı sorulardır: yeni kopmuş bir
+/// bağlantının listesi hâlâ işe yarar, yirmi dakikalık liste yaramaz.
+class _Freshness extends ConsumerWidget {
+  const _Freshness();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppL10n.of(context);
+    final updatedAt = ref.watch(lastUpdatedAtProvider);
+    final now = ref.watch(clockProvider).value ?? DateTime.now().toUtc();
+
+    final String label;
+    var stale = false;
+
+    if (updatedAt == null) {
+      label = l10n.lastUpdateNever;
+      stale = true;
+    } else {
+      final age = now.toUtc().difference(updatedAt.toUtc());
+      final minutes = age.isNegative ? 0 : age.inMinutes;
+      label = minutes < 1 ? l10n.lastUpdateNow : l10n.lastUpdateAgo(minutes);
+      // Bir dakika, en uzun geri çekilme aralığının (60 sn) katıdır: normal
+      // çalışmada asla aşılmaz, aşıldıysa gerçekten bir sorun vardır.
+      stale = minutes >= 1;
+    }
+
+    return Text(
+      label,
+      style: TextStyle(
+        fontSize: KdsTextScale.statusBar,
+        fontWeight: stale ? FontWeight.bold : FontWeight.normal,
+        color: Color(stale ? KdsColors.statusWarn : KdsColors.onSurfaceMuted),
       ),
     );
   }

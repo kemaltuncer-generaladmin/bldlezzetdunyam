@@ -65,11 +65,10 @@ class NewOrderHighlights extends Notifier<Set<int>> {
     }
     if (arrivals.isEmpty) return;
 
-    // Tek "ding": aynı anda üç sipariş düşerse üç kez öttürmek gürültüdür.
-    // Sesin kapalı olması kararı sağlayıcıda verilir (`orderAlertProvider`);
-    // burada bir `if` daha olsaydı iki yerde iki farklı doğru olurdu.
-    ref.read(orderAlertProvider).ding();
-
+    // SES BURADA DEĞİL. Uyarı sesi tek bir "ding" değil, onaylanana kadar süren
+    // bir alarmdır ve kararı `NewOrderAlarmPolicy` verir. Bu sınıf yalnızca
+    // görsel vurguyu yönetir: iki mekanizma iki farklı soruyu cevaplıyor —
+    // "hangi kart yeni düştü" ve "hâlâ onay bekleyen var mı".
     state = {...state, ...arrivals};
     for (final id in arrivals) {
       _timers[id]?.cancel();

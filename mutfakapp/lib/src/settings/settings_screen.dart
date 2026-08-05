@@ -253,14 +253,7 @@ class _AlertsSection extends ConsumerWidget {
             l10n.settingsSound,
             style: const TextStyle(fontSize: KdsTextScale.orderNumber),
           ),
-          secondary: TextButton(
-            // Ses kapalıyken denemek anlamsız: sağlayıcı sessiz uygulamayı
-            // döndürür ve düğme "bozuk" görünürdü.
-            onPressed: settings.soundEnabled
-                ? ref.read(orderAlertProvider).ding
-                : null,
-            child: Text(l10n.settingsSoundTest),
-          ),
+          secondary: _SoundTestButton(enabled: settings.soundEnabled),
         ),
         const Divider(color: Color(KdsColors.surfaceRaised)),
         _NumberSetting(
@@ -305,6 +298,57 @@ class _AlertsSection extends ConsumerWidget {
         ),
       ],
     );
+  }
+}
+
+/// Uyarı sesini dinletir.
+///
+/// AÇ/KAPA ŞEKLİNDE, tek atışlık değil: alarm gerçek hayatta **döngüde**
+/// çalıyor ve personelin duyacağı ses budur. Bir zamanlayıcıyla üç saniye
+/// sonra kesmek, hem gerçek davranışı yanlış tanıtır hem de ekran kapanırsa
+/// arkada asılı bir zamanlayıcı bırakırdı.
+class _SoundTestButton extends ConsumerStatefulWidget {
+  const _SoundTestButton({required this.enabled});
+
+  final bool enabled;
+
+  @override
+  ConsumerState<_SoundTestButton> createState() => _SoundTestButtonState();
+}
+
+class _SoundTestButtonState extends ConsumerState<_SoundTestButton> {
+  bool _playing = false;
+
+  @override
+  void dispose() {
+    // Ekrandan çıkıldığında deneme sesi susmalı. `ref` `dispose` içinde
+    // okunamaz; bu yüzden oynatıcı önceden alınıp durdurulur.
+    if (_playing) ref.read(alarmPlayerProvider).stop().ignore();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
+
+    return TextButton(
+      // Ses kapalıyken denemek anlamsız: sağlayıcı sessiz uygulamayı döndürür
+      // ve düğme "bozuk" görünürdü.
+      onPressed: widget.enabled ? _toggle : null,
+      child: Text(_playing ? l10n.settingsSoundStop : l10n.settingsSoundTest),
+    );
+  }
+
+  void _toggle() {
+    final player = ref.read(alarmPlayerProvider);
+    final next = !_playing;
+
+    if (next) {
+      player.start().ignore();
+    } else {
+      player.stop().ignore();
+    }
+    setState(() => _playing = next);
   }
 }
 
@@ -824,20 +868,57 @@ Future<String?> _promptForText(
   required String title,
   required String hint,
   required String initialValue,
-}) async {
-  final l10n = AppL10n.of(context);
-  final controller = TextEditingController(text: initialValue);
+}) => showDialog<String>(
+  context: context,
+  builder: (context) =>
+      _TextPromptDialog(title: title, hint: hint, initialValue: initialValue),
+);
 
-  final result = await showDialog<String>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text(title),
+/// Metin soran pencere.
+///
+/// DENETLEYİCİYİ PENCERENİN KENDİSİ SAHİPLENİR. Önce `showDialog`'un
+/// döndürdüğü `Future` beklenip denetleyici elden çıkarılıyordu; oysa
+/// `Future` rota **atıldığı anda** tamamlanıyor, pencere ise kapanma
+/// animasyonu boyunca hâlâ çizili duruyor. Aradaki karelerde `TextField`
+/// elden çıkarılmış bir denetleyiciye erişip iddia hatası atıyordu.
+class _TextPromptDialog extends StatefulWidget {
+  const _TextPromptDialog({
+    required this.title,
+    required this.hint,
+    required this.initialValue,
+  });
+
+  final String title;
+  final String hint;
+  final String initialValue;
+
+  @override
+  State<_TextPromptDialog> createState() => _TextPromptDialogState();
+}
+
+class _TextPromptDialogState extends State<_TextPromptDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialValue,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
+
+    return AlertDialog(
+      title: Text(widget.title),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            hint,
+            widget.hint,
             style: const TextStyle(
               fontSize: KdsTextScale.statusBar,
               color: Color(BldColors.warning),
@@ -845,7 +926,7 @@ Future<String?> _promptForText(
           ),
           const SizedBox(height: BldSpacing.md),
           TextField(
-            controller: controller,
+            controller: _controller,
             autofocus: true,
             style: const TextStyle(fontSize: KdsTextScale.statusBar),
             decoration: const InputDecoration(border: OutlineInputBorder()),
@@ -860,16 +941,13 @@ Future<String?> _promptForText(
         ),
         FilledButton(
           style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
-          onPressed: () => Navigator.of(context).pop(controller.text),
+          onPressed: () => Navigator.of(context).pop(_controller.text),
           child: Text(
             l10n.save,
             style: const TextStyle(fontSize: KdsTextScale.statusBar),
           ),
         ),
       ],
-    ),
-  );
-
-  controller.dispose();
-  return result;
+    );
+  }
 }

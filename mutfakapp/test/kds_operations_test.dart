@@ -15,8 +15,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mutfakapp/src/config/app_config.dart';
 import 'package:mutfakapp/src/data/printer_probe.dart';
 import 'package:mutfakapp/src/data/providers.dart';
-import 'package:mutfakapp/src/kds/order_alert.dart';
 import 'package:mutfakapp/src/kds/widgets/order_card.dart';
+import 'package:mutfakapp/src/sound/alarm_player.dart';
 import 'package:mutfakapp/src/printing/print_queue.dart';
 import 'package:mutfakapp/src/printing/print_service.dart';
 import 'package:mutfakapp/src/printing/printer_device.dart';
@@ -60,12 +60,34 @@ class ControllableOrderSource implements OrderSource {
   void emit(List<KitchenOrder> orders) => _orders.add(orders);
 }
 
-/// Çalınan uyarıları sayan sahte [OrderAlert].
-class RecordingAlert implements OrderAlert {
-  int dings = 0;
+/// Kaç kez başlatılıp durdurulduğunu sayan sahte [AlarmPlayer].
+class RecordingAlarmPlayer implements AlarmPlayer {
+  int starts = 0;
+  int stops = 0;
+  bool _playing = false;
+
+  /// `true` ise ses hiç çıkmıyor sayılır (oynatıcı yok / ayar kapalı).
+  bool muted = false;
 
   @override
-  void ding() => dings++;
+  bool get isPlaying => _playing;
+
+  @override
+  bool get isMuted => muted;
+
+  @override
+  Future<void> start() async {
+    if (_playing) return;
+    _playing = true;
+    starts++;
+  }
+
+  @override
+  Future<void> stop() async {
+    if (!_playing) return;
+    _playing = false;
+    stops++;
+  }
 }
 
 class NullPrinter implements PrinterDevice {
@@ -283,8 +305,8 @@ void main() {
     });
   });
 
-  group('Sesli uyarı', () {
-    test('ses şalteri sağlayıcıyı değiştirir', () {
+  group('Yeni sipariş alarmı', () {
+    test('ses şalteri oynatıcıyı değiştirir', () {
       final container = ProviderContainer(
         overrides: [
           initialKdsSettingsProvider.overrideWithValue(settings),
@@ -293,18 +315,18 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      expect(container.read(orderAlertProvider), isA<SystemOrderAlert>());
+      expect(container.read(alarmPlayerProvider), isA<ProcessAlarmPlayer>());
 
       container
           .read(kdsSettingsProvider.notifier)
           .update(settings.copyWith(soundEnabled: false));
 
-      expect(container.read(orderAlertProvider), isA<SilentOrderAlert>());
+      expect(container.read(alarmPlayerProvider), isA<SilentAlarmPlayer>());
     });
 
-    testWidgets('yeni sipariş düşünce bir kez öter', (tester) async {
+    testWidgets('yeni sipariş düşünce alarm çalar', (tester) async {
       final source = ControllableOrderSource();
-      final alert = RecordingAlert();
+      final alarm = RecordingAlarmPlayer();
       addTearDown(source.dispose);
 
       await pumpKds(
@@ -312,24 +334,42 @@ void main() {
         settings: settings,
         orders: const [],
         source: source,
-        alert: alert,
+        alarm: alarm,
       );
 
-      // İlk yayın "zaten ekranda olanlar" sayılır, uyarı üretmez.
+      source.emit(const []);
+      await tester.pump();
+      expect(alarm.starts, isZero);
+
       source.emit([makeOrder(id: 1)]);
       await tester.pump();
-      expect(alert.dings, isZero);
-
-      source.emit([makeOrder(id: 1), makeOrder(id: 2)]);
-      await tester.pump();
-      expect(alert.dings, 1);
+      expect(alarm.starts, 1);
+      expect(alarm.isPlaying, isTrue);
 
       await tearDownTree(tester);
     });
 
-    testWidgets('aynı anda düşen üç sipariş üç kez ötmez', (tester) async {
+    testWidgets('AÇILIŞTA bekleyen yeni sipariş varsa alarm çalar', (
+      tester,
+    ) async {
+      // Elektrik kesintisi sonrası sessiz açılmak, siparişi kaçırmak demektir.
+      final alarm = RecordingAlarmPlayer();
+
+      await pumpKds(
+        tester,
+        settings: settings,
+        orders: [makeOrder(id: 1, status: OrderStatus.yeni)],
+        alarm: alarm,
+      );
+
+      expect(alarm.starts, 1);
+
+      await tearDownTree(tester);
+    });
+
+    testWidgets('onaylanınca susar', (tester) async {
       final source = ControllableOrderSource();
-      final alert = RecordingAlert();
+      final alarm = RecordingAlarmPlayer();
       addTearDown(source.dispose);
 
       await pumpKds(
@@ -337,40 +377,160 @@ void main() {
         settings: settings,
         orders: const [],
         source: source,
-        alert: alert,
+        alarm: alarm,
       );
 
-      source.emit(const []);
+      source.emit([makeOrder(id: 1, status: OrderStatus.yeni)]);
       await tester.pump();
-      source.emit([makeOrder(id: 1), makeOrder(id: 2), makeOrder(id: 3)]);
+      expect(alarm.isPlaying, isTrue);
+
+      source.emit([makeOrder(id: 1, status: OrderStatus.onaylandi)]);
       await tester.pump();
 
-      expect(alert.dings, 1);
+      expect(alarm.isPlaying, isFalse);
+      expect(alarm.stops, 1);
 
       await tearDownTree(tester);
     });
 
-    testWidgets('onaylanmış sipariş listeye girince ötmez', (tester) async {
+    testWidgets('başka yeni sipariş kaldıysa çalmaya DEVAM eder', (
+      tester,
+    ) async {
+      final source = ControllableOrderSource();
+      final alarm = RecordingAlarmPlayer();
+      addTearDown(source.dispose);
+
+      await pumpKds(
+        tester,
+        settings: settings,
+        orders: const [],
+        source: source,
+        alarm: alarm,
+      );
+
+      source.emit([
+        makeOrder(id: 1, status: OrderStatus.yeni),
+        makeOrder(id: 2, status: OrderStatus.yeni),
+      ]);
+      await tester.pump();
+
+      source.emit([
+        makeOrder(id: 1, status: OrderStatus.onaylandi),
+        makeOrder(id: 2, status: OrderStatus.yeni),
+      ]);
+      await tester.pump();
+
+      expect(alarm.isPlaying, isTrue);
+      expect(alarm.stops, isZero);
+
+      await tearDownTree(tester);
+    });
+
+    testWidgets('"Sesi sustur" düğmesi alarmı keser, kartı bırakmaz', (
+      tester,
+    ) async {
+      final alarm = RecordingAlarmPlayer();
+
+      await pumpKds(
+        tester,
+        settings: settings,
+        orders: [makeOrder(id: 1, status: OrderStatus.yeni)],
+        alarm: alarm,
+      );
+
+      expect(find.text('SESİ SUSTUR'), findsOneWidget);
+      await tester.tap(find.text('SESİ SUSTUR'));
+      await tester.pump();
+
+      expect(alarm.isPlaying, isFalse);
+      // Sipariş hâlâ onay bekliyor ve bunu yazıyor.
+      expect(find.textContaining('Alarm susturuldu'), findsOneWidget);
+      expect(find.text('S-1'), findsOneWidget);
+
+      await tearDownTree(tester);
+    });
+
+    testWidgets('susturduktan sonra YENİ bir sipariş alarmı geri getirir', (
+      tester,
+    ) async {
+      final source = ControllableOrderSource();
+      final alarm = RecordingAlarmPlayer();
+      addTearDown(source.dispose);
+
+      await pumpKds(
+        tester,
+        settings: settings,
+        orders: const [],
+        source: source,
+        alarm: alarm,
+      );
+
+      source.emit([makeOrder(id: 1, status: OrderStatus.yeni)]);
+      await tester.pump();
+      await tester.tap(find.text('SESİ SUSTUR'));
+      await tester.pump();
+      expect(alarm.isPlaying, isFalse);
+
+      source.emit([
+        makeOrder(id: 1, status: OrderStatus.yeni),
+        makeOrder(id: 2, status: OrderStatus.yeni),
+      ]);
+      await tester.pump();
+
+      expect(alarm.isPlaying, isTrue, reason: 'Yeni sipariş yeniden çalmalı.');
+
+      await tearDownTree(tester);
+    });
+
+    testWidgets('onaylanmış sipariş listeye girince çalmaz', (tester) async {
       // Uygulama yeniden başladığında tüm liste "yeni gelmiş" gibi görünür;
       // dikkat isteyen kart yalnızca henüz onaylanmamış olandır.
-      final source = ControllableOrderSource();
-      final alert = RecordingAlert();
-      addTearDown(source.dispose);
+      final alarm = RecordingAlarmPlayer();
+
+      await pumpKds(
+        tester,
+        settings: settings,
+        orders: [makeOrder(id: 7, status: OrderStatus.hazirlaniyor)],
+        alarm: alarm,
+      );
+
+      expect(alarm.starts, isZero);
+
+      await tearDownTree(tester);
+    });
+
+    testWidgets('ses çıkmıyorsa arayüz bunu GÖRÜNÜR biçimde söyler', (
+      tester,
+    ) async {
+      // Sessiz bir alarm, alarm olmadığını bilmemekten iyidir.
+      final alarm = RecordingAlarmPlayer()..muted = true;
+
+      await pumpKds(
+        tester,
+        settings: settings,
+        orders: [makeOrder(id: 1, status: OrderStatus.yeni)],
+        alarm: alarm,
+      );
+
+      expect(find.text('ALARM ÇALMIYOR'), findsOneWidget);
+      expect(find.text('SESİ SUSTUR'), findsNothing);
+
+      await tearDownTree(tester);
+    });
+
+    testWidgets('bekleyen sipariş yokken bile sessizlik rozeti durur', (
+      tester,
+    ) async {
+      final alarm = RecordingAlarmPlayer()..muted = true;
 
       await pumpKds(
         tester,
         settings: settings,
         orders: const [],
-        source: source,
-        alert: alert,
+        alarm: alarm,
       );
 
-      source.emit(const []);
-      await tester.pump();
-      source.emit([makeOrder(id: 7, status: OrderStatus.hazirlaniyor)]);
-      await tester.pump();
-
-      expect(alert.dings, isZero);
+      expect(find.text('SES KAPALI'), findsOneWidget);
 
       await tearDownTree(tester);
     });

@@ -279,5 +279,185 @@ void main() {
       expect(kitchen.ordersCalls.last.since, isNull);
       expect(kitchen.ordersCalls.last.includeCompleted, isFalse);
     });
+
+    test('süren istek bitmeden çağrılsa bile TAM liste ister', () async {
+      // HATA: bayrak beklemeden önce kuruluyordu. O sırada tamamlanan istek
+      // başarıyla bitip bayrağı sıfırlıyor, elle yenileme sessizce artımlı bir
+      // çekmeye dönüşüyor ve kaçırılan durum değişimleri toparlanmıyordu.
+      final kitchen = FakeKitchenService()
+        ..responses.add(makePage([makeOrder(id: 1)]));
+
+      final source = PollingOrderSource(
+        kitchen: kitchen,
+        interval: const Duration(hours: 1),
+        heartbeatInterval: const Duration(hours: 1),
+      )..start();
+
+      // `settle` YOK: ilk istek hâlâ uçarken yenileme isteniyor.
+      await source.refresh();
+      await source.dispose();
+
+      expect(kitchen.ordersCalls, hasLength(greaterThanOrEqualTo(2)));
+      expect(kitchen.ordersCalls.last.since, isNull);
+    });
+  });
+
+  group('Listenin yaşı', () {
+    test('başarılı çekmeden önce bilinmez', () async {
+      final source = PollingOrderSource(kitchen: FakeKitchenService());
+      expect(source.lastUpdatedAt, isNull);
+      await source.dispose();
+    });
+
+    test('başarılı çekmede damgalanır', () async {
+      final kitchen = FakeKitchenService()
+        ..responses.add(makePage([makeOrder(id: 1)]));
+
+      final source = PollingOrderSource(
+        kitchen: kitchen,
+        interval: const Duration(hours: 1),
+        heartbeatInterval: const Duration(hours: 1),
+        clock: () => DateTime.utc(2026, 8, 5, 9),
+      )..start();
+      await settle();
+
+      expect(source.lastUpdatedAt, DateTime.utc(2026, 8, 5, 9));
+      await source.dispose();
+    });
+
+    test('hata damgayı GERİYE ALMAZ', () async {
+      // Ekrandaki liste hâlâ o andaki listedir; yaşı da o andan sayılmalı.
+      final kitchen = FakeKitchenService()
+        ..responses.addAll([
+          makePage([makeOrder(id: 1)]),
+          const ApiException.network(),
+        ]);
+
+      final source = PollingOrderSource(
+        kitchen: kitchen,
+        interval: const Duration(milliseconds: 10),
+        heartbeatInterval: const Duration(hours: 1),
+        clock: () => DateTime.utc(2026, 8, 5, 9),
+      )..start();
+      await settle();
+
+      expect(source.lastUpdatedAt, DateTime.utc(2026, 8, 5, 9));
+      await source.dispose();
+    });
+  });
+
+  group('Aralık değişikliği', () {
+    test('kaynağı yeniden kurmadan uygulanır', () async {
+      // HATA: aralık sağlayıcıda `watch` ediliyordu; ayarlar ekranındaki artı
+      // düğmesine her basış kaynağı kapatıp yenisini açıyor ve pano ilk yanıt
+      // gelene kadar BOŞ kalıyordu.
+      final kitchen = FakeKitchenService()
+        ..responses.add(makePage([makeOrder(id: 1)]));
+
+      final source = PollingOrderSource(
+        kitchen: kitchen,
+        interval: const Duration(hours: 1),
+        heartbeatInterval: const Duration(hours: 1),
+      )..start();
+      await settle();
+
+      final before = kitchen.ordersCalls.length;
+      source.interval = const Duration(milliseconds: 10);
+      await settle();
+
+      expect(source.snapshot, hasLength(1), reason: 'Liste silinmemeli.');
+      expect(
+        kitchen.ordersCalls.length,
+        greaterThan(before),
+        reason: 'Yeni aralık hemen uygulanmalı.',
+      );
+      await source.dispose();
+    });
+
+    test('aynı değer bir şey değiştirmez', () async {
+      final kitchen = FakeKitchenService()
+        ..responses.add(makePage([makeOrder(id: 1)]));
+
+      final source = PollingOrderSource(
+        kitchen: kitchen,
+        interval: const Duration(hours: 1),
+        heartbeatInterval: const Duration(hours: 1),
+      )..start();
+      await settle();
+
+      final before = kitchen.ordersCalls.length;
+      source.interval = const Duration(hours: 1);
+      await settle();
+
+      expect(kitchen.ordersCalls, hasLength(before));
+      await source.dispose();
+    });
+
+    test('elden çıkarıldıktan sonra aralık yazmak zamanlayıcı kurmaz', () async {
+      final kitchen = FakeKitchenService()
+        ..responses.add(makePage([makeOrder(id: 1)]));
+
+      final source = PollingOrderSource(
+        kitchen: kitchen,
+        interval: const Duration(hours: 1),
+        heartbeatInterval: const Duration(hours: 1),
+      )..start();
+      await settle();
+      await source.dispose();
+
+      final before = kitchen.ordersCalls.length;
+      source.interval = const Duration(milliseconds: 5);
+      await settle();
+
+      expect(kitchen.ordersCalls, hasLength(before));
+    });
+  });
+
+  group('Akışa geç katılma', () {
+    test('dinlemeye başlayan güncel listeyi alır', () async {
+      final kitchen = FakeKitchenService()
+        ..responses.add(makePage([makeOrder(id: 1)]));
+
+      final source = PollingOrderSource(
+        kitchen: kitchen,
+        interval: const Duration(hours: 1),
+        heartbeatInterval: const Duration(hours: 1),
+      )..start();
+      await settle();
+
+      // Yayın çoktan olmuş; yeni dinleyici yine de listeyi görmeli.
+      expect(await source.watch().first, hasLength(1));
+      expect(await source.connection.first, OrderSourceConnection.connected);
+      await source.dispose();
+    });
+
+    test('güncel değerden SONRAKİ yayınlar kaybolmaz', () async {
+      // HATA: `yield mevcut; yield* akış;` deseninde iki adım arasına düşen
+      // olay hiçbir dinleyiciye ulaşmadan kayboluyordu.
+      final kitchen = FakeKitchenService()
+        ..responses.addAll([
+          makePage(const []),
+          makePage([makeOrder(id: 7)]),
+        ]);
+
+      final source = PollingOrderSource(
+        kitchen: kitchen,
+        interval: const Duration(hours: 1),
+        heartbeatInterval: const Duration(hours: 1),
+      )..start();
+      await settle();
+
+      final seen = <List<KitchenOrder>>[];
+      final subscription = source.watch().listen(seen.add);
+      // Abonelik kurulur kurulmaz — güncel değer henüz teslim edilmeden —
+      // yeni bir yayın tetikleniyor.
+      await source.refresh();
+      await settle();
+      await subscription.cancel();
+
+      expect(seen.last, hasLength(1));
+      expect(seen.last.single.id, 7);
+      await source.dispose();
+    });
   });
 }

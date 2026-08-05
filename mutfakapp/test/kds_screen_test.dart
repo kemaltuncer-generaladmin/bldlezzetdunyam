@@ -20,13 +20,15 @@ import 'package:mutfakapp/src/printing/print_service.dart';
 import 'package:mutfakapp/src/printing/printer_device.dart';
 import 'package:mutfakapp/src/settings/kds_settings.dart';
 
-import 'package:mutfakapp/src/kds/order_alert.dart';
+import 'package:mutfakapp/src/data/kitchen_health.dart';
 import 'package:mutfakapp/src/kds/widgets/order_card.dart';
+import 'package:mutfakapp/src/sound/alarm_player.dart';
 
 import 'fake_kds_settings_store.dart';
 import 'unlock_helper.dart';
 import 'fake_device_session_store.dart';
 import 'fake_kitchen_service.dart';
+import 'fake_kitchen_health_api.dart';
 
 class FakeOrderSource implements OrderSource {
   FakeOrderSource({
@@ -59,12 +61,13 @@ Future<void> pumpKds(
   OrderSourceConnection state = OrderSourceConnection.connected,
   PrinterAvailability printer = PrinterAvailability.ready,
   FakeKitchenService? kitchen,
-  // Aşağıdaki üçü yeni davranışları ölçmek için: ayarlar (eşikler, ses),
-  // uyarı sesi ve akış denetimi gerektiren senaryolar.
+  // Aşağıdakiler yeni davranışları ölçmek için: ayarlar (eşikler, ses),
+  // alarm oynatıcısı, akış denetimi ve sağlık ucu gerektiren senaryolar.
   KdsSettings? settings,
-  OrderAlert? alert,
+  AlarmPlayer? alarm,
   OrderSource? source,
   PrintService? printService,
+  KitchenHealthApi? health,
 }) async {
   final kitchenService = kitchen ?? FakeKitchenService();
   // Kasa 1920×1080 bir mutfak monitörüne bağlıdır; testin varsayılan
@@ -102,7 +105,13 @@ Future<void> pumpKds(
         kdsSettingsStoreProvider.overrideWithValue(FakeKdsSettingsStore()),
         if (settings != null)
           initialKdsSettingsProvider.overrideWithValue(settings),
-        if (alert != null) orderAlertProvider.overrideWithValue(alert),
+        // Alarm oynatıcısı HER TESTTE sahtedir: gerçek `ProcessAlarmPlayer`
+        // test makinesinde `pw-play` süreci açardı.
+        alarmPlayerProvider.overrideWithValue(alarm ?? SilentAlarmPlayer()),
+        // Sağlık ucu de öyle: gerçek istemci `dart:io` ile ağa çıkar.
+        kitchenHealthApiProvider.overrideWithValue(
+          health ?? FakeKitchenHealthApi(),
+        ),
         // İşçi BAŞLATILMAZ: ekran testi yazdırmayı değil çizimi ölçer,
         // çalışan bir kuyruk döngüsü testte asılı zamanlayıcı bırakır.
         printServiceProvider.overrideWith(

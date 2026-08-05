@@ -806,6 +806,384 @@ abstract class AppL10n {
   /// In tr, this message translates to:
   /// **'Kaydet'**
   String get save;
+
+  /// Çalan alarmı o an için susturan düğme
+  ///
+  /// In tr, this message translates to:
+  /// **'SESİ SUSTUR'**
+  String get alarmSilence;
+
+  /// Sustur düğmesinin ipucu
+  ///
+  /// In tr, this message translates to:
+  /// **'Yalnızca şu anki alarmı susturur. Bir sonraki yeni sipariş yeniden çalar.'**
+  String get alarmSilenceTooltip;
+
+  /// Alarm çalarken üst çubuktaki metin
+  ///
+  /// In tr, this message translates to:
+  /// **'{count} sipariş onay bekliyor'**
+  String alarmSounding(int count);
+
+  /// Personel sustur dedikten sonra
+  ///
+  /// In tr, this message translates to:
+  /// **'Alarm susturuldu · {count} sipariş hâlâ onay bekliyor'**
+  String alarmSilenced(int count);
+
+  /// Ses kapalı ya da oynatıcı yokken şerit
+  ///
+  /// In tr, this message translates to:
+  /// **'ALARM ÇALMIYOR'**
+  String get alarmMutedTitle;
+
+  /// Sessiz alarm şeridinin açıklaması
+  ///
+  /// In tr, this message translates to:
+  /// **'Yeni sipariş sessiz düşer. Ekranı gözle takip edin ya da ayarlardan sesi açın.'**
+  String get alarmMutedBody;
+
+  /// Üst çubuktaki kalıcı sessizlik rozeti
+  ///
+  /// In tr, this message translates to:
+  /// **'SES KAPALI'**
+  String get alarmMutedBadge;
+
+  /// İlk liste sunucudan gelmeden önce
+  ///
+  /// In tr, this message translates to:
+  /// **'Siparişler yükleniyor'**
+  String get boardLoading;
+
+  /// Yükleme durumunun açıklaması
+  ///
+  /// In tr, this message translates to:
+  /// **'Sunucuya ilk bağlantı kuruluyor. Bu ekran bir kaç saniye içinde dolacak.'**
+  String get boardLoadingHint;
+
+  /// Karttaki kalem ilerlemesi
+  ///
+  /// In tr, this message translates to:
+  /// **'{done}/{total} hazır'**
+  String itemsDone(int done, int total);
+
+  /// Kalem işaretleme düğmesi
+  ///
+  /// In tr, this message translates to:
+  /// **'Kalemi hazır / beklemede yap'**
+  String get itemToggleTooltip;
+
+  /// Kart başlığındaki not uyarısı
+  ///
+  /// In tr, this message translates to:
+  /// **'NOTLU'**
+  String get cardNoteBadge;
+
+  /// Karttaki hazırlanma süresi hedefi
+  ///
+  /// In tr, this message translates to:
+  /// **'Hedef {minutes} dk'**
+  String prepTargetLabel(int minutes);
+
+  /// Hazır siparişte gerçekleşen hazırlanma süresi
+  ///
+  /// In tr, this message translates to:
+  /// **'Hazırlandı: {minutes} dk'**
+  String prepActualLabel(int minutes);
+
+  /// Sunucudan hiç liste alınmadıysa
+  ///
+  /// In tr, this message translates to:
+  /// **'Hiç güncellenmedi'**
+  String get lastUpdateNever;
+
+  /// Bir dakikadan yeni güncelleme
+  ///
+  /// In tr, this message translates to:
+  /// **'Şimdi güncellendi'**
+  String get lastUpdateNow;
+
+  /// Listenin yaşı — kopukken ne kadar güvenilir
+  ///
+  /// In tr, this message translates to:
+  /// **'{minutes} dk önce güncellendi'**
+  String lastUpdateAgo(int minutes);
+
+  /// Elle tam yenileme düğmesi
+  ///
+  /// In tr, this message translates to:
+  /// **'Yenile'**
+  String get refreshNow;
+
+  /// Elle yenileme başarısız
+  ///
+  /// In tr, this message translates to:
+  /// **'Yenilenemedi: {message}'**
+  String refreshFailed(String message);
+
+  /// 422 INVALID_TRANSITION alındığında
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu sipariş başka bir yerden güncellenmiş. Liste tazelendi.'**
+  String get statusChangeConflict;
+
+  /// Yardım penceresinin başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Klavye kısayolları'**
+  String get shortcutsTitle;
+
+  /// Yardımı açan tuş — durum çubuğunda gösterilir
+  ///
+  /// In tr, this message translates to:
+  /// **'F1'**
+  String get shortcutsHint;
+
+  /// Ok tuşlarının işlevi
+  ///
+  /// In tr, this message translates to:
+  /// **'Kart seç'**
+  String get shortcutSelect;
+
+  /// Enter tuşunun işlevi
+  ///
+  /// In tr, this message translates to:
+  /// **'Seçili kartı bir adım ilerlet'**
+  String get shortcutAdvance;
+
+  /// F2 tuşunun işlevi
+  ///
+  /// In tr, this message translates to:
+  /// **'Aramaya geç'**
+  String get shortcutSearch;
+
+  /// Esc tuşunun işlevi
+  ///
+  /// In tr, this message translates to:
+  /// **'Aramayı temizle / seçimi bırak'**
+  String get shortcutClear;
+
+  /// F5 tuşunun işlevi
+  ///
+  /// In tr, this message translates to:
+  /// **'Listeyi yenile'**
+  String get shortcutRefresh;
+
+  /// F4 tuşunun işlevi
+  ///
+  /// In tr, this message translates to:
+  /// **'Alarmı sustur'**
+  String get shortcutSilence;
+
+  /// F3 tuşunun işlevi
+  ///
+  /// In tr, this message translates to:
+  /// **'Vardiya özeti'**
+  String get shortcutSummary;
+
+  /// F1 tuşunun işlevi
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu pencere'**
+  String get shortcutHelp;
+
+  /// Özet penceresinin başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Vardiya özeti'**
+  String get shiftSummaryTitle;
+
+  /// Özet penceresinin altındaki uyarı
+  ///
+  /// In tr, this message translates to:
+  /// **'Sayaçlar uygulama açıldığından beri sayar; yeniden başlatma sıfırlar.'**
+  String get shiftSummaryHint;
+
+  /// Vardiyada ekrana düşen sipariş sayısı
+  ///
+  /// In tr, this message translates to:
+  /// **'Görülen sipariş'**
+  String get shiftSeen;
+
+  /// Hazır ve ötesine geçen sipariş sayısı
+  ///
+  /// In tr, this message translates to:
+  /// **'Hazırlanan sipariş'**
+  String get shiftReady;
+
+  /// Ortalama hazırlanma süresi
+  ///
+  /// In tr, this message translates to:
+  /// **'Ortalama hazırlanma'**
+  String get shiftAverage;
+
+  /// En çok bekleyen sipariş
+  ///
+  /// In tr, this message translates to:
+  /// **'En uzun süren'**
+  String get shiftSlowest;
+
+  /// Ölçülecek sipariş olmadığında
+  ///
+  /// In tr, this message translates to:
+  /// **'Henüz veri yok'**
+  String get shiftNone;
+
+  /// Kuyrukta hata alan iş varken şerit
+  ///
+  /// In tr, this message translates to:
+  /// **'FİŞLER BASILAMIYOR'**
+  String get queueBacklogTitle;
+
+  /// Kuyruk hatası şeridinin açıklaması
+  ///
+  /// In tr, this message translates to:
+  /// **'{count} fiş yazıcıya gönderilemedi. Kâğıdı, kapağı ve kabloyu denetleyin; işler kuyrukta duruyor.'**
+  String queueBacklogBody(int count);
+
+  /// Deneme sesini kesen düğme
+  ///
+  /// In tr, this message translates to:
+  /// **'Sesi durdur'**
+  String get settingsSoundStop;
+
+  /// Oynatıcı yokken uyarı
+  ///
+  /// In tr, this message translates to:
+  /// **'Ses çalınamıyor: kasada pw-play ya da aplay bulunamadı.'**
+  String get settingsSoundUnavailable;
+
+  /// Sağlık panelinin başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Sistem durumu'**
+  String get healthTitle;
+
+  /// Sağlık panelini açan düğmenin ipucu
+  ///
+  /// In tr, this message translates to:
+  /// **'Sistem durumu (F6)'**
+  String get healthOpen;
+
+  /// Sağlık paneli kutusu
+  ///
+  /// In tr, this message translates to:
+  /// **'Yazıcı'**
+  String get healthPrinter;
+
+  /// Sağlık paneli kutusu
+  ///
+  /// In tr, this message translates to:
+  /// **'Sunucu'**
+  String get healthServer;
+
+  /// Sağlık paneli kutusu
+  ///
+  /// In tr, this message translates to:
+  /// **'Bugünkü sipariş'**
+  String get healthOrdersToday;
+
+  /// Sağlık paneli kutusu
+  ///
+  /// In tr, this message translates to:
+  /// **'Alarm sesi'**
+  String get healthSound;
+
+  /// Yazıcı kutusunun alt satırı
+  ///
+  /// In tr, this message translates to:
+  /// **'Kuyrukta {pending} fiş'**
+  String healthPrinterQueue(int pending);
+
+  /// Yazıcı kutusunda hata sayısı
+  ///
+  /// In tr, this message translates to:
+  /// **'{count} fiş basılamadı'**
+  String healthPrinterFailed(int count);
+
+  /// Sağlık bildirimi başarılı
+  ///
+  /// In tr, this message translates to:
+  /// **'Ulaşılıyor'**
+  String get healthServerOk;
+
+  /// Sağlık bildirimi başarısız
+  ///
+  /// In tr, this message translates to:
+  /// **'Ulaşılamıyor'**
+  String get healthServerDown;
+
+  /// Henüz bildirim gönderilmedi
+  ///
+  /// In tr, this message translates to:
+  /// **'Deneniyor'**
+  String get healthServerUnknown;
+
+  /// Son başarılı sağlık bildirimi
+  ///
+  /// In tr, this message translates to:
+  /// **'Son iletişim: {time}'**
+  String healthLastContact(String time);
+
+  /// Hiç başarılı bildirim olmadıysa
+  ///
+  /// In tr, this message translates to:
+  /// **'Henüz iletişim kurulmadı'**
+  String get healthNoContact;
+
+  /// Aktif sipariş sayısı
+  ///
+  /// In tr, this message translates to:
+  /// **'{count} sipariş ekranda'**
+  String healthActiveOrders(int count);
+
+  /// Sunucudan sayı gelmediyse
+  ///
+  /// In tr, this message translates to:
+  /// **'—'**
+  String get healthTodayUnknown;
+
+  /// Bugünkü sipariş sayısının tanımı
+  ///
+  /// In tr, this message translates to:
+  /// **'İptaller hariç, Türkiye günü.'**
+  String get healthTodayHint;
+
+  /// Alarm çalınabiliyor
+  ///
+  /// In tr, this message translates to:
+  /// **'Çalışıyor'**
+  String get healthSoundOk;
+
+  /// Alarm çalınamıyor ya da kapalı
+  ///
+  /// In tr, this message translates to:
+  /// **'Sessiz'**
+  String get healthSoundMuted;
+
+  /// Alarm kutusunun açıklaması
+  ///
+  /// In tr, this message translates to:
+  /// **'Yeni sipariş, onaylanana kadar sesle uyarır.'**
+  String get healthSoundHint;
+
+  /// Sağlık bildirimini elle tetikleyen düğme
+  ///
+  /// In tr, this message translates to:
+  /// **'Şimdi bildir'**
+  String get healthRefresh;
+
+  /// F6 tuşunun işlevi
+  ///
+  /// In tr, this message translates to:
+  /// **'Sistem durumu'**
+  String get shortcutHealth;
+
+  /// Durum çubuğundaki günlük sipariş sayacı
+  ///
+  /// In tr, this message translates to:
+  /// **'Bugün: {count}'**
+  String statusToday(int count);
 }
 
 class _AppL10nDelegate extends LocalizationsDelegate<AppL10n> {

@@ -434,5 +434,236 @@
   "@cancel": { "description": "Onay penceresindeki olumsuz düğme" },
 
   "save": "Kaydet",
-  "@save": { "description": "Alan kaydetme düğmesi" }
+  "@save": { "description": "Alan kaydetme düğmesi" },
+
+  "alarmSilence": "SESİ SUSTUR",
+  "@alarmSilence": { "description": "Çalan alarmı o an için susturan düğme" },
+
+  "alarmSilenceTooltip": "Yalnızca şu anki alarmı susturur. Bir sonraki yeni sipariş yeniden çalar.",
+  "@alarmSilenceTooltip": { "description": "Sustur düğmesinin ipucu" },
+
+  "alarmSounding": "{count} sipariş onay bekliyor",
+  "@alarmSounding": {
+    "description": "Alarm çalarken üst çubuktaki metin",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "alarmSilenced": "Alarm susturuldu · {count} sipariş hâlâ onay bekliyor",
+  "@alarmSilenced": {
+    "description": "Personel sustur dedikten sonra",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "alarmMutedTitle": "ALARM ÇALMIYOR",
+  "@alarmMutedTitle": { "description": "Ses kapalı ya da oynatıcı yokken şerit" },
+
+  "alarmMutedBody": "Yeni sipariş sessiz düşer. Ekranı gözle takip edin ya da ayarlardan sesi açın.",
+  "@alarmMutedBody": { "description": "Sessiz alarm şeridinin açıklaması" },
+
+  "alarmMutedBadge": "SES KAPALI",
+  "@alarmMutedBadge": { "description": "Üst çubuktaki kalıcı sessizlik rozeti" },
+
+  "boardLoading": "Siparişler yükleniyor",
+  "@boardLoading": { "description": "İlk liste sunucudan gelmeden önce" },
+
+  "boardLoadingHint": "Sunucuya ilk bağlantı kuruluyor. Bu ekran bir kaç saniye içinde dolacak.",
+  "@boardLoadingHint": { "description": "Yükleme durumunun açıklaması" },
+
+  "itemsDone": "{done}/{total} hazır",
+  "@itemsDone": {
+    "description": "Karttaki kalem ilerlemesi",
+    "placeholders": {
+      "done": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+
+  "itemToggleTooltip": "Kalemi hazır / beklemede yap",
+  "@itemToggleTooltip": { "description": "Kalem işaretleme düğmesi" },
+
+  "cardNoteBadge": "NOTLU",
+  "@cardNoteBadge": { "description": "Kart başlığındaki not uyarısı" },
+
+  "prepTargetLabel": "Hedef {minutes} dk",
+  "@prepTargetLabel": {
+    "description": "Karttaki hazırlanma süresi hedefi",
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+
+  "prepActualLabel": "Hazırlandı: {minutes} dk",
+  "@prepActualLabel": {
+    "description": "Hazır siparişte gerçekleşen hazırlanma süresi",
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+
+  "lastUpdateNever": "Hiç güncellenmedi",
+  "@lastUpdateNever": { "description": "Sunucudan hiç liste alınmadıysa" },
+
+  "lastUpdateNow": "Şimdi güncellendi",
+  "@lastUpdateNow": { "description": "Bir dakikadan yeni güncelleme" },
+
+  "lastUpdateAgo": "{minutes} dk önce güncellendi",
+  "@lastUpdateAgo": {
+    "description": "Listenin yaşı — kopukken ne kadar güvenilir",
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+
+  "refreshNow": "Yenile",
+  "@refreshNow": { "description": "Elle tam yenileme düğmesi" },
+
+  "refreshFailed": "Yenilenemedi: {message}",
+  "@refreshFailed": {
+    "description": "Elle yenileme başarısız",
+    "placeholders": { "message": { "type": "String" } }
+  },
+
+  "statusChangeConflict": "Bu sipariş başka bir yerden güncellenmiş. Liste tazelendi.",
+  "@statusChangeConflict": { "description": "422 INVALID_TRANSITION alındığında" },
+
+  "shortcutsTitle": "Klavye kısayolları",
+  "@shortcutsTitle": { "description": "Yardım penceresinin başlığı" },
+
+  "shortcutsHint": "F1",
+  "@shortcutsHint": { "description": "Yardımı açan tuş — durum çubuğunda gösterilir" },
+
+  "shortcutSelect": "Kart seç",
+  "@shortcutSelect": { "description": "Ok tuşlarının işlevi" },
+
+  "shortcutAdvance": "Seçili kartı bir adım ilerlet",
+  "@shortcutAdvance": { "description": "Enter tuşunun işlevi" },
+
+  "shortcutSearch": "Aramaya geç",
+  "@shortcutSearch": { "description": "F2 tuşunun işlevi" },
+
+  "shortcutClear": "Aramayı temizle / seçimi bırak",
+  "@shortcutClear": { "description": "Esc tuşunun işlevi" },
+
+  "shortcutRefresh": "Listeyi yenile",
+  "@shortcutRefresh": { "description": "F5 tuşunun işlevi" },
+
+  "shortcutSilence": "Alarmı sustur",
+  "@shortcutSilence": { "description": "F4 tuşunun işlevi" },
+
+  "shortcutSummary": "Vardiya özeti",
+  "@shortcutSummary": { "description": "F3 tuşunun işlevi" },
+
+  "shortcutHelp": "Bu pencere",
+  "@shortcutHelp": { "description": "F1 tuşunun işlevi" },
+
+  "shiftSummaryTitle": "Vardiya özeti",
+  "@shiftSummaryTitle": { "description": "Özet penceresinin başlığı" },
+
+  "shiftSummaryHint": "Sayaçlar uygulama açıldığından beri sayar; yeniden başlatma sıfırlar.",
+  "@shiftSummaryHint": { "description": "Özet penceresinin altındaki uyarı" },
+
+  "shiftSeen": "Görülen sipariş",
+  "@shiftSeen": { "description": "Vardiyada ekrana düşen sipariş sayısı" },
+
+  "shiftReady": "Hazırlanan sipariş",
+  "@shiftReady": { "description": "Hazır ve ötesine geçen sipariş sayısı" },
+
+  "shiftAverage": "Ortalama hazırlanma",
+  "@shiftAverage": { "description": "Ortalama hazırlanma süresi" },
+
+  "shiftSlowest": "En uzun süren",
+  "@shiftSlowest": { "description": "En çok bekleyen sipariş" },
+
+  "shiftNone": "Henüz veri yok",
+  "@shiftNone": { "description": "Ölçülecek sipariş olmadığında" },
+
+  "queueBacklogTitle": "FİŞLER BASILAMIYOR",
+  "@queueBacklogTitle": { "description": "Kuyrukta hata alan iş varken şerit" },
+
+  "queueBacklogBody": "{count} fiş yazıcıya gönderilemedi. Kâğıdı, kapağı ve kabloyu denetleyin; işler kuyrukta duruyor.",
+  "@queueBacklogBody": {
+    "description": "Kuyruk hatası şeridinin açıklaması",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "settingsSoundStop": "Sesi durdur",
+  "@settingsSoundStop": { "description": "Deneme sesini kesen düğme" },
+
+  "settingsSoundUnavailable": "Ses çalınamıyor: kasada pw-play ya da aplay bulunamadı.",
+  "@settingsSoundUnavailable": { "description": "Oynatıcı yokken uyarı" },
+
+  "healthTitle": "Sistem durumu",
+  "@healthTitle": { "description": "Sağlık panelinin başlığı" },
+
+  "healthOpen": "Sistem durumu (F6)",
+  "@healthOpen": { "description": "Sağlık panelini açan düğmenin ipucu" },
+
+  "healthPrinter": "Yazıcı",
+  "@healthPrinter": { "description": "Sağlık paneli kutusu" },
+
+  "healthServer": "Sunucu",
+  "@healthServer": { "description": "Sağlık paneli kutusu" },
+
+  "healthOrdersToday": "Bugünkü sipariş",
+  "@healthOrdersToday": { "description": "Sağlık paneli kutusu" },
+
+  "healthSound": "Alarm sesi",
+  "@healthSound": { "description": "Sağlık paneli kutusu" },
+
+  "healthPrinterQueue": "Kuyrukta {pending} fiş",
+  "@healthPrinterQueue": {
+    "description": "Yazıcı kutusunun alt satırı",
+    "placeholders": { "pending": { "type": "int" } }
+  },
+
+  "healthPrinterFailed": "{count} fiş basılamadı",
+  "@healthPrinterFailed": {
+    "description": "Yazıcı kutusunda hata sayısı",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "healthServerOk": "Ulaşılıyor",
+  "@healthServerOk": { "description": "Sağlık bildirimi başarılı" },
+
+  "healthServerDown": "Ulaşılamıyor",
+  "@healthServerDown": { "description": "Sağlık bildirimi başarısız" },
+
+  "healthServerUnknown": "Deneniyor",
+  "@healthServerUnknown": { "description": "Henüz bildirim gönderilmedi" },
+
+  "healthLastContact": "Son iletişim: {time}",
+  "@healthLastContact": {
+    "description": "Son başarılı sağlık bildirimi",
+    "placeholders": { "time": { "type": "String" } }
+  },
+
+  "healthNoContact": "Henüz iletişim kurulmadı",
+  "@healthNoContact": { "description": "Hiç başarılı bildirim olmadıysa" },
+
+  "healthActiveOrders": "{count} sipariş ekranda",
+  "@healthActiveOrders": {
+    "description": "Aktif sipariş sayısı",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "healthTodayUnknown": "—",
+  "@healthTodayUnknown": { "description": "Sunucudan sayı gelmediyse" },
+
+  "healthTodayHint": "İptaller hariç, Türkiye günü.",
+  "@healthTodayHint": { "description": "Bugünkü sipariş sayısının tanımı" },
+
+  "healthSoundOk": "Çalışıyor",
+  "@healthSoundOk": { "description": "Alarm çalınabiliyor" },
+
+  "healthSoundMuted": "Sessiz",
+  "@healthSoundMuted": { "description": "Alarm çalınamıyor ya da kapalı" },
+
+  "healthSoundHint": "Yeni sipariş, onaylanana kadar sesle uyarır.",
+  "@healthSoundHint": { "description": "Alarm kutusunun açıklaması" },
+
+  "healthRefresh": "Şimdi bildir",
+  "@healthRefresh": { "description": "Sağlık bildirimini elle tetikleyen düğme" },
+
+  "shortcutHealth": "Sistem durumu",
+  "@shortcutHealth": { "description": "F6 tuşunun işlevi" },
+
+  "statusToday": "Bugün: {count}",
+  "@statusToday": {
+    "description": "Durum çubuğundaki günlük sipariş sayacı",
+    "placeholders": { "count": { "type": "int" } }
+  }
 }

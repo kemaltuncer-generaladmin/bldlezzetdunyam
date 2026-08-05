@@ -33,11 +33,15 @@ class KdsHeaderBar extends ConsumerWidget {
       child: Row(
         children: [
           _AlarmBadge(count: lateCount),
-          const SizedBox(width: BldSpacing.lg),
+          const SizedBox(width: BldSpacing.md),
+          const Flexible(child: _NewOrderAlarmBar()),
+          const SizedBox(width: BldSpacing.md),
           Text(
             filtering
                 ? l10n.searchResultCount(visible, total)
                 : l10n.activeOrderCount(total),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: KdsTextScale.orderNumber,
               fontWeight: FontWeight.bold,
@@ -55,6 +59,135 @@ class KdsHeaderBar extends ConsumerWidget {
 /// Arama kutusu sabit genişliktedir: esnek olsaydı sipariş sayısı arttıkça
 /// yer değiştirir, kas hafızasını bozardı.
 const double _searchFieldWidth = 380;
+
+/// Onay bekleyen sipariş uyarısı ve "Sesi sustur" düğmesi.
+///
+/// Ses, personel siparişi **onaylayana kadar** çalar (`docs/05` §3). Susturma
+/// düğmesi yalnızca o anki alarmı keser; bir sonraki yeni sipariş yeniden
+/// çalar. Kalıcı susturma ayarlar ekranındaki ses şalteridir — ve o açıkken
+/// burada kalıcı bir "SES KAPALI" rozeti durur, çünkü sessiz bir alarm, alarm
+/// olmadığını bilmemekten iyidir.
+class _NewOrderAlarmBar extends ConsumerWidget {
+  const _NewOrderAlarmBar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppL10n.of(context);
+    final alarm = ref.watch(newOrderAlarmProvider);
+
+    if (alarm.pendingCount == 0) {
+      return alarm.muted
+          ? const Align(alignment: Alignment.centerLeft, child: _MutedBadge())
+          : const SizedBox.shrink();
+    }
+
+    final color = Color(
+      alarm.silenced || alarm.muted ? BldColors.warning : BldColors.brand500,
+    );
+    final foreground = KdsAccents.onAccent(color);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: BldSpacing.md,
+        vertical: BldSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(BldRadius.sm),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            alarm.muted
+                ? Icons.volume_off
+                : alarm.silenced
+                ? Icons.notifications_paused
+                : Icons.notifications_active,
+            size: 26,
+            color: foreground,
+          ),
+          const SizedBox(width: BldSpacing.sm),
+          Flexible(
+            child: Text(
+              alarm.silenced
+                  ? l10n.alarmSilenced(alarm.pendingCount)
+                  : l10n.alarmSounding(alarm.pendingCount),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: KdsTextScale.statusBar,
+                fontWeight: FontWeight.bold,
+                color: foreground,
+              ),
+            ),
+          ),
+          if (alarm.sounding) ...[
+            const SizedBox(width: BldSpacing.md),
+            FilledButton.tonal(
+              onPressed: ref.read(newOrderAlarmProvider.notifier).silence,
+              style: FilledButton.styleFrom(
+                // TEMA EZİLİYOR. `KdsTheme` tüm dolu butonlara sonsuz genişlik
+                // veren `Size.fromHeight(56)` koyuyor; satır içinde bu düzeni
+                // çökertir (`docs/05` §6 notu).
+                minimumSize: const Size(0, 40),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: BldSpacing.md,
+                ),
+                backgroundColor: const Color(KdsColors.surface),
+              ),
+              // İPUCU BUTONUN İÇİNDE: `Tooltip` çocuğuna sınırsız genişlik
+              // geçiriyor ve dışarıdan sarmak satırın düzenini çökertiyor.
+              child: Tooltip(
+                message: l10n.alarmSilenceTooltip,
+                child: Text(
+                  l10n.alarmSilence,
+                  style: const TextStyle(fontSize: KdsTextScale.statusBar),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Sipariş beklemiyorken bile görünen kalıcı sessizlik rozeti.
+class _MutedBadge extends StatelessWidget {
+  const _MutedBadge();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(
+      horizontal: BldSpacing.sm,
+      vertical: BldSpacing.xs,
+    ),
+    decoration: BoxDecoration(
+      border: Border.all(color: const Color(BldColors.warning), width: 2),
+      borderRadius: BorderRadius.circular(BldRadius.sm),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(
+          Icons.volume_off,
+          size: 20,
+          color: Color(BldColors.warning),
+        ),
+        const SizedBox(width: BldSpacing.xs),
+        Text(
+          AppL10n.of(context).alarmMutedBadge,
+          style: const TextStyle(
+            fontSize: KdsTextScale.statusBar,
+            fontWeight: FontWeight.bold,
+            color: Color(BldColors.warning),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
 /// Geciken sipariş sayacı.
 ///
@@ -142,6 +275,8 @@ class _SearchFieldState extends ConsumerState<_SearchField> {
 
     return TextField(
       controller: _controller,
+      // Odak düğümü sağlayıcıda: `F2` kısayolu buraya atlar (`kds_screen.dart`).
+      focusNode: ref.watch(searchFocusProvider),
       onChanged: ref.read(searchQueryProvider.notifier).set,
       style: const TextStyle(fontSize: KdsTextScale.orderNumber),
       decoration: InputDecoration(

@@ -417,4 +417,225 @@ class AppL10nTr extends AppL10n {
 
   @override
   String get save => 'Kaydet';
+
+  @override
+  String get alarmSilence => 'SESİ SUSTUR';
+
+  @override
+  String get alarmSilenceTooltip =>
+      'Yalnızca şu anki alarmı susturur. Bir sonraki yeni sipariş yeniden çalar.';
+
+  @override
+  String alarmSounding(int count) {
+    return '$count sipariş onay bekliyor';
+  }
+
+  @override
+  String alarmSilenced(int count) {
+    return 'Alarm susturuldu · $count sipariş hâlâ onay bekliyor';
+  }
+
+  @override
+  String get alarmMutedTitle => 'ALARM ÇALMIYOR';
+
+  @override
+  String get alarmMutedBody =>
+      'Yeni sipariş sessiz düşer. Ekranı gözle takip edin ya da ayarlardan sesi açın.';
+
+  @override
+  String get alarmMutedBadge => 'SES KAPALI';
+
+  @override
+  String get boardLoading => 'Siparişler yükleniyor';
+
+  @override
+  String get boardLoadingHint =>
+      'Sunucuya ilk bağlantı kuruluyor. Bu ekran bir kaç saniye içinde dolacak.';
+
+  @override
+  String itemsDone(int done, int total) {
+    return '$done/$total hazır';
+  }
+
+  @override
+  String get itemToggleTooltip => 'Kalemi hazır / beklemede yap';
+
+  @override
+  String get cardNoteBadge => 'NOTLU';
+
+  @override
+  String prepTargetLabel(int minutes) {
+    return 'Hedef $minutes dk';
+  }
+
+  @override
+  String prepActualLabel(int minutes) {
+    return 'Hazırlandı: $minutes dk';
+  }
+
+  @override
+  String get lastUpdateNever => 'Hiç güncellenmedi';
+
+  @override
+  String get lastUpdateNow => 'Şimdi güncellendi';
+
+  @override
+  String lastUpdateAgo(int minutes) {
+    return '$minutes dk önce güncellendi';
+  }
+
+  @override
+  String get refreshNow => 'Yenile';
+
+  @override
+  String refreshFailed(String message) {
+    return 'Yenilenemedi: $message';
+  }
+
+  @override
+  String get statusChangeConflict =>
+      'Bu sipariş başka bir yerden güncellenmiş. Liste tazelendi.';
+
+  @override
+  String get shortcutsTitle => 'Klavye kısayolları';
+
+  @override
+  String get shortcutsHint => 'F1';
+
+  @override
+  String get shortcutSelect => 'Kart seç';
+
+  @override
+  String get shortcutAdvance => 'Seçili kartı bir adım ilerlet';
+
+  @override
+  String get shortcutSearch => 'Aramaya geç';
+
+  @override
+  String get shortcutClear => 'Aramayı temizle / seçimi bırak';
+
+  @override
+  String get shortcutRefresh => 'Listeyi yenile';
+
+  @override
+  String get shortcutSilence => 'Alarmı sustur';
+
+  @override
+  String get shortcutSummary => 'Vardiya özeti';
+
+  @override
+  String get shortcutHelp => 'Bu pencere';
+
+  @override
+  String get shiftSummaryTitle => 'Vardiya özeti';
+
+  @override
+  String get shiftSummaryHint =>
+      'Sayaçlar uygulama açıldığından beri sayar; yeniden başlatma sıfırlar.';
+
+  @override
+  String get shiftSeen => 'Görülen sipariş';
+
+  @override
+  String get shiftReady => 'Hazırlanan sipariş';
+
+  @override
+  String get shiftAverage => 'Ortalama hazırlanma';
+
+  @override
+  String get shiftSlowest => 'En uzun süren';
+
+  @override
+  String get shiftNone => 'Henüz veri yok';
+
+  @override
+  String get queueBacklogTitle => 'FİŞLER BASILAMIYOR';
+
+  @override
+  String queueBacklogBody(int count) {
+    return '$count fiş yazıcıya gönderilemedi. Kâğıdı, kapağı ve kabloyu denetleyin; işler kuyrukta duruyor.';
+  }
+
+  @override
+  String get settingsSoundStop => 'Sesi durdur';
+
+  @override
+  String get settingsSoundUnavailable =>
+      'Ses çalınamıyor: kasada pw-play ya da aplay bulunamadı.';
+
+  @override
+  String get healthTitle => 'Sistem durumu';
+
+  @override
+  String get healthOpen => 'Sistem durumu (F6)';
+
+  @override
+  String get healthPrinter => 'Yazıcı';
+
+  @override
+  String get healthServer => 'Sunucu';
+
+  @override
+  String get healthOrdersToday => 'Bugünkü sipariş';
+
+  @override
+  String get healthSound => 'Alarm sesi';
+
+  @override
+  String healthPrinterQueue(int pending) {
+    return 'Kuyrukta $pending fiş';
+  }
+
+  @override
+  String healthPrinterFailed(int count) {
+    return '$count fiş basılamadı';
+  }
+
+  @override
+  String get healthServerOk => 'Ulaşılıyor';
+
+  @override
+  String get healthServerDown => 'Ulaşılamıyor';
+
+  @override
+  String get healthServerUnknown => 'Deneniyor';
+
+  @override
+  String healthLastContact(String time) {
+    return 'Son iletişim: $time';
+  }
+
+  @override
+  String get healthNoContact => 'Henüz iletişim kurulmadı';
+
+  @override
+  String healthActiveOrders(int count) {
+    return '$count sipariş ekranda';
+  }
+
+  @override
+  String get healthTodayUnknown => '—';
+
+  @override
+  String get healthTodayHint => 'İptaller hariç, Türkiye günü.';
+
+  @override
+  String get healthSoundOk => 'Çalışıyor';
+
+  @override
+  String get healthSoundMuted => 'Sessiz';
+
+  @override
+  String get healthSoundHint => 'Yeni sipariş, onaylanana kadar sesle uyarır.';
+
+  @override
+  String get healthRefresh => 'Şimdi bildir';
+
+  @override
+  String get shortcutHealth => 'Sistem durumu';
+
+  @override
+  String statusToday(int count) {
+    return 'Bugün: $count';
+  }
 }

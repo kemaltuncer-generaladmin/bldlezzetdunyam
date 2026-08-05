@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/kds_theme.dart';
 import '../board.dart';
+import '../order_progress.dart';
 import '../urgency.dart';
 
 class OrderCard extends StatefulWidget {
@@ -24,8 +25,13 @@ class OrderCard extends StatefulWidget {
     required this.order,
     required this.age,
     required this.column,
+    required this.thresholds,
     required this.highlighted,
+    required this.selected,
+    required this.busy,
+    required this.progress,
     required this.onAdvance,
+    required this.onToggleItem,
     required this.onReprint,
     super.key,
   });
@@ -38,10 +44,24 @@ class OrderCard extends StatefulWidget {
   /// Kartın bulunduğu sütun — aciliyet yokken kimlik rengi buradan gelir.
   final KdsColumn column;
 
+  /// Hazırlanma süresi hedefi buradan gelir (kırmızı eşiği).
+  final UrgencyThresholds thresholds;
+
   /// Yeni düşen sipariş: 3 saniye yanıp söner (`docs/05` §3).
   final bool highlighted;
 
+  /// Klavyeyle seçili kart.
+  final bool selected;
+
+  /// Sunucuya istek uçuyor: düğme kilitli, çift dokunma yutulur.
+  final bool busy;
+
+  final OrderItemProgress progress;
+
   final VoidCallback onAdvance;
+
+  /// Kalemi hazır/beklemede yapar. İşaret yereldir, sunucuya gitmez.
+  final void Function(int itemIndex) onToggleItem;
 
   /// Fişi elle yeniden bastırır. Kâğıt sıkıştığında personelin ayarlar
   /// ekranına gitmesi gerekmesin diye kartın üzerindedir.
@@ -97,13 +117,16 @@ class _OrderCardState extends State<OrderCard>
     final l10n = AppL10n.of(context);
     final order = widget.order;
     final accent = KdsAccents.urgency(widget.age.urgency, widget.column);
+    final doneCount = widget.progress.doneCount(order.id);
 
     // Gecikmede kırmızı, yeni siparişte marka rengi. Yanıp sönme kapalıysa
     // `_blink.value` hep 0 kalır ve kenar sabit durur.
     final blinkTarget = widget.age.isLate
         ? const Color(BldColors.danger)
         : const Color(BldColors.brand400);
-    final restingBorder = widget.age.urgency == OrderUrgency.normal
+    final restingBorder = widget.selected
+        ? const Color(BldColors.neutral0)
+        : widget.age.urgency == OrderUrgency.normal
         ? const Color(KdsColors.surfaceRaised)
         : accent;
 
@@ -114,7 +137,9 @@ class _OrderCardState extends State<OrderCard>
           borderRadius: BorderRadius.circular(BldRadius.md),
           border: Border.all(
             color: Color.lerp(restingBorder, blinkTarget, _blink.value)!,
-            width: 3,
+            // Seçili kartın kenarı kalınlaşır: renk körü personel için de,
+            // bir metre uzaktan da ayırt edilebilir olmalı.
+            width: widget.selected ? 5 : 3,
           ),
         ),
         child: child,
@@ -151,6 +176,12 @@ class _OrderCardState extends State<OrderCard>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _CardHeader(order: order, age: widget.age),
+                    const SizedBox(height: BldSpacing.xs),
+                    _PrepBar(
+                      order: order,
+                      age: widget.age,
+                      thresholds: widget.thresholds,
+                    ),
                     if (order.requestedAt != null) ...[
                       const SizedBox(height: BldSpacing.xs),
                       _RequestedAt(order: order, age: widget.age),
@@ -172,7 +203,24 @@ class _OrderCardState extends State<OrderCard>
                         color: Color(KdsColors.surfaceRaised),
                       ),
                     ),
-                    for (final item in order.items) _ItemRow(item: item),
+                    if (order.items.length > 1 && doneCount > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: BldSpacing.sm),
+                        child: Text(
+                          l10n.itemsDone(doneCount, order.items.length),
+                          style: const TextStyle(
+                            fontSize: KdsTextScale.statusBar,
+                            fontWeight: FontWeight.bold,
+                            color: Color(BldColors.success),
+                          ),
+                        ),
+                      ),
+                    for (var index = 0; index < order.items.length; index++)
+                      _ItemRow(
+                        item: order.items[index],
+                        done: widget.progress.isDone(order.id, index),
+                        onToggle: () => widget.onToggleItem(index),
+                      ),
                     if (order.customerNote != null &&
                         order.customerNote!.trim().isNotEmpty) ...[
                       const SizedBox(height: BldSpacing.sm),
@@ -184,6 +232,7 @@ class _OrderCardState extends State<OrderCard>
                     _CardActions(
                       order: order,
                       accent: accent,
+                      busy: widget.busy,
                       onAdvance: widget.onAdvance,
                       onReprint: widget.onReprint,
                     ),
@@ -209,12 +258,14 @@ class _CardActions extends StatelessWidget {
   const _CardActions({
     required this.order,
     required this.accent,
+    required this.busy,
     required this.onAdvance,
     required this.onReprint,
   });
 
   final KitchenOrder order;
   final Color accent;
+  final bool busy;
   final VoidCallback onAdvance;
   final void Function(ReceiptType type) onReprint;
 
@@ -228,7 +279,10 @@ class _CardActions extends StatelessWidget {
         if (next != null)
           Expanded(
             child: FilledButton(
-              onPressed: onAdvance,
+              // İSTEK UÇARKEN KİLİTLİ. Yağlı elle basılan bir düğme kolayca
+              // iki kez tetiklenir; ikinci istek ya sebepsiz bir hata uyarısı
+              // üretir ya da siparişi bir adım fazla ilerletir.
+              onPressed: busy ? null : onAdvance,
               style: FilledButton.styleFrom(
                 backgroundColor: accent,
                 foregroundColor: KdsAccents.onAccent(accent),
@@ -236,7 +290,13 @@ class _CardActions extends StatelessWidget {
                 // varsayılanının üstünde bilinçli bir yükseltme.
                 minimumSize: const Size.fromHeight(64),
               ),
-              child: Text(_actionLabel(l10n, next)),
+              child: busy
+                  ? const SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(strokeWidth: 3),
+                    )
+                  : Text(_actionLabel(l10n, next)),
             ),
           )
         else
@@ -272,6 +332,7 @@ class _CardHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
     final isDelivery = order.deliveryType == DeliveryType.delivery;
     final badgeColor = Color(
       isDelivery ? KdsColors.badgeDelivery : KdsColors.badgePickup,
@@ -290,6 +351,32 @@ class _CardHeader extends StatelessWidget {
             ),
           ),
         ),
+        // Uzun bir kartta not aşağıda kalır ve kaydırmadan görünmez. Başlıktaki
+        // rozet, "bu siparişte okunacak bir şey var" bilgisini yukarı taşır.
+        if (order.hasHighlightedNote) ...[
+          _Pill(
+            color: const Color(KdsColors.noteBackground),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.priority_high,
+                  size: 18,
+                  color: Color(KdsColors.noteForeground),
+                ),
+                Text(
+                  l10n.cardNoteBadge,
+                  style: const TextStyle(
+                    fontSize: KdsTextScale.statusBar,
+                    fontWeight: FontWeight.bold,
+                    color: Color(KdsColors.noteForeground),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: BldSpacing.sm),
+        ],
         _ElapsedBadge(age: age),
         const SizedBox(width: BldSpacing.sm),
         _Pill(
@@ -301,6 +388,83 @@ class _CardHeader extends StatelessWidget {
               fontWeight: FontWeight.bold,
               color: KdsAccents.onAccent(badgeColor),
             ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Hazırlanma süresi hedefi ve gerçekleşeni.
+///
+/// Sayaç "kaç dakika oldu" der ama "ne kadar kaldı" demez; ikisi farklı
+/// sorulardır. Çubuk hedefe ne kadar yaklaşıldığını bir bakışta gösterir ve
+/// sipariş hazır olduğunda yerini **gerçekleşen** süreye bırakır — mutfak
+/// kendi hızını ancak ölçebildiği zaman iyileştirebilir.
+class _PrepBar extends StatelessWidget {
+  const _PrepBar({
+    required this.order,
+    required this.age,
+    required this.thresholds,
+  });
+
+  final KitchenOrder order;
+  final OrderAge age;
+  final UrgencyThresholds thresholds;
+
+  /// Sipariş hazır ya da ötesindeyse hazırlanma bitmiştir.
+  bool get _finished =>
+      order.status == OrderStatus.hazir ||
+      order.status == OrderStatus.yolda ||
+      order.status == OrderStatus.teslimEdildi;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
+
+    if (_finished) {
+      // `updatedAt` siparişin `hazir` olduğu an; farkı gerçekleşen süredir.
+      final actual = order.updatedAt.toUtc().difference(
+        order.createdAt.toUtc(),
+      );
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          l10n.prepActualLabel(actual.isNegative ? 0 : actual.inMinutes),
+          style: const TextStyle(
+            fontSize: KdsTextScale.statusBar,
+            color: Color(BldColors.success),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    }
+
+    final target = thresholds.lateAfter.inMicroseconds;
+    final elapsed = age.waiting.inMicroseconds.clamp(0, target);
+    final ratio = target == 0 ? 1.0 : elapsed / target;
+
+    return Row(
+      children: [
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(BldRadius.pill),
+            child: LinearProgressIndicator(
+              value: ratio,
+              minHeight: 6,
+              backgroundColor: const Color(KdsColors.surfaceRaised),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                KdsAccents.urgency(age.urgency, KdsColumn.yeni),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: BldSpacing.sm),
+        Text(
+          l10n.prepTargetLabel(thresholds.lateAfter.inMinutes),
+          style: const TextStyle(
+            fontSize: KdsTextScale.statusBar,
+            color: Color(KdsColors.onSurfaceMuted),
           ),
         ),
       ],
@@ -417,63 +581,102 @@ class _RequestedAt extends StatelessWidget {
   }
 }
 
+/// Tek kalem. Dokunulunca "hazır" işaretlenir.
+///
+/// Beş kalemlik bir siparişte aşçının hangisini tencereye koyduğunu aklında
+/// tutması gerekmemeli — özellikle vardiya değişiminde devralan kişi hiçbir
+/// şey bilmez. İşaret yereldir; sözleşmede kalem durumu yok.
 class _ItemRow extends StatelessWidget {
-  const _ItemRow({required this.item});
+  const _ItemRow({
+    required this.item,
+    required this.done,
+    required this.onToggle,
+  });
 
   final KitchenOrderItem item;
+  final bool done;
+  final VoidCallback onToggle;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: BldSpacing.sm),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Text(
-              '${item.quantity}×',
-              style: const TextStyle(
-                fontSize: KdsTextScale.quantity,
-                fontWeight: FontWeight.bold,
-                color: Color(BldColors.brand400),
+  Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
+    final muted = Color(
+      done ? KdsColors.onSurfaceMuted : BldColors.brand400,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: BldSpacing.sm),
+      child: InkWell(
+        onTap: onToggle,
+        borderRadius: BorderRadius.circular(BldRadius.sm),
+        child: Semantics(
+          label: l10n.itemToggleTooltip,
+          checked: done,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(
+                    done
+                        ? Icons.check_box_outlined
+                        : Icons.check_box_outline_blank,
+                    size: 28,
+                    color: Color(
+                      done ? BldColors.success : KdsColors.surfaceRaised,
+                    ),
+                  ),
+                  const SizedBox(width: BldSpacing.sm),
+                  Text(
+                    '${item.quantity}×',
+                    style: TextStyle(
+                      fontSize: KdsTextScale.quantity,
+                      fontWeight: FontWeight.bold,
+                      color: muted,
+                    ),
+                  ),
+                  const SizedBox(width: BldSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      item.name,
+                      style: TextStyle(
+                        fontSize: KdsTextScale.itemName,
+                        fontWeight: FontWeight.w600,
+                        color: done
+                            ? const Color(KdsColors.onSurfaceMuted)
+                            : null,
+                        decoration: done ? TextDecoration.lineThrough : null,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: BldSpacing.sm),
-            Expanded(
-              child: Text(
-                item.name,
-                style: const TextStyle(
-                  fontSize: KdsTextScale.itemName,
-                  fontWeight: FontWeight.w600,
+              if (item.options.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: BldSpacing.xl),
+                  child: Text(
+                    item.options.join(', '),
+                    style: const TextStyle(
+                      fontSize: KdsTextScale.statusBar,
+                      color: Color(KdsColors.onSurfaceMuted),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ],
+              if (item.note != null && item.note!.trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(
+                    left: BldSpacing.xl,
+                    top: BldSpacing.xs,
+                  ),
+                  child: _NoteBox(text: item.note!),
+                ),
+            ],
+          ),
         ),
-        if (item.options.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(left: BldSpacing.xl),
-            child: Text(
-              item.options.join(', '),
-              style: const TextStyle(
-                fontSize: KdsTextScale.statusBar,
-                color: Color(KdsColors.onSurfaceMuted),
-              ),
-            ),
-          ),
-        if (item.note != null && item.note!.trim().isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(
-              left: BldSpacing.xl,
-              top: BldSpacing.xs,
-            ),
-            child: _NoteBox(text: item.note!),
-          ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
 /// Sipariş notu asla gizlenmez, kırmızı zeminde büyük basılır (`docs/05` §3).
