@@ -77,7 +77,19 @@ class KitchenController extends ApiController
         $request->validate([
             'after' => ['sometimes', 'integer'],
             'since' => ['sometimes', 'date'],
-            'include_completed' => ['sometimes', 'boolean'],
+            // `boolean` KURALI KULLANILMAZ — sahada KDS'i kör eden hata buydu.
+            //
+            // Laravel'in `boolean` kuralı yalnızca `1`, `0`, `"1"`, `"0"` ve
+            // gerçek boolean kabul eder; `"true"` dizgesini REDDEDER. Sorgu
+            // dizesinde ise boolean ancak metin olarak ifade edilebilir ve
+            // OpenAPI'nin standart serileştirmesi `?include_completed=true`
+            // üretir. Sonuç: KDS'in artımlı yoklaması HER ÇAĞRIDA 422 aldı,
+            // ekran tam listeye düşüp geri geldi ve bağlantı göstergesi
+            // sürekli yanıp söndü.
+            //
+            // `$request->boolean()` bu değerlerin hepsini doğru okur;
+            // doğrulama yalnızca anlamsız girdiyi eliyor.
+            'include_completed' => ['sometimes', Rule::in(['1', '0', 'true', 'false'])],
         ]);
 
         $includeCompleted = $request->boolean('include_completed');

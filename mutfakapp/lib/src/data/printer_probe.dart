@@ -23,11 +23,19 @@ class PrinterProbe {
 
   final String devicePath;
 
+  /// `FileStat` KULLANILMAZ — sahada yazıcıyı "yok" gösteren hata buydu.
+  ///
+  /// Dart'ın `FileSystemEntityType` listesinde karakter aygıtı YOKTUR ve
+  /// `FileStat.stat('/dev/thermal0')` çalışan bir yazıcı için bile
+  /// `notFound` döner. Yoklama buna bakıyordu; sonuç, yazıcı takılıyken
+  /// ve fiş basarken ekranda "Yazıcı yok" yazmasıydı.
+  ///
+  /// `File.exists()` aynı yolda `true` döner: dosyanın türünü değil,
+  /// varlığını sorar — bizim de sorduğumuz bu.
   Future<PrinterAvailability> check() async {
-    final stat = await FileStat.stat(devicePath);
-    return stat.type == FileSystemEntityType.notFound
-        ? PrinterAvailability.unavailable
-        : PrinterAvailability.ready;
+    return await File(devicePath).exists()
+        ? PrinterAvailability.ready
+        : PrinterAvailability.unavailable;
   }
 
   /// [period] aralıklarla yoklayıp durum yayınlar; ilk değeri hemen verir.

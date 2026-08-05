@@ -141,6 +141,38 @@ class ContractTest extends TestCase
         $this->assertContains('online', $methods);
     }
 
+    public function test_include_completed_sorgu_dizesi_bicimlerini_kabul_eder(): void
+    {
+        // SAHADA YAŞANDI: Laravel'in `boolean` kuralı `"true"` dizgesini
+        // REDDEDİYOR (yalnızca 1/0/"1"/"0" kabul eder). Sorgu dizesinde
+        // boolean ancak metin olabilir ve OpenAPI serileştirmesi
+        // `?include_completed=true` üretir. KDS'in artımlı yoklaması her
+        // çağrıda 422 aldı; ekran tam listeye düşüp geri geldi ve bağlantı
+        // göstergesi sürekli yanıp söndü.
+        foreach (['true', 'false', '1', '0'] as $value) {
+            $this->asKitchen()
+                ->getJson('/api/kitchen/orders?include_completed='.$value, self::HEADERS)
+                ->assertOk();
+        }
+    }
+
+    public function test_artimli_yoklama_tam_haliyle_calisir(): void
+    {
+        // KDS'in gerçekte gönderdiği istek: `since` + `include_completed`
+        // birlikte. İkisi ayrı ayrı sınanıyordu, birlikte hiç sınanmamıştı.
+        $this->asKitchen()->getJson(
+            '/api/kitchen/orders?since=2026-08-05T11:06:54.000Z&include_completed=true',
+            self::HEADERS,
+        )->assertOk();
+    }
+
+    public function test_anlamsiz_include_completed_reddedilir(): void
+    {
+        $this->asKitchen()
+            ->getJson('/api/kitchen/orders?include_completed=belki', self::HEADERS)
+            ->assertStatus(422);
+    }
+
     // ── Kasa sağlığı ──────────────────────────────────────────────────────
 
     public function test_saglik_bildirimi_kaydedilir(): void

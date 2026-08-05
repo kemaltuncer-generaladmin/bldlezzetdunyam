@@ -12,6 +12,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mutfakapp/src/data/printer_probe.dart';
 import 'package:mutfakapp/src/printing/printer_device.dart';
 
 void main() {
@@ -58,5 +59,33 @@ void main() {
 
     expect(File(path).readAsBytesSync(), hasLength(payload.length * 2));
     expect(device.timeout, UsbPrinterDevice.defaultTimeout);
+  });
+
+  group('Yazıcı yoklaması', () {
+    test('karakter aygıtı VAR sayılır', () async {
+      // SAHADA YAŞANDI: yoklama `FileStat.stat().type` bakıyordu ve Dart'ın
+      // tür listesinde karakter aygıtı yok — çalışan yazıcı için `notFound`
+      // dönüyor. Ekranda "Yazıcı yok" yazarken fişler basılıyordu.
+      const aygit = '/dev/null';
+      final stat = await FileStat.stat(aygit);
+
+      expect(
+        stat.type,
+        FileSystemEntityType.notFound,
+        reason: 'Dart karakter aygıtını notFound sayıyor — regresyonun kökü bu.',
+      );
+      expect(
+        await const PrinterProbe(aygit).check(),
+        PrinterAvailability.ready,
+        reason: 'Yoklama türe değil varlığa bakmalı.',
+      );
+    });
+
+    test('olmayan yol yok sayılır', () async {
+      expect(
+        await const PrinterProbe('/dev/boyle-bir-aygit-yok').check(),
+        PrinterAvailability.unavailable,
+      );
+    });
   });
 }
