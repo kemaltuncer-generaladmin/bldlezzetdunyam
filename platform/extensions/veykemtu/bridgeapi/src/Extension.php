@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Override;
 use Throwable;
+use Veykemtu\BridgeApi\Admin\AdminRegistrar;
 use Veykemtu\BridgeApi\Console\AdminUserCommand;
 use Veykemtu\BridgeApi\Console\DemoMenuCommand;
 use Veykemtu\BridgeApi\Console\KitchenDeviceCommand;
@@ -60,6 +61,37 @@ class Extension extends BaseExtension
         $this->registerConsoleCommand('veykemtu.admin', AdminUserCommand::class);
         $this->registerConsoleCommand('veykemtu.kds', KitchenDeviceCommand::class);
         $this->registerConsoleCommand('veykemtu.demoMenu', DemoMenuCommand::class);
+    }
+
+    /**
+     * Admin yüzeyleri `src/Admin/AdminRegistrar` içinde tanımlıdır.
+     *
+     * Burada yalnızca çağrılıyorlar: kayıt tanımlarının gövdesi bu
+     * dosyada dursaydı, admin paneli üzerinde çalışan biriyle API
+     * üzerinde çalışan biri aynı dosyada çakışırdı.
+     */
+    #[Override]
+    public function registerSettings(): array
+    {
+        return AdminRegistrar::registerSettings();
+    }
+
+    #[Override]
+    public function registerNavigation(): array
+    {
+        return AdminRegistrar::registerNavigation();
+    }
+
+    #[Override]
+    public function registerPermissions(): array
+    {
+        return AdminRegistrar::registerPermissions();
+    }
+
+    #[Override]
+    public function registerDashboardWidgets(): array
+    {
+        return AdminRegistrar::registerDashboardWidgets();
     }
 
     #[Override]
