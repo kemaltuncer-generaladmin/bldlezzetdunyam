@@ -17,6 +17,7 @@ use Veykemtu\BridgeApi\Admin\AdminRegistrar;
 use Veykemtu\BridgeApi\Console\AdminUserCommand;
 use Veykemtu\BridgeApi\Console\DemoMenuCommand;
 use Veykemtu\BridgeApi\Console\KitchenDeviceCommand;
+use Veykemtu\BridgeApi\Console\PurgeOrdersCommand;
 use Veykemtu\BridgeApi\Console\SetupCommand;
 use Veykemtu\BridgeApi\Exceptions\ApiExceptionRenderer;
 use Veykemtu\BridgeApi\Http\Middleware\AuthenticateToken;
@@ -61,6 +62,7 @@ class Extension extends BaseExtension
         $this->registerConsoleCommand('veykemtu.admin', AdminUserCommand::class);
         $this->registerConsoleCommand('veykemtu.kds', KitchenDeviceCommand::class);
         $this->registerConsoleCommand('veykemtu.demoMenu', DemoMenuCommand::class);
+        $this->registerConsoleCommand('veykemtu.siparisTemizle', PurgeOrdersCommand::class);
     }
 
     /**
