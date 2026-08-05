@@ -32,12 +32,16 @@ class KitchenHealthReport {
     required this.printQueuePending,
     required this.printQueueFailed,
     this.appVersion,
+    this.commandResults = const <KitchenCommandResult>[],
   });
 
   final bool printerOk;
   final int printQueuePending;
   final int printQueueFailed;
   final String? appVersion;
+
+  /// Bir önceki turda teslim alınan komutların sonuçları.
+  final List<KitchenCommandResult> commandResults;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'printer_ok': printerOk,
@@ -46,8 +50,159 @@ class KitchenHealthReport {
     'print_queue_pending': printQueuePending < 0 ? 0 : printQueuePending,
     'print_queue_failed': printQueueFailed < 0 ? 0 : printQueueFailed,
     if (appVersion != null) 'app_version': appVersion,
+    if (commandResults.isNotEmpty)
+      'command_results': commandResults.map((r) => r.toJson()).toList(),
   };
 }
+
+/// Sunucudan gelen, **yöneticinin panelden yönettiği** kasa ayarları.
+///
+/// Alanların `null` olması "yönetici dokunmadı" demektir; o alanda kasa
+/// kendi derleme varsayılanını kullanır. Sunucudan varsayılan dayatmak,
+/// yazıcı yolu gibi makineye özgü bir alanda fiş basımını durdururdu.
+class KitchenManagedSettings {
+  const KitchenManagedSettings({
+    this.pollSeconds,
+    this.soundEnabled,
+    this.warningAfterMinutes,
+    this.lateAfterMinutes,
+    this.printerDevicePath,
+    this.printerCodePage,
+    this.healthSeconds,
+    this.connectionAlarmSeconds,
+    this.alarmSilenceable,
+  });
+
+  static const KitchenManagedSettings empty = KitchenManagedSettings();
+
+  final int? pollSeconds;
+  final bool? soundEnabled;
+  final int? warningAfterMinutes;
+  final int? lateAfterMinutes;
+  final String? printerDevicePath;
+  final int? printerCodePage;
+  final int? healthSeconds;
+  final int? connectionAlarmSeconds;
+  final bool? alarmSilenceable;
+
+  bool get isEmpty =>
+      pollSeconds == null &&
+      soundEnabled == null &&
+      warningAfterMinutes == null &&
+      lateAfterMinutes == null &&
+      printerDevicePath == null &&
+      printerCodePage == null &&
+      healthSeconds == null &&
+      connectionAlarmSeconds == null &&
+      alarmSilenceable == null;
+
+  factory KitchenManagedSettings.fromJson(Map<String, Object?> json) =>
+      KitchenManagedSettings(
+        pollSeconds: _asIntOrNull(json['poll_seconds']),
+        soundEnabled: _asBoolOrNull(json['sound_enabled']),
+        warningAfterMinutes: _asIntOrNull(json['warning_after_minutes']),
+        lateAfterMinutes: _asIntOrNull(json['late_after_minutes']),
+        printerDevicePath: _asStringOrNull(json['printer_device_path']),
+        printerCodePage: _asIntOrNull(json['printer_code_page']),
+        healthSeconds: _asIntOrNull(json['health_seconds']),
+        connectionAlarmSeconds: _asIntOrNull(json['connection_alarm_seconds']),
+        alarmSilenceable: _asBoolOrNull(json['alarm_silenceable']),
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is KitchenManagedSettings &&
+      other.pollSeconds == pollSeconds &&
+      other.soundEnabled == soundEnabled &&
+      other.warningAfterMinutes == warningAfterMinutes &&
+      other.lateAfterMinutes == lateAfterMinutes &&
+      other.printerDevicePath == printerDevicePath &&
+      other.printerCodePage == printerCodePage &&
+      other.healthSeconds == healthSeconds &&
+      other.connectionAlarmSeconds == connectionAlarmSeconds &&
+      other.alarmSilenceable == alarmSilenceable;
+
+  @override
+  int get hashCode => Object.hash(
+    pollSeconds,
+    soundEnabled,
+    warningAfterMinutes,
+    lateAfterMinutes,
+    printerDevicePath,
+    printerCodePage,
+    healthSeconds,
+    connectionAlarmSeconds,
+    alarmSilenceable,
+  );
+}
+
+/// Sunucudan gelen tek seferlik komut.
+class KitchenCommand {
+  const KitchenCommand({
+    required this.id,
+    required this.command,
+    this.payload = const <String, Object?>{},
+  });
+
+  static const String testReceipt = 'test_receipt';
+  static const String reprint = 'reprint';
+  static const String clearFailed = 'clear_failed';
+  static const String silenceAlarm = 'silence_alarm';
+  static const String restart = 'restart';
+
+  final int id;
+  final String command;
+  final Map<String, Object?> payload;
+
+  factory KitchenCommand.fromJson(Map<String, Object?> json) => KitchenCommand(
+    id: _asInt(json['id']),
+    command: '${json['command']}',
+    payload: json['payload'] is Map
+        ? Map<String, Object?>.from(json['payload']! as Map)
+        : const <String, Object?>{},
+  );
+}
+
+/// Bir komutun çalıştırılma sonucu.
+class KitchenCommandResult {
+  const KitchenCommandResult({
+    required this.id,
+    required this.ok,
+    this.message,
+  });
+
+  final int id;
+  final bool ok;
+  final String? message;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'id': id,
+    'ok': ok,
+    if (message != null) 'message': message,
+  };
+}
+
+int? _asIntOrNull(Object? v) => switch (v) {
+  final int x => x,
+  final num x => x.toInt(),
+  final String x => int.tryParse(x),
+  _ => null,
+};
+
+bool? _asBoolOrNull(Object? v) => switch (v) {
+  final bool x => x,
+  1 => true,
+  0 => false,
+  _ => null,
+};
+
+String? _asStringOrNull(Object? v) {
+  if (v is! String) return null;
+  final trimmed = v.trim();
+  return trimmed.isEmpty ? null : trimmed;
+}
+
+int _asInt(Object? v) => _asIntOrNull(v) ?? 0;
 
 /// Sunucunun döndüğü durum.
 class KitchenHealthStatus {
@@ -55,6 +210,8 @@ class KitchenHealthStatus {
     required this.serverTime,
     required this.ordersToday,
     required this.ordersActive,
+    this.settings = KitchenManagedSettings.empty,
+    this.commands = const <KitchenCommand>[],
   });
 
   /// Sunucu saati (UTC).
@@ -67,6 +224,12 @@ class KitchenHealthStatus {
   /// Sunucudaki aktif sipariş sayısı.
   final int ordersActive;
 
+  /// Yöneticinin panelden yönettiği ayarlar.
+  final KitchenManagedSettings settings;
+
+  /// Çalıştırılacak tek seferlik komutlar.
+  final List<KitchenCommand> commands;
+
   factory KitchenHealthStatus.fromJson(Map<String, Object?> json) =>
       KitchenHealthStatus(
         serverTime:
@@ -74,14 +237,22 @@ class KitchenHealthStatus {
             DateTime.now().toUtc(),
         ordersToday: _asInt(json['orders_today']),
         ordersActive: _asInt(json['orders_active']),
+        settings: json['settings'] is Map
+            ? KitchenManagedSettings.fromJson(
+                Map<String, Object?>.from(json['settings']! as Map),
+              )
+            : KitchenManagedSettings.empty,
+        commands: json['commands'] is List
+            ? (json['commands']! as List)
+                  .whereType<Map<Object?, Object?>>()
+                  .map(
+                    (c) => KitchenCommand.fromJson(
+                      Map<String, Object?>.from(c),
+                    ),
+                  )
+                  .toList()
+            : const <KitchenCommand>[],
       );
-
-  static int _asInt(Object? value) => switch (value) {
-    final int v => v,
-    final num v => v.toInt(),
-    final String v => int.tryParse(v) ?? 0,
-    _ => 0,
-  };
 
   @override
   bool operator ==(Object other) =>
