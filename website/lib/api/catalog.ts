@@ -81,17 +81,3 @@ export function findCategoryOf(categories: MenuCategory[], menuId: number): Menu
 export function isOrderingOpen(location: Location | null): boolean {
   return Boolean(location?.is_open && location.ordering_enabled);
 }
-
-/**
- * Mutfak yoğunsa gösterilecek uyarı, değilse `null`.
- *
- * Yoğunluk sipariş almayı ENGELLEMEZ; bu yüzden `isOrderingOpen` ile
- * karıştırılmamalı. Metin sunucudan gelir — buraya sabit metin yazmak,
- * yönetici admin panelden değiştirdiğinde siteyi yeniden yayınlamayı
- * gerektirirdi.
- */
-export function busyNotice(location: Location | null): string | null {
-  if (!location?.busy) return null;
-
-  return location.busy_message?.trim() || null;
-}

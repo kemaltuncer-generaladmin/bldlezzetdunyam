@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import { ErrorState } from '@/components/error-state';
 import { JsonLd } from '@/components/json-ld';
 import { MenuFilter, type MenuSection } from '@/components/menu-filter';
-import { KitchenBusyBanner, OrderingClosedBanner } from '@/components/ordering-banner';
+import { KitchenBusyBanner } from '@/components/kitchen-busy-banner';
+import { OrderingClosedBanner } from '@/components/ordering-banner';
 import { ProductCard } from '@/components/product-card';
 import { SITE_URL } from '@/lib/api/client';
 import { fetchCatalog, isOrderingOpen } from '@/lib/api/catalog';
@@ -116,7 +117,7 @@ export default async function MenuPage() {
       {!orderingOpen && (
         <div className="mb-6">
           <OrderingClosedBanner location={snapshot.location} />
-          <KitchenBusyBanner location={snapshot.location} />
+          <KitchenBusyBanner />
         </div>
       )}
 
