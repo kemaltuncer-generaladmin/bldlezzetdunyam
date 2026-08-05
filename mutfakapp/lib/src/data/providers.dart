@@ -25,6 +25,7 @@ import '../printing/print_triggers.dart';
 import '../printing/printer_device.dart';
 import '../settings/kds_settings.dart';
 import '../settings/kds_settings_store.dart';
+import '../lock/unlock_password.dart';
 import '../sound/alarm_asset.dart';
 import '../sound/alarm_player.dart';
 import '../sound/connection_alarm.dart';
@@ -114,6 +115,11 @@ final clockProvider = StreamProvider<DateTime>((ref) async* {
 /// Zamanı okumanın kısa yolu; akış henüz değer üretmediyse gerçek saate düşer.
 DateTime _now(Ref ref) =>
     ref.watch(clockProvider).value ?? DateTime.now().toUtc();
+
+/// Açılış kilidinin hatırlandığı depo.
+final unlockStoreProvider = Provider<UnlockStore>(
+  (ref) => SharedPreferencesUnlockStore(),
+);
 
 // ─────────────────────────── Yeni sipariş alarmı ───────────────────────────
 

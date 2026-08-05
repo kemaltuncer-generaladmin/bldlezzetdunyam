@@ -90,18 +90,12 @@ class _Banner extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.body,
-    this.onSilence,
-    this.silenceLabel,
   });
 
   final Color color;
   final IconData icon;
   final String title;
   final String body;
-
-  /// Verilirse şeritte bir "sesi sustur" düğmesi çizilir.
-  final VoidCallback? onSilence;
-  final String? silenceLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -145,26 +139,6 @@ class _Banner extends StatelessWidget {
               ),
             ),
           ),
-          if (onSilence != null && silenceLabel != null) ...[
-            const SizedBox(width: BldSpacing.md),
-            OutlinedButton.icon(
-              onPressed: onSilence,
-              icon: Icon(Icons.volume_off, color: foreground),
-              label: Text(
-                silenceLabel!,
-                style: TextStyle(
-                  fontSize: KdsTextScale.statusBar,
-                  color: foreground,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: foreground),
-                // Tema dolu butonlara tam genişlik veriyor; şeritte
-                // içeriğe göre daralması gerekiyor.
-                minimumSize: const Size(0, 44),
-              ),
-            ),
-          ],
         ],
       ),
     );

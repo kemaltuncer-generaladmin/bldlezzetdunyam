@@ -76,25 +76,62 @@ class _AppRootState extends ConsumerState<AppRoot> {
 
   /// Açılış parolası girildi mi?
   ///
-  /// Oturum boyunca hatırlanır ve bir daha sorulmaz. Kalıcı olarak
-  /// saklanmaz: uygulama yeniden başlarsa (elektrik kesintisi, çökme,
-  /// güncelleme) parola tekrar istenir — kilidin amacı zaten bu.
-  bool _unlocked = false;
+  /// KALICIDIR: bir kez girildikten sonra bir daha sorulmaz. Her yeniden
+  /// başlatmada sorulsaydı, çökme sonrası kendini geri getiren servis
+  /// (`Restart=always`) mutfağı kilit ekranında bırakırdı ve vardiya
+  /// ortasında bunu kimse fark etmezdi.
+  ///
+  /// Başlangıçta `null`: diskten okunana kadar hangi durumda olduğumuzu
+  /// bilmiyoruz ve kilit ekranını bir an gösterip kaldırmak göz tırmalar.
+  bool? _unlocked;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_unlocked != null) return;
+
+    unawaited(
+      ref.read(unlockStoreProvider).isUnlocked().then((acik) {
+        if (mounted) setState(() => _unlocked = acik);
+      }),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (!_unlocked) {
-      return UnlockScreen(onUnlocked: () => setState(() => _unlocked = true));
-    }
-
     final session = ref.watch(deviceSessionProvider);
 
     // Eşlenmemişken sipariş kaynağını hiç kurmayız: token'sız polling
     // sunucuya boşuna 401 üretir.
-    if (!session.isPaired) return PairingScreen(revoked: _revoked);
+    if (!session.isPaired) {
+      return _unlocked == true
+          ? PairingScreen(revoked: _revoked)
+          : _lockScreen();
+    }
 
-    return _PairedRoot(onRevoked: () => setState(() => _revoked = true));
+    // KİLİT EKRANI ÜSTTE DURUR, AĞACIN YERİNE GEÇMEZ.
+    //
+    // Eskiden kilitliyken `_PairedRoot` hiç kurulmuyordu; sipariş kaynağı,
+    // yazdırma tetikleri ve alarmlar da kurulmuyordu. Sonuç: kasa yeniden
+    // başladığında parola girilene kadar sipariş GELMİYORDU ve bağlantı
+    // alarmı da çalmıyordu — çünkü yoklama hiç başlamamıştı.
+    //
+    // Artık her şey arkada çalışır: siparişler düşer, fiş basılır, alarm
+    // çalar. Kilit yalnızca ekrana dokunulmasını engeller.
+    return Stack(
+      children: [
+        _PairedRoot(onRevoked: () => setState(() => _revoked = true)),
+        if (_unlocked != true) _lockScreen(),
+      ],
+    );
   }
+
+  Widget _lockScreen() => UnlockScreen(
+    onUnlocked: () {
+      setState(() => _unlocked = true);
+      unawaited(ref.read(unlockStoreProvider).remember());
+    },
+  );
 }
 
 /// Eşliyken çalışan ağaç. Ayrı bir bileşen olması bilinçli: [orderSourceProvider]

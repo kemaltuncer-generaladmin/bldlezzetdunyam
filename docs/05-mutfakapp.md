@@ -413,8 +413,20 @@ yeniden basma, eşleme sıfırlama hiçbiri parola istemez.
 Parola **sunucuya sorulmaz**: internet yokken de açılmalı, mutfak sabah
 bağlantı bekleyemez. Sunucu tarafındaki yetki zaten cihaz token'ıdır.
 
-Oturum boyunca hatırlanır, kalıcı saklanmaz: uygulama yeniden başlarsa
-(elektrik kesintisi, çökme, güncelleme) parola tekrar istenir.
+**Parola BİR KEZ girilir** (karar 05.08.2026). Girildikten sonra kalıcı
+olarak hatırlanır; yeniden başlatmada tekrar sorulmaz. Saklanan şey parola
+değil özetidir — parola değiştirildiğinde kayıt eşleşmez ve kasa yeniden
+sorar.
+
+> **Kilit ekranı ağacın ÜSTÜNDE durur, yerine geçmez.** Eskiden kilitliyken
+> sipariş kaynağı, yazdırma tetikleri ve alarmlar hiç kurulmuyordu: kasa
+> yeniden başladığında parola girilene kadar **sipariş gelmiyordu** ve
+> bağlantı alarmı da çalmıyordu, çünkü yoklama hiç başlamamıştı. Servis
+> çökmede kendini geri getiriyor (`Restart=always`) ve bunu vardiya
+> ortasında kimse fark etmez.
+>
+> Artık her şey arkada çalışır: siparişler düşer, fiş basılır, alarm çalar.
+> Kilit yalnızca ekrana dokunulmasını engeller.
 
 > **Kaynakta düz metin parola YOKTUR** — depo herkese açık ve gizli-tarama
 > botları bulurdu. `unlock_password.dart` içinde yalnızca tuzlanmış

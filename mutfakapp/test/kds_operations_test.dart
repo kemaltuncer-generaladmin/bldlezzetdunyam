@@ -25,6 +25,7 @@ import 'package:mutfakapp/src/settings/settings_screen.dart';
 
 import 'fake_kds_settings_store.dart';
 import 'fake_kitchen_service.dart';
+import 'fake_unlock_store.dart';
 import 'kds_screen_test.dart' show pumpKds, tearDownTree;
 
 /// Testin sabit eşikleri; gerçek saat yerine `createdAt` geriye alınır.
@@ -319,6 +320,7 @@ void main() {
           // Bağlantı uyarısı üretimde genel ses şalterini DİNLEMEZ; testte
           // gerçek oynatıcı alt süreç açar ve asılı zamanlayıcı bırakır.
           connectionAlarmPlayerProvider.overrideWithValue(SilentAlarmPlayer()),
+          unlockStoreProvider.overrideWithValue(FakeUnlockStore()),
         ],
       );
       addTearDown(container.dispose);

@@ -15,6 +15,7 @@ import 'package:mutfakapp/src/app.dart';
 import 'package:mutfakapp/src/data/device_session.dart';
 import 'package:mutfakapp/src/data/printer_probe.dart';
 import 'package:mutfakapp/src/data/providers.dart';
+import 'package:mutfakapp/src/lock/unlock_screen.dart';
 import 'package:mutfakapp/src/printing/print_queue.dart';
 import 'package:mutfakapp/src/printing/print_service.dart';
 import 'package:mutfakapp/src/printing/printer_device.dart';
@@ -25,6 +26,7 @@ import 'package:mutfakapp/src/kds/widgets/order_card.dart';
 import 'package:mutfakapp/src/sound/alarm_player.dart';
 
 import 'fake_kds_settings_store.dart';
+import 'fake_unlock_store.dart';
 import 'unlock_helper.dart';
 import 'fake_device_session_store.dart';
 import 'fake_kitchen_service.dart';
@@ -68,6 +70,10 @@ Future<void> pumpKds(
   OrderSource? source,
   PrintService? printService,
   KitchenHealthApi? health,
+  FakeUnlockStore? store,
+
+  /// `false` ise kilit ekranı açık bırakılır — arkada ne olduğunu ölçmek için.
+  bool unlock = true,
 }) async {
   final kitchenService = kitchen ?? FakeKitchenService();
   // Kasa 1920×1080 bir mutfak monitörüne bağlıdır; testin varsayılan
@@ -101,6 +107,7 @@ Future<void> pumpKds(
         // Bağlantı uyarısı üretimde genel ses şalterini DİNLEMEZ; testte
         // gerçek oynatıcı alt süreç açar ve asılı zamanlayıcı bırakır.
         connectionAlarmPlayerProvider.overrideWithValue(SilentAlarmPlayer()),
+        unlockStoreProvider.overrideWithValue(store ?? FakeUnlockStore()),
         printerDeviceProvider.overrideWithValue(_NullPrinter()),
         kitchenServiceProvider.overrideWithValue(kitchenService),
         // Ayar deposu her testte sahtedir: gerçek `shared_preferences`
@@ -131,9 +138,18 @@ Future<void> pumpKds(
     ),
   );
   await tester.pump();
-  await unlockApp(tester);
+  if (unlock) {
+    await unlockApp(tester);
+  }
   await tester.pump();
 }
+
+/// Kilit ekranı AÇIK hâlde kurar — arkadaki ağacın çalıştığını ölçmek için.
+Future<void> pumpKdsLocked(
+  WidgetTester tester, {
+  required List<KitchenOrder> orders,
+  FakeUnlockStore? store,
+}) => pumpKds(tester, orders: orders, store: store, unlock: false);
 
 /// Zamanlayıcı taşıyan parçaları (saat, yanıp sönme) söker.
 Future<void> tearDownTree(WidgetTester tester) =>
@@ -401,6 +417,43 @@ void main() {
 
     expect(kitchen.busyCalls, [true]);
     expect(find.text('YOĞUNLUK AÇIK'), findsOneWidget);
+
+    await tearDownTree(tester);
+  });
+
+  testWidgets('kilitliyken bile siparişler arkada akar', (tester) async {
+    // SAHADA YAŞANDI: kilitliyken `_PairedRoot` hiç kurulmuyordu; sipariş
+    // kaynağı, yazdırma tetikleri ve alarmlar da kurulmuyordu. Kasa
+    // yeniden başladığında parola girilene kadar SİPARİŞ GELMİYORDU ve
+    // bağlantı alarmı da çalmıyordu — çünkü yoklama hiç başlamamıştı.
+    // Servis çökmede kendini geri getiriyor; bunu kimse fark etmez.
+    await pumpKdsLocked(tester, orders: [makeOrder(id: 1)]);
+
+    expect(find.byType(UnlockScreen), findsOneWidget);
+    expect(
+      find.text('S-1'),
+      findsOneWidget,
+      reason: 'Kilit ekranın ÜSTÜNDE durmalı, ağacın yerine geçmemeli.',
+    );
+
+    await tearDownTree(tester);
+  });
+
+  testWidgets('parola bir kez girilir, sonraki açılışta sorulmaz', (
+    tester,
+  ) async {
+    // Her yeniden başlatmada sormak, çökme sonrası mutfağı kilit
+    // ekranında bırakırdı.
+    final store = FakeUnlockStore();
+
+    await pumpKdsLocked(tester, orders: const [], store: store);
+    expect(find.byType(UnlockScreen), findsOneWidget);
+
+    await unlockApp(tester);
+    await tester.pump();
+
+    expect(find.byType(UnlockScreen), findsNothing);
+    expect(store.unlocked, isTrue, reason: 'Açılış diske yazılmalı.');
 
     await tearDownTree(tester);
   });

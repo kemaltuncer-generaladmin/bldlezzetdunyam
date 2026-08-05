@@ -18,6 +18,7 @@ library;
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Parolanın tuzlanmış SHA-256 özeti.
 ///
@@ -29,6 +30,39 @@ const String unlockPasswordDigest =
 /// Tuz, aynı parolanın başka bir projede üretilen özetiyle eşleşmesini
 /// engeller. Gizli değildir, gizli olması da gerekmez.
 const String _salt = 'bld-mutfak-kasasi-v1';
+
+/// Kilidin açıldığını kalıcı olarak saklayan depo.
+///
+/// NEDEN KALICI: kilit her yeniden başlatmada sorulsaydı, çökme sonrası
+/// kendini geri getiren servis (`Restart=always`) mutfağı parola girilene
+/// kadar kilit ekranında bırakırdı. Vardiya ortasında bunu kimse fark
+/// etmez.
+///
+/// SAKLANAN ŞEY PAROLA DEĞİL, ÖZETİDİR. Böylece parola değiştirildiğinde
+/// (`unlockPasswordDigest` güncellenince) saklanan değer eşleşmez ve
+/// kasa yeniden sorar — parolayı değiştirmenin bir anlamı olur.
+abstract interface class UnlockStore {
+  Future<bool> isUnlocked();
+
+  Future<void> remember();
+}
+
+/// `shared_preferences` üzerinde saklayan [UnlockStore].
+class SharedPreferencesUnlockStore implements UnlockStore {
+  SharedPreferencesUnlockStore({SharedPreferencesAsync? preferences})
+    : _preferences = preferences ?? SharedPreferencesAsync();
+
+  static const String key = 'kitchen_unlocked_digest';
+
+  final SharedPreferencesAsync _preferences;
+
+  @override
+  Future<bool> isUnlocked() async =>
+      await _preferences.getString(key) == unlockPasswordDigest;
+
+  @override
+  Future<void> remember() => _preferences.setString(key, unlockPasswordDigest);
+}
 
 /// Girilen parola doğru mu?
 bool unlockPasswordMatches(String input) {
