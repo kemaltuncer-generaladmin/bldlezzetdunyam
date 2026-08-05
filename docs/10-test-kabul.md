@@ -124,7 +124,10 @@ Kapandı.
 - [x] Yoğunluk tuşu — üretimde uçtan uca doğrulandı (mutfak → API →
       müşteri ~2 sn); yoğunkken siparişin YİNE alındığı ayrı testle korunuyor
 - [x] Ürün görseli admin medyasından API'ye akıyor (`image_url`)
-- [ ] Yoğunluk admin panelde görünür/ayarlanabilir — `docs/11` F2-08
+- [x] Yoğunluk admin panelde görünür/ayarlanabilir — BLD Ayarları sayfası
+- [x] Yedi şalterin tamamı panelden yönetilebiliyor (artisan gerekmiyor)
+- [x] TL↔kuruş dönüşümü kaymıyor — gidiş-dönüş ve virgüllü girdi doğrulandı
+- [ ] Mutfak cihazları ve fiş kuyruğu admin ekranları — hâlâ yalnızca artisan
 - [ ] Mobil uygulamada yoğunluk bandı — henüz yok
 - [ ] Android'e dair kod/bağımlılık **yok**
 - [ ] Kasa kabul listesi (`docs/08` §2.4) 7/7

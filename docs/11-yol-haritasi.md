@@ -179,7 +179,39 @@ girer girmez geçerliliğini görmeli, siparişi gönderdiğinde değil.
 
 ---
 
-## 8. F2-08 — Admin: yoğunluk ve şalterler tek ekranda
+## 8. F2-08 — Admin: yoğunluk ve şalterler tek ekranda — **YAPILDI (05.08.2026)**
+
+Sayfa: **Ayarlar → Eklentiler → BLD Ayarları** (yan menüde Restoran → BLD
+Ayarları). Yedi şalterin tamamı buradan yönetiliyor ve değerler
+`LocationGate` üzerinden okunup yazılıyor — ikinci bir kaynak yok.
+
+Ayrıca bir gösterge paneli parçacığı: iki şalter, kesim saati, bugünkü
+sipariş ve ciro, bekleyen sipariş, basılmamış fiş, çevrimiçi kasa sayısı.
+Parçacık panele **elle eklenmeli** (Gösterge Paneli → düzenle → parçacık ekle).
+
+Üç tuzak kapatıldı:
+
+- **Para alanları `number` değil `text`.** `Form::getSaveData()` `number`
+  tipini postback'te `(int)` ile daraltıyor; "45.50" kaydedilmeden önce
+  45'e düşüyor ve kuruşlar tamamen kayboluyordu.
+- **Yoğunluk yarışı.** Form, sayfa çizildiği andaki değeri gizli alanda
+  taşıyor ve `busy` yalnızca gönderilen değer ondan farklıysa yazılıyor.
+  Yönetici sayfayı açık bırakıp yarım saat sonra ilgisiz bir alanı
+  kaydederse mutfağın bu arada bastığı tuş ezilmiyor.
+- **Renk ayrımı.** Yoğunluk rozeti sarı, kapalı sipariş alımı kırmızı.
+  Aynı renk olsalardı yönetici yanlış şalteri arardı.
+
+**Hâlâ eksik:** mutfak cihazları listesi ve fiş kuyruğu ekranları.
+TastyIgniter admin denetleyicilerini yalnızca `src/Http/Controllers/`
+altından yüklüyor; cihaz eşleme/iptal bugün hâlâ `php artisan veykemtu:kds`
+ile yapılıyor.
+
+**Ayrıca:** `Operatör` rolü bu sayfayı göremiyor ama sebebi kısmen
+çekirdek — `Extensions` denetleyicisi `edit` için `Site.Settings` istiyor
+ve o izin diğer tüm ayar sayfalarını da açıyor. `vendor/`'a dokunmadan
+daraltılamaz.
+
+### Özgün plan (kayıt için)
 
 **Bugün:** yoğunluk şalteri mutfak ekranından açılıp kapanıyor ve API'de
 görünüyor (`Location.busy`), **ama admin panelde bir yüzü yok.**

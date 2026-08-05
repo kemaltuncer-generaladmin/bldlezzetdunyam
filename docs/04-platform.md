@@ -35,6 +35,37 @@ kabul edilir. Bu yüzden `www.` yazmak, site apex'te duruyorsa hatadır.
 3. **Durumları bizim koda göre yapılandır.** Varsayılan TastyIgniter durumlarını sil/düzenle; `docs/02-veri-modeli.md` §3'teki 7 durum kodu birebir olacak: `yeni`, `onaylandi`, `hazirlaniyor`, `hazir`, `yolda`, `teslim_edildi`, `iptal`. Bu bir seeder ile yapılır (`VeykemtuStatusSeeder`), elle değil.
 4. **Admin rolleri:** `Yönetici` (tam yetki), `Operatör` (sipariş görüntüleme + durum ilerletme; menü/fiyat/ayar yetkisi yok).
 
+## 2.5 BLD Ayarları sayfası (05.08.2026)
+
+**Ayarlar → Eklentiler → BLD Ayarları** — yan menüde de var
+(Restoran → BLD Ayarları).
+
+Yedi şalter buradan yönetilir: yoğunluk, yoğunluk metni, sipariş alım
+şalteri, kesim saati, asgari sepet, teslimat ücreti, ödeme yöntemleri.
+
+> **Değerlerin tek kaynağı `LocationGate`'tir.** Sayfa `location_options`
+> tablosuna doğrudan tek sorgu atmaz. İkinci bir kaynak açılsaydı,
+> panelden değişen ayar API'ye hiç yansımayabilirdi.
+
+> **Çekirdeğin `SettingsModel` davranışı KULLANILMADI.** O davranış
+> `extension_settings` tablosuna yazar; bizim değerlerimiz
+> `location_options`'ta yaşıyor ve mutfak ekranı da oraya yazıyor.
+
+Para alanları arayüzde **TL**, veritabanında **kuruş `int`**. Dönüşüm tek
+yerde (`Admin/LiraField`) ve tamamen tam sayı aritmetiğiyle:
+`(float) "45,50"` PHP'de `45.0`'dır ve virgülle yazan bir yöneticinin
+asgari sepeti sessizce 50 kuruş eksilirdi.
+
+> **Alanlar `number` değil `text` tipinde.** `Igniter\Admin\Widgets\Form::getSaveData()`
+> `number` tipini postback'te `(int)` ile daraltıyor — "45.50" kaydedilmeden
+> önce 45'e düşüyor ve kuruşlar tamamen kayboluyor. Bir test bunu sabitliyor.
+
+**Yoğunluk yarışı:** mutfak ekranındaki tuş da aynı değeri değiştiriyor.
+Form, sayfa çizildiği andaki değeri gizli alanda taşır ve `busy` yalnızca
+gönderilen değer ondan **farklıysa** yazılır. Yönetici sayfayı açık
+bırakıp yarım saat sonra ilgisiz bir alanı kaydederse mutfağın bu arada
+bastığı tuş ezilmez.
+
 ## 3. Eklenti yapısı
 
 Tüm özel kod: `platform/extensions/veykemtu/<modul>/`

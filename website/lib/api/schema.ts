@@ -102,6 +102,48 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
+        /**
+         * Profil güncelle
+         * @description Ad, soyad ve telefon güncellenir. Gönderilmeyen alanlar değişmez.
+         *
+         *     **E-posta DEĞİŞTİRİLEMEZ.** Giriş kimliği odur; değiştirmek yeni
+         *     adrese onay bağlantısı göndermeyi gerektirir, o olmadan hesabı
+         *     başkasının e-postasına taşımanın yolu olur. Gövdede `email`
+         *     gönderilirse sessizce yok sayılır.
+         */
+        patch: operations["updateMe"];
+        trace?: never;
+    };
+    "/auth/password": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Parola değiştir
+         * @description **Mevcut parola zorunludur.** Token'ı çalınmış bir oturumun
+         *     parolayı değiştirip hesabı tamamen ele geçirmesini engelleyen tek
+         *     şey budur.
+         *
+         *     Başarılı olduğunda **diğer tüm token'lar iptal edilir** ve çağırana
+         *     yeni bir token verilir. Parola değiştirmenin amacı "başkası
+         *     giremesin"dir; eski oturumları açık bırakmak o amacı boşa çıkarır.
+         *
+         *     `bld-auth` oran sınırına tabidir (dakikada 10): mevcut parolayı
+         *     denemek kaba kuvvete açıktır.
+         */
+        post: operations["changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -155,6 +197,73 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/addresses": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Adres defteri
+         * @description Müşterinin kayıtlı adresleri. Varsayılan adres başta döner.
+         *
+         *     Bu liste **sipariş adreslerini içermez**: her sipariş kendi
+         *     değişmez adres kopyasını tutar. İkisi karışsaydı, kırk sipariş
+         *     veren müşteri defterinde kırk satır görürdü.
+         */
+        get: operations["listAddresses"];
+        put?: never;
+        /**
+         * Adres ekle
+         * @description İlk adres kendiliğinden varsayılan olur — müşteriyi tek adresi
+         *     için ayrıca "varsayılan yap" demeye zorlamak anlamsız.
+         */
+        post: operations["createAddress"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/addresses/{id}": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Adres sil
+         * @description Defterden siler. Geçmiş siparişler etkilenmez.
+         *
+         *     Silinen adres varsayılansa, kalanlardan biri varsayılan yapılır:
+         *     müşteri ödeme ekranında hiçbir adres seçili görmemeli.
+         */
+        delete: operations["deleteAddress"];
+        options?: never;
+        head?: never;
+        /**
+         * Adres güncelle
+         * @description Defterdeki kaydı değiştirir. **Geçmiş siparişlerin adresini
+         *     DEĞİŞTİRMEZ** — onlar kendi kopyalarını taşır.
+         */
+        patch: operations["updateAddress"];
         trace?: never;
     };
     "/orders": {
@@ -671,6 +780,42 @@ export interface components {
              */
             busy_message?: string;
         };
+        /**
+         * @description Müşterinin adres defterindeki bir kayıt.
+         *
+         *     **Sipariş adresi buradan KOPYALANIR, bağlanmaz.** Sipariş kayıtlı
+         *     adrese işaret etseydi, müşteri adresini düzelttiğinde geçmiş
+         *     siparişlerin teslimat adresi de geçmişe dönük değişirdi ve teslim
+         *     edilmiş bir siparişin nereye gittiği okunamaz olurdu.
+         */
+        SavedAddress: {
+            /** Format: int64 */
+            id: number;
+            /**
+             * @description Müşterinin verdiği ad — "Ev", "Ofis", "Şantiye".
+             * @example Ofis
+             */
+            label?: string | null;
+            line1: string;
+            district: string;
+            city: string;
+            /** @description Kuryeye not. Fişte görünür. */
+            note?: string | null;
+            /**
+             * @description Ödeme ekranında önceden seçili gelen adres. Aynı anda **en
+             *     fazla bir** adres varsayılandır; yeni bir adres varsayılan
+             *     yapıldığında eskisi kendiliğinden bırakır.
+             */
+            is_default: boolean;
+        };
+        SavedAddressInput: {
+            label?: string | null;
+            line1: string;
+            district: string;
+            city: string;
+            note?: string | null;
+            is_default?: boolean;
+        };
         MenuCategory: {
             /** Format: int64 */
             id: number;
@@ -977,6 +1122,8 @@ export type SchemaRegisterRequest = components['schemas']['RegisterRequest'];
 export type SchemaAuthResponse = components['schemas']['AuthResponse'];
 export type SchemaCustomer = components['schemas']['Customer'];
 export type SchemaLocation = components['schemas']['Location'];
+export type SchemaSavedAddress = components['schemas']['SavedAddress'];
+export type SchemaSavedAddressInput = components['schemas']['SavedAddressInput'];
 export type SchemaMenuCategory = components['schemas']['MenuCategory'];
 export type SchemaMenuItem = components['schemas']['MenuItem'];
 export type SchemaMenuOption = components['schemas']['MenuOption'];
@@ -1146,6 +1293,91 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
         };
     };
+    updateMe: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    first_name?: string;
+                    last_name?: string;
+                    /** @description 10 hane, başında 0 veya +90 olmadan. */
+                    telephone?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Güncel profil */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Customer"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Doğrulama hatası */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    changePassword: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    current_password: string;
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Değiştirildi; yeni token döner */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthResponse"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Mevcut parola yanlış veya doğrulama hatası */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
     listLocations: {
         parameters: {
             query?: never;
@@ -1200,6 +1432,138 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    listAddresses: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Adres listesi */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SavedAddress"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    createAddress: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavedAddressInput"];
+            };
+        };
+        responses: {
+            /** @description Eklendi */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedAddress"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Doğrulama hatası */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteAddress: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Silindi */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateAddress: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavedAddressInput"];
+            };
+        };
+        responses: {
+            /** @description Güncellendi */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedAddress"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+            /** @description Doğrulama hatası */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     listOrders: {
