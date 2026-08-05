@@ -19,6 +19,19 @@ final class AdminRegistrar
     /** Ayarlar ekranına erişim yetkisi. */
     public const string PERMISSION = 'Veykemtu.BldSettings';
 
+    /**
+     * Mutfak kasaları ekranına erişim yetkisi — AYRI, çünkü kapsamı farklı.
+     *
+     * Bu yetkiyi taşıyan kişi kasaya "yeniden başlat" gönderebilir ve bir
+     * cihazı iptal edip mutfağı sipariş göremez hâle getirebilir. Fiyat ve
+     * şalter yetkisiyle (`PERMISSION`) aynı kutuya konsaydı, birini vermek
+     * istediğinde diğerini de vermek zorunda kalınırdı.
+     */
+    public const string PERMISSION_DEVICES = 'Veykemtu.KitchenDevices';
+
+    /** Mutfak kasaları ekranının admin paneldeki adresi. */
+    public const string DEVICES_URI = 'veykemtu/bridgeapi/kitchen_devices';
+
     private function __construct() {}
 
     /**
@@ -65,6 +78,16 @@ final class AdminRegistrar
                         'title' => lang('veykemtu.bridgeapi::default.side_menu.settings'),
                         'permission' => self::PERMISSION,
                     ],
+                    // Kasa yönetimi de günlük işletme işidir: yazıcı sustuğunda
+                    // veya alarm çalmaya devam ettiğinde yöneticinin bu sayfayı
+                    // Ayarlar → Eklentiler yolunu izleyerek araması gerekmemeli.
+                    'bld_kitchen_devices' => [
+                        'priority' => 91,
+                        'class' => 'bld_kitchen_devices',
+                        'href' => admin_url(self::DEVICES_URI),
+                        'title' => lang('veykemtu.bridgeapi::default.side_menu_devices'),
+                        'permission' => self::PERMISSION_DEVICES,
+                    ],
                 ],
             ],
         ];
@@ -81,6 +104,10 @@ final class AdminRegistrar
         return [
             self::PERMISSION => [
                 'label' => 'lang:veykemtu.bridgeapi::default.permission_settings',
+                'group' => 'igniter::admin.permissions.name',
+            ],
+            self::PERMISSION_DEVICES => [
+                'label' => 'lang:veykemtu.bridgeapi::default.permission_devices',
                 'group' => 'igniter::admin.permissions.name',
             ],
         ];

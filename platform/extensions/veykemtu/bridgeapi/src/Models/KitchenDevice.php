@@ -52,6 +52,17 @@ class KitchenDevice extends Model
 
     protected $guarded = [];
 
+    /**
+     * DAMGALAR AÇIK OLMALI — TastyIgniter'ın modeli `false` ile geliyor.
+     *
+     * `Igniter\Flame\Database\Model` `public $timestamps = false;`
+     * tanımlıyor ve alt sınıf bunu devralıyor. Göç `timestamps()` ile
+     * sütunları açsa bile hiçbir zaman yazılmıyorlardı: sahada tüm
+     * satırların `created_at`'i NULL çıktı ("bu kasa ne zaman eklendi?"
+     * sorusunun cevabı yoktu).
+     */
+    public $timestamps = true;
+
     protected $casts = [
         'pairing_expires_at' => 'datetime',
         'last_seen_at' => 'datetime',
