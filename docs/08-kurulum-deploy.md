@@ -262,6 +262,38 @@ echo -e "TEST\n\n\n" > /dev/thermal0   # udev kuralından sonra
 ```
 Çıktı gelmezse: `dmesg | tail` ile çekirdek mesajlarına bak, `usblp` modülü yüklü mü kontrol et (`lsmod | grep usblp`).
 
+### 2.3.5 Otomatik açılış zinciri (05.08.2026)
+
+Elektrik gelince kasa kendiliğinden açılıp KDS'i göstermeli; kimse
+klavyeye dokunmamalı. Zincir dört halka:
+
+| Halka | Durum | Nerede |
+|---|---|---|
+| BIOS "AC power on" | **fiziksel, elle yapılır** | BIOS ayarı |
+| GDM otomatik giriş | `AutomaticLogin=kemaltuncer` | `/etc/gdm3/custom.conf` |
+| systemd kullanıcı servisi | `WantedBy=graphical-session.target` | `~/.config/systemd/user/` |
+| Ekran uykusu ve kilit kapalı | `idle-delay=0`, `lock-enabled=false` | gsettings |
+
+> **`default.target` DEĞİL, `graphical-session.target`.** İlki kullanıcı
+> oturumu açılır açılmaz ulaşılıyor ve bu, masaüstünün hazır olmasından
+> önce olabilir. `After=` yalnızca iki birim aynı işlemde başlatılıyorsa
+> sıra dayatır; grafik oturum o işlemin parçası değilse etkisiz kalır ve
+> uygulama ekran sunucusu yokken açılıp çökerek yeniden başlatma turuna
+> girer. `graphical-session.target` tam olarak "masaüstü hazır" demek ve
+> GNOME ortam değişkenlerini (`WAYLAND_DISPLAY`, `XDG_RUNTIME_DIR`)
+> systemd'ye o aşamada aktarıyor.
+
+> **Bu halka yalnızca YENİDEN BAŞLATMAYLA doğrulanabilir.**
+> `graphical-session.target` elle başlatmayı reddediyor
+> (`RefuseManualStart`), yani oturumu yeniden açmadan sınanamıyor.
+> Kasa yeniden başlatıldığında KDS kendiliğinden gelmiyorsa ilk bakılacak
+> yer `systemctl --user status mutfakapp` ve
+> `journalctl --user -u mutfakapp -b`.
+
+`loginctl enable-linger` **gerekmiyor**: otomatik giriş açık olduğu için
+kullanıcı oturumu açılışta başlıyor ve servis onunla geliyor. Linger,
+oturum hiç açılmasa bile servisi ayakta tutmak içindir.
+
 ### 2.4 Kabul kontrol listesi (kasa)
 
 - [ ] Elektrik kesilip gelince makine kendiliğinden açılıyor (BIOS: AC power on = Power On)

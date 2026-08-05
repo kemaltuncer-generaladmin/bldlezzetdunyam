@@ -29,6 +29,9 @@ Type=simple
 ExecStart=%h/.local/opt/mutfakapp/mutfakapp
 Restart=always
 RestartSec=5
+# Kasa Wayland oturumu kullanıyor ve GNOME `WAYLAND_DISPLAY`'i systemd
+# ortamına kendisi aktarıyor. `DISPLAY` burada yalnızca XWayland yedeği
+# olarak duruyor: bir gün X11 oturumuna düşülürse uygulama yine açılır.
 Environment=DISPLAY=:0
 
 # Çökme döngüsünde sonsuza kadar denemeyi bırakmasın: systemd varsayılanı
@@ -37,4 +40,16 @@ Environment=DISPLAY=:0
 StartLimitIntervalSec=0
 
 [Install]
-WantedBy=default.target
+# `default.target` DEĞİL.
+#
+# `default.target` kullanıcı oturumu açılır açılmaz ulaşılıyor ve bu,
+# masaüstünün hazır olmasından ÖNCE olabilir. `After=` yalnızca iki birim
+# aynı işlemde başlatılıyorsa sıra dayatır; grafik oturum o işlemin
+# parçası değilse etkisiz kalır ve uygulama ekran sunucusu yokken açılıp
+# çökerek yeniden başlatma turuna girer.
+#
+# `graphical-session.target` tam olarak "masaüstü hazır" demek ve GNOME
+# ortam değişkenlerini (WAYLAND_DISPLAY, XDG_RUNTIME_DIR) systemd'ye o
+# aşamada aktarıyor. `PartOf=` zaten bu hedefe bağlı; kurulum da aynı
+# hedefe bağlanmalı.
+WantedBy=graphical-session.target
