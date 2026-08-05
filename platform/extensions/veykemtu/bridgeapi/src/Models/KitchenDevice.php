@@ -27,6 +27,16 @@ use Laravel\Sanctum\HasApiTokens;
  * @property int|null $print_queue_pending
  * @property int|null $print_queue_failed
  * @property string|null $app_version
+ * @property int|null $poll_seconds
+ * @property bool|null $sound_enabled
+ * @property int|null $warning_after_minutes
+ * @property int|null $late_after_minutes
+ * @property string|null $printer_device_path
+ * @property int|null $printer_code_page
+ * @property int|null $health_seconds
+ * @property int|null $connection_alarm_seconds
+ * @property bool|null $alarm_silenceable
+ * @property Carbon|null $settings_updated_at
  */
 class KitchenDevice extends Model
 {
@@ -50,6 +60,15 @@ class KitchenDevice extends Model
         'printer_ok' => 'boolean',
         'print_queue_pending' => 'integer',
         'print_queue_failed' => 'integer',
+        'settings_updated_at' => 'datetime',
+        'sound_enabled' => 'boolean',
+        'poll_seconds' => 'integer',
+        'warning_after_minutes' => 'integer',
+        'late_after_minutes' => 'integer',
+        'printer_code_page' => 'integer',
+        'health_seconds' => 'integer',
+        'connection_alarm_seconds' => 'integer',
+        'alarm_silenceable' => 'boolean',
     ];
 
     /**

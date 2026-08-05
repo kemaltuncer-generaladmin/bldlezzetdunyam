@@ -9,8 +9,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
+use Veykemtu\BridgeApi\Models\KitchenCommand;
 use Veykemtu\BridgeApi\Models\KitchenDevice;
 use Veykemtu\BridgeApi\Models\PrintJob;
+use Veykemtu\BridgeApi\Services\KitchenDeviceSettings;
 use Veykemtu\BridgeApi\Services\OrderStatusTransition;
 
 /**
@@ -239,6 +241,161 @@ class ContractTest extends TestCase
             'print_queue_pending' => 0,
             'print_queue_failed' => 0,
         ], self::HEADERS)->assertForbidden();
+    }
+
+    // ── Sunucudan yönetilen kasa ayarları ─────────────────────────────────
+
+    public function test_dokunulmamis_ayarlar_null_doner(): void
+    {
+        // `null` "yönetici dokunmadı" demek; kasa kendi varsayılanını
+        // kullanır. Sunucu varsayılanı dayatsaydı, yanlış bir yazıcı yolu
+        // fiş basımını durdururdu.
+        $settings = $this->asKitchen()->postJson('/api/kitchen/health', [
+            'printer_ok' => true,
+            'print_queue_pending' => 0,
+            'print_queue_failed' => 0,
+        ], self::HEADERS)->json('settings');
+
+        foreach (['poll_seconds', 'sound_enabled', 'printer_device_path',
+            'warning_after_minutes', 'late_after_minutes', 'printer_code_page',
+            'health_seconds', 'connection_alarm_seconds', 'alarm_silenceable'] as $alan) {
+            $this->assertArrayHasKey($alan, $settings);
+            $this->assertNull($settings[$alan], "$alan dokunulmamışken null olmalı.");
+        }
+    }
+
+    public function test_yoneticinin_yazdigi_ayar_kasaya_gider(): void
+    {
+        $device = $this->pairedDevice();
+
+        app(KitchenDeviceSettings::class)->update($device['model'], [
+            'poll_seconds' => 8,
+            'sound_enabled' => false,
+            'alarm_silenceable' => false,
+        ]);
+
+        $settings = $this->withToken($device['token'])->postJson('/api/kitchen/health', [
+            'printer_ok' => true,
+            'print_queue_pending' => 0,
+            'print_queue_failed' => 0,
+        ], self::HEADERS)->json('settings');
+
+        $this->assertSame(8, $settings['poll_seconds']);
+        $this->assertFalse($settings['sound_enabled']);
+        $this->assertFalse($settings['alarm_silenceable']);
+        $this->assertNotNull($settings['updated_at']);
+    }
+
+    public function test_sinir_disi_ayar_kirpilir(): void
+    {
+        $device = $this->pairedDevice();
+
+        app(KitchenDeviceSettings::class)->update($device['model'], [
+            'poll_seconds' => 999,
+            'printer_code_page' => 9999,
+        ]);
+        $device['model']->refresh();
+
+        $this->assertSame(KitchenDeviceSettings::MAX_POLL_SECONDS, $device['model']->poll_seconds);
+        $this->assertSame(255, $device['model']->printer_code_page);
+    }
+
+    public function test_geciken_esigi_uyari_esiginden_kucuk_olamaz(): void
+    {
+        // Küçük olsaydı kart hiç kırmızıya dönmezdi: uyarı eşiği zaten
+        // geçilmiş olur ve geciken siparişler sarı kalırdı.
+        $device = $this->pairedDevice();
+
+        app(KitchenDeviceSettings::class)->update($device['model'], [
+            'warning_after_minutes' => 20,
+            'late_after_minutes' => 5,
+        ]);
+        $device['model']->refresh();
+
+        $this->assertSame(20, $device['model']->late_after_minutes);
+    }
+
+    // ── Komut kanalı ──────────────────────────────────────────────────────
+
+    public function test_komut_saglik_yanitiyla_teslim_edilir(): void
+    {
+        $device = $this->pairedDevice();
+        KitchenCommand::create([
+            'device_id' => $device['model']->id,
+            'command' => KitchenCommand::TEST_RECEIPT,
+        ]);
+
+        $commands = $this->withToken($device['token'])->postJson('/api/kitchen/health', [
+            'printer_ok' => true,
+            'print_queue_pending' => 0,
+            'print_queue_failed' => 0,
+        ], self::HEADERS)->json('commands');
+
+        $this->assertCount(1, $commands);
+        $this->assertSame(KitchenCommand::TEST_RECEIPT, $commands[0]['command']);
+    }
+
+    public function test_teslim_edilen_komut_tekrar_gonderilmez(): void
+    {
+        // Tekrar gönderilseydi "test fişi bas" her dakika bir kâğıt harcardı.
+        $device = $this->pairedDevice();
+        KitchenCommand::create([
+            'device_id' => $device['model']->id,
+            'command' => KitchenCommand::TEST_RECEIPT,
+        ]);
+
+        $health = fn(): array => $this->withToken($device['token'])->postJson(
+            '/api/kitchen/health',
+            ['printer_ok' => true, 'print_queue_pending' => 0, 'print_queue_failed' => 0],
+            self::HEADERS,
+        )->json('commands');
+
+        $this->assertCount(1, $health());
+        $this->assertCount(0, $health());
+    }
+
+    public function test_komut_sonucu_kaydedilir(): void
+    {
+        $device = $this->pairedDevice();
+        $command = KitchenCommand::create([
+            'device_id' => $device['model']->id,
+            'command' => KitchenCommand::REPRINT,
+            'payload' => ['order_id' => 42, 'type' => 'mutfak'],
+        ]);
+
+        $this->withToken($device['token'])->postJson('/api/kitchen/health', [
+            'printer_ok' => true,
+            'print_queue_pending' => 0,
+            'print_queue_failed' => 0,
+            'command_results' => [
+                ['id' => $command->id, 'ok' => false, 'message' => 'Sipariş bulunamadı'],
+            ],
+        ], self::HEADERS)->assertOk();
+
+        $command->refresh();
+
+        $this->assertFalse($command->succeeded);
+        $this->assertSame('Sipariş bulunamadı', $command->result);
+        $this->assertNotNull($command->executed_at);
+    }
+
+    public function test_kasa_baskasinin_komutunu_kapatamaz(): void
+    {
+        $other = $this->pairedDevice();
+        $command = KitchenCommand::create([
+            'device_id' => $other['model']->id,
+            'command' => KitchenCommand::TEST_RECEIPT,
+        ]);
+
+        // Farklı bir cihaz o kimliği bildirse bile satıra dokunulmamalı.
+        $this->asKitchen()->postJson('/api/kitchen/health', [
+            'printer_ok' => true,
+            'print_queue_pending' => 0,
+            'print_queue_failed' => 0,
+            'command_results' => [['id' => $command->id, 'ok' => true]],
+        ], self::HEADERS)->assertOk();
+
+        $this->assertNull($command->refresh()->executed_at);
     }
 
     // ── Yoğunluk şalteri ──────────────────────────────────────────────────

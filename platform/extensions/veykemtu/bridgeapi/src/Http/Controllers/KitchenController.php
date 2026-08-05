@@ -11,9 +11,11 @@ use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Veykemtu\BridgeApi\Support\BusinessTime;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
+use Veykemtu\BridgeApi\Models\KitchenCommand;
 use Veykemtu\BridgeApi\Models\KitchenDevice;
 use Veykemtu\BridgeApi\Models\PrintJob;
 use Igniter\Local\Models\Location;
+use Veykemtu\BridgeApi\Services\KitchenDeviceSettings;
 use Veykemtu\BridgeApi\Services\LocationGate;
 use Veykemtu\BridgeApi\Services\OrderPresenter;
 use Veykemtu\BridgeApi\Services\OrderStatusTransition;
@@ -229,13 +231,20 @@ class KitchenController extends ApiController
      * beyanına güveniyoruz ve zaman damgasıyla birlikte saklıyoruz ki
      * bayat veri taze sanılmasın.
      */
-    public function health(Request $request): JsonResponse
-    {
+    public function health(
+        Request $request,
+        KitchenDeviceSettings $settings,
+    ): JsonResponse {
         $data = $request->validate([
             'printer_ok' => ['required', 'boolean'],
             'print_queue_pending' => ['required', 'integer', 'min:0', 'max:100000'],
             'print_queue_failed' => ['required', 'integer', 'min:0', 'max:100000'],
             'app_version' => ['sometimes', 'string', 'max:32'],
+            // Bir önceki turda teslim edilen komutların sonuçları.
+            'command_results' => ['sometimes', 'array', 'max:50'],
+            'command_results.*.id' => ['required', 'integer'],
+            'command_results.*.ok' => ['required', 'boolean'],
+            'command_results.*.message' => ['sometimes', 'nullable', 'string', 'max:255'],
         ]);
 
         $device = $request->user();
@@ -246,6 +255,8 @@ class KitchenController extends ApiController
 
         // `saveQuietly` + `withoutTimestamps`: sağlık dakikada bir gelir,
         // `updated_at`'i kirletip model olaylarını tetiklemesine gerek yok.
+        $this->recordCommandResults($device, $data['command_results'] ?? []);
+
         KitchenDevice::withoutTimestamps(fn() => $device->forceFill([
             'health_reported_at' => Carbon::now(),
             'printer_ok' => (bool) $data['printer_ok'],
@@ -258,7 +269,68 @@ class KitchenController extends ApiController
             'server_time' => Carbon::now()->utc()->toIso8601ZuluString(),
             'orders_today' => $this->ordersToday(),
             'orders_active' => $this->activeOrderCount(),
+            // Ayarlar SAĞLIK YANITINDA dönüyor, ayrı bir uçta değil:
+            // kasa zaten dakikada bir buraya geliyor ve ikinci bir
+            // yoklama döngüsü kurmanın anlamı yok. Dokunulmamış alanlar
+            // `null` gelir; kasa o alanda kendi derleme varsayılanını
+            // kullanır.
+            'settings' => $settings->forDevice($device),
+            // Bekleyen komutlar. Kasa bunları çalıştırıp sonuçlarını bir
+            // sonraki bildirimde `command_results` ile geri gönderir.
+            'commands' => $this->takeCommands($device),
         ]);
+    }
+
+    /**
+     * Kasanın bildirdiği komut sonuçlarını kaydeder.
+     *
+     * Sonucu gelen komut bir daha gönderilmez. Kasa başka bir cihazın
+     * komut kimliğini bildirse bile o satıra dokunulmaz — kimlik sorgusu
+     * cihazla sınırlı.
+     *
+     * @param  array<int, array<string, mixed>>  $results
+     */
+    private function recordCommandResults(KitchenDevice $device, array $results): void
+    {
+        foreach ($results as $result) {
+            KitchenCommand::query()
+                ->where('device_id', $device->id)
+                ->where('id', (int) $result['id'])
+                ->whereNull('executed_at')
+                ->update([
+                    'executed_at' => Carbon::now(),
+                    'succeeded' => (bool) $result['ok'],
+                    'result' => isset($result['message'])
+                        ? mb_substr((string) $result['message'], 0, 255)
+                        : null,
+                ]);
+        }
+    }
+
+    /**
+     * Bekleyen komutları döndürür ve teslim edilmiş işaretler.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function takeCommands(KitchenDevice $device): array
+    {
+        $commands = KitchenCommand::pendingFor($device->id)->limit(20)->get();
+
+        if ($commands->isEmpty()) {
+            return [];
+        }
+
+        KitchenCommand::query()
+            ->whereIn('id', $commands->pluck('id'))
+            ->update(['delivered_at' => Carbon::now()]);
+
+        return $commands
+            ->map(static fn(KitchenCommand $c): array => [
+                'id' => (int) $c->id,
+                'command' => (string) $c->command,
+                'payload' => $c->payload ?? [],
+            ])
+            ->all();
     }
 
     /**
