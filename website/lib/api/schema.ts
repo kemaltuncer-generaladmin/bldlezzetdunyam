@@ -419,6 +419,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/kitchen/busy": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Yoğunluk şalteri
+         * @description Mutfaktaki tek tuş. Açıkken müşteri arayüzlerinde gecikme uyarısı
+         *     çıkar ve admin panelde görünür.
+         *
+         *     **Sipariş almayı DURDURMAZ.** Siparişi gerçekten kesen şalter
+         *     `ordering_enabled`'dır ve yalnızca yönetici değiştirebilir —
+         *     mutfak personeli tek tuşla cirosu kapatabilmemeli.
+         *
+         *     Durum vitrine yazılır, cihaza değil: iki kasa olsa ikisi de aynı
+         *     şeyi gösterir ve müşteri tarafı zaten vitrini okur.
+         */
+        post: operations["setKitchenBusy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/kitchen/heartbeat": {
         parameters: {
             query?: never;
@@ -501,7 +533,9 @@ export interface components {
         DeliveryType: "delivery" | "pickup";
         /**
          * @description `online` = sanal POS, `cash` = kapıda ödeme, `account` = cari hesap.
-         *     Faz 1'de `online` hiçbir vitrinin `payment_methods` listesinde bulunmaz.
+         *
+         *     Faz 1'de `online`, gerçek tahsilat yapmayan bir **simülasyon**
+         *     geçidine bağlıdır; akış gerçek POS ile aynıdır.
          * @enum {string}
          */
         PaymentMethod: "online" | "cash" | "account";
@@ -602,10 +636,40 @@ export interface components {
             /** @description Altında sipariş `422 VALIDATION_FAILED`. */
             min_order_total: components["schemas"]["Money"];
             /**
+             * @description `delivery_type=delivery` siparişlere eklenecek sabit teslimat
+             *     ücreti; gel-al siparişte uygulanmaz.
+             *
+             *     **Neden sözleşmede:** bu alan olmadan istemci, kullanıcıya
+             *     siparişi onaylatmadan önce **toplam tutarı gösteremiyordu** —
+             *     yalnızca ara toplamı gösterip "teslimat sipariş adımında
+             *     hesaplanır" demek zorunda kalıyordu. Mesafeli satışta ödenecek
+             *     tutarın onaydan önce görünmesi gerekir.
+             *
+             *     Gösterim içindir; **bağlayıcı olan sunucunun hesabıdır**
+             *     (`OrderDetail.delivery_fee`). İkisi ayrışırsa sunucu haklıdır.
+             */
+            delivery_fee: components["schemas"]["Money"];
+            /**
              * @description Bu vitrinde **açık** olan ödeme yöntemleri. İstemci ödeme ekranında yalnızca
              *     bunları gösterir. Listede olmayan yöntemle sipariş → `422 VALIDATION_FAILED`.
              */
             payment_methods: components["schemas"]["PaymentMethod"][];
+            /**
+             * @description Mutfak yoğun mu? Mutfak ekranındaki tek tuşla açılır
+             *     (`POST /kitchen/busy`).
+             *
+             *     **Sipariş almayı ENGELLEMEZ.** İstemci yalnızca `busy_message`
+             *     uyarısını gösterir. Siparişi gerçekten kesen şalter
+             *     `ordering_enabled`'dır ve o yöneticinindir.
+             */
+            busy?: boolean;
+            /**
+             * @description `busy` doğruyken gösterilecek metin. Yönetici admin panelden
+             *     değiştirebilir. İstemciler kendi metnini gömmemelidir: metin
+             *     değişince üç uygulamayı birden yayınlamak gerekirdi.
+             * @example Mutfağımız şu anda yoğun. Siparişiniz alınır ancak hazırlanması normalden uzun sürebilir.
+             */
+            busy_message?: string;
         };
         MenuCategory: {
             /** Format: int64 */
@@ -684,7 +748,14 @@ export interface components {
             status: components["schemas"]["PaymentStatus"];
             /**
              * Format: uri
-             * @description Yalnızca `online` yönteminde dolu; istemci kullanıcıyı buraya yönlendirir.
+             * @description Yalnızca `online` yönteminde ve sipariş **henüz ödenmemişken**
+             *     dolu; istemci kullanıcıyı buraya yönlendirir. Ödendikten sonra
+             *     `null` döner — kullanıcı ikinci kez ödeme sayfasına
+             *     gönderilmemelidir.
+             *
+             *     Faz 1'de bu adres bir **simülasyon** sayfasıdır (gerçek tahsilat
+             *     yok). Akış gerçek sanal POS ile birebir aynıdır; sağlayıcı
+             *     devreye girdiğinde yalnızca adresin işaret ettiği sayfa değişir.
              */
             redirect_url?: string | null;
         };
@@ -1523,6 +1594,52 @@ export interface operations {
             403: components["responses"]["ForbiddenOrRevoked"];
         };
     };
+    setKitchenBusy: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    busy: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Yeni durum */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        busy: boolean;
+                        busy_message: string;
+                        /** Format: date-time */
+                        server_time: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["ForbiddenOrRevoked"];
+            /** @description Doğrulama hatası */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     kitchenHeartbeat: {
         parameters: {
             query?: never;
@@ -1588,7 +1705,19 @@ export interface operations {
                     };
                 };
             };
-            404: components["responses"]["NotFound"];
+            /**
+             * @description `app_id` eksik veya enum dışı. Geçersiz enum bir **doğrulama**
+             *     hatasıdır, "kayıt yok" değil — mock ile sunucu bu noktada
+             *     ayrışmıştı, sözleşme 422'de netleştirildi.
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
 }

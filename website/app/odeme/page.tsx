@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { CheckoutForm } from '@/components/checkout-form';
 import { ErrorState } from '@/components/error-state';
-import { OrderingClosedBanner } from '@/components/ordering-banner';
+import { KitchenBusyBanner, OrderingClosedBanner } from '@/components/ordering-banner';
 import { isOrderingOpen } from '@/lib/api/catalog';
 import { resolveCart } from '@/lib/cart';
 import { formatPrice } from '@/lib/format';
@@ -41,6 +41,7 @@ export default async function CheckoutPage() {
       {!orderingOpen && (
         <div className="mt-5">
           <OrderingClosedBanner location={cart.location} />
+          <KitchenBusyBanner location={cart.location} />
         </div>
       )}
 

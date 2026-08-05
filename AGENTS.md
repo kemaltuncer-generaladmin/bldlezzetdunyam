@@ -82,3 +82,4 @@ Doküman bir konuyu kapsamıyorsa: **uydurma.** Şu sırayı izle:
 | `docs/08-kurulum-deploy.md` | Ubuntu kurulumu, Docker, CI/CD |
 | `docs/09-gorev-plani.md` | 1 haftalık görev dağılımı, bağımlılık grafiği |
 | `docs/10-test-kabul.md` | Kabul ölçütleri, uçtan uca senaryolar |
+| `docs/11-yol-haritasi.md` | Faz 2 planı: Maps, bölgeler, kampanya, kupon |

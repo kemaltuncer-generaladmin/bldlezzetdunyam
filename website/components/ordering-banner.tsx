@@ -1,3 +1,4 @@
+import { busyNotice } from '@/lib/api/catalog';
 import type { Location } from '@/lib/api/types';
 
 /**
@@ -28,6 +29,30 @@ export function OrderingClosedBanner({ location }: { location: Location | null }
         {cutoffNote} Menüyü inceleyebilirsiniz; sipariş alımı açıldığında sepetinize
         ekleyebilirsiniz.
       </p>
+    </div>
+  );
+}
+
+/**
+ * Mutfak yoğunken gösterilen bant.
+ *
+ * [OrderingClosedBanner] ile KARIŞTIRILMAMALI: bu bant sipariş almayı
+ * engellemez, yalnızca gecikme uyarısıdır. Sipariş düğmeleri açık kalır.
+ *
+ * Metin sunucudan gelir; buraya sabit metin yazmak, yönetici admin
+ * panelden değiştirdiğinde siteyi yeniden yayınlamayı gerektirirdi.
+ */
+export function KitchenBusyBanner({ location }: { location: Location | null }) {
+  const notice = busyNotice(location);
+  if (!notice) return null;
+
+  return (
+    <div
+      role="status"
+      className="rounded-card border border-brand-600/40 bg-brand-50 px-4 py-3 text-sm text-neutral-900"
+    >
+      <p className="font-semibold">Mutfağımız yoğun</p>
+      <p className="mt-1 text-neutral-800">{notice}</p>
     </div>
   );
 }

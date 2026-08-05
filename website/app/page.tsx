@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ErrorState } from '@/components/error-state';
 import { JsonLd } from '@/components/json-ld';
-import { OrderingClosedBanner } from '@/components/ordering-banner';
+import { KitchenBusyBanner, OrderingClosedBanner } from '@/components/ordering-banner';
 import { ProductCard } from '@/components/product-card';
 import { SITE_URL } from '@/lib/api/client';
 import { fetchCatalog, flattenItems, isOrderingOpen } from '@/lib/api/catalog';
@@ -132,6 +132,11 @@ export default async function HomePage() {
               <OrderingClosedBanner location={snapshot.location} />
             </div>
           )}
+
+          {/* Yoğunluk bandı sipariş açıkken de görünür: uyarıdır, kapı değil. */}
+          <div className="mt-8 max-w-2xl empty:mt-0">
+            <KitchenBusyBanner location={snapshot.location} />
+          </div>
         </div>
       </section>
 
