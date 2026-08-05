@@ -67,6 +67,45 @@ mkdir -p /var/www/platform/storage/app /var/www/platform/storage/logs \
          /var/www/platform/bootstrap/cache
 chown -R www-data:www-data /var/www/platform/storage /var/www/platform/bootstrap/cache
 
+# ── Paket varlıkları ──────────────────────────────────────────────────────
+#
+# NEDEN BURADA: admin paneline HİÇ GİRİLEMİYORDU. Belirti "parola doğru
+# ama giriş ekranı gitmiyor" idi; sebep parola değil, varlıklardı.
+#
+# Zincir: `platform/.gitignore` `public/vendor`'ı dışlıyor (doğru — derleme
+# çıktısı repoda durmaz), imaj repodan derleniyor, dizin yok. Varlıkları
+# yayımlayan tek betik `composer.json` içindeki `post-update-cmd` ve o
+# kanca YALNIZCA `composer update`'te çalışır; imaj `composer install` ile
+# derlendiği için hiç tetiklenmedi.
+#
+# Sonuç: `public/vendor` boş kalınca TastyIgniter'ın birleştiricisi paketin
+# `public/js/app.js` derlemesini bulamayıp `resources/js/app.js` KAYNAĞINI
+# servis etti. Kaynak `require('jquery')` ile başlıyor; `require` tarayıcıda
+# yok, dosya ilk satırda patlıyor, jQuery ve AJAX katmanı hiç kurulmuyor.
+# Giriş formu `data-request="onLogin"` ile çalıştığı için JS'siz kalınca
+# düz POST'a düşüyor ve sunucu giriş sayfasını tekrar basıyor — sonsuz
+# "giriş ekranı gitmiyor" döngüsü.
+#
+# ROOT OLARAK koşuyor: `public/` root'a ait ve bunlar çalışma anında
+# yalnızca OKUNAN derleme çıktıları. `-u www-data` kuralı `storage/` için
+# geçerli; artisan'ın root'ken storage'a bıraktığı izleri hemen aşağıda
+# geri alıyoruz.
+echo "[giris] paket varlıkları yayımlanıyor"
+php /var/www/platform/artisan vendor:publish --tag=laravel-assets --force --no-interaction \
+  || echo "[giris] UYARI: varlıklar yayımlanmadı — admin paneli JS'siz kalır"
+
+# Medya diski `storage/app/public`; panelden yüklenen ürün görselleri bu
+# bağlantı olmadan 404 döner. `storage/app` kalıcı bir birim, dolayısıyla
+# dosyalar duruyordu — görünmeyen tek şey bağlantıydı.
+if [ ! -e /var/www/platform/public/storage ]; then
+  php /var/www/platform/artisan storage:link --no-interaction \
+    || echo "[giris] UYARI: storage bağlantısı kurulamadı — yüklenen görseller 404 döner"
+fi
+
+# Artisan yukarıda root koştu; storage'da root'a ait dosya bırakmış
+# olabilir ve o dosyalar php-fpm'i sessizce 500'e düşürür.
+chown -R www-data:www-data /var/www/platform/storage /var/www/platform/bootstrap/cache
+
 # ── Göçler ────────────────────────────────────────────────────────────────
 #
 # NEDEN BURADA: dağıtım göç koşmuyordu. Sütun ekleyen bir sürüm

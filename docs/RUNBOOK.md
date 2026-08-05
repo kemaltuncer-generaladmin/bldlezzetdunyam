@@ -283,6 +283,64 @@ docker exec "$A" chown -R www-data:www-data storage bootstrap/cache
 
 Tekrarlamaması için artisan **her zaman** `-u www-data` ile koşulmalı.
 
+## 4.6 Admin paneline girilemiyor: parola doğru, giriş ekranı gitmiyor
+
+**Belirti.** `/admin/login`'de doğru e-posta ve parolayla giriş denenir,
+sayfa yenilenir ve yine giriş ekranı gelir. Hata mesajı YOKTUR. Panel
+görsel olarak da bozuk görünebilir.
+
+**Sebep parola değildir.** Önce bunu ayırın:
+
+```bash
+A=$(docker ps -qf name=^app- | head -1)
+S=https://api.benimlezzetdunyam.com.tr
+T=$(curl -s -c /tmp/c -L $S/admin/login | grep -oE 'csrf-token" content="[^"]+"' | sed 's/.*content="//;s/"//')
+curl -s -b /tmp/c -X POST $S/admin/login \
+  -H "X-Requested-With: XMLHttpRequest" -H "X-IGNITER-REQUEST-HANDLER: onLogin" -H "X-CSRF-TOKEN: $T" \
+  --data-urlencode "email=<eposta>" --data-urlencode "password=<parola>"
+```
+
+`X_IGNITER_REDIRECT` dönüyorsa **kimlik bilgileri doğrudur** ve arıza
+tarayıcı tarafındadır: JavaScript çalışmıyor demektir.
+
+**Asıl sebep: paket varlıkları yayımlanmamış.** Doğrulama:
+
+```bash
+docker exec "$A" ls /var/www/platform/public/vendor    # yoksa arıza budur
+curl -s $S/admin/login | grep -oE 'src="[^"]+\.js"' | head -1   # bu adresi çekin
+# içerik `require('jquery')` ile başlıyorsa DERLENMEMİŞ KAYNAK servis ediliyor
+```
+
+Zincir: `platform/.gitignore` `public/vendor`'ı dışlar (doğru — derleme
+çıktısı repoda durmaz). Varlıkları yayımlayan tek betik `composer.json`
+içindeki `post-update-cmd`'dir ve o kanca **yalnızca `composer update`**
+ile çalışır; imaj `composer install` ile derlendiği için hiç tetiklenmez.
+`public/vendor` boş kalınca TastyIgniter'ın birleştiricisi paketin
+derlenmiş `public/js/app.js` dosyasını bulamaz ve `resources/js/app.js`
+**kaynağını** servis eder. Kaynak `require('jquery')` ile başlar;
+`require` tarayıcıda tanımlı değildir, dosya ilk satırda patlar, jQuery
+ve TastyIgniter'ın AJAX katmanı hiç kurulmaz. Giriş formu
+`data-request="onLogin"` ile çalıştığından JS'siz kalınca düz POST'a
+düşer ve sunucu giriş sayfasını yeniden basar.
+
+**Çözüm.** Kalıcı düzeltme `infra/platform/entrypoint.sh` içindedir ve her
+açılışta koşar. Elle koşmak gerekirse:
+
+```bash
+docker exec -e HOME=/tmp "$A" php /var/www/platform/artisan vendor:publish --tag=laravel-assets --force
+docker exec -e HOME=/tmp "$A" php /var/www/platform/artisan storage:link
+docker exec "$A" chown -R www-data:www-data /var/www/platform/storage
+```
+
+Bu ikisi **root olarak** koşar: `public/` root'a aittir ve bunlar çalışma
+anında yalnızca okunan derleme çıktılarıdır. Son satır şart — artisan
+root'ken storage'a root'a ait dosya bırakır ve §4.5'teki sessiz 500'lere
+yol açar.
+
+`storage:link` aynı arızanın ikinci yüzüdür: medya diski
+`storage/app/public`'tir ve bu bağlantı olmadan panelden yüklenen her
+ürün görseli 404 döner.
+
 ## 5. Veri geri yükleme
 
 **Tatbikatı yapılmamış yedek, yedek değildir.** Ayda bir bunu boş bir
