@@ -106,10 +106,45 @@ class CatalogController extends ApiController
             'min_order_total' => $this->gate->minOrderTotal($location),
             'delivery_fee' => $this->gate->deliveryFee($location),
             'payment_methods' => $this->gate->paymentMethods($location),
+            // Yoğunluk siparişi ENGELLEMEZ; istemci yalnızca uyarı gösterir.
+            // Metin sunucudan gelir: değişince üç uygulamayı birden
+            // yayınlamak gerekmesin.
+            'busy' => $this->gate->isBusy($location),
+            'busy_message' => $this->gate->busyMessage($location),
         ];
     }
 
     /** @return array<string, mixed> */
+    /**
+     * Ürün görselinin mutlak adresi, yoksa `null`.
+     *
+     * Görsel admin panelden yüklenir (Menüler → ürün → Görsel) ve
+     * TastyIgniter'ın kendi medya kitaplığında durur; ayrı bir yükleme
+     * mekanizması YAZMIYORUZ. Buradaki iş yalnızca onu sözleşmedeki
+     * alana bağlamak.
+     *
+     * TEK BOYUT ÜRETİYORUZ. İstemciye boyut seçtirmek, her istemcinin
+     * kendi ölçüsünü isteyip diskte onlarca küçük resim biriktirmesi
+     * demekti; 800×600 hem menü kartına hem ürün sayfasına yetiyor.
+     * Küçük resim ilk istekte üretilip diske yazılır, sonrakiler dosyadan
+     * gelir.
+     */
+    private function imageUrl(Menu $menu): ?string
+    {
+        $thumb = $menu->getThumb(['width' => 800, 'height' => 600]);
+
+        if ($thumb === null || $thumb === '') {
+            return null;
+        }
+
+        // Medya diski `APP_URL` tabanlı mutlak adres üretir. Yine de
+        // göreli gelirse mutlaklaştırıyoruz: istemcilerin biri Flutter,
+        // göreli adresi çözecek bir sayfa bağlamı yok.
+        return str_starts_with($thumb, 'http://') || str_starts_with($thumb, 'https://')
+            ? $thumb
+            : url($thumb);
+    }
+
     private function menuItemPayload(Menu $menu): array
     {
         $options = [];
@@ -145,7 +180,7 @@ class CatalogController extends ApiController
                 : null,
             'price' => Money::toKurus($menu->menu_price),
             'currency' => 'TRY',
-            'image_url' => null,
+            'image_url' => $this->imageUrl($menu),
             // Satışta olmayan ürün listede KALIR, soluk gösterilir (docs/03 §3).
             'is_available' => (bool) $menu->menu_status,
             'allergens' => $menu->allergens

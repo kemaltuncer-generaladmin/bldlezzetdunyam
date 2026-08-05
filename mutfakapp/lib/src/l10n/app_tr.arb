@@ -13,6 +13,18 @@
   "unlockWrong": "Şifre yanlış",
   "@unlockWrong": { "description": "Yanlış parola girildiğinde" },
 
+  "busyOn": "Yoğunluk: KAPALI",
+  "@busyOn": { "description": "Yoğunluk şalteri kapalıyken düğme etiketi" },
+
+  "busyOff": "YOĞUNLUK AÇIK",
+  "@busyOff": { "description": "Yoğunluk şalteri açıkken düğme etiketi" },
+
+  "busyTooltip": "Müşteriye gecikme uyarısı gösterir. Sipariş almayı durdurmaz.",
+  "@busyTooltip": { "description": "Yoğunluk düğmesinin ipucu" },
+
+  "busyFailed": "Yoğunluk durumu değiştirilemedi",
+  "@busyFailed": { "description": "Şalter sunucuya yazılamayınca" },
+
   "windowMinimize": "Küçült",
   "@windowMinimize": { "description": "Pencereyi görev çubuğuna indirir" },
 

@@ -111,6 +111,58 @@ class ContractTest extends TestCase
         $this->assertContains('online', $methods);
     }
 
+    // ── Yoğunluk şalteri ──────────────────────────────────────────────────
+
+    public function test_vitrin_varsayilan_olarak_yogun_degildir(): void
+    {
+        $location = $this->getJson('/api/locations', self::HEADERS)->json('data.0');
+
+        $this->assertFalse($location['busy']);
+        $this->assertNotEmpty($location['busy_message']);
+    }
+
+    public function test_mutfak_yogunlugu_acar_musteri_gorur(): void
+    {
+        $this->asKitchen()
+            ->postJson('/api/kitchen/busy', ['busy' => true], self::HEADERS)
+            ->assertOk()
+            ->assertJsonPath('busy', true);
+
+        $this->assertTrue(
+            $this->getJson('/api/locations', self::HEADERS)->json('data.0.busy'),
+        );
+    }
+
+    public function test_yogunkken_siparis_YINE_DE_alinir(): void
+    {
+        // Bu testin varlık sebebi: yoğunluk bir uyarıdır, kapı değil.
+        // Birinin bunu "sipariş almayı durdur" diye yorumlayıp cirosu
+        // kesmesini engelliyor. Kapatma şalteri `ordering_enabled`.
+        $this->asKitchen()->postJson('/api/kitchen/busy', ['busy' => true], self::HEADERS);
+
+        $this->asCustomer()->postJson('/api/orders', [
+            'location_id' => $this->locationId(),
+            'items' => [['menu_id' => $this->menuId('Tavuk Sote'), 'quantity' => 2]],
+            'delivery_type' => 'pickup',
+            'payment_method' => 'cash',
+        ], self::HEADERS)->assertCreated();
+    }
+
+    public function test_musteri_yogunlugu_degistiremez(): void
+    {
+        $this->asCustomer()
+            ->postJson('/api/kitchen/busy', ['busy' => true], self::HEADERS)
+            ->assertForbidden();
+    }
+
+    public function test_yogunluk_degeri_dogrulanir(): void
+    {
+        $this->asKitchen()
+            ->postJson('/api/kitchen/busy', ['busy' => 'belki'], self::HEADERS)
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_FAILED');
+    }
+
     public function test_menu_uc_kategori_on_iki_urun_doner(): void
     {
         $data = $this->getJson('/api/locations/'.$this->locationId().'/menu', self::HEADERS)
@@ -122,6 +174,19 @@ class ContractTest extends TestCase
             static fn(array $c): int => count($c['items']),
             $data,
         )));
+    }
+
+    public function test_gorseli_olmayan_urunun_image_url_alani_null_doner(): void
+    {
+        // Deneme menüsünde görsel yok. Alanın VAR OLMASI ve `null` olması
+        // sözleşme gereği; alanı hiç göndermemek istemcide tip hatası olur.
+        $items = collect($this->getJson('/api/locations/'.$this->locationId().'/menu', self::HEADERS)
+            ->json('data'))->flatMap(static fn(array $c): array => $c['items']);
+
+        foreach ($items as $item) {
+            $this->assertArrayHasKey('image_url', $item);
+            $this->assertNull($item['image_url']);
+        }
     }
 
     public function test_tukenmis_urun_listede_kalir_ama_isaretlenir(): void

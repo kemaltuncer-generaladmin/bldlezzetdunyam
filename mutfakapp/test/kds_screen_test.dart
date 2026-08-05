@@ -19,6 +19,8 @@ import 'package:mutfakapp/src/printing/print_queue.dart';
 import 'package:mutfakapp/src/printing/print_service.dart';
 import 'package:mutfakapp/src/printing/printer_device.dart';
 
+import 'package:mutfakapp/src/kds/widgets/order_card.dart';
+
 import 'unlock_helper.dart';
 import 'fake_device_session_store.dart';
 import 'fake_kitchen_service.dart';
@@ -53,7 +55,9 @@ Future<void> pumpKds(
   required List<KitchenOrder> orders,
   OrderSourceConnection state = OrderSourceConnection.connected,
   PrinterAvailability printer = PrinterAvailability.ready,
+  FakeKitchenService? kitchen,
 }) async {
+  final kitchenService = kitchen ?? FakeKitchenService();
   // Kasa 1920×1080 bir mutfak monitörüne bağlıdır; testin varsayılan
   // 800×600 yüzeyi bu ekranı temsil etmez.
   await tester.binding.setSurfaceSize(const Size(1920, 1080));
@@ -83,14 +87,14 @@ Future<void> pumpKds(
         ),
         printQueueProvider.overrideWithValue(queue),
         printerDeviceProvider.overrideWithValue(_NullPrinter()),
-        kitchenServiceProvider.overrideWithValue(FakeKitchenService()),
+        kitchenServiceProvider.overrideWithValue(kitchenService),
         // İşçi BAŞLATILMAZ: ekran testi yazdırmayı değil çizimi ölçer,
         // çalışan bir kuyruk döngüsü testte asılı zamanlayıcı bırakır.
         printServiceProvider.overrideWith(
           (ref) => PrintService(
             queue: queue,
             device: _NullPrinter(),
-            kitchen: FakeKitchenService(),
+            kitchen: kitchenService,
           ),
         ),
       ],
@@ -342,7 +346,32 @@ void main() {
       orders: [makeOrder(id: 1, status: OrderStatus.hazirlaniyor)],
     );
 
-    expect(find.byType(FilledButton), findsOneWidget);
+    // Sipariş KARTI içindeki butonlara bakıyoruz: durum çubuğundaki
+    // yoğunluk şalteri de bir FilledButton ve testi yanıltıyordu.
+    expect(
+      find.descendant(
+        of: find.byType(OrderCard),
+        matching: find.byType(FilledButton),
+      ),
+      findsOneWidget,
+    );
+
+    await tearDownTree(tester);
+  });
+
+  testWidgets('yoğunluk tuşu sunucuya yazar ve etiketi değişir', (
+    tester,
+  ) async {
+    final kitchen = FakeKitchenService();
+    await pumpKds(tester, orders: const [], kitchen: kitchen);
+
+    expect(find.text('Yoğunluk: KAPALI'), findsOneWidget);
+
+    await tester.tap(find.text('Yoğunluk: KAPALI'));
+    await tester.pump();
+
+    expect(kitchen.busyCalls, [true]);
+    expect(find.text('YOĞUNLUK AÇIK'), findsOneWidget);
 
     await tearDownTree(tester);
   });

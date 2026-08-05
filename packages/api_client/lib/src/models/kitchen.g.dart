@@ -247,6 +247,19 @@ Map<String, dynamic> _$HeartbeatResponseToJson(_HeartbeatResponse instance) =>
       'min_supported_version': instance.minSupportedVersion,
     };
 
+_BusyState _$BusyStateFromJson(Map<String, dynamic> json) => _BusyState(
+  busy: json['busy'] as bool,
+  busyMessage: json['busy_message'] as String,
+  serverTime: DateTime.parse(json['server_time'] as String),
+);
+
+Map<String, dynamic> _$BusyStateToJson(_BusyState instance) =>
+    <String, dynamic>{
+      'busy': instance.busy,
+      'busy_message': instance.busyMessage,
+      'server_time': instance.serverTime.toIso8601String(),
+    };
+
 _AppVersionInfo _$AppVersionInfoFromJson(Map<String, dynamic> json) =>
     _AppVersionInfo(
       appId: json['app_id'] as String,

@@ -67,6 +67,8 @@ class KdsStatusBar extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: BldSpacing.lg),
+          const _BusyToggle(),
+          const SizedBox(width: BldSpacing.lg),
           const _Clock(),
           const SizedBox(width: BldSpacing.lg),
           TextButton(
@@ -97,6 +99,82 @@ String _connectionLabel(AppL10n l10n, OrderSourceConnection state) =>
       OrderSourceConnection.disconnected => l10n.connectionDisconnected,
       OrderSourceConnection.revoked => l10n.connectionRevoked,
     };
+
+/// Yoğunluk şalteri — mutfaktaki tek tuş.
+///
+/// Sipariş almayı DURDURMAZ. Açıkken müşteri arayüzlerinde "hazırlanması
+/// uzun sürebilir" uyarısı çıkar ve admin panelde görünür. Siparişi
+/// gerçekten kesen şalter `ordering_enabled`'dır ve yöneticinindir —
+/// mutfak personeli tek tuşla cirosu kapatabilmemeli.
+class _BusyToggle extends ConsumerStatefulWidget {
+  const _BusyToggle();
+
+  @override
+  ConsumerState<_BusyToggle> createState() => _BusyToggleState();
+}
+
+class _BusyToggleState extends ConsumerState<_BusyToggle> {
+  bool _busy = false;
+  bool _sending = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
+
+    // İPUCU BUTONUN İÇİNDE, DIŞINDA DEĞİL. `Tooltip` çocuğuna
+    // `OverlayPortal` üzerinden SINIRSIZ genişlik geçiriyor; butonun
+    // dokunma hedefi dolgusu bunu minimum genişlik sanıp sonsuz
+    // hesaplıyor ve tüm durum çubuğunun düzeni çöküyor. Metnin sınırsız
+    // genişlikle sorunu yok.
+    return FilledButton.tonal(
+      onPressed: _sending ? null : _toggle,
+      style: FilledButton.styleFrom(
+        backgroundColor: _busy
+            ? const Color(KdsColors.statusWarn)
+            : const Color(KdsColors.surface),
+        foregroundColor: _busy ? Colors.black : null,
+        // TEMA EZİLİYOR. `KdsTheme` tüm dolu butonlara
+        // `Size.fromHeight(56)` veriyor — genişliği sonsuz bırakan,
+        // eşleme ekranındaki tam genişlik butonlar için doğru bir
+        // varsayılan. Durum çubuğunda o sonsuz genişlik satırın düzenini
+        // çökertiyor; burada içeriğe göre daralması gerekiyor.
+        minimumSize: const Size(0, 44),
+        textStyle: const TextStyle(fontSize: KdsTextScale.statusBar),
+        padding: const EdgeInsets.symmetric(horizontal: BldSpacing.md),
+      ),
+      child: Tooltip(
+        message: l10n.busyTooltip,
+        child: Text(
+          _busy ? l10n.busyOff : l10n.busyOn,
+          style: const TextStyle(fontSize: KdsTextScale.statusBar),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _toggle() async {
+    setState(() => _sending = true);
+    final hedef = !_busy;
+
+    try {
+      final state = await ref.read(kitchenServiceProvider).setBusy(hedef);
+      // Sunucunun döndürdüğü değeri alıyoruz, kendi tahminimizi değil:
+      // iki kasa varsa ikincisi de aynı anda değiştirmiş olabilir.
+      if (mounted) setState(() => _busy = state.busy);
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      // Sessizce yutmuyoruz: personel tuşa bastı, bir şey olmadıysa
+      // bunu bilmeli — yoksa müşterinin uyarıldığını sanır.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${AppL10n.of(context).busyFailed}: ${error.message}'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+}
 
 /// Pencere denetimleri: küçült ve tam ekran aç/kapa.
 ///

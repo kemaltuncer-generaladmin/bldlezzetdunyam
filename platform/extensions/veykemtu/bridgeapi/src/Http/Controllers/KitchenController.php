@@ -13,6 +13,8 @@ use Veykemtu\BridgeApi\Support\BusinessTime;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
 use Veykemtu\BridgeApi\Models\KitchenDevice;
 use Veykemtu\BridgeApi\Models\PrintJob;
+use Igniter\Local\Models\Location;
+use Veykemtu\BridgeApi\Services\LocationGate;
 use Veykemtu\BridgeApi\Services\OrderPresenter;
 use Veykemtu\BridgeApi\Services\OrderStatusTransition;
 use Veykemtu\BridgeApi\Services\ProductionListService;
@@ -195,6 +197,39 @@ class KitchenController extends ApiController
         return $this->json([
             'server_time' => Carbon::now()->utc()->toIso8601ZuluString(),
             'min_supported_version' => '1.0.0',
+        ]);
+    }
+
+    /**
+     * Yoğunluk şalteri — mutfaktaki tek tuş.
+     *
+     * Sipariş almayı DURDURMAZ. Açıkken müşteri arayüzlerinde "hazırlanması
+     * uzun sürebilir" uyarısı çıkar, admin panelde de görünür. Siparişi
+     * gerçekten kesmek `ordering_enabled` şalteridir ve yöneticinindir —
+     * mutfak personeli tek tuşla cirosu kapatabilmemeli.
+     *
+     * Durum vitrine yazılır, cihaza değil: iki kasa olsa ikisi de aynı
+     * şeyi göstermeli ve müşteri tarafı zaten vitrini okuyor.
+     */
+    public function setBusy(Request $request, LocationGate $gate): JsonResponse
+    {
+        $data = $request->validate(['busy' => ['required', 'boolean']]);
+
+        $location = Location::query()
+            ->where('location_status', true)
+            ->orderByDesc('is_default')
+            ->first();
+
+        if ($location === null) {
+            throw ApiException::notFound('Vitrin bulunamadı.');
+        }
+
+        $gate->setBusy($location, (bool) $data['busy']);
+
+        return $this->json([
+            'busy' => $gate->isBusy($location),
+            'busy_message' => $gate->busyMessage($location),
+            'server_time' => Carbon::now()->utc()->toIso8601ZuluString(),
         ]);
     }
 

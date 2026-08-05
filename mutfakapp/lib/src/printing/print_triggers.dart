@@ -67,9 +67,7 @@ class PrintTriggers {
   /// `hazir`'dan doğrudan oraya geçer ve arada bir yayın kaçarsa müşteri
   /// fişi hiç basılmazdı.
   static bool _isReadyOrBeyond(OrderStatus status) => switch (status) {
-    OrderStatus.hazir ||
-    OrderStatus.yolda ||
-    OrderStatus.teslimEdildi => true,
+    OrderStatus.hazir || OrderStatus.yolda || OrderStatus.teslimEdildi => true,
     OrderStatus.yeni ||
     OrderStatus.onaylandi ||
     OrderStatus.hazirlaniyor ||

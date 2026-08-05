@@ -81,6 +81,10 @@ abstract interface class KitchenService {
   Future<ProductionList> productionList();
 
   Future<HeartbeatResponse> heartbeat();
+
+  /// Yoğunluk şalteri. Sipariş almayı DURDURMAZ; müşteri arayüzlerinde
+  /// yalnızca gecikme uyarısı çıkarır.
+  Future<BusyState> setBusy(bool busy);
 }
 
 /// Sürüm ucu — kimlik gerektirmez.

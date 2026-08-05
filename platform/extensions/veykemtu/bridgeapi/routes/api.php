@@ -63,5 +63,6 @@ Route::prefix('api')
                 Route::post('print-jobs/{order}/ack', [KitchenController::class, 'ackPrint']);
                 Route::get('production-list', [KitchenController::class, 'productionList']);
                 Route::get('heartbeat', [KitchenController::class, 'heartbeat']);
+                Route::post('busy', [KitchenController::class, 'setBusy']);
             });
     });

@@ -202,6 +202,22 @@ abstract class HeartbeatResponse with _$HeartbeatResponse {
       _$HeartbeatResponseFromJson(json);
 }
 
+/// `POST /kitchen/busy` yanıtı.
+///
+/// Mesaj SUNUCUDAN gelir; istemciler kendi metnini gömmez. Yönetici metni
+/// admin panelden değiştirince üç uygulamayı da yayınlamak gerekmesin.
+@freezed
+abstract class BusyState with _$BusyState {
+  const factory BusyState({
+    required bool busy,
+    required String busyMessage,
+    required DateTime serverTime,
+  }) = _BusyState;
+
+  factory BusyState.fromJson(Map<String, dynamic> json) =>
+      _$BusyStateFromJson(json);
+}
+
 @freezed
 abstract class AppVersionInfo with _$AppVersionInfo {
   const factory AppVersionInfo({

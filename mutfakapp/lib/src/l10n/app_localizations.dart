@@ -117,6 +117,30 @@ abstract class AppL10n {
   /// **'Şifre yanlış'**
   String get unlockWrong;
 
+  /// Yoğunluk şalteri kapalıyken düğme etiketi
+  ///
+  /// In tr, this message translates to:
+  /// **'Yoğunluk: KAPALI'**
+  String get busyOn;
+
+  /// Yoğunluk şalteri açıkken düğme etiketi
+  ///
+  /// In tr, this message translates to:
+  /// **'YOĞUNLUK AÇIK'**
+  String get busyOff;
+
+  /// Yoğunluk düğmesinin ipucu
+  ///
+  /// In tr, this message translates to:
+  /// **'Müşteriye gecikme uyarısı gösterir. Sipariş almayı durdurmaz.'**
+  String get busyTooltip;
+
+  /// Şalter sunucuya yazılamayınca
+  ///
+  /// In tr, this message translates to:
+  /// **'Yoğunluk durumu değiştirilemedi'**
+  String get busyFailed;
+
   /// Pencereyi görev çubuğuna indirir
   ///
   /// In tr, this message translates to:

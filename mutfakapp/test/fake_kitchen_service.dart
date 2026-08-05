@@ -79,6 +79,22 @@ class FakeKitchenService implements KitchenService {
     throw UnsupportedError('Bu testte kullanılmıyor');
   }
 
+  /// Yoğunluk şalterine yapılan çağrılar.
+  final List<bool> busyCalls = [];
+
+  bool busy = false;
+
+  @override
+  Future<BusyState> setBusy(bool value) async {
+    busyCalls.add(value);
+    busy = value;
+    return BusyState(
+      busy: value,
+      busyMessage: 'Mutfağımız şu anda yoğun.',
+      serverTime: DateTime.utc(2026, 8, 4),
+    );
+  }
+
   @override
   Future<PairResponse> pair(PairRequest request) =>
       throw UnsupportedError('Bu testte kullanılmıyor');

@@ -20,10 +20,17 @@ use Veykemtu\BridgeApi\Exceptions\ApiException;
  * | `is_open` | çalışma saatleri (türetilir) | Şu an sipariş saati içinde miyiz |
  * | `ordering_enabled` | yönetici, elle | Ana şalter — kapalıysa saat uygun olsa bile alınmaz |
  * | `order_cutoff` | yönetici | Günlük son sipariş saati |
+ * | `busy` | **mutfak**, tek tuşla | Sipariş ALINIR, sadece gecikme uyarısı çıkar |
  *
  * Üçünü ayrı tutmak, "bugün yoğunuz, sipariş almayı durdur" ile "çalışma
  * saatimiz bitti"yi karıştırmamak içindir; ikincisi yarın kendiliğinden
  * geri açılır, birincisi açılmaz.
+ *
+ * `busy` bunlardan **ayrıdır ve siparişi ENGELLEMEZ**. Mutfak yoğunken
+ * kapıyı kapatmak yerine müşteriyi uyarmak istiyoruz: sipariş girer, ekranda
+ * "hazırlanması uzun sürebilir" yazar. Sipariş almayı gerçekten durdurmak
+ * `ordering_enabled` şalteridir ve o yöneticinindir — mutfak personeli tek
+ * tuşla cirosu kapatamamalı.
  *
  * Değerler TastyIgniter'ın kendi `location_options` tablosunda tutulur —
  * kendi tablomuzu açmaya gerek yok ve admin panelde aynı yerde yaşarlar.
@@ -39,6 +46,15 @@ class LocationGate
     private const string KEY_PAYMENTS = 'bld_payment_methods';
 
     private const string KEY_DELIVERY_FEE = 'bld_delivery_fee';
+
+    private const string KEY_BUSY = 'bld_busy';
+
+    private const string KEY_BUSY_MESSAGE = 'bld_busy_message';
+
+    /** Yönetici kendi metnini yazmadıysa gösterilecek uyarı. */
+    public const string DEFAULT_BUSY_MESSAGE =
+        'Mutfağımız şu anda yoğun. Siparişiniz alınır ancak hazırlanması '
+        .'normalden uzun sürebilir.';
 
     /** Sözleşmedeki ödeme yöntemleri — `docs/openapi.yaml` `PaymentMethod`. */
     public const array ALL_PAYMENT_METHODS = ['online', 'cash', 'account'];
@@ -100,6 +116,38 @@ class LocationGate
     public function deliveryFee(Location $location): int
     {
         return (int) $this->option($location, self::KEY_DELIVERY_FEE, 0);
+    }
+
+    /**
+     * Mutfak yoğun mu?
+     *
+     * Mutfak ekranındaki tek tuşla açılıp kapanır. Sipariş akışını
+     * DEĞİŞTİRMEZ — yalnızca istemcilere uyarı gösterme sinyalidir.
+     */
+    public function isBusy(Location $location): bool
+    {
+        return (bool) $this->option($location, self::KEY_BUSY, false);
+    }
+
+    public function setBusy(Location $location, bool $busy): void
+    {
+        $this->setOption($location, self::KEY_BUSY, $busy);
+    }
+
+    /**
+     * Yoğunluk uyarısının metni.
+     *
+     * Yönetici admin panelden değiştirebilir; boş bırakırsa varsayılan
+     * kullanılır. İstemcilerin kendi metnini gömmesini İSTEMİYORUZ: metin
+     * değişince üç uygulamayı birden yayınlamak gerekirdi.
+     */
+    public function busyMessage(Location $location): string
+    {
+        $value = $this->option($location, self::KEY_BUSY_MESSAGE, null);
+
+        return is_string($value) && trim($value) !== ''
+            ? trim($value)
+            : self::DEFAULT_BUSY_MESSAGE;
     }
 
     /** @return list<string> */

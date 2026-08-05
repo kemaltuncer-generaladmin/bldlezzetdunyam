@@ -369,6 +369,14 @@ class _KitchenService implements KitchenService {
     '/kitchen/heartbeat',
     parse: (data) => HeartbeatResponse.fromJson(BldApi._asMap(data)),
   );
+
+  @override
+  Future<BusyState> setBusy(bool busy) => _api._send(
+    'POST',
+    '/kitchen/busy',
+    body: {'busy': busy},
+    parse: (data) => BusyState.fromJson(BldApi._asMap(data)),
+  );
 }
 
 class _AppVersionService implements AppVersionService {

@@ -21,6 +21,19 @@ class AppL10nTr extends AppL10n {
   String get unlockWrong => 'Şifre yanlış';
 
   @override
+  String get busyOn => 'Yoğunluk: KAPALI';
+
+  @override
+  String get busyOff => 'YOĞUNLUK AÇIK';
+
+  @override
+  String get busyTooltip =>
+      'Müşteriye gecikme uyarısı gösterir. Sipariş almayı durdurmaz.';
+
+  @override
+  String get busyFailed => 'Yoğunluk durumu değiştirilemedi';
+
+  @override
   String get windowMinimize => 'Küçült';
 
   @override

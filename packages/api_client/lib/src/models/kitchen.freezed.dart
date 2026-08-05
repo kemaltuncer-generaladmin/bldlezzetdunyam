@@ -3386,6 +3386,275 @@ as String,
 
 
 /// @nodoc
+mixin _$BusyState {
+
+ bool get busy; String get busyMessage; DateTime get serverTime;
+/// Create a copy of BusyState
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusyStateCopyWith<BusyState> get copyWith => _$BusyStateCopyWithImpl<BusyState>(this as BusyState, _$identity);
+
+  /// Serializes this BusyState to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusyState&&(identical(other.busy, busy) || other.busy == busy)&&(identical(other.busyMessage, busyMessage) || other.busyMessage == busyMessage)&&(identical(other.serverTime, serverTime) || other.serverTime == serverTime));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,busy,busyMessage,serverTime);
+
+@override
+String toString() {
+  return 'BusyState(busy: $busy, busyMessage: $busyMessage, serverTime: $serverTime)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusyStateCopyWith<$Res>  {
+  factory $BusyStateCopyWith(BusyState value, $Res Function(BusyState) _then) = _$BusyStateCopyWithImpl;
+@useResult
+$Res call({
+ bool busy, String busyMessage, DateTime serverTime
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusyStateCopyWithImpl<$Res>
+    implements $BusyStateCopyWith<$Res> {
+  _$BusyStateCopyWithImpl(this._self, this._then);
+
+  final BusyState _self;
+  final $Res Function(BusyState) _then;
+
+/// Create a copy of BusyState
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? busy = null,Object? busyMessage = null,Object? serverTime = null,}) {
+  return _then(_self.copyWith(
+busy: null == busy ? _self.busy : busy // ignore: cast_nullable_to_non_nullable
+as bool,busyMessage: null == busyMessage ? _self.busyMessage : busyMessage // ignore: cast_nullable_to_non_nullable
+as String,serverTime: null == serverTime ? _self.serverTime : serverTime // ignore: cast_nullable_to_non_nullable
+as DateTime,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [BusyState].
+extension BusyStatePatterns on BusyState {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _BusyState value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _BusyState() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _BusyState value)  $default,){
+final _that = this;
+switch (_that) {
+case _BusyState():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _BusyState value)?  $default,){
+final _that = this;
+switch (_that) {
+case _BusyState() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool busy,  String busyMessage,  DateTime serverTime)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _BusyState() when $default != null:
+return $default(_that.busy,_that.busyMessage,_that.serverTime);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool busy,  String busyMessage,  DateTime serverTime)  $default,) {final _that = this;
+switch (_that) {
+case _BusyState():
+return $default(_that.busy,_that.busyMessage,_that.serverTime);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool busy,  String busyMessage,  DateTime serverTime)?  $default,) {final _that = this;
+switch (_that) {
+case _BusyState() when $default != null:
+return $default(_that.busy,_that.busyMessage,_that.serverTime);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _BusyState implements BusyState {
+  const _BusyState({required this.busy, required this.busyMessage, required this.serverTime});
+  factory _BusyState.fromJson(Map<String, dynamic> json) => _$BusyStateFromJson(json);
+
+@override final  bool busy;
+@override final  String busyMessage;
+@override final  DateTime serverTime;
+
+/// Create a copy of BusyState
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$BusyStateCopyWith<_BusyState> get copyWith => __$BusyStateCopyWithImpl<_BusyState>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$BusyStateToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BusyState&&(identical(other.busy, busy) || other.busy == busy)&&(identical(other.busyMessage, busyMessage) || other.busyMessage == busyMessage)&&(identical(other.serverTime, serverTime) || other.serverTime == serverTime));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,busy,busyMessage,serverTime);
+
+@override
+String toString() {
+  return 'BusyState(busy: $busy, busyMessage: $busyMessage, serverTime: $serverTime)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$BusyStateCopyWith<$Res> implements $BusyStateCopyWith<$Res> {
+  factory _$BusyStateCopyWith(_BusyState value, $Res Function(_BusyState) _then) = __$BusyStateCopyWithImpl;
+@override @useResult
+$Res call({
+ bool busy, String busyMessage, DateTime serverTime
+});
+
+
+
+
+}
+/// @nodoc
+class __$BusyStateCopyWithImpl<$Res>
+    implements _$BusyStateCopyWith<$Res> {
+  __$BusyStateCopyWithImpl(this._self, this._then);
+
+  final _BusyState _self;
+  final $Res Function(_BusyState) _then;
+
+/// Create a copy of BusyState
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? busy = null,Object? busyMessage = null,Object? serverTime = null,}) {
+  return _then(_BusyState(
+busy: null == busy ? _self.busy : busy // ignore: cast_nullable_to_non_nullable
+as bool,busyMessage: null == busyMessage ? _self.busyMessage : busyMessage // ignore: cast_nullable_to_non_nullable
+as String,serverTime: null == serverTime ? _self.serverTime : serverTime // ignore: cast_nullable_to_non_nullable
+as DateTime,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
 mixin _$AppVersionInfo {
 
  String get appId; String get latest; String get minSupported;/// Yalnızca `mutfakapp` için dolu (`.deb` adresi).

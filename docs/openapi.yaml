@@ -580,6 +580,53 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/ForbiddenOrRevoked' }
 
+  /kitchen/busy:
+    parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
+    post:
+      tags: [Mutfak]
+      summary: Yoğunluk şalteri
+      description: |
+        Mutfaktaki tek tuş. Açıkken müşteri arayüzlerinde gecikme uyarısı
+        çıkar ve admin panelde görünür.
+
+        **Sipariş almayı DURDURMAZ.** Siparişi gerçekten kesen şalter
+        `ordering_enabled`'dır ve yalnızca yönetici değiştirebilir —
+        mutfak personeli tek tuşla cirosu kapatabilmemeli.
+
+        Durum vitrine yazılır, cihaza değil: iki kasa olsa ikisi de aynı
+        şeyi gösterir ve müşteri tarafı zaten vitrini okur.
+      operationId: setKitchenBusy
+      security:
+        - KitchenToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [busy]
+              properties:
+                busy: { type: boolean }
+      responses:
+        '200':
+          description: Yeni durum
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [busy, busy_message, server_time]
+                properties:
+                  busy: { type: boolean }
+                  busy_message: { type: string }
+                  server_time: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenOrRevoked' }
+        '422':
+          description: Doğrulama hatası
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
   /kitchen/heartbeat:
     parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
     get:
@@ -916,6 +963,22 @@ components:
           description: |
             Bu vitrinde **açık** olan ödeme yöntemleri. İstemci ödeme ekranında yalnızca
             bunları gösterir. Listede olmayan yöntemle sipariş → `422 VALIDATION_FAILED`.
+        busy:
+          type: boolean
+          description: |
+            Mutfak yoğun mu? Mutfak ekranındaki tek tuşla açılır
+            (`POST /kitchen/busy`).
+
+            **Sipariş almayı ENGELLEMEZ.** İstemci yalnızca `busy_message`
+            uyarısını gösterir. Siparişi gerçekten kesen şalter
+            `ordering_enabled`'dır ve o yöneticinindir.
+        busy_message:
+          type: string
+          description: |
+            `busy` doğruyken gösterilecek metin. Yönetici admin panelden
+            değiştirebilir. İstemciler kendi metnini gömmemelidir: metin
+            değişince üç uygulamayı birden yayınlamak gerekirdi.
+          example: Mutfağımız şu anda yoğun. Siparişiniz alınır ancak hazırlanması normalden uzun sürebilir.
 
     MenuCategory:
       type: object
