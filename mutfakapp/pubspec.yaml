@@ -54,4 +54,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    # Yeni sipariş alarmı. Ses, personel onaylayana kadar döngüde çalar;
+    # tek bir bip mutfakta duyulmaz (docs/05 §3).
+    - assets/sounds/
   generate: true
