@@ -48,7 +48,4 @@ export function FormField({ id, label, error, hint, children }: Props) {
 }
 
 export const inputClass = (invalid: boolean): string =>
-  cn(
-    'w-full rounded-lg border px-3 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400',
-    invalid ? 'border-danger bg-danger/5' : 'border-neutral-200 bg-neutral-0',
-  );
+  cn('bld-field', invalid && 'border-danger bg-danger/5');

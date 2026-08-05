@@ -27,14 +27,16 @@ export default async function RegisterPage({
   if (await getCurrentCustomerSafe()) redirect(next);
 
   return (
-    <div className="mx-auto w-full max-w-lg px-4 py-10 sm:py-16">
-      <h1 className="text-2xl font-bold text-neutral-900">Hesap oluştur</h1>
-      <p className="mt-2 text-sm text-neutral-600">
-        Sipariş verebilmek ve siparişinizi anlık takip edebilmek için kısa bir kayıt yeterli.
-      </p>
+    <div className="bg-gradient-to-b from-brand-50 to-neutral-50">
+      <div className="mx-auto w-full max-w-lg px-4 py-10 sm:py-16">
+        <h1 className="text-2xl font-bold">Hesap oluştur</h1>
+        <p className="mt-2 text-sm text-neutral-600">
+          Sipariş verebilmek ve siparişinizi anlık takip edebilmek için kısa bir kayıt yeterli.
+        </p>
 
-      <div className="bld-card mt-6 p-5 sm:p-6">
-        <RegisterForm next={next} />
+        <div className="bld-card mt-6 p-5 shadow-md sm:p-6">
+          <RegisterForm next={next} />
+        </div>
       </div>
     </div>
   );

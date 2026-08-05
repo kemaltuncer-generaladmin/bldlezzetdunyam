@@ -1,10 +1,13 @@
 import type { Metadata } from 'next';
+import { CartSummaryBar, CartSummaryPanel } from '@/components/cart-summary';
+import { EmptyState } from '@/components/empty-state';
 import { ErrorState } from '@/components/error-state';
+import { IconPlate } from '@/components/icons';
 import { JsonLd } from '@/components/json-ld';
-import { MenuFilter, type MenuSection } from '@/components/menu-filter';
+import { LocationFacts } from '@/components/location-facts';
+import { MenuBrowser } from '@/components/menu-browser';
 import { KitchenBusyBanner } from '@/components/kitchen-busy-banner';
 import { OrderingClosedBanner } from '@/components/ordering-banner';
-import { ProductCard } from '@/components/product-card';
 import { SITE_URL } from '@/lib/api/client';
 import { fetchCatalog, isOrderingOpen } from '@/lib/api/catalog';
 import { schemaOrgPrice } from '@/lib/format';
@@ -74,62 +77,49 @@ export default async function MenuPage() {
   const orderingOpen = isOrderingOpen(snapshot.location);
   const categories = snapshot.categories.filter((category) => (category.items ?? []).length > 0);
 
-  const sections: MenuSection[] = categories.map((category) => {
-    const items = category.items ?? [];
-    return {
-      id: category.id,
-      name: category.name,
-      count: items.length,
-      content: (
-        <section aria-labelledby={`kategori-${category.id}`}>
-          <h2
-            id={`kategori-${category.id}`}
-            className="text-xl font-bold text-neutral-900 sm:text-2xl"
-          >
-            {category.name}
-          </h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {items.map((item, index) => (
-              <ProductCard
-                key={item.id}
-                item={item}
-                orderingOpen={orderingOpen}
-                priority={index < 3}
-              />
-            ))}
-          </div>
-        </section>
-      ),
-    };
-  });
-
   return (
-    <div className="mx-auto max-w-content px-4 py-8 sm:py-12">
+    <>
       <JsonLd data={menuJsonLd(snapshot)} />
 
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold text-neutral-900 sm:text-4xl">Catering menüsü</h1>
-        <p className="mt-2 max-w-2xl text-sm text-neutral-600 sm:text-base">
-          Günlük olarak hazırladığımız yemekler. Fiyatlar porsiyon başınadır, KDV dahildir.
-        </p>
-      </header>
+      <div className="border-b border-neutral-200 bg-gradient-to-b from-brand-50 to-neutral-50">
+        <div className="mx-auto max-w-content px-4 py-8 sm:py-10">
+          <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">
+            Günün menüsü
+          </p>
+          <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Catering menüsü</h1>
+          <p className="mt-2 max-w-2xl text-sm text-neutral-800 sm:text-base">
+            Günlük olarak hazırladığımız yemekler. Fiyatlar porsiyon başınadır, KDV dahildir.
+          </p>
 
-      {!orderingOpen && (
-        <div className="mb-6">
-          <OrderingClosedBanner location={snapshot.location} />
+          <LocationFacts location={snapshot.location} className="mt-5" />
+        </div>
+      </div>
+
+      {/* Alt sepet çubuğu içeriği kapatmasın diye mobilde alttan boşluk. */}
+      <div className="mx-auto max-w-content px-4 pb-28 pt-6 sm:pt-8 lg:pb-16">
+        <div className="space-y-3 empty:hidden">
+          {!orderingOpen && <OrderingClosedBanner location={snapshot.location} />}
           <KitchenBusyBanner />
         </div>
-      )}
 
-      {sections.length === 0 ? (
-        <ErrorState
-          title="Menü şu an boş"
-          message="Bugün için henüz ürün yayınlanmadı. Kısa süre içinde tekrar bakın."
-          retryHref="/menu"
-        />
-      ) : (
-        <MenuFilter sections={sections} />
-      )}
-    </div>
+        {categories.length === 0 ? (
+          <EmptyState
+            className="mt-8"
+            icon={<IconPlate className="h-8 w-8" />}
+            title="Menü şu an boş"
+            message="Bugün için henüz ürün yayınlanmadı. Kısa süre içinde tekrar bakın."
+            actionHref="/"
+            actionLabel="Ana sayfaya dön"
+          />
+        ) : (
+          <div className="mt-4 grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
+            <MenuBrowser categories={categories} orderingOpen={orderingOpen} />
+            <CartSummaryPanel />
+          </div>
+        )}
+      </div>
+
+      <CartSummaryBar />
+    </>
   );
 }

@@ -26,23 +26,22 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   if (await getCurrentCustomerSafe()) redirect(next);
 
   return (
-    <div className="mx-auto w-full max-w-md px-4 py-10 sm:py-16">
-      <h1 className="text-2xl font-bold text-neutral-900">Giriş yap</h1>
-      <p className="mt-2 text-sm text-neutral-600">
-        Siparişlerinizi takip etmek ve hızlı sipariş vermek için hesabınıza girin.
-      </p>
-
-      {expired && (
-        <p
-          role="status"
-          className="mt-4 rounded-md bg-warning/10 px-3 py-2 text-sm text-neutral-900"
-        >
-          Oturumunuzun süresi doldu. Devam etmek için tekrar giriş yapın.
+    <div className="bg-gradient-to-b from-brand-50 to-neutral-50">
+      <div className="mx-auto w-full max-w-md px-4 py-10 sm:py-16">
+        <h1 className="text-2xl font-bold">Giriş yap</h1>
+        <p className="mt-2 text-sm text-neutral-600">
+          Siparişlerinizi takip etmek ve hızlı sipariş vermek için hesabınıza girin.
         </p>
-      )}
 
-      <div className="bld-card mt-6 p-5 sm:p-6">
-        <LoginForm next={next} />
+        {expired && (
+          <p role="status" className="mt-4 rounded-md bg-warning/10 px-3 py-2 text-sm">
+            Oturumunuzun süresi doldu. Devam etmek için tekrar giriş yapın.
+          </p>
+        )}
+
+        <div className="bld-card mt-6 p-5 shadow-md sm:p-6">
+          <LoginForm next={next} />
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { EmptyState } from '@/components/empty-state';
 import { ErrorState } from '@/components/error-state';
+import { IconCart, IconChevronRight } from '@/components/icons';
 import { fetchOrders } from '@/lib/api/orders';
 import { formatDateTime, formatPrice } from '@/lib/format';
 import { orderStatusLabel } from '@/lib/labels';
@@ -69,14 +71,14 @@ export default async function MyOrdersPage({
       <h1 className="text-3xl font-bold text-neutral-900">Siparişlerim</h1>
 
       {orders.length === 0 ? (
-        <div className="mt-8">
-          <ErrorState
-            title="Henüz siparişiniz yok"
-            message="Menüden seçim yaparak ilk siparişinizi oluşturabilirsiniz."
-            retryHref="/menu"
-            retryLabel="Menüye git"
-          />
-        </div>
+        <EmptyState
+          className="mt-8"
+          icon={<IconCart className="h-8 w-8" />}
+          title="Henüz siparişiniz yok"
+          message="Menüden seçim yaparak ilk siparişinizi oluşturabilirsiniz."
+          actionHref="/menu"
+          actionLabel="Menüye git"
+        />
       ) : (
         <>
           <ul className="mt-6 space-y-3">
@@ -94,17 +96,13 @@ export default async function MyOrdersPage({
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <span
-                      className={cn(
-                        'rounded-full px-3 py-1 text-xs font-semibold',
-                        statusTone(order.status),
-                      )}
-                    >
+                    <span className={cn('bld-badge', statusTone(order.status))}>
                       {orderStatusLabel(order.status)}
                     </span>
                     <span className="text-base font-bold text-neutral-900">
                       {formatPrice(order.total)}
                     </span>
+                    <IconChevronRight className="h-5 w-5 text-neutral-400" />
                   </div>
                 </Link>
               </li>
@@ -114,10 +112,7 @@ export default async function MyOrdersPage({
           {meta.last_page > 1 && (
             <nav aria-label="Sayfalama" className="mt-8 flex items-center justify-between gap-3">
               {page > 1 ? (
-                <Link
-                  href={`/siparislerim?sayfa=${page - 1}`}
-                  className="rounded-lg border border-neutral-200 px-4 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-neutral-100"
-                >
+                <Link href={`/siparislerim?sayfa=${page - 1}`} className="bld-btn-secondary">
                   Önceki
                 </Link>
               ) : (
@@ -129,10 +124,7 @@ export default async function MyOrdersPage({
               </span>
 
               {page < meta.last_page ? (
-                <Link
-                  href={`/siparislerim?sayfa=${page + 1}`}
-                  className="rounded-lg border border-neutral-200 px-4 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-neutral-100"
-                >
+                <Link href={`/siparislerim?sayfa=${page + 1}`} className="bld-btn-secondary">
                   Sonraki
                 </Link>
               ) : (

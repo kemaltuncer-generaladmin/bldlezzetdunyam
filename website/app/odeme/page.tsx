@@ -27,6 +27,7 @@ export default async function CheckoutPage() {
 
   const orderingOpen = isOrderingOpen(cart.location);
   const minOrderTotal = cart.location?.min_order_total ?? 0;
+  const deliveryFee = cart.location?.delivery_fee ?? 0;
   const belowMinimum = cart.subtotal < minOrderTotal;
   const paymentMethods = cart.location?.payment_methods ?? [];
 
@@ -116,9 +117,11 @@ export default async function CheckoutPage() {
               <span className="text-neutral-600">Ara toplam</span>
               <span className="font-semibold text-neutral-900">{formatPrice(cart.subtotal)}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between gap-3">
               <span className="text-neutral-600">Teslimat ücreti</span>
-              <span className="text-neutral-600">Adrese teslimde eklenir</span>
+              <span className="text-right text-neutral-800">
+                {deliveryFee > 0 ? `${formatPrice(deliveryFee)} (adrese teslimde)` : 'Ücretsiz'}
+              </span>
             </div>
           </div>
 
@@ -127,10 +130,7 @@ export default async function CheckoutPage() {
             görünür.
           </p>
 
-          <Link
-            href="/sepet"
-            className="mt-5 block rounded-lg border border-neutral-200 px-4 py-2.5 text-center text-sm font-semibold text-neutral-900 hover:bg-neutral-100"
-          >
+          <Link href="/sepet" className="bld-btn-secondary mt-5 w-full">
             Sepeti düzenle
           </Link>
         </aside>

@@ -22,11 +22,21 @@ export async function SiteFooter() {
   ];
 
   return (
-    <footer className="border-t border-neutral-200 bg-neutral-0">
-      <div className="mx-auto grid max-w-content gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-3">
+    <footer className="mt-auto border-t border-neutral-200 bg-neutral-0">
+      <div className="mx-auto grid max-w-content gap-8 px-4 py-12 sm:grid-cols-2 lg:grid-cols-3">
         <div>
-          <p className="text-base font-semibold text-neutral-900">{brand('name')}</p>
-          <p className="mt-2 max-w-sm text-sm text-neutral-600">{brand('tagline')}</p>
+          <p className="flex items-center gap-2 text-base font-semibold text-neutral-900">
+            <span
+              aria-hidden="true"
+              className="grid h-8 w-8 place-items-center rounded-lg bg-brand-500 text-sm font-bold text-neutral-900"
+            >
+              BL
+            </span>
+            {brand('name')}
+          </p>
+          <p className="mt-3 max-w-sm text-sm leading-relaxed text-neutral-600">
+            {brand('tagline')}
+          </p>
         </div>
 
         <nav aria-label={t('legalAria')}>

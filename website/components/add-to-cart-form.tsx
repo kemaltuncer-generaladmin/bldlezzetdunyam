@@ -51,7 +51,7 @@ export function AddToCartForm({
         type="submit"
         disabled={disabled || pending}
         aria-disabled={disabled || pending}
-        className="w-full rounded-lg bg-brand-700 px-4 py-3 text-sm font-semibold text-neutral-0 transition-colors hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-600"
+        className="bld-btn-primary w-full"
       >
         {pending ? 'Ekleniyor…' : disabled ? (disabledReason ?? 'Eklenemez') : label}
       </button>

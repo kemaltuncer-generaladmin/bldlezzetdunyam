@@ -3,7 +3,7 @@
 export function ProductCardSkeleton() {
   return (
     <div className="bld-card overflow-hidden" aria-hidden="true">
-      <div className="bld-skeleton aspect-[3/2] rounded-none" />
+      <div className="bld-skeleton aspect-[4/3] rounded-none" />
       <div className="space-y-2 p-4">
         <div className="bld-skeleton h-5 w-2/3" />
         <div className="bld-skeleton h-4 w-full" />
@@ -16,10 +16,28 @@ export function ProductCardSkeleton() {
 
 export function ProductGridSkeleton({ count = 6 }: { count?: number }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {Array.from({ length: count }, (_, index) => (
         <ProductCardSkeleton key={index} />
       ))}
+    </div>
+  );
+}
+
+/** Arama kutusu, sıralama ve kategori çubuğunun yer tutucusu. */
+export function MenuToolbarSkeleton() {
+  return (
+    <div aria-hidden="true">
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="bld-skeleton h-12 flex-1" />
+        <div className="bld-skeleton h-12 w-full sm:w-52" />
+        <div className="bld-skeleton h-12 w-32" />
+      </div>
+      <div className="mt-4 flex gap-2 overflow-hidden">
+        {Array.from({ length: 4 }, (_, index) => (
+          <div key={index} className="bld-skeleton h-11 w-28 shrink-0 rounded-full" />
+        ))}
+      </div>
     </div>
   );
 }

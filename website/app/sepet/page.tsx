@@ -1,10 +1,13 @@
 import type { Metadata } from 'next';
-import Image from 'next/image';
 import Link from 'next/link';
 import { CartLineControls } from '@/components/cart-line-controls';
+import { EmptyState } from '@/components/empty-state';
 import { ErrorState } from '@/components/error-state';
+import { IconCart, IconChevronRight, IconTruck } from '@/components/icons';
 import { KitchenBusyBanner } from '@/components/kitchen-busy-banner';
+import { MinOrderProgress } from '@/components/min-order-progress';
 import { OrderingClosedBanner } from '@/components/ordering-banner';
+import { ProductImage } from '@/components/product-image';
 import { isOrderingOpen } from '@/lib/api/catalog';
 import { resolveCart, type ResolvedCart } from '@/lib/cart';
 import { formatPrice } from '@/lib/format';
@@ -37,90 +40,87 @@ export default async function CartPage() {
 
   const orderingOpen = isOrderingOpen(cart.location);
   const minOrderTotal = cart.location?.min_order_total ?? 0;
+  const deliveryFee = cart.location?.delivery_fee ?? 0;
   const belowMinimum = cart.subtotal < minOrderTotal;
   const canCheckout =
     cart.lines.length > 0 && orderingOpen && !cart.hasUnavailable && !belowMinimum;
 
   return (
     <div className="mx-auto max-w-content px-4 py-8 sm:py-12">
-      <h1 className="text-3xl font-bold text-neutral-900">Sepetim</h1>
-
-      {!orderingOpen && (
-        <div className="mt-5">
-          <OrderingClosedBanner location={cart.location} />
-          <KitchenBusyBanner />
-        </div>
+      <h1 className="text-3xl font-bold">Sepetim</h1>
+      {cart.lines.length > 0 && (
+        <p className="mt-1 text-sm text-neutral-600">
+          {cart.itemCount} ürün · {cart.lines.length} kalem
+        </p>
       )}
+
+      <div className="mt-5 space-y-3 empty:mt-0">
+        {!orderingOpen && <OrderingClosedBanner location={cart.location} />}
+        <KitchenBusyBanner />
+      </div>
 
       {cart.missingMenuIds.length > 0 && (
         <p
           role="status"
-          className="mt-5 rounded-card border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-neutral-900"
+          className="mt-5 rounded-card border border-warning/40 bg-warning/10 px-4 py-3 text-sm"
         >
           Sepetinizdeki {cart.missingMenuIds.length} ürün menüden kaldırıldığı için çıkarıldı.
         </p>
       )}
 
       {cart.lines.length === 0 ? (
-        <div className="mt-8">
-          <ErrorState
-            title="Sepetiniz boş"
-            message="Menüden ürün ekleyerek siparişinize başlayabilirsiniz."
-            retryHref="/menu"
-            retryLabel="Menüye git"
-          />
-        </div>
+        <EmptyState
+          className="mt-10"
+          icon={<IconCart className="h-8 w-8" />}
+          title="Sepetiniz boş"
+          message="Menüden ürün ekleyerek siparişinize başlayabilirsiniz. Günün yemekleri her sabah yenilenir."
+          actionHref="/menu"
+          actionLabel="Menüye git"
+        />
       ) : (
-        <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_20rem]">
+        <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_21rem]">
           <ul className="space-y-4">
             {cart.lines.map((line) => (
               <li key={line.key} className="bld-card flex gap-3 p-3 sm:gap-4 sm:p-4">
                 <Link
                   href={productPath(line.item)}
+                  aria-hidden="true"
                   tabIndex={-1}
                   className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-neutral-100 sm:h-24 sm:w-24"
                 >
-                  {line.item.image_url ? (
-                    <Image
-                      src={line.item.image_url}
-                      alt=""
-                      fill
-                      sizes="96px"
-                      className="object-cover"
-                    />
-                  ) : (
-                    <span
-                      aria-hidden="true"
-                      className="grid h-full w-full place-items-center text-2xl text-neutral-400"
-                    >
-                      🍽️
-                    </span>
-                  )}
+                  <ProductImage
+                    src={line.item.image_url}
+                    alt=""
+                    sizes="96px"
+                    className={line.unavailable ? 'grayscale' : undefined}
+                  />
                 </Link>
 
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <h2 className="text-base font-semibold text-neutral-900">
+                    <h2 className="text-base font-semibold">
                       <Link href={productPath(line.item)} className="rounded hover:text-brand-700">
                         {line.item.name}
                       </Link>
                     </h2>
-                    <p className="text-base font-bold text-neutral-900">
-                      {formatPrice(line.lineTotal)}
-                    </p>
+                    <p className="text-base font-bold">{formatPrice(line.lineTotal)}</p>
                   </div>
 
                   {line.optionValues.length > 0 && (
-                    <p className="mt-0.5 text-sm text-neutral-600">
-                      {line.optionValues.map((value) => value.name).join(', ')}
-                    </p>
+                    <ul className="mt-1 flex flex-wrap gap-1.5">
+                      {line.optionValues.map((value) => (
+                        <li key={value.id} className="bld-badge bg-neutral-100 text-neutral-800">
+                          {value.name}
+                        </li>
+                      ))}
+                    </ul>
                   )}
                   {line.note && (
-                    <p className="mt-0.5 text-sm text-neutral-600">
+                    <p className="mt-1 text-sm text-neutral-600">
                       <span className="font-medium">Not:</span> {line.note}
                     </p>
                   )}
-                  <p className="mt-0.5 text-sm text-neutral-600">
+                  <p className="mt-1 text-sm text-neutral-600">
                     Birim: {formatPrice(line.unitPrice)}
                   </p>
 
@@ -142,39 +142,44 @@ export default async function CartPage() {
             ))}
           </ul>
 
-          <aside className="bld-card h-fit p-5 lg:sticky lg:top-24">
-            <h2 className="text-lg font-semibold text-neutral-900">Sipariş özeti</h2>
+          <aside aria-labelledby="siparis-ozeti" className="bld-card h-fit p-5 lg:sticky lg:top-24">
+            <h2 id="siparis-ozeti" className="text-lg font-semibold">
+              Sipariş özeti
+            </h2>
 
             <dl className="mt-4 space-y-2 text-sm">
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <dt className="text-neutral-600">Ürünler ({cart.itemCount} adet)</dt>
-                <dd className="font-medium text-neutral-900">{formatPrice(cart.subtotal)}</dd>
+                <dd className="font-medium">{formatPrice(cart.subtotal)}</dd>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-neutral-600">Teslimat ücreti</dt>
-                <dd className="text-neutral-600">Sipariş adımında hesaplanır</dd>
+              <div className="flex justify-between gap-3">
+                <dt className="flex items-center gap-1.5 text-neutral-600">
+                  <IconTruck className="h-4 w-4" />
+                  Teslimat ücreti
+                </dt>
+                <dd className="text-right text-neutral-800">
+                  {deliveryFee > 0 ? `${formatPrice(deliveryFee)}` : 'Ücretsiz'}
+                </dd>
               </div>
             </dl>
+            <p className="mt-2 text-xs text-neutral-600">
+              Teslimat ücreti yalnızca adrese teslim siparişlerde eklenir; gel-al seçerseniz
+              alınmaz.
+            </p>
 
-            <div className="mt-4 flex items-baseline justify-between border-t border-neutral-200 pt-4">
-              <span className="text-sm font-semibold text-neutral-900">Ara toplam</span>
-              <span className="text-xl font-bold text-neutral-900">
-                {formatPrice(cart.subtotal)}
-              </span>
+            <div className="mt-4 flex items-baseline justify-between gap-3 border-t border-neutral-200 pt-4">
+              <span className="text-sm font-semibold">Ara toplam</span>
+              <span className="text-2xl font-bold">{formatPrice(cart.subtotal)}</span>
             </div>
             <p className="mt-1 text-xs text-neutral-600">
               Kesin tutar siparişi oluştururken sunucuda hesaplanır.
             </p>
 
-            {belowMinimum && (
-              <p
-                role="status"
-                className="mt-4 rounded-md bg-warning/10 px-3 py-2 text-sm text-neutral-900"
-              >
-                Minimum sipariş tutarı {formatPrice(minOrderTotal)}. Devam etmek için{' '}
-                {formatPrice(minOrderTotal - cart.subtotal)} tutarında ürün ekleyin.
-              </p>
-            )}
+            <MinOrderProgress
+              subtotal={cart.subtotal}
+              minOrderTotal={minOrderTotal}
+              className="mt-4"
+            />
 
             {cart.hasUnavailable && (
               <p
@@ -186,25 +191,20 @@ export default async function CartPage() {
             )}
 
             {canCheckout ? (
-              <Link
-                href="/odeme"
-                className="mt-5 block rounded-lg bg-brand-700 px-4 py-3 text-center text-sm font-semibold text-neutral-0 hover:bg-brand-800"
-              >
+              <Link href="/odeme" className="bld-btn-primary mt-5 w-full">
                 Siparişi tamamla
+                <IconChevronRight className="h-4 w-4" />
               </Link>
             ) : (
               <p
                 aria-disabled="true"
-                className="mt-5 block cursor-not-allowed rounded-lg bg-neutral-200 px-4 py-3 text-center text-sm font-semibold text-neutral-600"
+                className="bld-btn mt-5 w-full cursor-not-allowed bg-neutral-200 text-neutral-600"
               >
                 {orderingOpen ? 'Siparişi tamamla' : 'Sipariş alımı kapalı'}
               </p>
             )}
 
-            <Link
-              href="/menu"
-              className="mt-3 block rounded-lg border border-neutral-200 px-4 py-3 text-center text-sm font-semibold text-neutral-900 hover:bg-neutral-100"
-            >
+            <Link href="/menu" className="bld-btn-secondary mt-3 w-full">
               Alışverişe devam et
             </Link>
           </aside>

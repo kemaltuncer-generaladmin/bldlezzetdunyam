@@ -1,4 +1,3 @@
-
 import type { Location } from '@/lib/api/types';
 
 /**

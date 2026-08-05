@@ -26,10 +26,7 @@ export default function IletisimPage() {
           <p className="mt-2 text-sm text-neutral-600">
             Menüden seçim yapıp sepetinizi oluşturun; sipariş birkaç adımda tamamlanır.
           </p>
-          <Link
-            href="/menu"
-            className="mt-4 inline-block rounded-lg bg-brand-700 px-5 py-2.5 text-sm font-semibold text-neutral-0 hover:bg-brand-800"
-          >
+          <Link href="/menu" className="bld-btn-primary mt-4">
             Menüyü aç
           </Link>
         </div>

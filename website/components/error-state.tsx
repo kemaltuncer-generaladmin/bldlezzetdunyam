@@ -19,10 +19,7 @@ export function ErrorState({
       <p className="text-lg font-semibold text-neutral-900">{title}</p>
       <p className="mt-2 text-sm text-neutral-600">{message}</p>
       {retryHref && (
-        <Link
-          href={retryHref}
-          className="mt-5 inline-block rounded-lg bg-brand-700 px-5 py-2.5 text-sm font-semibold text-neutral-0 hover:bg-brand-800"
-        >
+        <Link href={retryHref} className="bld-btn-primary mt-5">
           {retryLabel}
         </Link>
       )}

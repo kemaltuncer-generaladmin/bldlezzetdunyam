@@ -72,11 +72,7 @@ export function LoginForm({ next }: { next: string }) {
         )}
       </FormField>
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="w-full rounded-lg bg-brand-700 px-4 py-3 text-sm font-semibold text-neutral-0 hover:bg-brand-800 disabled:bg-neutral-200 disabled:text-neutral-600"
-      >
+      <button type="submit" disabled={pending} className="bld-btn-primary w-full">
         {pending ? 'Giriş yapılıyor…' : 'Giriş yap'}
       </button>
 

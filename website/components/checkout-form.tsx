@@ -260,7 +260,7 @@ export function CheckoutForm({ paymentMethods, minRequestedAt, orderCutoff }: Pr
       <button
         type="submit"
         disabled={pending || paymentMethods.length === 0}
-        className="w-full rounded-lg bg-brand-700 px-4 py-3.5 text-base font-semibold text-neutral-0 hover:bg-brand-800 disabled:bg-neutral-200 disabled:text-neutral-600"
+        className="bld-btn-primary w-full py-3.5 text-base"
       >
         {pending ? 'Sipariş oluşturuluyor…' : 'Siparişi onayla'}
       </button>
