@@ -37,7 +37,8 @@ F2-01 Adres modeli + Maps
         └─ F2-04 Gel-al noktaları ve saatleri
 F2-05 Fiyat motoru (tek yerde hesap)
    ├─ F2-06 Kampanyalar
-   └─ F2-07 Kupon kodları
+   ├─ F2-07 Kupon kodları
+   └─ F2-09 Abonelik (kurumsal öğle yemeği)  ← catering'in asıl iş modeli
 F2-08 Admin: yoğunluk ve şalterler tek ekranda
 ```
 
@@ -176,6 +177,107 @@ girer girmez geçerliliğini görmeli, siparişi gönderdiğinde değil.
 > **Güvenlik:** kupon doğrulama ucu kaba kuvvete açıktır (geçerli kod
 > aramak). `bld-auth` benzeri sıkı bir oran sınırı ve müşteri başına
 > deneme limiti gerekir.
+
+---
+
+## 7.5 F2-09 — Abonelik (kurumsal öğle yemeği)
+
+**Catering'in asıl iş modeli bu, tek seferlik sipariş değil.** Müşterinin
+tarifi: *"adam aylık abone olacak öğle yemeği için, mesela 20 adet her gün
+siparişi olacak, bizden satın almış olacak."*
+
+### Bunun tek seferlik siparişten farkı
+
+Abonelik **bir sipariş değil, sipariş üreten bir kural**. Bu ayrımı
+kaçırmak en pahalı hatadır: aboneliği "tekrar eden sipariş" diye
+modellersek, bir günü atlamak ya da o günkü adedi değiştirmek geçmişi de
+değiştirir. Doğru model:
+
+```
+Abonelik (kural)  ──her gün──>  Sipariş (o günün gerçeği)
+```
+
+Sipariş üretildikten sonra **kendi hayatını yaşar**: mutfak onaylar,
+hazırlar, teslim eder. Abonelik değişse bile üretilmiş sipariş değişmez —
+teslim edilmiş bir günün ne olduğu okunabilir kalmalı.
+
+### Veri modeli
+
+| Alan | Ne |
+|---|---|
+| müşteri | Kurumsal hesap |
+| teslimat noktası | Adres defterinden; **birden fazla olabilir** (aynı firmanın iki katı) |
+| adet | Günlük porsiyon (20) |
+| menü seçimi | "Günün menüsü" ya da sabit ürün listesi |
+| takvim | Hangi günler (hafta içi / seçili günler) |
+| dönem | Başlangıç–bitiş, ya da süresiz + iptal |
+| teslim saati | Her gün aynı saat penceresi |
+| fiyat | Porsiyon başı **anlaşmalı fiyat** — liste fiyatından farklı |
+| ödeme | Peşin aylık, ya da cari hesaba işlenip ay sonu faturalanır |
+
+### Günlük sipariş üretimi
+
+Zamanlanmış bir iş her gece ertesi günün siparişlerini üretir ve KDS'e
+normal sipariş olarak düşer — mutfağın "abonelik" diye ayrı bir akış
+öğrenmesi gerekmez.
+
+> **Üretim saati kesim saatinden ÖNCE olmalı** ve aradaki fark
+> müşterinin adet değiştirmesine yetmeli. Sabah 06:00'da üretip 07:00'de
+> kesim yapmak, "yarın 5 kişi eksiğiz" diyen müşteriye yer bırakmaz.
+
+> **İdempotent olmalı.** İş iki kez koşarsa (yeniden başlatma, elle
+> tetikleme) aynı gün için ikinci sipariş üretilmemeli.
+> `UNIQUE(subscription_id, service_date)` bunu şemada garanti eder —
+> koda güvenmek yetmez.
+
+### Kaçınılması gereken tuzaklar
+
+**Tatil ve kapalı günler.** Resmî tatilde üretim durmalı. Bunu elle
+yapmak, bayram sabahı 400 porsiyonun boşa pişmesi demektir. Vitrinin
+çalışma takvimi ve bir "kapalı günler" listesi kurala bağlanmalı.
+
+**Ara değişiklikler.** "Yarın 20 değil 12" ve "gelecek haftadan itibaren
+25" farklı şeylerdir: birincisi tek günlük istisna, ikincisi kuralın
+kendisi. İkisi için ayrı yol gerekir; tek bir "adet" alanını değiştirmek
+geçmişi bozar.
+
+**Duraklatma.** Firma iki hafta kapalı. İptal değil, duraklatma — abonelik
+geri döndüğünde aynı fiyatla devam etmeli.
+
+**Anlaşmalı fiyat liste fiyatından bağımsızdır.** Menü fiyatı zamla
+değişince abonelik fiyatı kendiliğinden değişmemeli; sözleşme dönem
+boyunca sabit. Sipariş üretilirken **o günkü anlaşmalı fiyat** siparişe
+kopyalanır (adres kopyalamasıyla aynı gerekçe: geçmiş değişmemeli).
+
+**Diyet ve alerjen varyantları.** 20 porsiyonun 3'ü vejetaryen olabilir.
+Abonelik satırı tek bir ürün değil, **satır listesi** olmalı.
+
+**Fatura.** Ay sonu tek fatura, sipariş başına değil. Cari hesap zaten
+var (`payment_method: account`); abonelik onun üstüne oturur. e-Arşiv
+ayrı bir süreç (`docs/10` bilinen sınırlar).
+
+### Mutfak tarafı
+
+Ekranda değişen bir şey yok — abonelik siparişleri normal sipariş olarak
+düşer. **Üretim şeridi zaten ürün bazında topluyor** ("120 porsiyon tavuk
+sote"), ki abonelikte asıl ihtiyaç budur.
+
+Tek ekleme: kartta "abonelik" rozeti. Mutfak, tek seferlik bir siparişle
+her gün gelen bir kurumu ayırt edebilmeli — ikincisinde hata yapmak
+sözleşme kaybettirir.
+
+### Sözleşme etkisi (additive)
+
+- `Subscription` şeması ve `GET/POST/PATCH /subscriptions`
+- `Order`'a `subscription_id` (nullable) — müşteri "bu hangi abonelikten"
+  görebilsin
+- Mutfak listesindeki `KitchenOrder`'a `is_subscription` (bool)
+
+### Bağımlılık
+
+**F2-05 fiyat motorundan sonra.** Anlaşmalı fiyat, kampanya ve kupon aynı
+hesabın içinde yaşayacak; aboneliği ayrı bir fiyat yoluyla yazmak, ikisinin
+çakıştığı gün toplamı bozar.
 
 ---
 
