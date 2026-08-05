@@ -128,27 +128,28 @@ void main() {
     expect(timers.single.cancelled, isTrue);
   });
 
-  test('susturma yalnızca BU kopmayı susturur', () async {
+  test('SUSTURULAMAZ — sesi durduran tek şey bağlantının gelmesidir', () async {
+    // Yeni sipariş alarmının sustur düğmesi var çünkü personel siparişi
+    // görüp onaylayabilir. Bağlantı kopmasında susturmak, tek uyarıyı
+    // kapatıp mutfağı kör bırakmak demek ve kopukluk saatlerce sürebilir.
     final alarm = build();
     alarm.onConnectionChanged(disconnected: true);
     await pumpEventQueue();
 
-    final susturuldu = alarm.silence();
-    expect(susturuldu.silenced, isTrue);
+    // Kopukluk sürdükçe her aralıkta yeniden çalar; durduracak bir yol yok.
+    for (var i = 0; i < 3; i++) {
+      timers.single.fire();
+      await pumpEventQueue();
+    }
 
-    final oncekiBaslangic = player.starts;
-    timers.single.fire();
-    await pumpEventQueue();
-    expect(player.starts, oncekiBaslangic, reason: 'Susturulmuşken çalmamalı.');
+    expect(player.starts, 4, reason: 'İlk uyarı + üç tekrar.');
 
-    // Bağlantı gelip yeniden koparsa uyarı geri gelmeli — "bir kez
-    // susturdum" kalıcı olmamalı.
+    // Yalnızca bağlantının gelmesi susturur.
     alarm.onConnectionChanged(disconnected: false);
-    final tekrar = alarm.onConnectionChanged(disconnected: true);
+    final oncekiBaslangic = player.starts;
     await pumpEventQueue();
 
-    expect(tekrar.silenced, isFalse);
-    expect(player.starts, oncekiBaslangic + 1);
+    expect(player.starts, oncekiBaslangic);
     alarm.dispose();
   });
 

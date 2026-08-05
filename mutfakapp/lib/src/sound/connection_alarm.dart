@@ -5,7 +5,7 @@
 /// gelmez. Sessiz kalırsa kimse fark etmez — en tehlikeli arıza türü,
 /// hiçbir şeyin bozuk görünmediği arızadır.
 ///
-/// YENİ SİPARİŞ ALARMINDAN İKİ FARKI VAR, ikisi de bilinçli:
+/// YENİ SİPARİŞ ALARMINDAN ÜÇ FARKI VAR, üçü de bilinçli:
 ///
 /// 1. **Sesi farklıdır** (`baglanti_yok.wav`, alçalan iki ton). Aynı sesi
 ///    kullansaydık personel hangisinin çaldığını ayırt edemez, yeni sipariş
@@ -17,6 +17,13 @@
 ///    yapabilecekleri bir şey olmadığı hâlde onları cezalandırmaktır ve
 ///    sonu hoparlörün fişini çekmektir. Aralıklı uyarı fark edilir kalır,
 ///    dayanılmaz olmaz.
+///
+/// 3. **SUSTURULAMAZ.** Yeni sipariş alarmının bir "sustur" düğmesi var
+///    çünkü personel siparişi görüp onaylayabilir. Bağlantı kopmasında
+///    susturmak, tek uyarıyı kapatıp mutfağı kör bırakmak demek — ve
+///    kopukluk saatlerce sürebilir. Sesi durduran tek şey bağlantının
+///    geri gelmesidir. Ayarlar ekranındaki genel ses şalteri de bu uyarıyı
+///    KAPATMAZ (bkz. `connectionAlarmPlayerProvider`).
 library;
 
 import 'dart:async';
@@ -34,23 +41,15 @@ const Duration connectionAlarmInterval = Duration(seconds: 45);
 
 /// Bağlantı uyarısının dışarıdan görünen durumu.
 class ConnectionAlarmState {
-  const ConnectionAlarmState({
-    required this.disconnected,
-    required this.silenced,
-    required this.muted,
-  });
+  const ConnectionAlarmState({required this.disconnected, required this.muted});
 
   static const ConnectionAlarmState idle = ConnectionAlarmState(
     disconnected: false,
-    silenced: false,
     muted: false,
   );
 
   /// Sunucuya ulaşılamıyor mu?
   final bool disconnected;
-
-  /// Kopukluk sürüyor ama personel sesi susturdu.
-  final bool silenced;
 
   /// Ses hiç çıkmıyor: ayardan kapalı ya da kasada oynatıcı yok.
   final bool muted;
@@ -62,16 +61,14 @@ class ConnectionAlarmState {
   bool operator ==(Object other) =>
       other is ConnectionAlarmState &&
       other.disconnected == disconnected &&
-      other.silenced == silenced &&
       other.muted == muted;
 
   @override
-  int get hashCode => Object.hash(disconnected, silenced, muted);
+  int get hashCode => Object.hash(disconnected, muted);
 
   @override
   String toString() =>
-      'ConnectionAlarmState(disconnected: $disconnected, '
-      'silenced: $silenced, muted: $muted)';
+      'ConnectionAlarmState(disconnected: \$disconnected, muted: \$muted)';
 }
 
 /// Bağlantı durumunu aralıklı uyarıya çeviren denetleyici.
@@ -88,13 +85,9 @@ class ConnectionAlarm {
 
   Timer? _timer;
   bool _disconnected = false;
-  bool _silenced = false;
 
-  ConnectionAlarmState get state => ConnectionAlarmState(
-    disconnected: _disconnected,
-    silenced: _silenced,
-    muted: _player.isMuted,
-  );
+  ConnectionAlarmState get state =>
+      ConnectionAlarmState(disconnected: _disconnected, muted: _player.isMuted);
 
   /// Bağlantı durumu değişti.
   ///
@@ -107,25 +100,11 @@ class ConnectionAlarm {
     _disconnected = disconnected;
 
     if (!disconnected) {
-      // Bağlantı geri geldi. Susturma da sıfırlanır: bir sonraki kopma
-      // yeniden uyarmalı, "bir kez susturdum" kalıcı olmamalı.
-      _silenced = false;
       _stop();
       return state;
     }
 
     _start();
-
-    return state;
-  }
-
-  /// "Sesi sustur" düğmesi.
-  ///
-  /// Yalnızca **bu** kopmayı susturur. Bağlantı geri gelip yeniden koparsa
-  /// uyarı tekrar çalar.
-  ConnectionAlarmState silence() {
-    _silenced = true;
-    _stop();
 
     return state;
   }
@@ -155,7 +134,7 @@ class ConnectionAlarm {
   }
 
   Future<void> _beep() async {
-    if (!_disconnected || _silenced) return;
+    if (!_disconnected) return;
 
     // `start()` DEĞİL: o döngüye sokar ve kesintisiz çalar. Bağlantı
     // kopmasını personel çözemez; kesintisiz ses onları cezalandırır.

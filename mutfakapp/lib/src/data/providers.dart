@@ -143,16 +143,18 @@ final alarmPlayerProvider = Provider<AlarmPlayer>((ref) {
 /// (bağlantı koptu ve ekranda hâlâ onaylanmamış sipariş var) ve tek
 /// oynatıcıyı paylaşsalardı biri diğerinin sesini keserdi.
 final connectionAlarmPlayerProvider = Provider<AlarmPlayer>((ref) {
-  final enabled = ref.watch(
-    kdsSettingsProvider.select((settings) => settings.soundEnabled),
+  // GENEL SES ŞALTERİNE BAKMAZ — bilinçli.
+  //
+  // Yeni sipariş sesi kapatılabilir; personel ekrana bakıyorsa siparişi
+  // zaten görür. Bağlantı kopması öyle değil: ekran son bilinen listeyi
+  // gösterir ve DOĞRU görünür, yeni sipariş hiç gelmez. Bunu sessize
+  // almak, tek uyarıyı kapatıp mutfağı kör bırakmaktır.
+  //
+  // Sesi durduran tek şey bağlantının geri gelmesidir.
+  final player = ProcessAlarmPlayer(
+    assetPath: connectionAlarmAssetPath,
+    materialize: copyAlarmAssetToTempFile,
   );
-
-  final player = enabled
-      ? ProcessAlarmPlayer(
-          assetPath: connectionAlarmAssetPath,
-          materialize: copyAlarmAssetToTempFile,
-        )
-      : SilentAlarmPlayer();
 
   ref.onDispose(() => player.stop().ignore());
   return player;
@@ -208,13 +210,6 @@ class ConnectionAlarmController extends Notifier<ConnectionAlarmState> {
 
     built = true;
     return initial;
-  }
-
-  /// "Sesi sustur" düğmesi.
-  void silence() {
-    final alarm = _alarm;
-    if (alarm == null) return;
-    state = alarm.silence();
   }
 
   /// Oynatıcının sessizlik durumunu yeniden okur.

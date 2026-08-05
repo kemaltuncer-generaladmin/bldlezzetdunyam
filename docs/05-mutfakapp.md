@@ -222,7 +222,7 @@ sipariş sanıp ekrana koşar ve orada bir şey bulamazdı.
 | Uyarı | Ses | Davranış |
 |---|---|---|
 | **Yeni sipariş** | `yeni_siparis.wav` (yükselen çan) | Sipariş **onaylanana kadar** kesintisiz döngü |
-| **Bağlantı yok** | `baglanti_yok.wav` (alçalan iki ton) | **45 saniyede bir** tek uyarı |
+| **Bağlantı yok** | `baglanti_yok.wav` (alçalan iki ton) | **45 saniyede bir** tek uyarı, **SUSTURULAMAZ** |
 
 > **Neden biri kesintisiz, diğeri aralıklı.** Yeni sipariş alarmını
 > personel bir tuşla çözebilir: onaylar, susar. Bağlantı kopmasını
@@ -233,9 +233,16 @@ sipariş sanıp ekrana koşar ve orada bir şey bulamazdı.
 Bağlantı uyarısı **kopma anında hemen** çalar, aralık kadar beklemez:
 kopmayı 45 saniye sonra duyurmak, kopmanın kendisi kadar zararlı.
 
-"Sesi sustur" yalnızca **o anki** kopmayı susturur. Bağlantı gelip
-yeniden koparsa uyarı tekrar çalar; "bir kez susturdum" kalıcı değildir.
-Kalıcı susturma ayarlar ekranındaki ses şalteridir.
+> **BAĞLANTI UYARISI SUSTURULAMAZ** (karar 05.08.2026). Yeni sipariş
+> alarmının "sustur" düğmesi var çünkü personel siparişi görüp
+> onaylayabilir — sorunu çözer. Bağlantı kopmasında susturmak, tek uyarıyı
+> kapatıp mutfağı kör bırakmaktır ve kopukluk saatlerce sürebilir. Sesi
+> durduran tek şey bağlantının geri gelmesidir.
+>
+> Ayarlar ekranındaki **genel ses şalteri de bu uyarıyı kapatmaz**. Yeni
+> sipariş sesi kapatılabilir; personel ekrana bakıyorsa siparişi zaten
+> görür. Bağlantı kopması öyle değil: ekran son bilinen listeyi gösterir
+> ve **doğru görünür**, yeni sipariş hiç gelmez.
 
 `connecting` durumu **kopuk sayılmaz**: ilk açılışta ve her yeniden
 denemede kısa süre bundan geçiliyor, uyarı çalsaydı her açılış bir

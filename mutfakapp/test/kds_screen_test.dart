@@ -98,6 +98,9 @@ Future<void> pumpKds(
           (ref) => Stream<PrinterAvailability>.value(printer),
         ),
         printQueueProvider.overrideWithValue(queue),
+        // Bağlantı uyarısı üretimde genel ses şalterini DİNLEMEZ; testte
+        // gerçek oynatıcı alt süreç açar ve asılı zamanlayıcı bırakır.
+        connectionAlarmPlayerProvider.overrideWithValue(SilentAlarmPlayer()),
         printerDeviceProvider.overrideWithValue(_NullPrinter()),
         kitchenServiceProvider.overrideWithValue(kitchenService),
         // Ayar deposu her testte sahtedir: gerçek `shared_preferences`

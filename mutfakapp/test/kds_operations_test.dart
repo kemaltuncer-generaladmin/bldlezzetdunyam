@@ -316,6 +316,9 @@ void main() {
         overrides: [
           initialKdsSettingsProvider.overrideWithValue(settings),
           kdsSettingsStoreProvider.overrideWithValue(FakeKdsSettingsStore()),
+          // Bağlantı uyarısı üretimde genel ses şalterini DİNLEMEZ; testte
+          // gerçek oynatıcı alt süreç açar ve asılı zamanlayıcı bırakır.
+          connectionAlarmPlayerProvider.overrideWithValue(SilentAlarmPlayer()),
         ],
       );
       addTearDown(container.dispose);

@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mutfakapp/src/app.dart';
 import 'package:mutfakapp/src/data/device_session.dart';
 import 'package:mutfakapp/src/data/providers.dart';
+import 'package:mutfakapp/src/sound/alarm_player.dart';
 import 'package:mutfakapp/src/printing/print_queue.dart';
 
 import 'unlock_helper.dart';
@@ -54,6 +55,9 @@ Future<FakeDeviceSessionStore> pumpPairing(
         ),
         kitchenServiceProvider.overrideWithValue(kitchen),
         printQueueProvider.overrideWithValue(queue),
+        // Bağlantı uyarısı üretimde genel ses şalterini DİNLEMEZ; testte
+        // gerçek oynatıcı alt süreç açar ve asılı zamanlayıcı bırakır.
+        connectionAlarmPlayerProvider.overrideWithValue(SilentAlarmPlayer()),
       ],
       child: const MutfakApp(),
     ),

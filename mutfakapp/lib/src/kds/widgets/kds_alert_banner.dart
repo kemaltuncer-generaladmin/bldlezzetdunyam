@@ -41,12 +41,9 @@ class KdsAlertBanner extends ConsumerWidget {
             // sessiz bir kesinti, kesintiyi hiç bilmemekten farksızdır.
             ? '${l10n.offlineBannerBody} ${l10n.alarmMutedBody}'
             : l10n.offlineBannerBody,
-        // Uyarı sesi personelin çözemeyeceği bir sorunu bildiriyor;
-        // susturabilmeli. Bağlantı gelip yeniden koparsa tekrar çalar.
-        onSilence: connectionAlarm.silenced || connectionAlarm.muted
-            ? null
-            : ref.read(connectionAlarmProvider.notifier).silence,
-        silenceLabel: l10n.alarmSilence,
+        // SUSTURMA DÜĞMESİ YOK — bilinçli. Kopukluk saatlerce sürebilir
+        // ve susturmak tek uyarıyı kapatıp mutfağı kör bırakmak olur.
+        // Sesi durduran tek şey bağlantının geri gelmesidir.
       ),
       OrderSourceConnection.connecting => _Banner(
         color: const Color(BldColors.warning),
