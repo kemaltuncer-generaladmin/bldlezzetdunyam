@@ -121,6 +121,11 @@ Kapandı.
 - [x] Açılış kilidi çalışıyor — parola testleri mutasyonla doğrulandı
       (kontrolü `return true` yapınca 4 test kırmızıya döndü)
 - [x] Pencere küçültme ve tam ekran aç/kapa düğmeleri var
+- [x] Yoğunluk tuşu — üretimde uçtan uca doğrulandı (mutfak → API →
+      müşteri ~2 sn); yoğunkken siparişin YİNE alındığı ayrı testle korunuyor
+- [x] Ürün görseli admin medyasından API'ye akıyor (`image_url`)
+- [ ] Yoğunluk admin panelde görünür/ayarlanabilir — `docs/11` F2-08
+- [ ] Mobil uygulamada yoğunluk bandı — henüz yok
 - [ ] Android'e dair kod/bağımlılık **yok**
 - [ ] Kasa kabul listesi (`docs/08` §2.4) 7/7
 - [ ] `OrderSource` soyutlaması var (WebSocket'e geçiş hazır)

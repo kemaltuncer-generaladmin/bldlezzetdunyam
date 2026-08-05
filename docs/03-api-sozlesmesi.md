@@ -120,7 +120,9 @@ Faz 1'de tek vitrin döner. Dizi biçimi korunur (ileride vitrin eklenirse kır�
     "is_open":true, "ordering_enabled":true,
     "order_cutoff":"16:00", "min_order_total":25000,
     "delivery_fee":4000,
-    "payment_methods":["cash","account","online"] }
+    "payment_methods":["cash","account","online"],
+    "busy": false,
+    "busy_message":"Mutfağımız şu anda yoğun. Siparişiniz alınır ancak hazırlanması normalden uzun sürebilir." }
 ]}
 ```
 
@@ -132,6 +134,13 @@ Faz 1'de tek vitrin döner. Dizi biçimi korunur (ileride vitrin eklenirse kır�
 | `min_order_total` | Kuruş. Altında sipariş `422 VALIDATION_FAILED`. |
 | `delivery_fee` | Kuruş. `delivery` siparişe eklenir, `pickup`'ta uygulanmaz. İstemci toplamı **onaydan önce** gösterebilsin diye ilan edilir; bağlayıcı olan sunucunun sipariş anındaki hesabıdır. |
 | `payment_methods` | Bu vitrinde **açık** olan ödeme yöntemleri. İstemci ödeme ekranında yalnızca bunları gösterir. Listede olmayan bir yöntemle sipariş → `422 VALIDATION_FAILED`. |
+| `busy` | Mutfak yoğun mu? Mutfak ekranındaki tek tuşla açılır (`POST /kitchen/busy`). **Sipariş almayı ENGELLEMEZ** — istemci yalnızca `busy_message` uyarısını gösterir, sipariş düğmeleri açık kalır. Siparişi gerçekten kesen şalter `ordering_enabled`'dır ve yalnızca yönetici değiştirir; mutfak personeli tek tuşla cirosu kapatabilmemeli. |
+| `busy_message` | `busy` doğruyken gösterilecek metin. Yönetici değiştirebilir. **İstemciler kendi metnini gömmemelidir**: metin değişince üç uygulamayı birden yayınlamak gerekirdi. |
+
+> **Yoğunluk tazedir, önbelleklenmez.** Web sitesi menüyü 60 saniyelik ISR
+> ile önbelleğe alır ama yoğunluk bandını ayrı ve taze okur
+> (`/api/vitrin-durumu`). Bir dakika geciken "yoğunuz" uyarısı işe
+> yaramaz: tuşa basan personel müşterinin uyarıldığını sanar.
 
 `is_open` **veya** `ordering_enabled` false ise sipariş oluşturma `422 LOCATION_CLOSED` döner.
 
