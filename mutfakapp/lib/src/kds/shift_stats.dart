@@ -127,9 +127,7 @@ class ShiftStatsTracker {
   }
 
   static bool _isReadyOrBeyond(OrderStatus status) => switch (status) {
-    OrderStatus.hazir ||
-    OrderStatus.yolda ||
-    OrderStatus.teslimEdildi => true,
+    OrderStatus.hazir || OrderStatus.yolda || OrderStatus.teslimEdildi => true,
     OrderStatus.yeni ||
     OrderStatus.onaylandi ||
     OrderStatus.hazirlaniyor ||

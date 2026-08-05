@@ -600,9 +600,7 @@ class _ItemRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppL10n.of(context);
-    final muted = Color(
-      done ? KdsColors.onSurfaceMuted : BldColors.brand400,
-    );
+    final muted = Color(done ? KdsColors.onSurfaceMuted : BldColors.brand400);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: BldSpacing.sm),

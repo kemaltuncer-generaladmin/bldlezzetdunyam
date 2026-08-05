@@ -442,12 +442,19 @@ class KitchenHealthController extends Notifier<KitchenHealthState> {
 
   /// Bildirilen değerler GERÇEKTİR: yazıcı yoklamasından ve diskteki kuyruktan
   /// okunur. Sabit `true` göndermek göstergeyi yalancı yapardı.
-  KitchenHealthReport _collect() {
-    final printer = ref.read(printerStatusProvider).value;
+  ///
+  /// YAZICI DOĞRUDAN YOKLANIR, `printerStatusProvider` ÖNBELLEĞİNDEN
+  /// OKUNMAZ. O bir akış sağlayıcısı ve ilk sağlık bildirimi açılışta,
+  /// akış daha hiçbir şey yaymadan gönderiliyor; `.value` `null` oluyor,
+  /// `null == ready` yanlış çıkıyor ve sunucuya "yazıcı arızalı"
+  /// bildiriliyordu. Sahada tam olarak bu görüldü: yazıcı takılı, fişler
+  /// basılıyor, gösterge "yok" diyor.
+  Future<KitchenHealthReport> _collect() async {
+    final probe = PrinterProbe(ref.read(kdsSettingsProvider).printerDevicePath);
     final service = ref.read(printServiceProvider);
 
     return KitchenHealthReport(
-      printerOk: printer == PrinterAvailability.ready,
+      printerOk: await probe.check() == PrinterAvailability.ready,
       printQueuePending: ref.read(printQueueProvider).pendingCount(),
       printQueueFailed: service.failedCount(),
       appVersion: AppConfig.appVersion,
@@ -614,8 +621,9 @@ class OrderAdvanceOutcome {
 /// Şu an sunucuya isteği uçan sipariş kimlikleri.
 ///
 /// Arayüz bunu izler ve o kartın düğmesini kilitler.
-final orderActionProvider =
-    NotifierProvider<OrderActionController, Set<int>>(OrderActionController.new);
+final orderActionProvider = NotifierProvider<OrderActionController, Set<int>>(
+  OrderActionController.new,
+);
 
 /// Personelin bastığı ileri adımı sunucuya iletir.
 ///
@@ -766,8 +774,7 @@ class BoardSelectionController extends Notifier<BoardSelection> {
       entry.key: entry.value.length,
   };
 
-  void moveVertically(int delta) =>
-      state = state.moveVertically(delta, _sizes);
+  void moveVertically(int delta) => state = state.moveVertically(delta, _sizes);
 
   void moveHorizontally(int delta) =>
       state = state.moveHorizontally(delta, _sizes);

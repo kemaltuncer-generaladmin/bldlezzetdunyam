@@ -16,9 +16,7 @@ class OrderItemProgress {
   const OrderItemProgress._(this._byOrder);
 
   /// Hiçbir kalemin işaretlenmediği başlangıç durumu.
-  static const OrderItemProgress empty = OrderItemProgress._(
-    <int, Set<int>>{},
-  );
+  static const OrderItemProgress empty = OrderItemProgress._(<int, Set<int>>{});
 
   final Map<int, Set<int>> _byOrder;
 
@@ -64,7 +62,8 @@ class OrderItemProgress {
     if (_byOrder.keys.every(liveOrderIds.contains)) return this;
     return OrderItemProgress._(<int, Set<int>>{
       for (final entry in _byOrder.entries)
-        if (liveOrderIds.contains(entry.key)) entry.key: Set<int>.of(entry.value),
+        if (liveOrderIds.contains(entry.key))
+          entry.key: Set<int>.of(entry.value),
     });
   }
 

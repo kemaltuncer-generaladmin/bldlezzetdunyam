@@ -170,7 +170,10 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('Bu sipariş başka bir yerden güncellenmiş. Liste tazelendi.'), findsOneWidget);
+    expect(
+      find.text('Bu sipariş başka bir yerden güncellenmiş. Liste tazelendi.'),
+      findsOneWidget,
+    );
     expect(find.textContaining('Geçersiz geçiş'), findsNothing);
 
     await tearDownTree(tester);

@@ -15,6 +15,37 @@ const KitchenHealthReport healthy = KitchenHealthReport(
 );
 
 void main() {
+  test('ilk bildirim yazıcıyı ÖNBELLEKTEN değil doğrudan okur', () async {
+    // SAHADA YAŞANDI: toplayıcı `printerStatusProvider` akışının önbelleğe
+    // alınmış değerini okuyordu. İlk sağlık bildirimi açılışta, akış daha
+    // hiçbir şey yaymadan gönderiliyor; `.value` null oluyor ve sunucuya
+    // "yazıcı arızalı" bildiriliyordu. Yazıcı takılı, fişler basılıyor,
+    // gösterge "yok" diyor.
+    //
+    // Toplayıcının asenkron olması bu yüzden: yazıcıyı gerçekten yoklamak
+    // bir dosya sistemi çağrısı ve senkron imza çağıranı önbelleğe
+    // bakmaya zorluyordu.
+    var yoklandi = false;
+    final api = FakeKitchenHealthApi();
+    final monitor = KitchenHealthMonitor(
+      api: api,
+      collect: () async {
+        yoklandi = true;
+        return const KitchenHealthReport(
+          printerOk: true,
+          printQueuePending: 0,
+          printQueueFailed: 0,
+          appVersion: '1.0.0',
+        );
+      },
+    );
+
+    await monitor.poll();
+
+    expect(yoklandi, isTrue);
+    expect(api.reports.single.printerOk, isTrue);
+  });
+
   group('KitchenHealthReport', () {
     test('sözleşmedeki alan adlarını üretir', () {
       expect(healthy.toJson(), {
@@ -74,7 +105,7 @@ void main() {
       final api = FakeKitchenHealthApi(ordersToday: 12, ordersActive: 3);
       final monitor = KitchenHealthMonitor(
         api: api,
-        collect: () => healthy,
+        collect: () async => healthy,
         clock: () => DateTime.utc(2026, 8, 5, 9),
       );
 
@@ -91,7 +122,7 @@ void main() {
       final api = FakeKitchenHealthApi();
       final monitor = KitchenHealthMonitor(
         api: api,
-        collect: () => const KitchenHealthReport(
+        collect: () async => const KitchenHealthReport(
           printerOk: false,
           printQueuePending: 4,
           printQueueFailed: 2,
@@ -107,7 +138,10 @@ void main() {
 
     test('hata YUKARI ATILMAZ, durum "ulaşılamıyor" olur', () async {
       final api = FakeKitchenHealthApi()..fails = true;
-      final monitor = KitchenHealthMonitor(api: api, collect: () => healthy);
+      final monitor = KitchenHealthMonitor(
+        api: api,
+        collect: () async => healthy,
+      );
 
       final state = await monitor.poll();
 
@@ -121,7 +155,7 @@ void main() {
       final api = FakeKitchenHealthApi(ordersToday: 12);
       final monitor = KitchenHealthMonitor(
         api: api,
-        collect: () => healthy,
+        collect: () async => healthy,
         clock: () => DateTime.utc(2026, 8, 5, 9),
       );
 
@@ -136,7 +170,10 @@ void main() {
 
     test('bağlantı geri gelince sayılar tazelenir', () async {
       final api = FakeKitchenHealthApi(ordersToday: 12)..fails = true;
-      final monitor = KitchenHealthMonitor(api: api, collect: () => healthy);
+      final monitor = KitchenHealthMonitor(
+        api: api,
+        collect: () async => healthy,
+      );
 
       await monitor.poll();
       api
@@ -151,7 +188,7 @@ void main() {
     test('sunucu hatası da yutulur', () async {
       final monitor = KitchenHealthMonitor(
         api: _ThrowingApi(),
-        collect: () => healthy,
+        collect: () async => healthy,
       );
 
       await expectLater(monitor.poll(), completes);

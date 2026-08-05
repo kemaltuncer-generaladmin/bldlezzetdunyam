@@ -118,9 +118,17 @@ void main() {
     await player.stop();
     await pumpEventQueue();
 
-    expect(spawned.first.killed, isTrue, reason: 'Onaylayınca ses o an kesilmeli.');
+    expect(
+      spawned.first.killed,
+      isTrue,
+      reason: 'Onaylayınca ses o an kesilmeli.',
+    );
     expect(player.isPlaying, isFalse);
-    expect(spawned, hasLength(1), reason: 'Durdurulduktan sonra yeni ses başlamamalı.');
+    expect(
+      spawned,
+      hasLength(1),
+      reason: 'Durdurulduktan sonra yeni ses başlamamalı.',
+    );
   });
 
   test('iki kez başlatmak iki ses açmaz', () async {

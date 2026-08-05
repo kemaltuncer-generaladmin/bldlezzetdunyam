@@ -146,10 +146,7 @@ class HttpKitchenHealthApi implements KitchenHealthApi {
 
       request.write(jsonEncode(report.toJson()));
       final response = await request.close().timeout(timeout);
-      final body = await utf8.decoder
-          .bind(response)
-          .join()
-          .timeout(timeout);
+      final body = await utf8.decoder.bind(response).join().timeout(timeout);
 
       final decoded = body.isEmpty ? null : jsonDecode(body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -228,14 +225,21 @@ class KitchenHealthState {
 class KitchenHealthMonitor {
   KitchenHealthMonitor({
     required KitchenHealthApi api,
-    required KitchenHealthReport Function() collect,
+    required Future<KitchenHealthReport> Function() collect,
     DateTime Function()? clock,
   }) : _api = api,
        _collect = collect,
        _clock = clock ?? (() => DateTime.now().toUtc());
 
   final KitchenHealthApi _api;
-  final KitchenHealthReport Function() _collect;
+
+  /// Toplayıcı ASENKRON.
+  ///
+  /// Yazıcı durumu önbellekten değil, cihazın kendisinden okunmalı; bu da
+  /// bir dosya sistemi çağrısı demek. Senkron bir imza, çağıranı önbelleğe
+  /// bakmaya zorluyordu ve önbellek açılışta boştu — sonuç, her açılışta
+  /// "yazıcı arızalı" diye yalan bildirim.
+  final Future<KitchenHealthReport> Function() _collect;
   final DateTime Function() _clock;
 
   KitchenHealthState _state = KitchenHealthState.initial;
@@ -250,7 +254,7 @@ class KitchenHealthMonitor {
   /// üzerinden geçen süre görünür kalır.
   Future<KitchenHealthState> poll() async {
     try {
-      final status = await _api.report(_collect());
+      final status = await _api.report(await _collect());
       _state = KitchenHealthState(
         status: status,
         lastSuccessAt: _clock(),

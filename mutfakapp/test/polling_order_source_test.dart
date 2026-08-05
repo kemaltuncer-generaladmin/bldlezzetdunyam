@@ -393,24 +393,27 @@ void main() {
       await source.dispose();
     });
 
-    test('elden çıkarıldıktan sonra aralık yazmak zamanlayıcı kurmaz', () async {
-      final kitchen = FakeKitchenService()
-        ..responses.add(makePage([makeOrder(id: 1)]));
+    test(
+      'elden çıkarıldıktan sonra aralık yazmak zamanlayıcı kurmaz',
+      () async {
+        final kitchen = FakeKitchenService()
+          ..responses.add(makePage([makeOrder(id: 1)]));
 
-      final source = PollingOrderSource(
-        kitchen: kitchen,
-        interval: const Duration(hours: 1),
-        heartbeatInterval: const Duration(hours: 1),
-      )..start();
-      await settle();
-      await source.dispose();
+        final source = PollingOrderSource(
+          kitchen: kitchen,
+          interval: const Duration(hours: 1),
+          heartbeatInterval: const Duration(hours: 1),
+        )..start();
+        await settle();
+        await source.dispose();
 
-      final before = kitchen.ordersCalls.length;
-      source.interval = const Duration(milliseconds: 5);
-      await settle();
+        final before = kitchen.ordersCalls.length;
+        source.interval = const Duration(milliseconds: 5);
+        await settle();
 
-      expect(kitchen.ordersCalls, hasLength(before));
-    });
+        expect(kitchen.ordersCalls, hasLength(before));
+      },
+    );
   });
 
   group('Akışa geç katılma', () {

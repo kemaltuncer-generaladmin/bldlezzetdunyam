@@ -131,9 +131,7 @@ class _NewOrderAlarmBar extends ConsumerWidget {
                 // veren `Size.fromHeight(56)` koyuyor; satır içinde bu düzeni
                 // çökertir (`docs/05` §6 notu).
                 minimumSize: const Size(0, 40),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: BldSpacing.md,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: BldSpacing.md),
                 backgroundColor: const Color(KdsColors.surface),
               ),
               // İPUCU BUTONUN İÇİNDE: `Tooltip` çocuğuna sınırsız genişlik
@@ -170,11 +168,7 @@ class _MutedBadge extends StatelessWidget {
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(
-          Icons.volume_off,
-          size: 20,
-          color: Color(BldColors.warning),
-        ),
+        const Icon(Icons.volume_off, size: 20, color: Color(BldColors.warning)),
         const SizedBox(width: BldSpacing.xs),
         Text(
           AppL10n.of(context).alarmMutedBadge,

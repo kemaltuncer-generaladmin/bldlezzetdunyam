@@ -246,16 +246,15 @@ void main() {
       queue.close();
     });
 
-    PrintService build({
-      Duration settle = const Duration(milliseconds: 5),
-    }) => service = PrintService(
-      queue: queue,
-      device: printer,
-      kitchen: kitchen,
-      idlePollInterval: const Duration(milliseconds: 5),
-      settleBetweenReceipts: settle,
-      retrySchedule: const [Duration(milliseconds: 10)],
-    );
+    PrintService build({Duration settle = const Duration(milliseconds: 5)}) =>
+        service = PrintService(
+          queue: queue,
+          device: printer,
+          kitchen: kitchen,
+          idlePollInterval: const Duration(milliseconds: 5),
+          settleBetweenReceipts: settle,
+          retrySchedule: const [Duration(milliseconds: 10)],
+        );
 
     test('arka arkaya fişler yazıcıyı yormadan basılır', () async {
       // SAHADA YAŞANDI: kuyrukta 28 iş birikmişti ve döngü hepsini yazıcı

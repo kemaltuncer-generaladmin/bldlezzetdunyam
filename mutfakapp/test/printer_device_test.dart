@@ -72,7 +72,8 @@ void main() {
       expect(
         stat.type,
         FileSystemEntityType.notFound,
-        reason: 'Dart karakter aygıtını notFound sayıyor — regresyonun kökü bu.',
+        reason:
+            'Dart karakter aygıtını notFound sayıyor — regresyonun kökü bu.',
       );
       expect(
         await const PrinterProbe(aygit).check(),

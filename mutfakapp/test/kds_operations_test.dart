@@ -523,12 +523,7 @@ void main() {
     ) async {
       final alarm = RecordingAlarmPlayer()..muted = true;
 
-      await pumpKds(
-        tester,
-        settings: settings,
-        orders: const [],
-        alarm: alarm,
-      );
+      await pumpKds(tester, settings: settings, orders: const [], alarm: alarm);
 
       expect(find.text('SES KAPALI'), findsOneWidget);
 

@@ -48,10 +48,7 @@ class _ShiftSummaryDialog extends ConsumerWidget {
               label: l10n.shiftAverage,
               value: _duration(l10n, stats.averagePrep),
             ),
-            _StatRow(
-              label: l10n.shiftSlowest,
-              value: _slowest(l10n, stats),
-            ),
+            _StatRow(label: l10n.shiftSlowest, value: _slowest(l10n, stats)),
             const SizedBox(height: BldSpacing.md),
             Text(
               l10n.shiftSummaryHint,

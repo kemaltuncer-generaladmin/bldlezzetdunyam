@@ -191,11 +191,9 @@ class _Board extends ConsumerWidget {
     if (ref.watch(boardLoadingProvider)) return const _LoadingBoard();
     if (ref.watch(visibleOrderCountProvider) == 0) return const _EmptyBoard();
 
-    final selection = ref
-        .watch(boardSelectionProvider)
-        .clampedTo({
-          for (final entry in board.entries) entry.key: entry.value.length,
-        });
+    final selection = ref.watch(boardSelectionProvider).clampedTo({
+      for (final entry in board.entries) entry.key: entry.value.length,
+    });
 
     final titles = <KdsColumn, String>{
       KdsColumn.yeni: l10n.columnNew,
