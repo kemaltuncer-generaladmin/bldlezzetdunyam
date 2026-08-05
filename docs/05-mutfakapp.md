@@ -213,6 +213,37 @@ tetiği kaçırmaktansa fazladan çağırmak yeğdir — kuyruktaki
 doğrudan oraya geçer ve arada bir yayın kaçarsa müşteri fişi hiç
 basılmazdı.
 
+#### Sağlık göstergesi (05.08.2026)
+
+Ekranda yazıcı, sunucu bağlantısı, fiş kuyruğu, bugünkü sipariş sayısı ve
+canlı saat bir arada duruyor. Kasa aynı bilgiyi dakikada bir sunucuya da
+gönderiyor (`POST /api/kitchen/health`), böylece admin panelden hangi
+kasanın ne durumda olduğu görülebiliyor.
+
+İki hata sahada bulundu ve ikisinin de gerileme testi var:
+
+> **`FileStat` KARAKTER AYGITINI GÖRMÜYOR.** Yazıcı yoklaması
+> `FileStat.stat().type == notFound` bakıyordu. Dart'ın
+> `FileSystemEntityType` listesinde karakter aygıtı **yok**;
+> `/dev/thermal0` için çalışan bir yazıcıda bile `notFound` dönüyor.
+> Sonuç: fişler basılırken ekranda "Yazıcı yok" yazıyordu.
+> `File.exists()` doğru cevabı veriyor — türü değil varlığı soruyor.
+
+> **İLK BİLDİRİM AKIŞ ÖNBELLEĞİNİ OKUYORDU.** Sağlık toplayıcısı
+> `printerStatusProvider` akışının önbelleğe alınmış değerini okuyordu;
+> ilk bildirim açılışta, akış daha hiçbir şey yaymadan gidiyor ve
+> `null == ready` yanlış çıkıyordu. Her açılışta bir dakika boyunca
+> "yazıcı arızalı" bildiriliyordu. Toplayıcı artık asenkron ve yazıcıyı
+> doğrudan yokluyor.
+
+Ayrıca sunucu tarafında: **Laravel'in `boolean` doğrulama kuralı `"true"`
+dizgesini reddediyor** (yalnızca `1/0/"1"/"0"` kabul eder). Sorgu
+dizesinde boolean ancak metin olabilir; KDS'in artımlı yoklaması
+(`?since=…&include_completed=true`) her çağrıda 422 alıyordu, ekran tam
+listeye düşüp geri geliyor ve bağlantı göstergesi sürekli yanıp
+sönüyordu. `since` ve `include_completed` ayrı ayrı sınanıyordu, **ikisi
+birlikte hiç sınanmamıştı**.
+
 #### Fişler arası soluklanma payı (05.08.2026)
 
 İki fiş arasında **1,2 saniye** beklenir — yalnızca sırada başka iş varsa.
