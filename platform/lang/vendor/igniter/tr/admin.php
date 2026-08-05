@@ -1,0 +1,297 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Çekirdek admin arayüzünün Türkçesi — `igniter::admin.*`.
+ *
+ * KAPSAM: yöneticinin ekranda gördüğü metinler. Geliştiriciye yönelik
+ * hata mesajları (`Form action used in %s does not have a model defined`
+ * gibi) KASTEN çevrilmedi; onlar yığın izinde okunur, aranırken İngilizce
+ * hâli işe yarar ve yanlış bir çeviri gerçek sebebi gizler. Çevrilmeyen
+ * anahtar `app.fallback_locale` ile İngilizce görünür, ham anahtar değil.
+ *
+ * YER TUTUCULARA DOKUNULMAZ: `%s`, `:name`, `:attribute` ve HTML
+ * etiketleri birebir korunur. `%s` sayısı değişirse `sprintf` patlar.
+ */
+return [
+    'text_edit' => 'Düzenle',
+    'text_filter' => 'Süz',
+    'text_apply' => 'Uygula',
+    'text_clear' => 'Temizle',
+    'text_search' => 'Ara',
+    'text_enabled' => 'Açık',
+    'text_disabled' => 'Kapalı',
+    'text_active' => 'Etkin',
+    'text_inactive' => 'Etkisiz',
+    'text_incomplete' => 'Tamamlanmadı',
+    'text_new' => 'Yeni',
+    'text_no' => 'Hayır',
+    'text_yes' => 'Evet',
+    'text_none' => 'Yok',
+    'text_hide' => 'Gizle',
+    'text_show' => 'Göster',
+    'text_action' => 'İşlem',
+    'text_please_select' => ' - seçiniz - ',
+    'text_use_default' => 'Varsayılanı kullan',
+    'text_is_default' => 'Varsayılan',
+    'text_updated' => 'güncellendi',
+    'text_added' => 'eklendi',
+    'text_deleted' => 'silindi',
+    'text_default' => 'Varsayılan',
+    'text_select_all' => 'Tümünü seç',
+    'text_select_none' => 'Seçimi kaldır',
+    'text_select' => 'Seç',
+    'text_all_locations' => 'Tüm şubeler',
+    'text_selected' => 'Seçili',
+    'text_now' => 'Şimdi',
+    'text_never' => 'Hiçbir zaman',
+    'text_remove' => 'Kaldır',
+    'text_reload' => 'Yenile',
+    'text_save' => 'Kaydet',
+    'text_saving' => 'Kaydediliyor…',
+    'text_resetting' => 'Sıfırlanıyor…',
+    'text_loading' => 'Yükleniyor…',
+    'text_deleting' => 'Siliniyor…',
+    'text_support' => 'Yardım merkezi',
+    'text_empty' => 'Boş',
+    'text_help' => 'Yardım için tıklayın',
+    'text_no_title' => 'Başlıksız',
+    'text_allow' => 'İzin ver',
+    'text_opening' => 'Açılış',
+    'text_delivery' => 'Teslimat',
+    'text_collection' => 'Gel al',
+    'text_system' => 'Sistem',
+    'text_you' => 'siz',
+
+    'label_code' => 'Kod',
+    'label_name' => 'Ad',
+    'label_type' => 'Tür',
+    'label_first_name' => 'Ad',
+    'label_last_name' => 'Soyad',
+    'label_email' => 'E-posta',
+    'label_status' => 'Durum',
+    'label_location' => 'Şube(ler)',
+    'label_description' => 'Açıklama',
+
+    'column_id' => 'No',
+    'column_location' => 'Şube(ler)',
+    'column_date_added' => 'Eklenme tarihi',
+    'column_date_updated' => 'Güncellenme tarihi',
+
+    'text_filter_location' => 'Tüm şubeler',
+    'text_filter_status' => 'Tüm durumlar',
+    'text_filter_date' => 'Tüm tarihler',
+    'text_back_link' => 'Önceki sayfaya dön',
+    'text_admin_link' => 'Yönetim paneline dön',
+
+    'button_new' => '<i class="fa fa-plus"></i>&nbsp;&nbsp;Yeni',
+    'button_delete' => '<i class="fa fa-trash-o"></i>&nbsp;&nbsp;Sil',
+    'button_add' => 'Ekle',
+    'button_edit' => 'Düzenle',
+    'button_continue' => 'Devam',
+    'button_filter' => 'Süz',
+    'button_save' => '<i class="fa fa-save"></i>&nbsp;&nbsp;Kaydet',
+    'button_save_close' => '<i class="fa fa-save"></i>&nbsp;&nbsp;Kaydet ve kapat',
+    'button_close' => 'Kapat',
+    'button_refresh' => '<i class="fa fa-refresh"></i>&nbsp;&nbsp;Yenile',
+
+    'alert_success' => '%s başarıyla tamamlandı.',
+    'alert_error' => 'Bir hata oluştu, %s.',
+    'alert_error_nothing' => 'Bir hata oluştu, hiçbir şey %s.',
+    'alert_error_try_again' => 'Bir hata oluştu, lütfen tekrar deneyin.',
+    'alert_warning_confirm' => 'Bu işlem geri alınamaz. Devam etmek istediğinize emin misiniz?',
+    'alert_confirm' => 'Bu işlemi yapmak istediğinize emin misiniz?',
+    'alert_user_not_logged_in' => 'Bu sayfayı görmek için giriş yapmalısınız.',
+    'alert_user_restricted' => 'Bu sayfayı görme yetkiniz yok. Sistem yöneticisiyle görüşün.',
+    'alert_location_restricted' => 'Kendi şubenizin dışına erişme yetkiniz yok. Sistem yöneticisiyle görüşün.',
+    'alert_warning_locationable_delete' => 'Birden fazla şubeye bağlı kayıtları silme yetkiniz yok. Sistem yöneticisiyle görüşün.',
+    'alert_form_error_message' => 'Formda hata var. İşaretli alanları kontrol edip tekrar deneyin.',
+    'alert_error_set_default' => '"%s" kapalı olduğu için varsayılan yapılamaz.',
+    'alert_access_denied' => 'Erişim reddedildi.',
+    'alert_invalid_csrf_token' => 'Oturumunuzun süresi doldu. Sayfayı yenileyip tekrar deneyin.',
+
+    'title_access_denied' => 'Erişim reddedildi',
+    'title_page_not_found' => 'Sayfa bulunamadı',
+    'alert_page_not_found' => 'Bu adreste bir sayfa yok. Adresi kontrol edip tekrar deneyin.',
+
+    'text_settings_title' => 'Ayarlar',
+    'text_see_all_customers' => 'Tüm müşteriler',
+    'text_see_all_orders' => 'Tüm siparişler',
+    'text_user' => 'Kullanıcı',
+    'text_staff_group' => 'Kullanıcı grubu',
+    'text_location' => 'Şube',
+    'text_set_status' => 'Durumu değiştir',
+    'text_edit_details' => 'Hesabım',
+    'text_administration' => 'Yönetim',
+    'text_logout' => 'Çıkış',
+    'text_switch_to_assigned' => 'Atanmış görünüme geç',
+    'text_switch_to_list' => 'Liste görünümüne geç',
+
+    'help_permalink' => 'Yalnızca küçük harf, rakam, _ ve - kullanın; değerin TÜM SİSTEMDE benzersiz olduğundan emin olun.',
+
+    'side_menu' => [
+        'updates' => 'Güncellemeler',
+        'storefront' => 'Vitrin',
+        'system_logs' => 'Günlükler',
+        'setting' => 'Ayarlar',
+        'dashboard' => 'Özet',
+        'sale' => 'Satışlar',
+        'activities' => 'Hareketler',
+        // Bu başlık menüleri, servis saatlerini, stoğu ve BLD ekranlarını
+        // taşıyor. "Restoran" yanıltıcı olurdu: catering işletmesiyiz,
+        // salonumuz yok.
+        'restaurant' => 'İşletme',
+        'marketing' => 'Pazarlama',
+        'status' => 'Sipariş durumları',
+        'extension' => 'Eklentiler',
+        'theme' => 'Temalar',
+        'mail_template' => 'E-posta şablonları',
+        'tool' => 'Araçlar',
+        'media_manager' => 'Medya',
+        'system' => 'Yönetim',
+    ],
+
+    'list' => [
+        'delete_empty' => 'Silinecek bir şey seçilmedi.',
+        'text_empty' => 'Kayıt bulunamadı.',
+        'text_setup' => 'Düzen',
+        'text_showing' => '%s-%s / %s kayıt gösteriliyor',
+        'setup_title' => 'Liste düzeni — %s',
+        'label_visible_columns' => 'Görünür sütunlar',
+        'label_page_limit' => 'Sayfa başına kayıt',
+        'button_reset_setup' => 'Sıfırla',
+        'button_cancel_setup' => 'Vazgeç',
+        'button_apply_setup' => 'Değişiklikleri uygula',
+        'help_visible_columns' => 'Hangi sütunların, hangi sırayla görüneceğini belirleyin',
+        'help_page_limit' => 'Bir sayfada kaç kayıt gösterileceğini sınırlayın',
+
+        'actions' => [
+            'text_select' => 'Uygulanacak işlemi seçin',
+            'label_edit' => 'Düzenle',
+            'label_status' => 'Aç / Kapat',
+            'label_enable' => 'Aç',
+            'label_disable' => 'Kapat',
+            'text_select_all' => '%s kaydın tümünü seç',
+        ],
+    ],
+
+    'form' => [
+        'create_title' => ':name: Yeni',
+        'edit_title' => ':name: Düzenle',
+        'preview_title' => ':name: Önizleme',
+        'undefined_tab' => 'Diğer',
+        'create_success' => '%s oluşturuldu',
+        'edit_success' => '%s güncellendi',
+        'delete_success' => '%s silindi',
+        'create_failed' => '%s oluşturulamadı',
+        'edit_failed' => '%s güncellenemedi',
+        'delete_failed' => '%s silinemedi',
+        'insert_row' => 'Satır ekle',
+        'insert_row_below' => 'Altına satır ekle',
+        'delete_row' => 'Satırı sil',
+        'record_not_found' => 'Kayıt bulunamadı.',
+
+        'save_actions' => [
+            'continue' => 'Düzenlemeye devam et',
+            'close' => 'Listeye dön',
+            'new' => 'Yeni oluştur',
+        ],
+    ],
+
+    'dashboard' => [
+        'text_title' => 'Özet',
+        'text_heading' => 'Özet',
+        'text_add_widget' => 'Gösterge ekle',
+        'text_edit_widget' => 'Göstergeyi düzenle',
+        'text_select_widget' => 'Bir gösterge seçin',
+
+        'text_today' => 'Bugün',
+        'text_delivery' => 'Teslimat',
+        'text_collection' => 'Gel al',
+        'text_no_activity' => 'Yeni hareket yok.',
+        'text_statistic' => 'İstatistikler',
+        'text_range' => 'Aralık',
+        'text_week' => 'Son 7 gün',
+        'text_month' => 'Son 30 gün',
+        'text_year' => 'Bu yıl',
+        'text_context' => 'Kapsam',
+        'text_stats_card' => 'Kart',
+        'text_charts_dataset' => 'Veri kümeleri',
+        'text_cache_usage' => 'Önbellek kullanımı',
+        'text_total_cache' => 'Toplam önbellek boyutu:',
+        'text_recent_activity' => 'Son hareketler',
+        'text_activities_count' => 'Hareket sayısı',
+        'text_top_customers' => 'En çok sipariş veren müşteriler',
+        'text_latest_order' => 'Son 10 sipariş',
+        'text_reports_chart' => 'Rapor grafiği',
+        'text_select_range' => 'Tarih aralığı seçin',
+
+        'alert_select_widget_to_update' => 'Güncellenecek göstergeyi seçin.',
+        'alert_select_widget_to_add' => 'Eklenecek göstergeyi seçin.',
+
+        'charts' => [
+            'text_orders' => 'Siparişler',
+            'text_customers' => 'Müşteriler',
+        ],
+
+        'column_location' => 'Şube',
+        'column_ready_type' => 'Hazır olma süresi',
+        'column_total_orders' => 'Sipariş adedi',
+        'column_total_sale' => 'Toplam satış',
+
+        'label_widget' => 'Gösterge',
+        'label_widget_title' => 'Gösterge başlığı',
+        'label_widget_columns' => 'Gösterge genişliği',
+        'label_widget_css_class' => 'Gösterge CSS sınıfı',
+
+        'button_add_widget' => 'Gösterge ekle',
+        'button_reset_widgets' => 'Göstergeleri sıfırla',
+        'button_set_default' => 'Tüm kullanıcılar için varsayılan yap',
+
+        'help_widget_columns' => 'Gösterge genişliği; 1 ile 12 arasında bir sayı.',
+
+        'alert_set_default_confirm' => 'Mevcut göstergeleri tüm kullanıcılar için varsayılan yapmak istediğinize emin misiniz?',
+        'alert_reset_layout_success' => 'Düzen sıfırlandı',
+    ],
+
+    'permissions' => [
+        'name' => 'Yönetim',
+        'dashboard' => 'Özet göstergelerini yönet',
+        'statuses' => 'Sipariş durumlarını yönet',
+    ],
+
+    'statuses' => [
+        'text_title' => 'Sipariş durumları',
+        'text_editor_title' => '%s ekle',
+        'text_form_name' => 'Durum',
+        'text_filter_status' => 'Tüm durum türleri',
+        'text_empty' => 'Tanımlı durum yok.',
+        'text_order' => 'Sipariş',
+        'text_unassigned' => 'Henüz atanmadı',
+        'text_assigned_to_self' => 'Bana atanmış',
+        'text_assigned_to_others' => 'Başkasına atanmış',
+
+        'column_comment' => 'Durum notu',
+        'column_notify' => 'Bildir',
+        'column_time_date' => 'Tarih ve saat',
+        'column_staff' => 'Kullanıcı',
+        'column_assignee' => 'Atanan',
+
+        'label_for' => 'Durum türü',
+        'label_color' => 'Renk',
+        'label_notify' => 'E-posta bildirimi',
+        'label_notify_customer' => 'Müşteriyi bilgilendir',
+        'label_comment' => 'Not',
+
+        'label_assignee_group' => 'Gruba ata',
+        'label_assignee' => 'Kullanıcıya ata',
+
+        'help_notify' => 'Sipariş bu duruma geçtiğinde müşteriye e-posta gönderilsin mi? Sipariş düzenleme sayfasından ayrıca değiştirilebilir.',
+        'help_notify_customer' => 'Müşteriye durum güncelleme e-postası gönderilsin mi',
+        'help_assignee_group' => 'Seçilen gruptaki tüm kullanıcılara bildirim gider',
+
+        'alert_already_added' => 'Seçilen %s, mevcut %s değerinden farklı olmalı',
+        'alert_invalid_action' => 'Geçersiz işlem.',
+    ],
+];

@@ -181,3 +181,73 @@ Her uç için `tests/Feature/` altında en az: 200 mutlu yol, 401/403 yetki, 422
 ## 7. Yerelleştirme
 
 Tüm kullanıcıya görünen metinler `lang/tr/` altında. Kodda sabit Türkçe metin yasak.
+
+### 7.1 Admin panelinin Türkçesi (05.08.2026)
+
+TastyIgniter çekirdeği ve eklentileri **yalnızca İngilizce** ile geliyor;
+marketplace'ten dil paketi çekmek carte anahtarı istiyor ve bizde yok.
+Türkçe çeviriler bu yüzden **kendi kaynak kodumuz**:
+
+| Katman | Yer |
+|---|---|
+| Yerel `tr` olması | `bridgeapi` göçü: `..._create_turkish_language.php` |
+| Çeviriler | `platform/lang/vendor/<dizin>/tr/<grup>.php` |
+| Denetim | `php artisan veykemtu:ceviri-denetle` |
+| Menü temizliği | `bridgeapi/src/Admin/NavigationTrimmer.php` |
+
+**Yerel `.env` ile ayarlanmaz.** `APP_LOCALE=tr` yazılıydı ve hiçbir işe
+yaramıyordu: `Igniter\System\ServiceProvider::loadLocalizationConfiguration`
+yereli veritabanındaki **varsayılan dil kaydından** okuyor. Tabloda
+yalnızca İngilizce olduğu sürece etkin yerel `en` kalır.
+
+**Çevrilmemiş anahtar paneli bozmaz.** Laravel `app.fallback_locale`
+(`en`) ile karşılar; sahada ölçüldü. Bu yüzden çeviri parça parça
+ilerleyebilir ve kapsam yüzde yüz olmak zorunda değil.
+
+#### Dizin adında NOKTA DEĞİL TİRE
+
+Çeviri ad alanları `igniter.cart` biçiminde ama TastyIgniter Laravel'in
+geçersiz kılma çözümlemesini değiştirmiş.
+`Flame\Translation\FileLoader::loadNamespaceOverrides` noktayı `/` ya da
+`-` yapıp altı aday yola bakıyor; **`igniter.cart` dizinine hiç bakmıyor**.
+
+```
+✗ platform/lang/vendor/igniter.cart/tr/default.php   ← hiç okunmaz
+✓ platform/lang/vendor/igniter-cart/tr/default.php
+```
+
+Sahada tam bu tuzağa düşüldü: dosyalar noktalı dizine yazıldı, denetim
+"sorun yok" dedi, panel İngilizce kaldı. Denetime bu yüzden **"dosya
+gerçekten yükleniyor mu"** kontrolü eklendi (`TranslationAudit::loadProblems`):
+statik karşılaştırma dosyanın doğru YAZILDIĞINI gösterir, çevirmenin onu
+BULDUĞUNU göstermez.
+
+#### `.gitignore` tuzağı
+
+Kök `.gitignore` içindeki `vendor/` kuralının başında eğik çizgi yok, yani
+**her derinlikteki** `vendor` dizinini dışlıyor — `platform/lang/vendor/`
+dahil. Git dışlanmış bir dizine hiç inmediği için, o dizinin içine yazılan
+`!` kuralları hiç değerlendirilmez. Kökte `!platform/lang/vendor/`
+istisnası olmadan çeviriler yerelde çalışır, commitlenmez ve sunucuda
+panel İngilizce kalır. Aynı sınıftan bir hata `public/vendor` yüzünden
+panele hiç girilememesine yol açmıştı (RUNBOOK §4.6).
+
+#### Tarih biçimleri
+
+`igniter::system.php` ve `moment` biçimleri de çeviri dosyasında.
+Çekirdek `d M Y` ve `hh:mm a` kullanıyor ("05 Aug 2026, 02:30 pm");
+Türkçe karşılıkları `d.m.Y` ve `H:i`. Bunlar düzeltilmezse panel Türkçe
+görünür ama tarihleri İngilizce ve 12 saatlik okur.
+
+#### Eklenti devre dışı bırakılamaz
+
+"Gereksizleri kaldıralım" isteği eklenti kapatarak çözülemiyor:
+bağımlılıklar döngüsel. `ti-ext-local` (şubeler, menüler)
+`ti-ext-reservation`'ı zorunlu tutuyor, o da `ti-ext-local`'ı; aynı
+şekilde `ti-ext-cart` → `ti-ext-coupons` → `ti-ext-cart`. Rezervasyonu
+kapatmak menü yönetimini de düşürür. Bu yüzden kod yüklü kalıyor ve
+yalnızca menü girdileri gizleniyor.
+
+Kanca **`admin.navigation.extendItems` olayı**, `registerCallback` değil:
+`Navigation::loadItems()` önce callback'leri, sonra eklenti girdilerini
+yüklüyor; callback içinde silinen girdi hemen ardından yeniden ekleniyor.

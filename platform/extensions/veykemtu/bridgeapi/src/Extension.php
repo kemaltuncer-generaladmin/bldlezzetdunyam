@@ -4,21 +4,25 @@ declare(strict_types=1);
 
 namespace Veykemtu\BridgeApi;
 
+use Igniter\Admin\Classes\Navigation;
 use Igniter\System\Classes\BaseExtension;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Override;
 use Throwable;
 use Veykemtu\BridgeApi\Admin\AdminRegistrar;
+use Veykemtu\BridgeApi\Admin\NavigationTrimmer;
 use Veykemtu\BridgeApi\Console\AdminUserCommand;
 use Veykemtu\BridgeApi\Console\DemoMenuCommand;
 use Veykemtu\BridgeApi\Console\KitchenDeviceCommand;
 use Veykemtu\BridgeApi\Console\PurgeOrdersCommand;
 use Veykemtu\BridgeApi\Console\SetupCommand;
+use Veykemtu\BridgeApi\Console\TranslationAuditCommand;
 use Veykemtu\BridgeApi\Exceptions\ApiExceptionRenderer;
 use Veykemtu\BridgeApi\Http\Middleware\AuthenticateToken;
 use Veykemtu\BridgeApi\Http\Middleware\RequireAppHeaders;
@@ -63,6 +67,7 @@ class Extension extends BaseExtension
         $this->registerConsoleCommand('veykemtu.kds', KitchenDeviceCommand::class);
         $this->registerConsoleCommand('veykemtu.demoMenu', DemoMenuCommand::class);
         $this->registerConsoleCommand('veykemtu.siparisTemizle', PurgeOrdersCommand::class);
+        $this->registerConsoleCommand('veykemtu.ceviriDenetle', TranslationAuditCommand::class);
     }
 
     /**
@@ -104,6 +109,29 @@ class Extension extends BaseExtension
         $this->registerRateLimiters();
         $this->registerRoutes();
         $this->registerExceptionRenderer();
+        $this->trimAdminNavigation();
+    }
+
+    /**
+     * Catering'e ait olmayan menü girdilerini gizler.
+     *
+     * Olay, `Navigation::loadItems()` tüm eklenti girdilerini kaydettikten
+     * SONRA tetikleniyor; daha erken bir kancada silinen girdi hemen
+     * ardından yeniden ekleniyordu.
+     *
+     * Dinleyici DEĞER DÖNDÜRMEMELİ: `fireSystemEvent` varsayılan olarak
+     * `halt = true` ile çağrılıyor ve null olmayan ilk yanıt zinciri
+     * kesiyor — buradan bir değer dönseydi bizden sonraki dinleyiciler
+     * (ve ileride kuracağımız kendi girdilerimiz) hiç çalışmazdı.
+     */
+    private function trimAdminNavigation(): void
+    {
+        Event::listen(
+            'admin.navigation.extendItems',
+            static function(Navigation $navigation): void {
+                NavigationTrimmer::trim($navigation);
+            },
+        );
     }
 
     private function registerMiddlewareAliases(): void

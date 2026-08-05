@@ -1,0 +1,19 @@
+# Bu dizin normalde YAYIMLANMIŞ dil paketlerinin yeri ve onlar derleme
+# çıktısıdır — repoda durmazlar. Varsayılan `*` kuralı bu yüzden var.
+#
+# AMA Türkçe çeviriler yayımlanmış paket DEĞİL, elle yazdığımız kaynak.
+# Çekirdek yalnızca `en` ile geliyor; Türkçesi yok, marketplace'ten de
+# çekilemiyor (carte anahtarı yok). Dolayısıyla `tr` dosyaları bizim
+# kaynak kodumuz ve commitlenmeleri ŞART.
+#
+# İstisna yazılmasaydı aynı tuzağa düşülürdü: dosyalar yerelde çalışır,
+# imaja hiç girmez, panel sunucuda İngilizce kalırdı. `public/vendor`
+# tam olarak bu yüzden eksikti (bkz. docs/RUNBOOK.md §4.6).
+*
+!.gitignore
+
+# Yalnızca `tr` dizinleri izlenir; `en` ve diğer yayımlanmış paketler değil.
+!*/
+*/*
+!*/tr/
+!*/tr/**

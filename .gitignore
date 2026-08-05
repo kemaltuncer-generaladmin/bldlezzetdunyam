@@ -19,6 +19,17 @@ firebase-adminsdk*.json
 
 # ── PHP / TastyIgniter (platform/) ───────────────────────────────────────────
 vendor/
+# `vendor/` başında eğik çizgi olmadığı için HER DERİNLİKTEKİ `vendor`
+# dizinini dışlıyor — `platform/lang/vendor/` dahil. Orası Laravel'in
+# paket çevirilerini geçersiz kılma dizini ve Türkçe çevirilerimiz orada
+# duruyor; çekirdek yalnızca İngilizce ile geldiği için o dosyalar
+# derleme çıktısı değil, KAYNAK kodumuz.
+#
+# Bu istisna olmadan dizinin içine yazılan hiçbir kural işe yaramaz:
+# git dışlanmış bir dizine hiç inmez, dolayısıyla oradaki `!` kuralları
+# hiç değerlendirilmez. Belirti sinsi olurdu — çeviriler yerelde çalışır,
+# commitlenmez, sunucuda panel İngilizce kalırdı.
+!platform/lang/vendor/
 platform/storage/framework/cache/*
 platform/storage/framework/sessions/*
 platform/storage/framework/views/*
