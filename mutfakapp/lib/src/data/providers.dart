@@ -27,6 +27,7 @@ import '../settings/kds_settings.dart';
 import '../settings/kds_settings_store.dart';
 import '../sound/alarm_asset.dart';
 import '../sound/alarm_player.dart';
+import '../sound/connection_alarm.dart';
 import '../sound/new_order_alarm.dart';
 import 'device_session.dart';
 import 'kitchen_health.dart';
@@ -135,6 +136,94 @@ final alarmPlayerProvider = Provider<AlarmPlayer>((ref) {
   ref.onDispose(() => player.stop().ignore());
   return player;
 });
+
+/// Bağlantı uyarısının oynatıcısı.
+///
+/// Yeni sipariş alarmından AYRI bir oynatıcı: ikisi aynı anda çalabilir
+/// (bağlantı koptu ve ekranda hâlâ onaylanmamış sipariş var) ve tek
+/// oynatıcıyı paylaşsalardı biri diğerinin sesini keserdi.
+final connectionAlarmPlayerProvider = Provider<AlarmPlayer>((ref) {
+  final enabled = ref.watch(
+    kdsSettingsProvider.select((settings) => settings.soundEnabled),
+  );
+
+  final player = enabled
+      ? ProcessAlarmPlayer(
+          assetPath: connectionAlarmAssetPath,
+          materialize: copyAlarmAssetToTempFile,
+        )
+      : SilentAlarmPlayer();
+
+  ref.onDispose(() => player.stop().ignore());
+  return player;
+});
+
+/// Bağlantı kopma uyarısı.
+final connectionAlarmProvider =
+    NotifierProvider<ConnectionAlarmController, ConnectionAlarmState>(
+      ConnectionAlarmController.new,
+    );
+
+/// Bağlantı durumunu [ConnectionAlarm]'a bağlar.
+///
+/// Karar mantığı burada DEĞİL; aralık, susturma ve tekrar kuralları
+/// `ConnectionAlarm` içinde ve testleri oradadır.
+class ConnectionAlarmController extends Notifier<ConnectionAlarmState> {
+  ConnectionAlarm? _alarm;
+
+  @override
+  ConnectionAlarmState build() {
+    final alarm = ConnectionAlarm(ref.watch(connectionAlarmPlayerProvider));
+    _alarm = alarm;
+    ref.onDispose(() {
+      _alarm = null;
+      alarm.dispose();
+    });
+
+    var initial = alarm.state;
+    var built = false;
+
+    ref.listen<AsyncValue<OrderSourceConnection>>(connectionProvider, (
+      _,
+      next,
+    ) {
+      final durum = next.value;
+      if (durum == null) return;
+
+      // `connecting` KOPUK SAYILMAZ. İlk açılışta ve her yeniden denemede
+      // kısa süre bu durumdan geçiliyor; uyarı çalsaydı her açılış bir
+      // alarmla başlardı.
+      //
+      // `revoked` de sayılmaz: o bir ağ sorunu değil, yönetici kararı.
+      // Uygulama zaten eşleme ekranına dönüyor ve orada ne olduğu yazıyor.
+      final kopuk = durum == OrderSourceConnection.disconnected;
+      final sonraki = alarm.onConnectionChanged(disconnected: kopuk);
+
+      if (built) {
+        state = sonraki;
+      } else {
+        initial = sonraki;
+      }
+    }, fireImmediately: true);
+
+    built = true;
+    return initial;
+  }
+
+  /// "Sesi sustur" düğmesi.
+  void silence() {
+    final alarm = _alarm;
+    if (alarm == null) return;
+    state = alarm.silence();
+  }
+
+  /// Oynatıcının sessizlik durumunu yeniden okur.
+  void refresh() {
+    final alarm = _alarm;
+    if (alarm == null) return;
+    state = alarm.refresh();
+  }
+}
 
 /// Alarmın durumu ve onu susturmanın tek yolu.
 final newOrderAlarmProvider =

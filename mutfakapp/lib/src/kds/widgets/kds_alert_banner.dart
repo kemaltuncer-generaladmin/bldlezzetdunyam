@@ -27,6 +27,7 @@ class KdsAlertBanner extends ConsumerWidget {
     final printer = ref.watch(printerStatusProvider).value;
     final failedCount = ref.watch(printQueueFailedCountProvider);
     final alarm = ref.watch(newOrderAlarmProvider);
+    final connectionAlarm = ref.watch(connectionAlarmProvider);
 
     // Sıra önemlidir: bağlantı yoksa yazıcı uyarısı ikinci derecededir,
     // iki bant üst üste koymak paydan yer çalar.
@@ -35,7 +36,17 @@ class KdsAlertBanner extends ConsumerWidget {
         color: const Color(BldColors.danger),
         icon: Icons.cloud_off,
         title: l10n.offlineBannerTitle,
-        body: l10n.offlineBannerBody,
+        body: connectionAlarm.silentWhileDisconnected
+            // Kopukken ses de çıkmıyorsa personelin bunu bilmesi gerekir:
+            // sessiz bir kesinti, kesintiyi hiç bilmemekten farksızdır.
+            ? '${l10n.offlineBannerBody} ${l10n.alarmMutedBody}'
+            : l10n.offlineBannerBody,
+        // Uyarı sesi personelin çözemeyeceği bir sorunu bildiriyor;
+        // susturabilmeli. Bağlantı gelip yeniden koparsa tekrar çalar.
+        onSilence: connectionAlarm.silenced || connectionAlarm.muted
+            ? null
+            : ref.read(connectionAlarmProvider.notifier).silence,
+        silenceLabel: l10n.alarmSilence,
       ),
       OrderSourceConnection.connecting => _Banner(
         color: const Color(BldColors.warning),
@@ -82,12 +93,18 @@ class _Banner extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.body,
+    this.onSilence,
+    this.silenceLabel,
   });
 
   final Color color;
   final IconData icon;
   final String title;
   final String body;
+
+  /// Verilirse şeritte bir "sesi sustur" düğmesi çizilir.
+  final VoidCallback? onSilence;
+  final String? silenceLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -131,6 +148,26 @@ class _Banner extends StatelessWidget {
               ),
             ),
           ),
+          if (onSilence != null && silenceLabel != null) ...[
+            const SizedBox(width: BldSpacing.md),
+            OutlinedButton.icon(
+              onPressed: onSilence,
+              icon: Icon(Icons.volume_off, color: foreground),
+              label: Text(
+                silenceLabel!,
+                style: TextStyle(
+                  fontSize: KdsTextScale.statusBar,
+                  color: foreground,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: foreground),
+                // Tema dolu butonlara tam genişlik veriyor; şeritte
+                // içeriğe göre daralması gerekiyor.
+                minimumSize: const Size(0, 44),
+              ),
+            ),
+          ],
         ],
       ),
     );

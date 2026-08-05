@@ -115,6 +115,7 @@ class _PairedRoot extends ConsumerWidget {
     // devam etmeli. Bir dinleyicisi olmayan sağlayıcı hiç kurulmaz.
     ref
       ..watch(newOrderAlarmProvider)
+      ..watch(connectionAlarmProvider)
       ..watch(kitchenHealthProvider);
 
     ref.listen<AsyncValue<OrderSourceConnection>>(connectionProvider, (

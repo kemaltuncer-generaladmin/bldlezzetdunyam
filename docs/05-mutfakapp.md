@@ -213,6 +213,39 @@ tetiği kaçırmaktansa fazladan çağırmak yeğdir — kuyruktaki
 doğrudan oraya geçer ve arada bir yayın kaçarsa müşteri fişi hiç
 basılmazdı.
 
+#### Sesli uyarılar (05.08.2026)
+
+İki ayrı alarm var ve **sesleri farklıdır** — aynı sesi kullansaydık
+personel hangisinin çaldığını ayırt edemez, bağlantı uyarısını yeni
+sipariş sanıp ekrana koşar ve orada bir şey bulamazdı.
+
+| Uyarı | Ses | Davranış |
+|---|---|---|
+| **Yeni sipariş** | `yeni_siparis.wav` (yükselen çan) | Sipariş **onaylanana kadar** kesintisiz döngü |
+| **Bağlantı yok** | `baglanti_yok.wav` (alçalan iki ton) | **45 saniyede bir** tek uyarı |
+
+> **Neden biri kesintisiz, diğeri aralıklı.** Yeni sipariş alarmını
+> personel bir tuşla çözebilir: onaylar, susar. Bağlantı kopmasını
+> çözemez. Ağ gelene kadar kesintisiz ses çalmak, yapabilecekleri bir şey
+> olmadığı hâlde onları cezalandırmaktır ve sonu hoparlörün fişini
+> çekmektir — yani her iki alarmın da kaybedilmesi.
+
+Bağlantı uyarısı **kopma anında hemen** çalar, aralık kadar beklemez:
+kopmayı 45 saniye sonra duyurmak, kopmanın kendisi kadar zararlı.
+
+"Sesi sustur" yalnızca **o anki** kopmayı susturur. Bağlantı gelip
+yeniden koparsa uyarı tekrar çalar; "bir kez susturdum" kalıcı değildir.
+Kalıcı susturma ayarlar ekranındaki ses şalteridir.
+
+`connecting` durumu **kopuk sayılmaz**: ilk açılışta ve her yeniden
+denemede kısa süre bundan geçiliyor, uyarı çalsaydı her açılış bir
+alarmla başlardı. `revoked` de sayılmaz — o bir ağ sorunu değil, yönetici
+kararı ve uygulama zaten eşleme ekranına dönüyor.
+
+> Ses **bir kez çalınır** (`AlarmPlayer.playOnce`), döngü sabit bir
+> gecikmeyle kesilmez. "2 saniye sonra durdur" yazmak parçanın uzunluğunu
+> koda gömmek olurdu ve testlerde asılı zamanlayıcı bırakıyordu.
+
 #### Sağlık göstergesi (05.08.2026)
 
 Ekranda yazıcı, sunucu bağlantısı, fiş kuyruğu, bugünkü sipariş sayısı ve

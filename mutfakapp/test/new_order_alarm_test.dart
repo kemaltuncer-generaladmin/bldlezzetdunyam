@@ -37,6 +37,11 @@ class SpyPlayer implements AlarmPlayer {
     _playing = false;
     stops++;
   }
+
+  @override
+  Future<void> playOnce() async {
+    starts++;
+  }
 }
 
 KitchenOrder yeni(int id) => makeOrder(id: id, status: OrderStatus.yeni);

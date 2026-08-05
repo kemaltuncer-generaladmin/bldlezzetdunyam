@@ -88,6 +88,11 @@ class RecordingAlarmPlayer implements AlarmPlayer {
     _playing = false;
     stops++;
   }
+
+  @override
+  Future<void> playOnce() async {
+    starts++;
+  }
 }
 
 class NullPrinter implements PrinterDevice {

@@ -37,6 +37,14 @@ abstract interface class AlarmPlayer {
   /// Susturur. Çalmıyorsa hiçbir şey yapmaz.
   Future<void> stop();
 
+  /// Sesi **bir kez** çalar ve bitmesini bekler.
+  ///
+  /// Döngüyü sabit bir gecikmeyle kesmek yerine bu var: "2 saniye sonra
+  /// durdur" yazmak, parçanın uzunluğunu koda gömmek demekti ve testlerde
+  /// asılı zamanlayıcı bırakıyordu. Bağlantı uyarısı bunu kullanıyor —
+  /// aralıklı tek uyarı, kesintisiz döngü değil.
+  Future<void> playOnce();
+
   bool get isPlaying;
 
   /// Ses hiç çalınamıyor mu? (oynatıcı yok, cihaz açılamıyor)
@@ -55,6 +63,9 @@ class SilentAlarmPlayer implements AlarmPlayer {
 
   @override
   Future<void> stop() async => _playing = false;
+
+  @override
+  Future<void> playOnce() async {}
 
   @override
   bool get isPlaying => _playing;
@@ -110,6 +121,28 @@ class ProcessAlarmPlayer implements AlarmPlayer {
     _current = null;
   }
 
+  @override
+  Future<void> playOnce() async {
+    final path = _filePath ??= await _materializeQuietly();
+    if (path == null) return;
+
+    final command = _command ??= await _pickCommand();
+    if (command == null) {
+      _muted = true;
+      return;
+    }
+
+    try {
+      final process = await _spawn(command, ['-q', path]);
+      _current = process;
+      await process.exitCode;
+    } on Object {
+      _muted = true;
+    } finally {
+      _current = null;
+    }
+  }
+
   Future<void> _loop() async {
     while (_wanted) {
       final path = _filePath ??= await _materializeQuietly();
@@ -145,6 +178,8 @@ class ProcessAlarmPlayer implements AlarmPlayer {
       return null;
     }
   }
+
+  /// Yalnızca [playOnce] için: döngü bayrağına dokunmaz.
 
   /// İlk çalışan oynatıcıyı seçer.
   ///
