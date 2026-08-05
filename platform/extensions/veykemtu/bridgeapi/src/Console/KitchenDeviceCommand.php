@@ -23,7 +23,7 @@ class KitchenDeviceCommand extends Command
     protected $signature = 'veykemtu:kds
         {--new= : Yeni cihaz oluştur ve eşleme kodu üret}
         {--code= : Var olan cihaz için yeni eşleme kodu üret}
-        {--revoke= : Cihazı iptal et (token silinir)}';
+        {--revoke= : Cihazı iptal et (token geçersizleşir, cihaz bir daha eşleşemez)}';
 
     protected $description = 'Mutfak kasalarını listeler, eşleme kodu üretir, cihaz iptal eder.';
 

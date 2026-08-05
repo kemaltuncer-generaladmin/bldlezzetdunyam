@@ -21,13 +21,33 @@ use Veykemtu\BridgeApi\Services\OrderStatusTransition;
  */
 class ContractTest extends TestCase
 {
-    use RefreshDatabase;
+    // `refreshTestDatabase` bir trait metodudur; `parent::` ile çağrılamaz.
+    // Takma ad verip özgün hâlini koruyoruz.
+    use RefreshDatabase {
+        refreshTestDatabase as private laravelRefreshTestDatabase;
+    }
 
     private const array HEADERS = [
         'X-App-Id' => 'website',
         'X-App-Version' => '1.0.0',
         'Accept' => 'application/json',
     ];
+
+    /**
+     * `migrate:fresh` TastyIgniter'ın tablolarını KURMAZ.
+     *
+     * Çekirdek göçler eklenti sisteminden gelir ve yalnızca `igniter:up`
+     * ile koşar; düz `migrate` yalnızca Laravel'in 5 tablosunu yaratır.
+     * Bu yüzden `settings` yoktu ve `veykemtu:setup` ilk satırında
+     * patlıyordu. Şema yenilemesi test koşumu başına bir kez yapılır,
+     * her test değil — sonrası işlem (transaction) ile geri alınır.
+     */
+    protected function refreshTestDatabase(): void
+    {
+        $this->laravelRefreshTestDatabase();
+
+        $this->artisan('igniter:up');
+    }
 
     protected function setUp(): void
     {
@@ -76,14 +96,19 @@ class ContractTest extends TestCase
             ]]]);
     }
 
-    public function test_faz1_de_online_odeme_kapali(): void
+    /**
+     * E-06 ile online ödeme AÇILDI; bu test eskiden kapalı olmasını
+     * bekliyordu. Arkasında henüz gerçek POS yok, simülasyon geçidi var
+     * ve tehlikeli durum `GET /api/health` üzerinden ilan ediliyor.
+     */
+    public function test_online_odeme_sunuluyor(): void
     {
         $methods = $this->getJson('/api/locations', self::HEADERS)
             ->json('data.0.payment_methods');
 
-        $this->assertNotContains('online', $methods);
         $this->assertContains('cash', $methods);
         $this->assertContains('account', $methods);
+        $this->assertContains('online', $methods);
     }
 
     public function test_menu_uc_kategori_on_iki_urun_doner(): void
@@ -199,9 +224,13 @@ class ContractTest extends TestCase
         $token = $device['token'];
         $device['model']->revoke();
 
+        // Sözleşme (`docs/openapi.yaml`) bu durumda `403 DEVICE_REVOKED`
+        // der ve KDS tam olarak bu kodu görünce eşleme ekranına döner
+        // (docs/05 §7 adım 5). `UNAUTHENTICATED` beklemek testi kendi
+        // sözleşmesiyle çelişik hâle getiriyordu.
         $this->withToken($token)->getJson('/api/kitchen/orders', self::HEADERS)
             ->assertForbidden()
-            ->assertJsonPath('error.code', 'UNAUTHENTICATED');
+            ->assertJsonPath('error.code', 'DEVICE_REVOKED');
     }
 
     public function test_baskasinin_siparisi_404_doner_403_degil(): void
@@ -227,8 +256,22 @@ class ContractTest extends TestCase
     {
         $order = $this->placeOrder(quantity: 2);
 
-        // Tavuk Sote 18500 × 2 = 37000
-        $this->assertSame(37000, $order['total']);
+        // Ara toplam yalnızca DETAY yanıtında var: `POST /orders`
+        // sözleşmede `OrderCreated` döner ve o şema kalem dökümü
+        // taşımaz (docs/openapi.yaml).
+        $detay = $this->asCustomer()
+            ->getJson('/api/orders/'.$order['id'], self::HEADERS)
+            ->assertOk()->json();
+
+        // Tavuk Sote 18500 × 2 = 37000 ara toplam.
+        // Toplam ara toplam DEĞİLDİR: adrese gönderimde teslimat ücreti
+        // eklenir. Sabit 37000 beklemek, teslimat ücreti eklendiğinde
+        // testi kırdı; doğru kural toplamın parçalarından türemesidir.
+        $this->assertSame(37000, $detay['subtotal']);
+        $this->assertSame(
+            $detay['subtotal'] + $detay['delivery_fee'],
+            $detay['total'],
+        );
     }
 
     public function test_istemcinin_gonderdigi_tutar_yok_sayilir(): void
@@ -257,13 +300,18 @@ class ContractTest extends TestCase
             ->assertJsonPath('error.code', 'ITEM_UNAVAILABLE');
     }
 
-    public function test_kapali_odeme_yontemi_reddedilir(): void
+    /**
+     * Vitrinin sunmadığı bir yöntem reddedilmelidir. Örnek olarak
+     * `online` kullanılamaz — E-06 ile açıldı; sözleşmede hiç olmayan bir
+     * değer seçiyoruz ki test, açılan/kapanan yöntemlere göre bayatlamasın.
+     */
+    public function test_tanimsiz_odeme_yontemi_reddedilir(): void
     {
         $this->asCustomer()->postJson('/api/orders', [
             'location_id' => $this->locationId(),
             'items' => [['menu_id' => $this->menuId('Tavuk Sote'), 'quantity' => 2]],
             'delivery_type' => 'pickup',
-            'payment_method' => 'online', // Faz 1'de kapalı
+            'payment_method' => 'kripto',
         ], self::HEADERS)
             ->assertStatus(422)
             ->assertJsonPath('error.code', 'VALIDATION_FAILED');
@@ -453,7 +501,7 @@ class ContractTest extends TestCase
         $musteri = $this->asKitchen()
             ->getJson('/api/kitchen/orders/'.$order['id'].'/receipt?type=musteri', self::HEADERS)
             ->assertOk()->json();
-        $this->assertSame(37000, $musteri['total']);
+        $this->assertSame($order['total'], $musteri['total']);
     }
 
     public function test_teslim_fisi_tipi_kaldirildi(): void

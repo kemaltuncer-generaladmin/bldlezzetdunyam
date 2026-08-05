@@ -128,9 +128,20 @@ class KitchenDevice extends Model
         ])->saveQuietly());
     }
 
+    /**
+     * Cihazı iptal eder.
+     *
+     * TOKEN SATIRI KASTEN SİLİNMEZ. Silindiğinde `findToken()` null döner
+     * ve istek `401 UNAUTHENTICATED` ile biter; sözleşmenin ve KDS'in
+     * beklediği `403 DEVICE_REVOKED` dalına hiç ulaşılmaz. Sonuç: yönetici
+     * bir kasayı iptal ettiğinde mutfak ekranı "eşleme iptal edildi" yerine
+     * genel bir oturum hatası gösteriyordu (docs/05 §7 adım 5).
+     *
+     * Token'ı bırakmak erişim açık bırakmaz: her mutfak ucu `bld.auth`
+     * middleware'inden geçer ve orada `isRevoked()` kontrolü var.
+     */
     public function revoke(): void
     {
-        $this->tokens()->delete();
         $this->revoked_at = Carbon::now();
         $this->save();
     }

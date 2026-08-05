@@ -23,5 +23,10 @@
         }
     },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "autoload-dev": {
+        "psr-4": {
+            "Veykemtu\\BridgeApi\\Tests\\": "tests/"
+        }
+    }
 }

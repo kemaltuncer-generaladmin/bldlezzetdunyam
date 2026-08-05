@@ -11,6 +11,15 @@
         <testsuite name="Feature">
             <directory suffix="Test.php">./tests/Feature</directory>
         </testsuite>
+        <!--
+            Kendi kodumuz `extensions/veykemtu` altında yaşıyor (ADR-02) ve
+            testleri de orada. Bu satır olmadan phpunit onları HİÇ görmez:
+            `php artisan test` yalnızca Laravel'in iki örnek testini koşar,
+            yeşil döner ve sözleşme testlerimizin koşmadığı fark edilmez.
+        -->
+        <testsuite name="Veykemtu">
+            <directory suffix="Test.php">./extensions/veykemtu/*/tests</directory>
+        </testsuite>
     </testsuites>
     <coverage processUncoveredFiles="true">
         <include>
@@ -21,8 +30,15 @@
         <env name="APP_ENV" value="testing"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="CACHE_DRIVER" value="array"/>
-        <!-- <env name="DB_CONNECTION" value="sqlite"/> -->
-        <!-- <env name="DB_DATABASE" value=":memory:"/> -->
+        <!--
+            AYRI TEST VERİTABANI ŞART.
+            Bu satır yokken `php artisan test`, `.env`deki veritabanına
+            bağlanıyordu ve `RefreshDatabase` GELİŞTİRME VERİTABANINI
+            SİLİYORDU. Sahada yaşandı: yerel `bld` 85 tablodan 5'e düştü.
+            SQLite kullanılamıyor — TastyIgniter göçleri MySQL'e özgü
+            ifadeler içeriyor.
+        -->
+        <env name="DB_DATABASE" value="bld_test"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

@@ -30,15 +30,24 @@ jobs:
 
       - name: Özel kod yalnızca extensions/veykemtu altında olmalı
         run: |
-          # TastyIgniter'ın kendi klasörlerine sızmış dosya var mı?
-          KACAK=$(git ls-files 'platform/app/**' 'platform/themes/**' \
-            | grep -v '^platform/themes/veykemtu' || true)
-          if [ -n "$KACAK" ]; then
-            echo "::error::Özel kod yanlış yerde — extensions/veykemtu/ altında olmalı:"
-            echo "$KACAK"
-            exit 1
+          # ÖNCEKİ HÂLİ YANLIŞTI: `platform/app/**` altındaki HER izlenen
+          # dosyayı ihlal sayıyordu. Oysa oradaki 19 dosya TastyIgniter'ın
+          # kendi iskeleti; `composer create-project` ile geldiler ve
+          # repoda durmaları normal. Gate her koşuda kırmızı olurdu.
+          #
+          # ADR-02'nin asıl yasakladığı şey BİZİM kodumuzun çekirdek
+          # klasörlerine sızması. Doğrudan onu arıyoruz.
+          HEDEF=$(git ls-files 'platform/app/**' 'platform/themes/**' \
+            'platform/config/**' | grep -v '^platform/themes/veykemtu' || true)
+          if [ -n "$HEDEF" ]; then
+            KACAK=$(grep -rlE 'Veykemtu|veykemtu' $HEDEF || true)
+            if [ -n "$KACAK" ]; then
+              echo "::error::Özel kod çekirdek klasörlerde — extensions/veykemtu/ altında olmalı:"
+              echo "$KACAK"
+              exit 1
+            fi
           fi
-          echo "Özel kod doğru yerde."
+          echo "Çekirdek klasörlerde özel kod yok."
 
   lint-ve-test:
     runs-on: ubuntu-latest
