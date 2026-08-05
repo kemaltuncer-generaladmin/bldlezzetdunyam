@@ -141,6 +141,74 @@ class ContractTest extends TestCase
         $this->assertContains('online', $methods);
     }
 
+    // ── Kasa sağlığı ──────────────────────────────────────────────────────
+
+    public function test_saglik_bildirimi_kaydedilir(): void
+    {
+        $device = $this->pairedDevice();
+
+        $this->withToken($device['token'])->postJson('/api/kitchen/health', [
+            'printer_ok' => false,
+            'print_queue_pending' => 7,
+            'print_queue_failed' => 2,
+            'app_version' => '1.2.3',
+        ], self::HEADERS)->assertOk();
+
+        $device['model']->refresh();
+
+        $this->assertFalse($device['model']->printer_ok);
+        $this->assertSame(7, $device['model']->print_queue_pending);
+        $this->assertSame(2, $device['model']->print_queue_failed);
+        $this->assertSame('1.2.3', $device['model']->app_version);
+        $this->assertNotNull($device['model']->health_reported_at);
+    }
+
+    public function test_saglik_yaniti_vitrin_ozetini_doner(): void
+    {
+        // Cihaz bugünkü sayıyı KENDİ hesaplayamaz: mutfak listesi yalnızca
+        // aktif siparişleri taşır, teslim edilenler düşer.
+        $this->placeOrder();
+
+        $this->asKitchen()->postJson('/api/kitchen/health', [
+            'printer_ok' => true,
+            'print_queue_pending' => 0,
+            'print_queue_failed' => 0,
+        ], self::HEADERS)
+            ->assertOk()
+            ->assertJsonStructure(['server_time', 'orders_today', 'orders_active'])
+            ->assertJsonPath('orders_today', 1)
+            ->assertJsonPath('orders_active', 1);
+    }
+
+    public function test_iptal_edilen_siparis_bugunku_sayiya_girmez(): void
+    {
+        $order = $this->placeOrder();
+        $this->asCustomer()->postJson('/api/orders/'.$order['id'].'/cancel', [], self::HEADERS);
+
+        $this->asKitchen()->postJson('/api/kitchen/health', [
+            'printer_ok' => true,
+            'print_queue_pending' => 0,
+            'print_queue_failed' => 0,
+        ], self::HEADERS)->assertJsonPath('orders_today', 0);
+    }
+
+    public function test_saglik_bildirimi_dogrulanir(): void
+    {
+        $this->asKitchen()
+            ->postJson('/api/kitchen/health', ['printer_ok' => true], self::HEADERS)
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_FAILED');
+    }
+
+    public function test_musteri_saglik_bildiremez(): void
+    {
+        $this->asCustomer()->postJson('/api/kitchen/health', [
+            'printer_ok' => true,
+            'print_queue_pending' => 0,
+            'print_queue_failed' => 0,
+        ], self::HEADERS)->assertForbidden();
+    }
+
     // ── Yoğunluk şalteri ──────────────────────────────────────────────────
 
     public function test_vitrin_varsayilan_olarak_yogun_degildir(): void

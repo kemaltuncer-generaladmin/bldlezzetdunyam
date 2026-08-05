@@ -201,6 +201,82 @@ class KitchenController extends ApiController
     }
 
     /**
+     * Kasa sağlık bildirimi — `docs/03-api-sozlesmesi.md` §Mutfak.
+     *
+     * ÇİFT YÖNLÜ, ve bu bilinçli: cihaz kendi bilebileceğini (yazıcı,
+     * kuyruk, sürüm) bildirir; sunucu cihazın bilemeyeceğini (bugünkü
+     * toplam sipariş) döndürür. Ekrandaki sağlık paneli bunların ikisini
+     * birden gösteriyor ve iki ayrı çağrı yapmasının anlamı yok.
+     *
+     * Bugünkü sayıyı cihazın kendisi hesaplayamaz: mutfak listesi
+     * yalnızca AKTİF siparişleri taşır, teslim edilenler düşer. Vardiya
+     * boyunca kaç sipariş geçtiğini yalnızca sunucu bilir.
+     *
+     * Bildirilen değerler DOĞRULANMAZ, yalnızca kaydedilir. Yazıcının
+     * gerçekten çalıştığını sunucudan anlamanın yolu yok; cihazın
+     * beyanına güveniyoruz ve zaman damgasıyla birlikte saklıyoruz ki
+     * bayat veri taze sanılmasın.
+     */
+    public function health(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'printer_ok' => ['required', 'boolean'],
+            'print_queue_pending' => ['required', 'integer', 'min:0', 'max:100000'],
+            'print_queue_failed' => ['required', 'integer', 'min:0', 'max:100000'],
+            'app_version' => ['sometimes', 'string', 'max:32'],
+        ]);
+
+        $device = $request->user();
+
+        if (!$device instanceof KitchenDevice) {
+            throw ApiException::unauthenticated();
+        }
+
+        // `saveQuietly` + `withoutTimestamps`: sağlık dakikada bir gelir,
+        // `updated_at`'i kirletip model olaylarını tetiklemesine gerek yok.
+        KitchenDevice::withoutTimestamps(fn() => $device->forceFill([
+            'health_reported_at' => Carbon::now(),
+            'printer_ok' => (bool) $data['printer_ok'],
+            'print_queue_pending' => (int) $data['print_queue_pending'],
+            'print_queue_failed' => (int) $data['print_queue_failed'],
+            'app_version' => $data['app_version'] ?? $device->app_version,
+        ])->saveQuietly());
+
+        return $this->json([
+            'server_time' => Carbon::now()->utc()->toIso8601ZuluString(),
+            'orders_today' => $this->ordersToday(),
+            'orders_active' => $this->activeOrderCount(),
+        ]);
+    }
+
+    /**
+     * Bugün oluşturulan sipariş sayısı — iptaller HARİÇ.
+     *
+     * Gün sınırı Europe/Istanbul'a göre: sunucu UTC tutuyor ve gece
+     * yarısından sonraki üç saatlik siparişler "dün" görünürdü
+     * (`docs/03` §1.3).
+     */
+    private function ordersToday(): int
+    {
+        $cancelled = \Igniter\Admin\Models\Status::query()
+            ->where('status_code', OrderStatusTransition::CANCELLED)
+            ->value('status_id');
+
+        return Order::query()
+            ->where('created_at', '>=', BusinessTime::startOfBusinessDay())
+            ->when($cancelled !== null, fn($q) => $q->where('status_id', '!=', $cancelled))
+            ->count();
+    }
+
+    /** Mutfak ekranında kart olarak duran sipariş sayısı. */
+    private function activeOrderCount(): int
+    {
+        return Order::query()
+            ->whereNotIn('status_id', $this->terminalStatusIds())
+            ->count();
+    }
+
+    /**
      * Yoğunluk şalteri — mutfaktaki tek tuş.
      *
      * Sipariş almayı DURDURMAZ. Açıkken müşteri arayüzlerinde "hazırlanması

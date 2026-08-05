@@ -77,5 +77,6 @@ Route::prefix('api')
                 Route::get('production-list', [KitchenController::class, 'productionList']);
                 Route::get('heartbeat', [KitchenController::class, 'heartbeat']);
                 Route::post('busy', [KitchenController::class, 'setBusy']);
+                Route::post('health', [KitchenController::class, 'health']);
             });
     });

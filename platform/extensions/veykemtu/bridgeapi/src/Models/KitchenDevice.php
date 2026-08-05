@@ -22,6 +22,11 @@ use Laravel\Sanctum\HasApiTokens;
  * @property Carbon|null $pairing_expires_at
  * @property Carbon|null $last_seen_at
  * @property Carbon|null $revoked_at
+ * @property Carbon|null $health_reported_at
+ * @property bool|null $printer_ok
+ * @property int|null $print_queue_pending
+ * @property int|null $print_queue_failed
+ * @property string|null $app_version
  */
 class KitchenDevice extends Model
 {
@@ -41,7 +46,21 @@ class KitchenDevice extends Model
         'pairing_expires_at' => 'datetime',
         'last_seen_at' => 'datetime',
         'revoked_at' => 'datetime',
+        'health_reported_at' => 'datetime',
+        'printer_ok' => 'boolean',
+        'print_queue_pending' => 'integer',
+        'print_queue_failed' => 'integer',
     ];
+
+    /**
+     * Cihaz "çevrimiçi" mi?
+     *
+     * Eşik yoklama aralığının katı olmalı: kasa 5 saniyede bir yokluyor,
+     * tek bir kaçırılmış istek cihazı çevrimdışı göstermemeli. Üç dakika,
+     * geçici ağ hıçkırığını tolere ederken gerçek bir kesintiyi vardiya
+     * ortasında fark ettirecek kadar kısa.
+     */
+    public const int ONLINE_THRESHOLD_MINUTES = 3;
 
     public function printJobs(): HasMany
     {

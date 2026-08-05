@@ -50,6 +50,18 @@ final class BusinessTime
     }
 
     /**
+     * İşletme gününün başlangıcı, veritabanıyla karşılaştırılmaya hazır.
+     *
+     * "Bugünkü siparişler" sorgusu bunu kullanır. UTC gece yarısını
+     * kullanmak, 00:00–03:00 arasında verilen siparişleri "dün" sayardı —
+     * catering'de gece siparişi olağan ve vardiya raporu yanlış çıkardı.
+     */
+    public static function startOfBusinessDay(): Carbon
+    {
+        return self::forStorage(self::now()->startOfDay());
+    }
+
+    /**
      * Dışarıdan gelen (UTC) bir anı **veritabanına yazılmaya hazır** hale getirir.
      *
      * NEDEN GEREKLİ — sessiz ve pahalı bir tuzak:

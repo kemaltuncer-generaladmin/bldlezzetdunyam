@@ -814,6 +814,81 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
 
+  /kitchen/health:
+    parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
+    post:
+      tags: [Mutfak]
+      summary: Kasa sağlık bildirimi
+      description: |
+        Kasa kendi durumunu bildirir, sunucu da kasanın bilemeyeceğini
+        döndürür. **Çift yönlü olması bilinçlidir:** ekrandaki sağlık
+        paneli ikisini birden gösteriyor ve iki ayrı çağrı yapmasının
+        anlamı yok.
+
+        Bugünkü sipariş sayısını cihaz hesaplayamaz: mutfak listesi
+        yalnızca **aktif** siparişleri taşır, teslim edilenler düşer.
+        Vardiya boyunca kaç sipariş geçtiğini yalnızca sunucu bilir.
+
+        `heartbeat` ile karıştırılmamalı: o yalnızca "cihaz ayakta"
+        der. "Ayakta" ile "çalışıyor" aynı şey değildir — yazıcının
+        kâğıdı bitmiş, kuyrukta on basılmamış fiş birikmiş ve uygulama
+        hâlâ düzenli yoklama yapıyor olabilir.
+
+        Bildirilen değerler **doğrulanmaz**, kaydedilir. Yazıcının
+        gerçekten çalıştığını sunucudan anlamanın yolu yok; cihazın
+        beyanına güveniyoruz ve zaman damgasıyla saklıyoruz ki bayat veri
+        taze sanılmasın.
+      operationId: reportKitchenHealth
+      security:
+        - KitchenToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [printer_ok, print_queue_pending, print_queue_failed]
+              properties:
+                printer_ok:
+                  type: boolean
+                  description: Yazıcı cihazına yazılabiliyor mu?
+                print_queue_pending:
+                  type: integer
+                  minimum: 0
+                  description: Kuyrukta bekleyen fiş sayısı.
+                print_queue_failed:
+                  type: integer
+                  minimum: 0
+                  description: Basılamamış ve vazgeçilmiş fiş sayısı.
+                app_version: { type: string, maxLength: 32 }
+      responses:
+        '200':
+          description: Vitrin özeti
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [server_time, orders_today, orders_active]
+                properties:
+                  server_time: { type: string, format: date-time }
+                  orders_today:
+                    type: integer
+                    description: |
+                      Bugün oluşturulan sipariş sayısı, **iptaller hariç**.
+                      Gün sınırı Europe/Istanbul'a göredir: UTC gece yarısı
+                      kullanılsaydı 00:00–03:00 arası siparişler "dün"
+                      sayılırdı.
+                  orders_active:
+                    type: integer
+                    description: Mutfak ekranında kart olarak duran sipariş sayısı.
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenOrRevoked' }
+        '422':
+          description: Doğrulama hatası
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
   /kitchen/heartbeat:
     parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
     get:
