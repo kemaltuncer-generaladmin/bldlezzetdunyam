@@ -246,9 +246,8 @@ class KitchenHealthStatus {
             ? (json['commands']! as List)
                   .whereType<Map<Object?, Object?>>()
                   .map(
-                    (c) => KitchenCommand.fromJson(
-                      Map<String, Object?>.from(c),
-                    ),
+                    (c) =>
+                        KitchenCommand.fromJson(Map<String, Object?>.from(c)),
                   )
                   .toList()
             : const <KitchenCommand>[],

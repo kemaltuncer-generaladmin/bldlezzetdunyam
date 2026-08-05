@@ -160,6 +160,16 @@ class PrintService {
     return requeued;
   }
 
+  /// Basılamamış işleri kuyruktan düşürür. Düşen iş sayısını döner.
+  int clearFailed() {
+    if (_disposed) return 0;
+
+    final silinen = _queue.clearFailed();
+    if (silinen > 0) _emitPending();
+
+    return silinen;
+  }
+
   /// Kuyruğa girmeyen tek seferlik basım — ayarlar ekranındaki test fişi.
   ///
   /// Kuyruğa yazılmaz çünkü tekrar denenmesi İSTENMEZ: yazıcı yokken test

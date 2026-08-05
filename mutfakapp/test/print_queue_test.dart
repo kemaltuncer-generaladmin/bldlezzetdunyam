@@ -283,6 +283,36 @@ void main() {
       );
     });
 
+    test('yalnızca HATA ALMIŞ işler temizlenir', () async {
+      // Hepsini silmek, yazıcı sırayı yetiştiremediği için bekleyen sağlam
+      // fişleri de çöpe atardı. Bu bir son çare: kâğıt bittiği için biriken
+      // on fişi tek tek uğraşmak yerine yönetici hepsini düşürür.
+      printer.broken = true;
+      kitchen.kitchenReceipts[1] = receiptFor(1);
+      build().start();
+      service.enqueue(1, ReceiptType.mutfak);
+      await settle(150);
+
+      expect(service.failedCount(), greaterThan(0));
+
+      printer.broken = false;
+      queue.enqueue(
+        orderId: 2,
+        type: ReceiptType.mutfak,
+        createdAt: DateTime.utc(2026, 8, 5),
+      );
+
+      final silinen = service.clearFailed();
+
+      expect(silinen, 1);
+      expect(service.failedCount(), 0);
+      expect(
+        queue.nextPending()?.orderId,
+        2,
+        reason: 'Denenmemiş iş kuyrukta kalmalı.',
+      );
+    });
+
     test('tek fiş basılırken bekleme eklenmez', () async {
       kitchen.kitchenReceipts[7] = receiptFor(7);
 

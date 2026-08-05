@@ -181,6 +181,23 @@ class PrintQueue {
               .first['c']
           as int;
 
+  /// Basılamamış ve vazgeçilmiş işleri kuyruktan düşürür.
+  ///
+  /// YALNIZCA HATA ALMIŞ işler silinir (`attempts > 0`); henüz denenmemiş
+  /// bekleyenler kalır. Hepsini silmek, yazıcı sırayı yetiştiremediği için
+  /// bekleyen sağlam fişleri de çöpe atardı.
+  ///
+  /// Bu bir SON ÇARE: kâğıt bittiği için biriken on fişi tek tek yeniden
+  /// bastırmak yerine yönetici hepsini düşürüp baştan başlayabilir.
+  /// Silinen fiş geri gelmez.
+  int clearFailed() {
+    _db.execute(
+      'DELETE FROM print_queue WHERE printed_at IS NULL AND attempts > 0',
+    );
+
+    return _db.updatedRows;
+  }
+
   /// Bir fişi elle yeniden bastırmak için işi tekrar bekler hâle getirir
   /// (`docs/05-mutfakapp.md` §5.4 "Yeniden bas").
   ///

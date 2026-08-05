@@ -6,6 +6,7 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:bld_api_client/bld_api_client.dart';
 import 'package:bld_core/escpos.dart';
@@ -21,11 +22,14 @@ import '../kds/shift_stats.dart';
 import '../kds/urgency.dart';
 import '../printing/print_queue.dart';
 import '../printing/print_service.dart';
+import '../printing/test_receipt.dart';
 import '../printing/print_triggers.dart';
 import '../printing/printer_device.dart';
 import '../settings/kds_settings.dart';
 import '../settings/kds_settings_store.dart';
 import '../lock/unlock_password.dart';
+import 'command_runner.dart';
+import 'managed_settings.dart';
 import '../sound/alarm_asset.dart';
 import '../sound/alarm_player.dart';
 import '../sound/connection_alarm.dart';
@@ -115,6 +119,61 @@ final clockProvider = StreamProvider<DateTime>((ref) async* {
 /// Zamanı okumanın kısa yolu; akış henüz değer üretmediyse gerçek saate düşer.
 DateTime _now(Ref ref) =>
     ref.watch(clockProvider).value ?? DateTime.now().toUtc();
+
+/// Sunucudan gelen komutları çalıştıran koşucu.
+///
+/// Eylemler burada bağlanıyor; karar mantığı `CommandRunner` içinde ve
+/// testleri orada.
+final commandRunnerProvider = Provider<CommandRunner>((ref) {
+  return CommandRunner(
+    CommandActions(
+      printTestReceipt: () async {
+        final config = ref.read(kdsSettingsProvider);
+        await ref
+            .read(printServiceProvider)
+            .printDiagnostic(
+              buildTestReceipt(
+                devicePath: config.printerDevicePath,
+                printedAt: DateTime.now(),
+                style: ReceiptStyle(
+                  codePage: ref.read(appConfigProvider).printerCodePage,
+                ),
+              ),
+            );
+        return null;
+      },
+      reprint: (orderId, type) async {
+        final receiptType = ReceiptType.values
+            .where((t) => t.wireName == type)
+            .firstOrNull;
+        if (receiptType == null) return 'Bilinmeyen fiş tipi: $type';
+
+        return ref.read(printServiceProvider).reprint(orderId, receiptType)
+            ? null
+            : 'Sipariş #$orderId için fiş bulunamadı';
+      },
+      clearFailed: () async {
+        ref.read(printServiceProvider).clearFailed();
+        return null;
+      },
+      silenceAlarm: () async {
+        ref.read(newOrderAlarmProvider.notifier).silence();
+        return null;
+      },
+      // Süreci sonlandırmak yeterli: systemd `Restart=always` ile
+      // beş saniyede geri getiriyor. Kendi başımıza yeniden başlatmaya
+      // çalışmak, servis yöneticisinin işini ikiye bölerdi.
+      restart: () async {
+        // Sonucu bildirebilmek için hemen çıkmıyoruz; bir sonraki
+        // bildirim gönderilsin diye kısa bir gecikme veriyoruz.
+        unawaited(
+          Future<void>.delayed(const Duration(seconds: 2), () => exit(0)),
+        );
+        return null;
+      },
+    ),
+  );
+});
 
 /// Açılış kilidinin hatırlandığı depo.
 final unlockStoreProvider = Provider<UnlockStore>(
@@ -521,13 +580,49 @@ class KitchenHealthController extends Notifier<KitchenHealthState> {
     return monitor.state;
   }
 
+  /// Bir sonraki bildirimde gönderilecek komut sonuçları.
+  List<KitchenCommandResult> _pendingResults = const [];
+
   /// Bir bildirim gönderir. Hata yutulur; gösterge kendisi haber verir.
+  ///
+  /// Yanıttaki ayarları uygular ve komutları çalıştırır. Sonuçlar hemen
+  /// gönderilmez, BİR SONRAKİ bildirime bırakılır: komutu çalıştırmak
+  /// (fiş basmak, yeniden başlatmak) saniyeler sürebilir ve bunun için
+  /// ikinci bir HTTP isteği açmak, ağ kopukken sonucun tamamen
+  /// kaybolması demek olurdu. Sunucu zaten teslim edilmiş komutu
+  /// sonucu gelmezse 10 dakika sonra yeniden gönderiyor.
   Future<void> poll() async {
     final monitor = _monitor;
     if (monitor == null) return;
 
     final next = await monitor.poll();
-    if (ref.mounted) state = next;
+    if (!ref.mounted) return;
+    state = next;
+
+    final status = next.status;
+    if (status == null) return;
+
+    _applySettings(status.settings);
+
+    if (status.commands.isEmpty) return;
+
+    final results = await ref.read(commandRunnerProvider).run(status.commands);
+    if (ref.mounted) _pendingResults = results;
+  }
+
+  /// Sunucudan gelen ayarları yerele uygular.
+  ///
+  /// Değişmediyse YAZMIYORUZ: her dakika aynı değeri diske yazmak, ayar
+  /// sağlayıcısını gereksiz yere yeniden kurar ve ona bağlı olan yoklama
+  /// aralığı, alarm oynatıcısı ve yazıcı yoklaması boşuna yeniden
+  /// oluşturulurdu.
+  void _applySettings(KitchenManagedSettings managed) {
+    final current = ref.read(kdsSettingsProvider);
+    final next = applyManagedSettings(current, managed);
+
+    if (next == current) return;
+
+    unawaited(ref.read(kdsSettingsProvider.notifier).update(next));
   }
 
   /// Bildirilen değerler GERÇEKTİR: yazıcı yoklamasından ve diskteki kuyruktan
@@ -543,11 +638,15 @@ class KitchenHealthController extends Notifier<KitchenHealthState> {
     final probe = PrinterProbe(ref.read(kdsSettingsProvider).printerDevicePath);
     final service = ref.read(printServiceProvider);
 
+    final results = _pendingResults;
+    _pendingResults = const [];
+
     return KitchenHealthReport(
       printerOk: await probe.check() == PrinterAvailability.ready,
       printQueuePending: ref.read(printQueueProvider).pendingCount(),
       printQueueFailed: service.failedCount(),
       appVersion: AppConfig.appVersion,
+      commandResults: results,
     );
   }
 }
