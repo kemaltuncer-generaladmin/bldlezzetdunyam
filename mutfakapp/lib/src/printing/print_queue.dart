@@ -159,6 +159,49 @@ class PrintQueue {
       .map(_fromRow)
       .toList(growable: false);
 
+  /// Ayarlar ekranındaki kuyruk listesi: en yeni iş en üstte.
+  ///
+  /// Basılmışlar da döner — personelin görmek istediği şey "hangi fiş
+  /// çıkmadı" kadar "bu siparişin fişi çıkmış mıydı" sorusudur da.
+  List<PrintJob> recent({int limit = 50}) => _db
+      .select('SELECT * FROM print_queue ORDER BY id DESC LIMIT ?', [limit])
+      .map(_fromRow)
+      .toList(growable: false);
+
+  /// Bekleyen ama en az bir kez başarısız olmuş iş sayısı.
+  ///
+  /// "Kuyruk: 3" ile "Kuyruk: 3, hepsi hata veriyor" mutfakta çok farklı iki
+  /// durumdur: ilki yazıcı sırayı yetiştiremiyor, ikincisi kâğıt bitmiş.
+  int failedCount() =>
+      _db
+              .select(
+                'SELECT COUNT(*) AS c FROM print_queue '
+                'WHERE printed_at IS NULL AND attempts > 0',
+              )
+              .first['c']
+          as int;
+
+  /// Bir fişi elle yeniden bastırmak için işi tekrar bekler hâle getirir
+  /// (`docs/05-mutfakapp.md` §5.4 "Yeniden bas").
+  ///
+  /// `payload` KORUNUR: fişin içeriği olayın olduğu andaki hâliyle donmuştur
+  /// ve yeniden basım aynı kâğıdı üretmelidir — ayrıca ağ yokken de çalışır.
+  /// Deneme sayacı sıfırlanır; eski başarısızlıklar yeni denemeyi geri
+  /// çekilmeye sokmasın.
+  ///
+  /// İş hiç yoksa (bir haftalık temizlik silmişse) yenisi açılır; bu durumda
+  /// fiş verisi sunucudan yeniden çekilir.
+  bool requeue({required int orderId, required ReceiptType type}) {
+    _db.execute(
+      'UPDATE print_queue SET printed_at = NULL, attempts = 0 '
+      'WHERE order_id = ? AND type = ?',
+      [orderId, type.wireName],
+    );
+    if (_db.updatedRows > 0) return true;
+
+    return enqueue(orderId: orderId, type: type, createdAt: DateTime.now());
+  }
+
   void close() => _db.dispose();
 
   static PrintJob _fromRow(Row row) => PrintJob(

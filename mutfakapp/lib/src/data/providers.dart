@@ -13,10 +13,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/app_config.dart';
 import '../kds/board.dart';
+import '../kds/order_alert.dart';
+import '../kds/order_filter.dart';
+import '../kds/urgency.dart';
 import '../printing/print_queue.dart';
 import '../printing/print_service.dart';
 import '../printing/print_triggers.dart';
 import '../printing/printer_device.dart';
+import '../settings/kds_settings.dart';
+import '../settings/kds_settings_store.dart';
 import 'device_session.dart';
 import 'polling_order_source.dart';
 import 'printer_probe.dart';
@@ -24,6 +29,105 @@ import 'printer_probe.dart';
 final appConfigProvider = Provider<AppConfig>(
   (ref) => AppConfig.fromEnvironment(),
 );
+
+// ─────────────────────────── Ayarlar (docs/05 §8) ───────────────────────────
+
+/// Derleme zamanı değerlerinden türeyen ayar varsayılanları.
+///
+/// Kayıtlı ayar yoksa `--dart-define` ile verilen değer geçerlidir; personel
+/// bir ayarı değiştirdiği anda kayıt derlemeyi ezer. `main` de açılışta
+/// diskten okurken bunu taban alır — iki yerde iki farklı varsayılan olmasın.
+KdsSettings defaultKdsSettings(AppConfig config) => KdsSettings(
+  soundEnabled: true,
+  pollSeconds: config.pollInterval.inSeconds,
+  printerDevicePath: config.printerDevicePath,
+  warningAfterMinutes: UrgencyThresholds.standard.warningAfter.inMinutes,
+  lateAfterMinutes: UrgencyThresholds.standard.lateAfter.inMinutes,
+);
+
+final kdsSettingsStoreProvider = Provider<KdsSettingsStore>(
+  (ref) => KdsSettingsStore(),
+);
+
+/// `main` diskten okunan ayarlarla geçersiz kılar; testler kendi değerini
+/// verir. [deviceSessionProvider] ile aynı desen: asenkron okuma açılışta bir
+/// kez yapılır, sağlayıcılar senkron kalır.
+final initialKdsSettingsProvider = Provider<KdsSettings>(
+  (ref) => defaultKdsSettings(ref.watch(appConfigProvider)),
+);
+
+final kdsSettingsProvider =
+    NotifierProvider<KdsSettingsController, KdsSettings>(
+      KdsSettingsController.new,
+    );
+
+/// Ayar değişikliklerini duruma yazar ve diske kaydeder.
+class KdsSettingsController extends Notifier<KdsSettings> {
+  @override
+  KdsSettings build() => ref.watch(initialKdsSettingsProvider);
+
+  /// Değeri doğrular, uygular ve kalıcılaştırır.
+  ///
+  /// Durum diske yazılmadan ÖNCE güncellenir: mutfak personeli düğmeye
+  /// bastığında arayüzün diski beklemesi gereksiz gecikme olurdu ve yazma
+  /// başarısız olsa bile bu oturumda ayar geçerlidir.
+  Future<void> update(KdsSettings next) async {
+    final sanitized = next.sanitized(
+      fallback: ref.read(initialKdsSettingsProvider),
+    );
+    if (sanitized == state) return;
+
+    state = sanitized;
+    await ref.read(kdsSettingsStoreProvider).write(sanitized);
+  }
+}
+
+/// Aciliyet eşikleri — ayarlardan türer.
+final urgencyThresholdsProvider = Provider<UrgencyThresholds>((ref) {
+  final settings = ref.watch(kdsSettingsProvider);
+  return UrgencyThresholds(
+    warningAfter: settings.warningAfter,
+    lateAfter: settings.lateAfter,
+  );
+});
+
+/// Panonun "şu an"ı.
+///
+/// Tek bir tik kaynağı olması bilinçli: 40 kartın her biri kendi
+/// zamanlayıcısını kurarsa mutfak kasası saniyede 40 kez yeniden çizer.
+/// Beş saniye, dakika çözünürlüğündeki bir sayaç için fazlasıyla yeterlidir.
+final clockProvider = StreamProvider<DateTime>((ref) async* {
+  yield DateTime.now().toUtc();
+  yield* Stream<void>.periodic(
+    const Duration(seconds: 5),
+  ).map((_) => DateTime.now().toUtc());
+});
+
+/// Zamanı okumanın kısa yolu; akış henüz değer üretmediyse gerçek saate düşer.
+DateTime _now(Ref ref) =>
+    ref.watch(clockProvider).value ?? DateTime.now().toUtc();
+
+/// Yeni sipariş uyarı sesi. Ayardaki şalter burada uygulanır.
+final orderAlertProvider = Provider<OrderAlert>((ref) {
+  final enabled = ref.watch(
+    kdsSettingsProvider.select((settings) => settings.soundEnabled),
+  );
+  return enabled ? const SystemOrderAlert() : const SilentOrderAlert();
+});
+
+/// Arama kutusundaki metin. Yalnızca çizimi daraltır, veriyi değil.
+final searchQueryProvider = NotifierProvider<SearchQuery, String>(
+  SearchQuery.new,
+);
+
+class SearchQuery extends Notifier<String> {
+  @override
+  String build() => '';
+
+  void set(String value) => state = value;
+
+  void clear() => state = '';
+}
 
 /// `main` bunları gerçek örneklerle geçersiz kılar; testler kendi sahtesini
 /// verir. Diskten okuma asenkron olduğu için açılışta bir kez yapılır ve
@@ -71,6 +175,23 @@ class DeviceSessionController extends Notifier<DeviceSession> {
     state = DeviceSession(baseUrl: baseUrl, token: response.token);
   }
 
+  /// Ayarlar ekranından sunucu adresini değiştirir.
+  ///
+  /// Eşlemeyi **birlikte** bozar: token bir sunucuya aittir, adres değişince
+  /// geçersizdir. İkisini ayrı işlemler yapmak, yanlış sunucuya geçerli
+  /// görünen bir token'la bağlanma denemesi demek olurdu — ve o deneme
+  /// `401` verip sessizce eşleme ekranına düşerdi, personel sebebini
+  /// anlamadan.
+  ///
+  /// `docs/05` §7'deki tuzağın da çözümü budur: kayıtlı adres derlemeyi ezer,
+  /// bu yüzden onu değiştirmenin bir yolu olmak zorunda.
+  Future<void> changeBaseUrl(String baseUrl) async {
+    final store = ref.read(deviceSessionStoreProvider);
+    await store.writeBaseUrl(baseUrl);
+    await store.clearToken();
+    state = DeviceSession(baseUrl: baseUrl);
+  }
+
   /// Token iptal edildi (`403 DEVICE_REVOKED`) ya da personel sıfırladı.
   Future<void> clearToken() async {
     if (!state.isPaired) return;
@@ -100,7 +221,13 @@ final kitchenServiceProvider = Provider<KitchenService>(
 final orderSourceProvider = Provider<OrderSource>((ref) {
   final source = PollingOrderSource(
     kitchen: ref.watch(kitchenServiceProvider),
-    interval: ref.watch(appConfigProvider).pollInterval,
+    // `select` şart: tüm ayar nesnesini izleseydik ses şalterine basmak
+    // kaynağı yeniden kurar, listeyi baştan çektirir ve ekranı boşaltırdı.
+    interval: Duration(
+      seconds: ref.watch(
+        kdsSettingsProvider.select((settings) => settings.pollSeconds),
+      ),
+    ),
   )..start();
   ref.onDispose(() => unawaited(source.dispose()));
   return source;
@@ -116,7 +243,11 @@ final connectionProvider = StreamProvider<OrderSourceConnection>(
 );
 
 final printerStatusProvider = StreamProvider<PrinterAvailability>(
-  (ref) => PrinterProbe(ref.watch(appConfigProvider).printerDevicePath).watch(),
+  (ref) => PrinterProbe(
+    ref.watch(
+      kdsSettingsProvider.select((settings) => settings.printerDevicePath),
+    ),
+  ).watch(),
 );
 
 // ────────────────────────── Yazdırma (K-04, K-06) ──────────────────────────
@@ -130,7 +261,11 @@ final printQueueProvider = Provider<PrintQueue>((ref) {
 });
 
 final printerDeviceProvider = Provider<PrinterDevice>(
-  (ref) => UsbPrinterDevice(ref.watch(appConfigProvider).printerDevicePath),
+  (ref) => UsbPrinterDevice(
+    ref.watch(
+      kdsSettingsProvider.select((settings) => settings.printerDevicePath),
+    ),
+  ),
 );
 
 final printServiceProvider = Provider<PrintService>((ref) {
@@ -149,6 +284,19 @@ final printServiceProvider = Provider<PrintService>((ref) {
 final printQueueCountProvider = StreamProvider<int>(
   (ref) => ref.watch(printServiceProvider).pendingCount,
 );
+
+/// Bekleyen ama en az bir kez hata almış iş sayısı.
+///
+/// Kendi akışı yok: deneme sayacı artınca kuyruk uzunluğu **değişmez**, bu
+/// yüzden `pendingCount` akışına yaslanmak yetmez. Pano saatine bağlanıp beş
+/// saniyede bir tek bir `COUNT` sorgusu atmak, ayrı bir bildirim mekanizması
+/// kurmaktan hem ucuz hem sağlam.
+final printQueueFailedCountProvider = Provider<int>((ref) {
+  ref
+    ..watch(clockProvider)
+    ..watch(printQueueCountProvider);
+  return ref.watch(printServiceProvider).failedCount();
+});
 
 /// Sipariş listesindeki olayları otomatik olarak fişe çevirir (`docs/05` §5.5).
 ///
@@ -190,15 +338,48 @@ class PrintTriggerRunner extends Notifier<int> {
 
 // ────────────────────────────────── Pano ──────────────────────────────────
 
+/// Sunucudan gelen, filtrelenmemiş aktif sipariş listesi.
+///
+/// Sayaçlar ve üretim listesi bunu kullanır: arama kutusuna bir şey yazmak
+/// mutfağın toplam yükünü değiştirmez.
+final activeOrdersProvider = Provider<List<KitchenOrder>>(
+  (ref) => ref.watch(kitchenOrdersProvider).value ?? const <KitchenOrder>[],
+);
+
+/// Ekranda çizilecek sütunlar: filtrelenmiş ve aciliyete göre sıralanmış.
 final boardProvider = Provider<Map<KdsColumn, List<KitchenOrder>>>((ref) {
-  final orders = ref.watch(kitchenOrdersProvider).value;
-  return groupIntoColumns(orders ?? const <KitchenOrder>[]);
+  final visible = filterOrders(
+    ref.watch(activeOrdersProvider),
+    ref.watch(searchQueryProvider),
+  );
+  final now = _now(ref);
+  final thresholds = ref.watch(urgencyThresholdsProvider);
+
+  return {
+    for (final entry in groupIntoColumns(visible).entries)
+      entry.key: sortByUrgency(entry.value, now: now, thresholds: thresholds),
+  };
 });
 
-final productionTotalsProvider = Provider<List<ProductionTotal>>((ref) {
-  final orders = ref.watch(kitchenOrdersProvider).value;
-  return productionTotals(orders ?? const <KitchenOrder>[]);
+/// Filtreden geçen kart sayısı — "3/12 sipariş" göstergesi için.
+final visibleOrderCountProvider = Provider<int>((ref) {
+  final board = ref.watch(boardProvider);
+  return board.values.fold(0, (sum, orders) => sum + orders.length);
 });
+
+/// Geciken sipariş sayısı. **Filtreden bağımsızdır**: arama yaparken gecikmeyi
+/// gözden kaçırmak, aramanın en pahalı yan etkisi olurdu.
+final lateOrderCountProvider = Provider<int>(
+  (ref) => lateOrderCount(
+    ref.watch(activeOrdersProvider),
+    now: _now(ref),
+    thresholds: ref.watch(urgencyThresholdsProvider),
+  ),
+);
+
+final productionTotalsProvider = Provider<List<ProductionTotal>>(
+  (ref) => productionTotals(ref.watch(activeOrdersProvider)),
+);
 
 /// Personelin bastığı ileri adımı sunucuya iletir.
 ///

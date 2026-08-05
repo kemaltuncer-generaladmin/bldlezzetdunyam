@@ -404,6 +404,408 @@ abstract class AppL10n {
   /// In tr, this message translates to:
   /// **'Durum güncellenemedi: {message}'**
   String statusChangeFailed(String message);
+
+  /// Pano tamamen boşken alt açıklama
+  ///
+  /// In tr, this message translates to:
+  /// **'Yeni sipariş düştüğünde burada belirir ve sesli uyarı verir.'**
+  String get boardEmptyHint;
+
+  /// Üst çubuktaki arama alanının etiketi
+  ///
+  /// In tr, this message translates to:
+  /// **'Sipariş ara'**
+  String get searchLabel;
+
+  /// Arama alanı ipucu
+  ///
+  /// In tr, this message translates to:
+  /// **'S-5012, müşteri ya da ürün'**
+  String get searchHint;
+
+  /// Arama alanındaki temizleme düğmesi
+  ///
+  /// In tr, this message translates to:
+  /// **'Aramayı temizle'**
+  String get searchClear;
+
+  /// Filtre hiçbir kartı bırakmadığında
+  ///
+  /// In tr, this message translates to:
+  /// **'Aramayla eşleşen sipariş yok'**
+  String get searchNoResult;
+
+  /// Filtre açıkken kaç kart gösteriliyor
+  ///
+  /// In tr, this message translates to:
+  /// **'{shown}/{total} sipariş'**
+  String searchResultCount(int shown, int total);
+
+  /// Üst çubuktaki toplam sayaç
+  ///
+  /// In tr, this message translates to:
+  /// **'{count} aktif sipariş'**
+  String activeOrderCount(int count);
+
+  /// Üst çubuktaki alarm rozeti
+  ///
+  /// In tr, this message translates to:
+  /// **'GECİKEN {count}'**
+  String lateOrderCount(int count);
+
+  /// Hiç geciken sipariş olmadığında
+  ///
+  /// In tr, this message translates to:
+  /// **'Gecikme yok'**
+  String get noLateOrders;
+
+  /// Karttaki bekleme sayacı, bir saatin altında
+  ///
+  /// In tr, this message translates to:
+  /// **'{minutes} dk'**
+  String elapsedMinutes(int minutes);
+
+  /// Karttaki bekleme sayacı, bir saat ve üzeri
+  ///
+  /// In tr, this message translates to:
+  /// **'{hours} sa {minutes} dk'**
+  String elapsedHours(int hours, int minutes);
+
+  /// İstenen teslim saati henüz gelmemişken
+  ///
+  /// In tr, this message translates to:
+  /// **'{time} · {minutes} dk kaldı'**
+  String requestedRemaining(String time, int minutes);
+
+  /// İstenen teslim saati geçtiğinde
+  ///
+  /// In tr, this message translates to:
+  /// **'{time} · {minutes} dk GECİKTİ'**
+  String requestedOverdue(String time, int minutes);
+
+  /// Panonun üstündeki kesinti şeridi
+  ///
+  /// In tr, this message translates to:
+  /// **'BAĞLANTI YOK'**
+  String get offlineBannerTitle;
+
+  /// Kesinti şeridinin açıklaması
+  ///
+  /// In tr, this message translates to:
+  /// **'Liste güncellenmiyor. Ekranda son bilinen durum var; yeni sipariş görünmeyebilir.'**
+  String get offlineBannerBody;
+
+  /// İlk bağlantı kurulurken
+  ///
+  /// In tr, this message translates to:
+  /// **'BAĞLANIYOR'**
+  String get connectingBannerTitle;
+
+  /// Bağlanma şeridinin açıklaması
+  ///
+  /// In tr, this message translates to:
+  /// **'Sunucuya ulaşılmaya çalışılıyor.'**
+  String get connectingBannerBody;
+
+  /// Yazıcı cihaz dosyası bulunamadığında
+  ///
+  /// In tr, this message translates to:
+  /// **'YAZICI YOK'**
+  String get printerBannerTitle;
+
+  /// Yazıcı şeridinin açıklaması
+  ///
+  /// In tr, this message translates to:
+  /// **'Fişler kuyrukta bekliyor. Yazıcı kablosunu ve gücünü denetleyin.'**
+  String get printerBannerBody;
+
+  /// Karttaki yeniden basma düğmesi
+  ///
+  /// In tr, this message translates to:
+  /// **'Fişi yeniden bas'**
+  String get reprintTooltip;
+
+  /// Yeniden basma menüsü seçeneği
+  ///
+  /// In tr, this message translates to:
+  /// **'Mutfak fişini yeniden bas'**
+  String get reprintKitchen;
+
+  /// Yeniden basma menüsü seçeneği
+  ///
+  /// In tr, this message translates to:
+  /// **'Müşteri fişini yeniden bas'**
+  String get reprintCustomer;
+
+  /// Yeniden basma isteği kabul edildiğinde
+  ///
+  /// In tr, this message translates to:
+  /// **'{orderNumber} fişi kuyruğa alındı.'**
+  String reprintQueued(String orderNumber);
+
+  /// Fiş tipi adı
+  ///
+  /// In tr, this message translates to:
+  /// **'Mutfak fişi'**
+  String get receiptTypeKitchen;
+
+  /// Fiş tipi adı
+  ///
+  /// In tr, this message translates to:
+  /// **'Müşteri fişi'**
+  String get receiptTypeCustomer;
+
+  /// Durum çubuğunda başarısız iş sayacı
+  ///
+  /// In tr, this message translates to:
+  /// **'{count} fiş hatası'**
+  String queueFailedCount(int count);
+
+  /// Ayarlar ekranının başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Ayarlar'**
+  String get settingsTitle;
+
+  /// Ayarlar ekranından çıkış
+  ///
+  /// In tr, this message translates to:
+  /// **'Panoya dön'**
+  String get settingsBack;
+
+  /// Ayarlar bölüm başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Sunucu'**
+  String get settingsSectionServer;
+
+  /// Ayarlar bölüm başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Yazıcı'**
+  String get settingsSectionPrinter;
+
+  /// Ayarlar bölüm başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Uyarılar ve aciliyet'**
+  String get settingsSectionAlerts;
+
+  /// Ayarlar bölüm başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Yazdırma kuyruğu'**
+  String get settingsSectionQueue;
+
+  /// Ayarlar bölüm başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Cihaz'**
+  String get settingsSectionDevice;
+
+  /// Sunucu adresini düzenleyen düğme
+  ///
+  /// In tr, this message translates to:
+  /// **'Adresi değiştir'**
+  String get settingsServerChange;
+
+  /// Adres değiştirme onayı
+  ///
+  /// In tr, this message translates to:
+  /// **'Adres değişince cihaz eşlemesi silinir; yeni bir eşleme kodu gerekir.'**
+  String get settingsServerChangeWarning;
+
+  /// Yazıcı cihaz dosyası alanı
+  ///
+  /// In tr, this message translates to:
+  /// **'Yazıcı cihaz yolu'**
+  String get settingsPrinterPath;
+
+  /// Salt okunur kod sayfası satırı
+  ///
+  /// In tr, this message translates to:
+  /// **'Kod sayfası (ESC t n)'**
+  String get settingsPrinterCodePage;
+
+  /// Test fişi düğmesi
+  ///
+  /// In tr, this message translates to:
+  /// **'TEST FİŞİ BAS'**
+  String get settingsPrinterTest;
+
+  /// Test fişi başarılı
+  ///
+  /// In tr, this message translates to:
+  /// **'Test fişi yazıcıya gönderildi.'**
+  String get settingsPrinterTestSent;
+
+  /// Test fişi başarısız
+  ///
+  /// In tr, this message translates to:
+  /// **'Test fişi basılamadı: {message}'**
+  String settingsPrinterTestFailed(String message);
+
+  /// Sesli uyarı şalteri
+  ///
+  /// In tr, this message translates to:
+  /// **'Yeni sipariş sesi'**
+  String get settingsSound;
+
+  /// Uyarı sesini bir kez çalar
+  ///
+  /// In tr, this message translates to:
+  /// **'Sesi dene'**
+  String get settingsSoundTest;
+
+  /// Sipariş çekme sıklığı ayarı
+  ///
+  /// In tr, this message translates to:
+  /// **'Yoklama aralığı'**
+  String get settingsPollInterval;
+
+  /// Yoklama aralığı açıklaması
+  ///
+  /// In tr, this message translates to:
+  /// **'Kısaltmak siparişi daha erken gösterir, sunucuyu daha çok yorar.'**
+  String get settingsPollIntervalHint;
+
+  /// Kartın sarıya döndüğü süre
+  ///
+  /// In tr, this message translates to:
+  /// **'Sarı uyarı eşiği'**
+  String get settingsWarningAfter;
+
+  /// Kartın kırmızıya döndüğü süre
+  ///
+  /// In tr, this message translates to:
+  /// **'Kırmızı gecikme eşiği'**
+  String get settingsLateAfter;
+
+  /// Eşiklerin ikinci anlamı
+  ///
+  /// In tr, this message translates to:
+  /// **'Aynı süre, istenen teslim saatine kalan zaman için de geçerlidir.'**
+  String get settingsThresholdHint;
+
+  /// Saniye değeri
+  ///
+  /// In tr, this message translates to:
+  /// **'{count} sn'**
+  String settingsSeconds(int count);
+
+  /// Dakika değeri
+  ///
+  /// In tr, this message translates to:
+  /// **'{count} dk'**
+  String settingsMinutes(int count);
+
+  /// Sayısal ayarı küçülten düğme
+  ///
+  /// In tr, this message translates to:
+  /// **'Azalt'**
+  String get settingsDecrease;
+
+  /// Sayısal ayarı büyüten düğme
+  ///
+  /// In tr, this message translates to:
+  /// **'Artır'**
+  String get settingsIncrease;
+
+  /// Yazdırma kuyruğu boşken
+  ///
+  /// In tr, this message translates to:
+  /// **'Kuyrukta iş yok.'**
+  String get settingsQueueEmpty;
+
+  /// Basılmamış iş durumu
+  ///
+  /// In tr, this message translates to:
+  /// **'Bekliyor'**
+  String get settingsQueuePending;
+
+  /// Basılmış iş durumu
+  ///
+  /// In tr, this message translates to:
+  /// **'Basıldı · {time}'**
+  String settingsQueuePrinted(String time);
+
+  /// Hata almış iş
+  ///
+  /// In tr, this message translates to:
+  /// **'{count} başarısız deneme'**
+  String settingsQueueAttempts(int count);
+
+  /// Kuyruk satırındaki sipariş kimliği
+  ///
+  /// In tr, this message translates to:
+  /// **'Sipariş #{orderId}'**
+  String settingsQueueOrder(int orderId);
+
+  /// Kuyruk listesini tazeler
+  ///
+  /// In tr, this message translates to:
+  /// **'Listeyi yenile'**
+  String get settingsQueueRefresh;
+
+  /// Token'ı silen düğme
+  ///
+  /// In tr, this message translates to:
+  /// **'Cihaz eşlemesini sıfırla'**
+  String get settingsResetPairing;
+
+  /// Eşleme sıfırlama onayı
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu cihaz sunucudan kopar ve sipariş almayı durdurur. Yeni bir eşleme kodu gerekir.'**
+  String get settingsResetPairingWarning;
+
+  /// Sürüm denetleme düğmesi
+  ///
+  /// In tr, this message translates to:
+  /// **'Güncelleme denetle'**
+  String get settingsCheckUpdate;
+
+  /// Güncel sürümdeyiz
+  ///
+  /// In tr, this message translates to:
+  /// **'En güncel sürüm kullanılıyor ({version}).'**
+  String settingsUpdateLatest(String version);
+
+  /// Daha yeni sürüm yayımlanmış
+  ///
+  /// In tr, this message translates to:
+  /// **'Yeni sürüm var: {version}'**
+  String settingsUpdateAvailable(String version);
+
+  /// Sürüm ucu hata verdi
+  ///
+  /// In tr, this message translates to:
+  /// **'Sürüm denetlenemedi: {message}'**
+  String settingsUpdateFailed(String message);
+
+  /// Ayar diske yazıldığında
+  ///
+  /// In tr, this message translates to:
+  /// **'Ayar kaydedildi.'**
+  String get settingsSaved;
+
+  /// Onay penceresindeki olumlu düğme
+  ///
+  /// In tr, this message translates to:
+  /// **'ONAYLA'**
+  String get confirm;
+
+  /// Onay penceresindeki olumsuz düğme
+  ///
+  /// In tr, this message translates to:
+  /// **'Vazgeç'**
+  String get cancel;
+
+  /// Alan kaydetme düğmesi
+  ///
+  /// In tr, this message translates to:
+  /// **'Kaydet'**
+  String get save;
 }
 
 class _AppL10nDelegate extends LocalizationsDelegate<AppL10n> {

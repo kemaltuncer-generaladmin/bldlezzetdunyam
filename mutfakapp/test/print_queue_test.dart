@@ -384,5 +384,121 @@ void main() {
 
       expect(printer.written, hasLength(1));
     });
+
+    test('yeniden basma idempotentliği bilerek kırar', () async {
+      // Kâğıt sıkıştı, fiş yırtıldı — yazılımın göremediği, personelin
+      // gördüğü durumlar. `enqueue` burada `false` derdi, `reprint` basar.
+      kitchen.kitchenReceipts[1] = receiptFor(1);
+      build().start();
+      service.enqueue(1, ReceiptType.mutfak);
+      await settle();
+      expect(printer.written, hasLength(1));
+
+      expect(service.reprint(1, ReceiptType.mutfak), isTrue);
+      await settle();
+
+      expect(printer.written, hasLength(2));
+      expect(printer.written[0], printer.written[1]);
+    });
+
+    test('yeniden basma saklanan baytları kullanır, sunucuya sormaz', () async {
+      kitchen.kitchenReceipts[1] = receiptFor(1);
+      build().start();
+      service.enqueue(1, ReceiptType.mutfak);
+      await settle();
+      final callsAfterFirstPrint = kitchen.receiptCalls;
+
+      service.reprint(1, ReceiptType.mutfak);
+      await settle();
+
+      // Fiş içeriği olayın anındaki hâliyle donar ve ağ yokken de basılır.
+      expect(kitchen.receiptCalls, callsAfterFirstPrint);
+    });
+
+    test('hiç basılmamış bir siparişin fişi yeniden basılabilir', () async {
+      // Bir haftalık temizlik satırı silmiş olabilir; yine de basabilmeliyiz.
+      kitchen.kitchenReceipts[7] = receiptFor(7);
+      build().start();
+
+      expect(service.reprint(7, ReceiptType.mutfak), isTrue);
+      await settle();
+
+      expect(printer.written, hasLength(1));
+    });
+
+    test('yeniden basma deneme sayacını sıfırlar', () async {
+      kitchen.kitchenReceipts[1] = receiptFor(1);
+      printer.broken = true;
+      build().start();
+      service.enqueue(1, ReceiptType.mutfak);
+      await settle();
+      expect(queue.all().single.attempts, greaterThan(0));
+
+      printer.broken = false;
+      service.reprint(1, ReceiptType.mutfak);
+      await settle();
+
+      expect(queue.all().single.attempts, isZero);
+      expect(queue.all().single.isPrinted, isTrue);
+    });
+
+    test('teşhis basımı kuyruğa girmez ve hatayı çağırana verir', () async {
+      build().start();
+      final bytes = Uint8List.fromList([0x1B, 0x40]);
+
+      await service.printDiagnostic(bytes);
+      expect(printer.written, hasLength(1));
+      expect(queue.all(), isEmpty);
+
+      // Test fişi yeniden DENENMEZ: yazıcı yoksa personel bunu hemen
+      // görmeli, "eninde sonunda çıkar" davranışı burada yanlış olurdu.
+      printer.broken = true;
+      await expectLater(service.printDiagnostic(bytes), throwsA(anything));
+      expect(queue.all(), isEmpty);
+    });
+
+    test('başarısız teşhis basımı sonraki basımları bozmaz', () async {
+      // Yazma zinciri hatayla kırılırsa ondan sonraki her fiş aynı eski
+      // hatayla düşerdi.
+      build().start();
+      printer.broken = true;
+      await expectLater(
+        service.printDiagnostic(Uint8List.fromList([0x00])),
+        throwsA(anything),
+      );
+
+      printer.broken = false;
+      await service.printDiagnostic(Uint8List.fromList([0x01]));
+
+      expect(printer.written, hasLength(1));
+    });
+
+    test('hata alan iş sayısı ayrıca sayılır', () async {
+      kitchen.kitchenReceipts[1] = receiptFor(1);
+      printer.broken = true;
+      build().start();
+
+      expect(service.failedCount(), isZero);
+      service.enqueue(1, ReceiptType.mutfak);
+      await settle();
+
+      // Bekleyen 1, hata alan 1: durum çubuğu ikisini ayrı gösterir çünkü
+      // "yazıcı yetişemiyor" ile "kâğıt bitmiş" farklı sorunlardır.
+      expect(queue.pendingCount(), 1);
+      expect(service.failedCount(), 1);
+    });
+
+    test('son işler en yeniden eskiye listelenir', () async {
+      kitchen
+        ..kitchenReceipts[1] = receiptFor(1)
+        ..kitchenReceipts[2] = receiptFor(2);
+      build().start();
+      service
+        ..enqueue(1, ReceiptType.mutfak)
+        ..enqueue(2, ReceiptType.mutfak);
+      await settle();
+
+      expect(service.recentJobs().map((job) => job.orderId), [2, 1]);
+    });
   });
 }

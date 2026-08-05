@@ -12,6 +12,7 @@ import 'src/config/app_config.dart';
 import 'src/data/device_session.dart';
 import 'src/data/providers.dart';
 import 'src/printing/print_queue.dart';
+import 'src/settings/kds_settings_store.dart';
 import 'src/window/kiosk_window.dart';
 
 Future<void> main() async {
@@ -30,12 +31,19 @@ Future<void> main() async {
   final session = await store.read(fallbackBaseUrl: config.baseUrl);
   final queue = PrintQueue.open(await _queuePath());
 
+  // Kayıtlı ayarlar derlemeyi ezer (`docs/05` §8): yazıcı yolu değişince
+  // mutfağın yeni bir `.deb` beklemesi kabul edilemez.
+  final settingsStore = KdsSettingsStore();
+  final settings = await settingsStore.read(defaultKdsSettings(config));
+
   runApp(
     ProviderScope(
       overrides: [
         appConfigProvider.overrideWithValue(config),
         deviceSessionStoreProvider.overrideWithValue(store),
         initialDeviceSessionProvider.overrideWithValue(session),
+        kdsSettingsStoreProvider.overrideWithValue(settingsStore),
+        initialKdsSettingsProvider.overrideWithValue(settings),
         // Kuyruk **diskte** durur: elektrik kesintisinden sonra basılmamış
         // fişler kaldığı yerden basılır (`docs/05-mutfakapp.md` §5.4).
         printQueueProvider.overrideWithValue(queue),

@@ -1,4 +1,8 @@
 /// Üst şerit: hazırlanacak ürünlerin adet toplamı — `docs/05-mutfakapp.md` §3.
+///
+/// Aşçının "bugün kaç tavuk sote" sorusuna cevap veren tek yer burasıdır;
+/// kartları tek tek saymak yerine tencere planı buradan yapılır. Bu yüzden
+/// rakam ürün adından daha iri ve daha parlaktır.
 library;
 
 import 'package:bld_design_system/bld_design_system.dart';
@@ -18,7 +22,12 @@ class ProductionStrip extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      color: const Color(KdsColors.surface),
+      decoration: const BoxDecoration(
+        color: Color(KdsColors.surface),
+        border: Border(
+          top: BorderSide(color: Color(BldColors.brand500), width: 3),
+        ),
+      ),
       padding: const EdgeInsets.symmetric(
         horizontal: BldSpacing.md,
         vertical: BldSpacing.sm,
@@ -50,25 +59,9 @@ class ProductionStrip extends StatelessWidget {
                         for (final total in totals)
                           Padding(
                             padding: const EdgeInsets.only(
-                              right: BldSpacing.lg,
+                              right: BldSpacing.sm,
                             ),
-                            child: Text.rich(
-                              TextSpan(
-                                children: [
-                                  TextSpan(text: '${total.name} '),
-                                  TextSpan(
-                                    text: '${total.quantity}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(BldColors.brand400),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              style: const TextStyle(
-                                fontSize: KdsTextScale.orderNumber,
-                              ),
-                            ),
+                            child: _TotalChip(total: total),
                           ),
                       ],
                     ),
@@ -78,4 +71,43 @@ class ProductionStrip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Tek ürün toplamı. Rakam solda ve iri: göz önce sayıyı, sonra adı okur.
+class _TotalChip extends StatelessWidget {
+  const _TotalChip({required this.total});
+
+  final ProductionTotal total;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(
+      horizontal: BldSpacing.sm,
+      vertical: BldSpacing.xs,
+    ),
+    decoration: BoxDecoration(
+      color: const Color(KdsColors.surfaceRaised),
+      borderRadius: BorderRadius.circular(BldRadius.sm),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Text(
+          '${total.quantity}',
+          style: const TextStyle(
+            fontSize: KdsTextScale.itemName,
+            fontWeight: FontWeight.bold,
+            color: Color(BldColors.brand400),
+          ),
+        ),
+        const SizedBox(width: BldSpacing.xs),
+        Text(
+          total.name,
+          style: const TextStyle(fontSize: KdsTextScale.statusBar),
+        ),
+      ],
+    ),
+  );
 }

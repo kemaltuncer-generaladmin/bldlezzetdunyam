@@ -5,7 +5,6 @@ library;
 import 'dart:async';
 
 import 'package:bld_api_client/bld_api_client.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/providers.dart';
@@ -67,7 +66,9 @@ class NewOrderHighlights extends Notifier<Set<int>> {
     if (arrivals.isEmpty) return;
 
     // Tek "ding": aynı anda üç sipariş düşerse üç kez öttürmek gürültüdür.
-    unawaited(SystemSound.play(SystemSoundType.alert));
+    // Sesin kapalı olması kararı sağlayıcıda verilir (`orderAlertProvider`);
+    // burada bir `if` daha olsaydı iki yerde iki farklı doğru olurdu.
+    ref.read(orderAlertProvider).ding();
 
     state = {...state, ...arrivals};
     for (final id in arrivals) {

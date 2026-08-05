@@ -18,9 +18,12 @@ import 'package:mutfakapp/src/data/providers.dart';
 import 'package:mutfakapp/src/printing/print_queue.dart';
 import 'package:mutfakapp/src/printing/print_service.dart';
 import 'package:mutfakapp/src/printing/printer_device.dart';
+import 'package:mutfakapp/src/settings/kds_settings.dart';
 
+import 'package:mutfakapp/src/kds/order_alert.dart';
 import 'package:mutfakapp/src/kds/widgets/order_card.dart';
 
+import 'fake_kds_settings_store.dart';
 import 'unlock_helper.dart';
 import 'fake_device_session_store.dart';
 import 'fake_kitchen_service.dart';
@@ -56,6 +59,12 @@ Future<void> pumpKds(
   OrderSourceConnection state = OrderSourceConnection.connected,
   PrinterAvailability printer = PrinterAvailability.ready,
   FakeKitchenService? kitchen,
+  // Aşağıdaki üçü yeni davranışları ölçmek için: ayarlar (eşikler, ses),
+  // uyarı sesi ve akış denetimi gerektiren senaryolar.
+  KdsSettings? settings,
+  OrderAlert? alert,
+  OrderSource? source,
+  PrintService? printService,
 }) async {
   final kitchenService = kitchen ?? FakeKitchenService();
   // Kasa 1920×1080 bir mutfak monitörüne bağlıdır; testin varsayılan
@@ -80,7 +89,7 @@ Future<void> pumpKds(
           const DeviceSession(baseUrl: 'http://test/api', token: 'kdev_test'),
         ),
         orderSourceProvider.overrideWithValue(
-          FakeOrderSource(orders: orders, state: state),
+          source ?? FakeOrderSource(orders: orders, state: state),
         ),
         printerStatusProvider.overrideWith(
           (ref) => Stream<PrinterAvailability>.value(printer),
@@ -88,14 +97,22 @@ Future<void> pumpKds(
         printQueueProvider.overrideWithValue(queue),
         printerDeviceProvider.overrideWithValue(_NullPrinter()),
         kitchenServiceProvider.overrideWithValue(kitchenService),
+        // Ayar deposu her testte sahtedir: gerçek `shared_preferences`
+        // platform kanalı test ortamında yok ve her yazma istisna atar.
+        kdsSettingsStoreProvider.overrideWithValue(FakeKdsSettingsStore()),
+        if (settings != null)
+          initialKdsSettingsProvider.overrideWithValue(settings),
+        if (alert != null) orderAlertProvider.overrideWithValue(alert),
         // İşçi BAŞLATILMAZ: ekran testi yazdırmayı değil çizimi ölçer,
         // çalışan bir kuyruk döngüsü testte asılı zamanlayıcı bırakır.
         printServiceProvider.overrideWith(
-          (ref) => PrintService(
-            queue: queue,
-            device: _NullPrinter(),
-            kitchen: kitchenService,
-          ),
+          (ref) =>
+              printService ??
+              PrintService(
+                queue: queue,
+                device: _NullPrinter(),
+                kitchen: kitchenService,
+              ),
         ),
       ],
       child: const MutfakApp(),

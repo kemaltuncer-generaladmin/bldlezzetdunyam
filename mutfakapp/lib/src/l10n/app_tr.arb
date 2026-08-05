@@ -167,5 +167,272 @@
   "@statusChangeFailed": {
     "description": "Durum ilerletme isteği başarısız olduğunda",
     "placeholders": { "message": { "type": "String" } }
-  }
+  },
+
+  "boardEmptyHint": "Yeni sipariş düştüğünde burada belirir ve sesli uyarı verir.",
+  "@boardEmptyHint": { "description": "Pano tamamen boşken alt açıklama" },
+
+  "searchLabel": "Sipariş ara",
+  "@searchLabel": { "description": "Üst çubuktaki arama alanının etiketi" },
+
+  "searchHint": "S-5012, müşteri ya da ürün",
+  "@searchHint": { "description": "Arama alanı ipucu" },
+
+  "searchClear": "Aramayı temizle",
+  "@searchClear": { "description": "Arama alanındaki temizleme düğmesi" },
+
+  "searchNoResult": "Aramayla eşleşen sipariş yok",
+  "@searchNoResult": { "description": "Filtre hiçbir kartı bırakmadığında" },
+
+  "searchResultCount": "{shown}/{total} sipariş",
+  "@searchResultCount": {
+    "description": "Filtre açıkken kaç kart gösteriliyor",
+    "placeholders": {
+      "shown": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+
+  "activeOrderCount": "{count} aktif sipariş",
+  "@activeOrderCount": {
+    "description": "Üst çubuktaki toplam sayaç",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "lateOrderCount": "GECİKEN {count}",
+  "@lateOrderCount": {
+    "description": "Üst çubuktaki alarm rozeti",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "noLateOrders": "Gecikme yok",
+  "@noLateOrders": { "description": "Hiç geciken sipariş olmadığında" },
+
+  "elapsedMinutes": "{minutes} dk",
+  "@elapsedMinutes": {
+    "description": "Karttaki bekleme sayacı, bir saatin altında",
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+
+  "elapsedHours": "{hours} sa {minutes} dk",
+  "@elapsedHours": {
+    "description": "Karttaki bekleme sayacı, bir saat ve üzeri",
+    "placeholders": {
+      "hours": { "type": "int" },
+      "minutes": { "type": "int" }
+    }
+  },
+
+  "requestedRemaining": "{time} · {minutes} dk kaldı",
+  "@requestedRemaining": {
+    "description": "İstenen teslim saati henüz gelmemişken",
+    "placeholders": {
+      "time": { "type": "String" },
+      "minutes": { "type": "int" }
+    }
+  },
+
+  "requestedOverdue": "{time} · {minutes} dk GECİKTİ",
+  "@requestedOverdue": {
+    "description": "İstenen teslim saati geçtiğinde",
+    "placeholders": {
+      "time": { "type": "String" },
+      "minutes": { "type": "int" }
+    }
+  },
+
+  "offlineBannerTitle": "BAĞLANTI YOK",
+  "@offlineBannerTitle": { "description": "Panonun üstündeki kesinti şeridi" },
+
+  "offlineBannerBody": "Liste güncellenmiyor. Ekranda son bilinen durum var; yeni sipariş görünmeyebilir.",
+  "@offlineBannerBody": { "description": "Kesinti şeridinin açıklaması" },
+
+  "connectingBannerTitle": "BAĞLANIYOR",
+  "@connectingBannerTitle": { "description": "İlk bağlantı kurulurken" },
+
+  "connectingBannerBody": "Sunucuya ulaşılmaya çalışılıyor.",
+  "@connectingBannerBody": { "description": "Bağlanma şeridinin açıklaması" },
+
+  "printerBannerTitle": "YAZICI YOK",
+  "@printerBannerTitle": { "description": "Yazıcı cihaz dosyası bulunamadığında" },
+
+  "printerBannerBody": "Fişler kuyrukta bekliyor. Yazıcı kablosunu ve gücünü denetleyin.",
+  "@printerBannerBody": { "description": "Yazıcı şeridinin açıklaması" },
+
+  "reprintTooltip": "Fişi yeniden bas",
+  "@reprintTooltip": { "description": "Karttaki yeniden basma düğmesi" },
+
+  "reprintKitchen": "Mutfak fişini yeniden bas",
+  "@reprintKitchen": { "description": "Yeniden basma menüsü seçeneği" },
+
+  "reprintCustomer": "Müşteri fişini yeniden bas",
+  "@reprintCustomer": { "description": "Yeniden basma menüsü seçeneği" },
+
+  "reprintQueued": "{orderNumber} fişi kuyruğa alındı.",
+  "@reprintQueued": {
+    "description": "Yeniden basma isteği kabul edildiğinde",
+    "placeholders": { "orderNumber": { "type": "String" } }
+  },
+
+  "receiptTypeKitchen": "Mutfak fişi",
+  "@receiptTypeKitchen": { "description": "Fiş tipi adı" },
+
+  "receiptTypeCustomer": "Müşteri fişi",
+  "@receiptTypeCustomer": { "description": "Fiş tipi adı" },
+
+  "queueFailedCount": "{count} fiş hatası",
+  "@queueFailedCount": {
+    "description": "Durum çubuğunda başarısız iş sayacı",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "settingsTitle": "Ayarlar",
+  "@settingsTitle": { "description": "Ayarlar ekranının başlığı" },
+
+  "settingsBack": "Panoya dön",
+  "@settingsBack": { "description": "Ayarlar ekranından çıkış" },
+
+  "settingsSectionServer": "Sunucu",
+  "@settingsSectionServer": { "description": "Ayarlar bölüm başlığı" },
+
+  "settingsSectionPrinter": "Yazıcı",
+  "@settingsSectionPrinter": { "description": "Ayarlar bölüm başlığı" },
+
+  "settingsSectionAlerts": "Uyarılar ve aciliyet",
+  "@settingsSectionAlerts": { "description": "Ayarlar bölüm başlığı" },
+
+  "settingsSectionQueue": "Yazdırma kuyruğu",
+  "@settingsSectionQueue": { "description": "Ayarlar bölüm başlığı" },
+
+  "settingsSectionDevice": "Cihaz",
+  "@settingsSectionDevice": { "description": "Ayarlar bölüm başlığı" },
+
+  "settingsServerChange": "Adresi değiştir",
+  "@settingsServerChange": { "description": "Sunucu adresini düzenleyen düğme" },
+
+  "settingsServerChangeWarning": "Adres değişince cihaz eşlemesi silinir; yeni bir eşleme kodu gerekir.",
+  "@settingsServerChangeWarning": { "description": "Adres değiştirme onayı" },
+
+  "settingsPrinterPath": "Yazıcı cihaz yolu",
+  "@settingsPrinterPath": { "description": "Yazıcı cihaz dosyası alanı" },
+
+  "settingsPrinterCodePage": "Kod sayfası (ESC t n)",
+  "@settingsPrinterCodePage": { "description": "Salt okunur kod sayfası satırı" },
+
+  "settingsPrinterTest": "TEST FİŞİ BAS",
+  "@settingsPrinterTest": { "description": "Test fişi düğmesi" },
+
+  "settingsPrinterTestSent": "Test fişi yazıcıya gönderildi.",
+  "@settingsPrinterTestSent": { "description": "Test fişi başarılı" },
+
+  "settingsPrinterTestFailed": "Test fişi basılamadı: {message}",
+  "@settingsPrinterTestFailed": {
+    "description": "Test fişi başarısız",
+    "placeholders": { "message": { "type": "String" } }
+  },
+
+  "settingsSound": "Yeni sipariş sesi",
+  "@settingsSound": { "description": "Sesli uyarı şalteri" },
+
+  "settingsSoundTest": "Sesi dene",
+  "@settingsSoundTest": { "description": "Uyarı sesini bir kez çalar" },
+
+  "settingsPollInterval": "Yoklama aralığı",
+  "@settingsPollInterval": { "description": "Sipariş çekme sıklığı ayarı" },
+
+  "settingsPollIntervalHint": "Kısaltmak siparişi daha erken gösterir, sunucuyu daha çok yorar.",
+  "@settingsPollIntervalHint": { "description": "Yoklama aralığı açıklaması" },
+
+  "settingsWarningAfter": "Sarı uyarı eşiği",
+  "@settingsWarningAfter": { "description": "Kartın sarıya döndüğü süre" },
+
+  "settingsLateAfter": "Kırmızı gecikme eşiği",
+  "@settingsLateAfter": { "description": "Kartın kırmızıya döndüğü süre" },
+
+  "settingsThresholdHint": "Aynı süre, istenen teslim saatine kalan zaman için de geçerlidir.",
+  "@settingsThresholdHint": { "description": "Eşiklerin ikinci anlamı" },
+
+  "settingsSeconds": "{count} sn",
+  "@settingsSeconds": {
+    "description": "Saniye değeri",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "settingsMinutes": "{count} dk",
+  "@settingsMinutes": {
+    "description": "Dakika değeri",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "settingsDecrease": "Azalt",
+  "@settingsDecrease": { "description": "Sayısal ayarı küçülten düğme" },
+
+  "settingsIncrease": "Artır",
+  "@settingsIncrease": { "description": "Sayısal ayarı büyüten düğme" },
+
+  "settingsQueueEmpty": "Kuyrukta iş yok.",
+  "@settingsQueueEmpty": { "description": "Yazdırma kuyruğu boşken" },
+
+  "settingsQueuePending": "Bekliyor",
+  "@settingsQueuePending": { "description": "Basılmamış iş durumu" },
+
+  "settingsQueuePrinted": "Basıldı · {time}",
+  "@settingsQueuePrinted": {
+    "description": "Basılmış iş durumu",
+    "placeholders": { "time": { "type": "String" } }
+  },
+
+  "settingsQueueAttempts": "{count} başarısız deneme",
+  "@settingsQueueAttempts": {
+    "description": "Hata almış iş",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "settingsQueueOrder": "Sipariş #{orderId}",
+  "@settingsQueueOrder": {
+    "description": "Kuyruk satırındaki sipariş kimliği",
+    "placeholders": { "orderId": { "type": "int" } }
+  },
+
+  "settingsQueueRefresh": "Listeyi yenile",
+  "@settingsQueueRefresh": { "description": "Kuyruk listesini tazeler" },
+
+  "settingsResetPairing": "Cihaz eşlemesini sıfırla",
+  "@settingsResetPairing": { "description": "Token'ı silen düğme" },
+
+  "settingsResetPairingWarning": "Bu cihaz sunucudan kopar ve sipariş almayı durdurur. Yeni bir eşleme kodu gerekir.",
+  "@settingsResetPairingWarning": { "description": "Eşleme sıfırlama onayı" },
+
+  "settingsCheckUpdate": "Güncelleme denetle",
+  "@settingsCheckUpdate": { "description": "Sürüm denetleme düğmesi" },
+
+  "settingsUpdateLatest": "En güncel sürüm kullanılıyor ({version}).",
+  "@settingsUpdateLatest": {
+    "description": "Güncel sürümdeyiz",
+    "placeholders": { "version": { "type": "String" } }
+  },
+
+  "settingsUpdateAvailable": "Yeni sürüm var: {version}",
+  "@settingsUpdateAvailable": {
+    "description": "Daha yeni sürüm yayımlanmış",
+    "placeholders": { "version": { "type": "String" } }
+  },
+
+  "settingsUpdateFailed": "Sürüm denetlenemedi: {message}",
+  "@settingsUpdateFailed": {
+    "description": "Sürüm ucu hata verdi",
+    "placeholders": { "message": { "type": "String" } }
+  },
+
+  "settingsSaved": "Ayar kaydedildi.",
+  "@settingsSaved": { "description": "Ayar diske yazıldığında" },
+
+  "confirm": "ONAYLA",
+  "@confirm": { "description": "Onay penceresindeki olumlu düğme" },
+
+  "cancel": "Vazgeç",
+  "@cancel": { "description": "Onay penceresindeki olumsuz düğme" },
+
+  "save": "Kaydet",
+  "@save": { "description": "Alan kaydetme düğmesi" }
 }

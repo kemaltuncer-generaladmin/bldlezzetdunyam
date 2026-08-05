@@ -10,10 +10,10 @@ import 'package:bld_design_system/bld_design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../config/app_config.dart';
 import '../../data/printer_probe.dart';
 import '../../data/providers.dart';
 import '../../l10n/app_localizations.dart';
+import '../../settings/settings_screen.dart';
 import '../../window/kiosk_window.dart';
 
 class KdsStatusBar extends ConsumerWidget {
@@ -28,6 +28,7 @@ class KdsStatusBar extends ConsumerWidget {
         ref.watch(printerStatusProvider).value ??
         PrinterAvailability.unavailable;
     final queueCount = ref.watch(printQueueCountProvider).value ?? 0;
+    final failedCount = ref.watch(printQueueFailedCountProvider);
 
     return Container(
       color: const Color(KdsColors.surface),
@@ -62,6 +63,16 @@ class KdsStatusBar extends ConsumerWidget {
                     l10n.printQueueCount(queueCount),
                     style: const TextStyle(fontSize: KdsTextScale.statusBar),
                   ),
+                  // Bekleyen iş sayısı ile hata alan iş sayısı farklı iki
+                  // sorundur: ilki yazıcı yetişemiyor, ikincisi kâğıt bitmiş.
+                  // Hata varsa kırmızıyla ayrıca yazılır.
+                  if (failedCount > 0) ...[
+                    const SizedBox(width: BldSpacing.lg),
+                    _Indicator(
+                      color: const Color(KdsColors.statusDown),
+                      label: l10n.queueFailedCount(failedCount),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -71,9 +82,11 @@ class KdsStatusBar extends ConsumerWidget {
           const SizedBox(width: BldSpacing.lg),
           const _Clock(),
           const SizedBox(width: BldSpacing.lg),
-          TextButton(
-            onPressed: () => _showDeviceInfo(context, ref),
-            child: Text(
+          TextButton.icon(
+            onPressed: () =>
+                unawaited(Navigator.of(context).push(SettingsScreen.route())),
+            icon: const Icon(Icons.settings_outlined, size: 22),
+            label: Text(
               l10n.settings,
               style: const TextStyle(fontSize: KdsTextScale.statusBar),
             ),
@@ -223,39 +236,6 @@ class _WindowButtonsState extends State<_WindowButtons> {
     final full = await _window.toggleFullScreen();
     if (mounted) setState(() => _fullScreen = full);
   }
-}
-
-/// Ayarlar penceresi teşhis için gereken üç değeri gösterir
-/// (`docs/05` §8 "sürüm bilgisi"). Parola İSTEMEZ: açılışta bir kez
-/// soruluyor, her işlemde tekrar sormak parolanın duvara yazılmasıyla
-/// sonuçlanır.
-void _showDeviceInfo(BuildContext context, WidgetRef ref) {
-  final l10n = AppL10n.of(context);
-  final config = ref.read(appConfigProvider);
-
-  unawaited(
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.deviceInfoTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('${l10n.deviceInfoServer}: ${config.baseUrl}'),
-            Text('${l10n.deviceInfoPrinter}: ${config.printerDevicePath}'),
-            Text('${l10n.deviceInfoVersion}: ${AppConfig.appVersion}'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.close),
-          ),
-        ],
-      ),
-    ),
-  );
 }
 
 class _Indicator extends StatelessWidget {

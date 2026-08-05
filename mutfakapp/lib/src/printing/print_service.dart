@@ -66,11 +66,22 @@ class PrintService {
 
   bool _disposed = false;
 
+  /// Cihaza yazma sırası. Kuyruk işçisi ile ayarlar ekranından basılan test
+  /// fişi aynı karakter aygıtına yazar; iki `write` iç içe girerse yazıcı iki
+  /// fişin baytlarını karıştırıp okunamaz bir kâğıt üretir.
+  Future<void> _writeChain = Future<void>.value();
+
   /// Bekleyen iş sayısı akışı — durum çubuğu bunu dinler.
   Stream<int> get pendingCount async* {
     yield _queue.pendingCount();
     yield* _pending.stream;
   }
+
+  /// Kuyruktaki son işler — ayarlar ekranındaki fiş listesi.
+  List<PrintJob> recentJobs({int limit = 50}) => _queue.recent(limit: limit);
+
+  /// Bekleyen ama hata almış iş sayısı.
+  int failedCount() => _queue.failedCount();
 
   /// [attempts] başarısız denemeden sonra beklenecek süre.
   Duration retryDelay(int attempts) {
@@ -113,6 +124,28 @@ class PrintService {
     return added;
   }
 
+  /// Basılmış (ya da başarısız) bir fişi elle yeniden bastırır.
+  ///
+  /// Otomatik tetiklerden farkı: idempotentlik kasıtlı olarak **kırılır**.
+  /// Kâğıt sıkıştı, fiş yırtıldı, mürekkep soldu — bunlar personelin
+  /// gördüğü, yazılımın göremediği durumlar. Karar insanındır.
+  bool reprint(int orderId, ReceiptType type) {
+    if (_disposed) return false;
+    final requeued = _queue.requeue(orderId: orderId, type: type);
+    if (requeued) {
+      _emitPending();
+      _wake();
+    }
+    return requeued;
+  }
+
+  /// Kuyruğa girmeyen tek seferlik basım — ayarlar ekranındaki test fişi.
+  ///
+  /// Kuyruğa yazılmaz çünkü tekrar denenmesi İSTENMEZ: yazıcı yokken test
+  /// fişi başarısız olmalı ve personel bunu hemen görmelidir. Sipariş fişi
+  /// gibi "eninde sonunda çıksın" davranışı burada yanlış olurdu.
+  Future<void> printDiagnostic(Uint8List bytes) => _writeExclusive(bytes);
+
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
@@ -147,7 +180,7 @@ class PrintService {
   Future<bool> _process(PrintJob job) async {
     try {
       final payload = job.payload ?? await _materialize(job);
-      await _device.write(payload);
+      await _writeExclusive(payload);
 
       final printedAt = _now();
       _queue.markPrinted(job.id, printedAt);
@@ -199,6 +232,17 @@ class PrintService {
     } on Object {
       // Bilinçli sessizlik (`docs/05` §5.4): ack denetim içindir, fiş elde.
     }
+  }
+
+  /// Baytları sıraya sokarak yazar; önceki yazım bitmeden yenisi başlamaz.
+  ///
+  /// Zincir bir hatayla kırılmamalı: başarısız bir işin istisnası çağırana
+  /// aynen ulaşır ama zincirin kendisi temiz devam eder, yoksa ilk hatadan
+  /// sonraki her basım aynı eski hatayla düşerdi.
+  Future<void> _writeExclusive(Uint8List bytes) {
+    final next = _writeChain.then((_) => _device.write(bytes));
+    _writeChain = next.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+    return next;
   }
 
   void _emitPending() {
