@@ -11,3 +11,8 @@
 # dışında kalır — ve bu sessizce olur, `git status` temiz görünür.
 !veykemtu/
 !veykemtu/**
+
+# Eklenti içinde composer çalıştırılırsa oluşan vendor/ — repoya girmez.
+# ADR-02 çekirdek vendor'ını korur; bu satır aynı kuralı kendi
+# eklentimiz için de uyguluyor: bağımlılıklar kök composer.json'dan gelir.
+veykemtu/*/vendor/
