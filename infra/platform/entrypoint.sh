@@ -39,6 +39,16 @@ if [ ! -f "$ENV_DOSYASI" ]; then
     echo "QUEUE_CONNECTION=${QUEUE_CONNECTION:-sync}"
     echo "SESSION_DRIVER=${SESSION_DRIVER:-file}"
     echo "SESSION_LIFETIME=120"
+    # KVKK: `MAIL_MAILER=log` her e-postanın GÖVDESİNİ log dosyasına yazar
+    # ve gövdede müşteri adı, adresi ve e-postası var. Varsayılan
+    # `LOG_LEVEL` `debug` olduğu için bunlar diske düşüyordu — sahada
+    # 2,3 MB'lık logda gerçek müşteri e-postaları bulundu.
+    #
+    # `warning`: hatalar loglanır, posta dökümleri loglanmaz.
+    echo "LOG_LEVEL=${LOG_LEVEL:-warning}"
+    # `single` kanal tek dosyaya yazar ve HİÇ döndürmez; disk sessizce
+    # dolar. `daily` 14 günlük pencere tutar.
+    echo "LOG_CHANNEL=${LOG_CHANNEL:-daily}"
     echo "MAIL_MAILER=${MAIL_MAILER:-log}"
     echo "MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-noreply@benimlezzetdunyam.com.tr}"
     echo "MAIL_FROM_NAME=\"${APP_NAME:-Benim Lezzet Dunyam}\""
