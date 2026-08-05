@@ -76,7 +76,11 @@ chown -R www-data:www-data /var/www/platform/storage /var/www/platform/bootstrap
 # bırakır ve php-fpm bazı uçlarda sessizce 500 döner (docs/RUNBOOK §4.5).
 if [ "${BLD_SKIP_MIGRATIONS:-}" != "1" ]; then
   echo "[giris] göçler koşuluyor"
-  su -s /bin/sh -c "php /var/www/platform/artisan igniter:up --no-interaction" www-data \
+  # `--force` ŞART: Laravel üretim ortamında göç öncesi onay ister ve
+  # `--no-interaction` bunu geçmez, komut sessizce hiçbir şey yapmadan
+  # döner. Sahada yaşandı: giriş betiği "göçler koşuluyor" yazdı,
+  # "APPLICATION IN PRODUCTION" uyarısı bastı ve sütunlar eklenmedi.
+  su -s /bin/sh -c "php /var/www/platform/artisan igniter:up --force --no-interaction" www-data \
     || echo "[giris] UYARI: göçler koşmadı (veritabanı henüz kurulmamış olabilir)"
 fi
 
