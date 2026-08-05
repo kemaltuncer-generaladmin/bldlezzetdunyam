@@ -57,4 +57,27 @@ mkdir -p /var/www/platform/storage/app /var/www/platform/storage/logs \
          /var/www/platform/bootstrap/cache
 chown -R www-data:www-data /var/www/platform/storage /var/www/platform/bootstrap/cache
 
+# ── Göçler ────────────────────────────────────────────────────────────────
+#
+# NEDEN BURADA: dağıtım göç koşmuyordu. Sütun ekleyen bir sürüm
+# yayınlandığında kod yeni sütunu okuyor, veritabanında yok ve uç 500
+# dönüyordu — ta ki biri elle `igniter:up` koşana kadar. Bunu insan
+# hafızasına bırakmak, er geç unutulacak bir adım demek.
+#
+# `igniter:up` ÇEKİRDEK VE EKLENTİ göçlerini birlikte koşar; düz
+# `artisan migrate` yalnızca Laravel'in tablolarını kurar ve TastyIgniter
+# şeması eksik kalır.
+#
+# Veritabanı henüz kurulmamışsa (ilk dağıtım) komut hata verir; bu
+# ÖLDÜRÜCÜ DEĞİLDİR — kurulum `igniter:install` ile elle yapılır ve
+# konteynerin ayağa kalkmasını engellememeli.
+#
+# `-u www-data`: root olarak koşmak storage altında root'a ait dosya
+# bırakır ve php-fpm bazı uçlarda sessizce 500 döner (docs/RUNBOOK §4.5).
+if [ "${BLD_SKIP_MIGRATIONS:-}" != "1" ]; then
+  echo "[giris] göçler koşuluyor"
+  su -s /bin/sh -c "php /var/www/platform/artisan igniter:up --no-interaction" www-data \
+    || echo "[giris] UYARI: göçler koşmadı (veritabanı henüz kurulmamış olabilir)"
+fi
+
 exec "$@"
