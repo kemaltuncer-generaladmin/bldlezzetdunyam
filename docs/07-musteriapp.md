@@ -2,7 +2,10 @@
 
 ## 1. Teknoloji
 
-- Flutter 3.x → **Android** (Google Play). iOS hedefi kodda hazır bırakılır ama bu fazda derlenmez.
+- Flutter 3.x → **Android (Google Play) + iOS (App Store)**. Karar
+  05.08.2026'da güncellendi; önceki plan yalnızca Android'di.
+- Bundle/uygulama kimliği **iki platformda da aynı**: `com.veykemtu.catering`.
+  Ayrışırsa push kayıtları ve deep link'ler iki ayrı uygulamaya bölünür.
 - State: Riverpod
 - Model: freezed + json_serializable
 - API: `packages/api_client`

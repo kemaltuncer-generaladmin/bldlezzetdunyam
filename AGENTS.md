@@ -14,7 +14,7 @@ Bir catering şirketi için sipariş altyapısı: müşteri (web veya mobil) sip
 |---|---|---|
 | Backend + Admin Panel | TastyIgniter (PHP 8.3 / Laravel) + MySQL | `platform/` |
 | Müşteri web sitesi | Next.js 15 (App Router, TypeScript) | `website/` |
-| Müşteri mobil | Flutter (Android, Google Play) | `musteriapp/` |
+| Müşteri mobil | Flutter (Android + iOS — Google Play ve App Store) | `musteriapp/` |
 | Mutfak ekranı (KDS) | Flutter **Linux desktop** — Ubuntu 24.04 | `mutfakapp/` |
 | Ortak Dart paketleri | Dart (pub workspace) | `packages/` |
 | Altyapı | Docker Compose, Caddy | `infra/` |

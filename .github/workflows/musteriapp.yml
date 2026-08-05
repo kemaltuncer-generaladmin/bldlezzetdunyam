@@ -1,4 +1,4 @@
-# Müşteri mobil uygulaması — Flutter Android
+# Müşteri mobil uygulaması — Flutter Android + iOS
 name: musteriapp
 
 on:
@@ -53,3 +53,42 @@ jobs:
         # Dart derleniyor diye Android derlemesinin de çalıştığını
         # varsaymak, Play yüklemesinde patlamak demektir.
         run: flutter build appbundle --debug
+
+  ios-derleme:
+    # iOS derlemesi Xcode ister; yalnızca macOS runner'da koşabilir.
+    # Ayrı iş olmasının sebebi: ubuntu işi Android'i derlerken bu paralel
+    # koşsun, biri diğerini beklemesin.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - run: flutter pub get
+        working-directory: musteriapp
+
+      - name: Bundle kimliği Android ile aynı olmalı
+        # İki platformda ayrı kimlik, push kayıtlarını ve deep link'leri
+        # iki ayrı uygulamaya böler. Elle senkron tutmak unutuluyor.
+        run: |
+          ANDROID=$(grep -oP 'applicationId = "\K[^"]+' \
+            musteriapp/android/app/build.gradle.kts)
+          IOS=$(grep -oP 'PRODUCT_BUNDLE_IDENTIFIER = \K[^;]+' \
+            musteriapp/ios/Runner.xcodeproj/project.pbxproj \
+            | grep -v RunnerTests | sort -u | head -1)
+          echo "android=$ANDROID ios=$IOS"
+          if [ "$ANDROID" != "$IOS" ]; then
+            echo "::error::Kimlikler ayrışmış: android=$ANDROID ios=$IOS"
+            exit 1
+          fi
+
+      - name: iOS derlemesi (imzasız)
+        working-directory: musteriapp
+        # --no-codesign: imzalama sertifikası CI gizli değişkenlerinde ve
+        # yalnızca sürüm etiketlerinde kullanılır. Buradaki amaç Xcode
+        # derlemesinin hiç koşmadan kalmasını engellemek — Dart analiz
+        # geçiyor diye iOS'un da derlendiğini varsaymak, App Store
+        # yüklemesinde patlamak demektir.
+        run: flutter build ios --release --no-codesign

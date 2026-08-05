@@ -139,6 +139,10 @@ Kapandı.
 - [ ] Sepet hesaplama unit testleri geçiyor
 - [ ] Zorunlu güncelleme mantığı çalışıyor
 - [ ] Play kapalı test kanalında yüklü ve açılıyor
+- [ ] **App Store TestFlight'ta yüklü ve açılıyor** — iOS hedefi
+      05.08.2026'da eklendi; `ios/` iskeleti ve CI derleme işi hazır,
+      gerçek derleme **Mac + Apple Developer Program** gerektirir
+- [ ] Bundle kimliği iki platformda da `com.veykemtu.catering` (CI kontrol ediyor)
 - [ ] Push bildirimi geliyor ve deep link çalışıyor
 
 ### Altyapı (`infra/`)

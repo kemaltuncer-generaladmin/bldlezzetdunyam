@@ -57,8 +57,9 @@ build/
 coverage/
 *.iml
 
-# musteriapp: yalnızca Android hedefi
-musteriapp/ios/
+# musteriapp: Android + iOS. `ios/` ARTIK İZLENİR — uygulama App Store'da
+# da yayınlanacak (karar 05.08.2026). Derleme çıktıları musteriapp/ios/
+# içindeki kendi .gitignore'u ile eleniyor (Pods/, xcuserdata, ephemeral).
 musteriapp/macos/
 musteriapp/windows/
 musteriapp/linux/

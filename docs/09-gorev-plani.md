@@ -11,7 +11,7 @@
 | **B** | Backend/platform (PHP) | B-ajanı |
 | **K** | Mutfak uygulaması (Flutter Linux) | K-ajanı |
 | **W** | Website (Next.js) | W-ajanı |
-| **M** | Müşteri app (Flutter Android) | M-ajanı |
+| **M** | Müşteri app (Flutter Android + iOS) | M-ajanı |
 | **I** | Altyapı/CI/kasa | I-ajanı |
 
 ## 2. Gün 0 — Ortak temel (tüm ajanlar durur, bu bitmeden başlanmaz)
