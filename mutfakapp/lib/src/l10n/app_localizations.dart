@@ -99,6 +99,42 @@ abstract class AppL10n {
   /// **'Mutfak Ekranı'**
   String get appTitle;
 
+  /// Açılış kilidi parola alanının etiketi
+  ///
+  /// In tr, this message translates to:
+  /// **'Şifreyi giriniz'**
+  String get unlockPrompt;
+
+  /// Açılış kilidini kaldıran düğme
+  ///
+  /// In tr, this message translates to:
+  /// **'Aç'**
+  String get unlockAction;
+
+  /// Yanlış parola girildiğinde
+  ///
+  /// In tr, this message translates to:
+  /// **'Şifre yanlış'**
+  String get unlockWrong;
+
+  /// Pencereyi görev çubuğuna indirir
+  ///
+  /// In tr, this message translates to:
+  /// **'Küçült'**
+  String get windowMinimize;
+
+  /// Tam ekrana geçiren düğme
+  ///
+  /// In tr, this message translates to:
+  /// **'Tam ekran'**
+  String get windowFullScreenOn;
+
+  /// Tam ekrandan çıkaran düğme
+  ///
+  /// In tr, this message translates to:
+  /// **'Pencere'**
+  String get windowFullScreenOff;
+
   /// Üst şeridin etiketi
   ///
   /// In tr, this message translates to:

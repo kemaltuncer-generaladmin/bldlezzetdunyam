@@ -12,16 +12,35 @@ void main() {
 
   setUp(() => triggers = PrintTriggers());
 
-  test('yeni sipariş listeye gelince mutfak fişi tetiklenir', () {
-    final jobs = triggers.jobsFor([makeOrder(id: 5012)]);
+  test('YENİ durumda hiçbir fiş çıkmaz', () {
+    // Sipariş henüz kabul edilmedi ve müşteri iptal edebilir. `yeni`de
+    // basmak, iptal edilen her sipariş için çöpe giden bir fiş demekti.
+    expect(triggers.jobsFor([makeOrder(id: 5012)]), isEmpty);
+  });
 
-    expect(jobs, [const PrintTriggerJob(5012, ReceiptType.mutfak)]);
+  test('mutfak onaylayınca mutfak fişi tetiklenir', () {
+    triggers.jobsFor([makeOrder(id: 5012)]);
+
+    expect(
+      triggers.jobsFor([makeOrder(id: 5012, status: OrderStatus.onaylandi)]),
+      [const PrintTriggerJob(5012, ReceiptType.mutfak)],
+    );
   });
 
   test('aynı sipariş ikinci yayında tekrar tetiklemez', () {
-    triggers.jobsFor([makeOrder(id: 5012)]);
+    triggers.jobsFor([makeOrder(id: 5012, status: OrderStatus.onaylandi)]);
 
-    expect(triggers.jobsFor([makeOrder(id: 5012)]), isEmpty);
+    expect(
+      triggers.jobsFor([makeOrder(id: 5012, status: OrderStatus.onaylandi)]),
+      isEmpty,
+    );
+  });
+
+  test('iptal edilen sipariş hiç fiş üretmez', () {
+    expect(
+      triggers.jobsFor([makeOrder(id: 3, status: OrderStatus.iptal)]),
+      isEmpty,
+    );
   });
 
   test('durum hazir olunca müşteri fişi tetiklenir', () {
@@ -63,17 +82,26 @@ void main() {
   });
 
   test('hazir öncesi durumlar müşteri fişi tetiklemez', () {
-    for (final status in [
-      OrderStatus.yeni,
-      OrderStatus.onaylandi,
-      OrderStatus.hazirlaniyor,
-    ]) {
+    for (final status in [OrderStatus.onaylandi, OrderStatus.hazirlaniyor]) {
       final fresh = PrintTriggers();
       final jobs = fresh.jobsFor([makeOrder(id: 1, status: status)]);
       expect(jobs.map((j) => j.type), [
         ReceiptType.mutfak,
       ], reason: '$status müşteri fişi tetiklememeli');
     }
+  });
+
+  test('gel-al: hazir atlanıp teslim edildi görülürse iki fiş de çıkar', () {
+    // Gel-al siparişi `hazir`dan doğrudan `teslim_edildi`ye geçer. Arada
+    // bir yayın kaçarsa müşteri fişi hiç basılmamış olurdu.
+    final jobs = triggers.jobsFor([
+      makeOrder(id: 8, status: OrderStatus.teslimEdildi),
+    ]);
+
+    expect(jobs, [
+      const PrintTriggerJob(8, ReceiptType.mutfak),
+      const PrintTriggerJob(8, ReceiptType.musteri),
+    ]);
   });
 
   test('durum makinesi boyunca tam olarak iki fiş çıkar', () {
@@ -96,9 +124,9 @@ void main() {
 
   test('birden çok sipariş sırayla işlenir', () {
     final jobs = triggers.jobsFor([
-      makeOrder(id: 1),
-      makeOrder(id: 2),
-      makeOrder(id: 3),
+      makeOrder(id: 1, status: OrderStatus.onaylandi),
+      makeOrder(id: 2, status: OrderStatus.onaylandi),
+      makeOrder(id: 3, status: OrderStatus.onaylandi),
     ]);
 
     expect(jobs.map((j) => j.orderId), [1, 2, 3]);

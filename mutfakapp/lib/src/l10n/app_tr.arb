@@ -4,6 +4,24 @@
   "appTitle": "Mutfak Ekranı",
   "@appTitle": { "description": "Pencere başlığı" },
 
+  "unlockPrompt": "Şifreyi giriniz",
+  "@unlockPrompt": { "description": "Açılış kilidi parola alanının etiketi" },
+
+  "unlockAction": "Aç",
+  "@unlockAction": { "description": "Açılış kilidini kaldıran düğme" },
+
+  "unlockWrong": "Şifre yanlış",
+  "@unlockWrong": { "description": "Yanlış parola girildiğinde" },
+
+  "windowMinimize": "Küçült",
+  "@windowMinimize": { "description": "Pencereyi görev çubuğuna indirir" },
+
+  "windowFullScreenOn": "Tam ekran",
+  "@windowFullScreenOn": { "description": "Tam ekrana geçiren düğme" },
+
+  "windowFullScreenOff": "Pencere",
+  "@windowFullScreenOff": { "description": "Tam ekrandan çıkaran düğme" },
+
   "productionStripTitle": "ÜRETİM LİSTESİ",
   "@productionStripTitle": { "description": "Üst şeridin etiketi" },
 

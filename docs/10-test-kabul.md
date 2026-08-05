@@ -118,6 +118,9 @@ Kapandı.
 - [ ] ESC/POS golden testleri geçiyor (2 fiş tipi × 2 teslimat tipi)
 - [ ] PC857 Türkçe karakter testi geçiyor
 - [ ] Kuyruk idempotentlik testi geçiyor
+- [x] Açılış kilidi çalışıyor — parola testleri mutasyonla doğrulandı
+      (kontrolü `return true` yapınca 4 test kırmızıya döndü)
+- [x] Pencere küçültme ve tam ekran aç/kapa düğmeleri var
 - [ ] Android'e dair kod/bağımlılık **yok**
 - [ ] Kasa kabul listesi (`docs/08` §2.4) 7/7
 - [ ] `OrderSource` soyutlaması var (WebSocket'e geçiş hazır)

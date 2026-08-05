@@ -12,6 +12,24 @@ class AppL10nTr extends AppL10n {
   String get appTitle => 'Mutfak Ekranı';
 
   @override
+  String get unlockPrompt => 'Şifreyi giriniz';
+
+  @override
+  String get unlockAction => 'Aç';
+
+  @override
+  String get unlockWrong => 'Şifre yanlış';
+
+  @override
+  String get windowMinimize => 'Küçült';
+
+  @override
+  String get windowFullScreenOn => 'Tam ekran';
+
+  @override
+  String get windowFullScreenOff => 'Pencere';
+
+  @override
   String get productionStripTitle => 'ÜRETİM LİSTESİ';
 
   @override

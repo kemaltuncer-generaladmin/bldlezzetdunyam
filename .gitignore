@@ -99,3 +99,6 @@ Thumbs.db
 tmp/
 .tmp/
 *.log
+
+# Kasaya özel derleme değerleri (kitchen token) — asla commitlenmez
+infra/kasa/.kasa.env

@@ -2,8 +2,15 @@
 ///
 /// | Olay | Fiş |
 /// |---|---|
-/// | Yeni sipariş listeye geldi | Mutfak fişi |
-/// | Durum `hazir` yapıldı | Müşteri fişi |
+/// | Mutfak siparişi **onayladı** (`onaylandi`) | Mutfak fişi |
+/// | Durum **`hazir`** yapıldı | Müşteri fişi |
+///
+/// Sipariş başına **iki** fiş çıkar, daha fazlası değil.
+///
+/// Mutfak fişi `yeni` durumunda BASILMAZ: sipariş henüz kabul edilmemiştir
+/// ve müşteri iptal edebilir (`docs/03` §4 — iptal `yeni` ve `onaylandi`
+/// durumlarında serbest). `yeni`de basmak, iptal edilen her sipariş için
+/// çöpe giden bir fiş demekti.
 ///
 /// İnsan müdahalesi yoktur. Tetikler yalnızca **kuyruğa yazar**; basımı
 /// `PrintService` yapar ve tekillik veritabanındaki `UNIQUE(order_id, type)`
@@ -21,14 +28,15 @@ import 'package:bld_api_client/bld_api_client.dart';
 class PrintTriggers {
   /// Hangi işlerin kuyruğa gireceğine karar verir.
   ///
-  /// `hazir`'ı geçmiş siparişler de müşteri fişi üretir: sipariş `hazir`
-  /// iken uygulama kapanır ve `yolda` iken açılırsa fiş hiç basılmamış
-  /// olabilir. Fazladan çağrı idempotentlik sayesinde bedava.
+  /// Her iki eşik de "**o durum ya da ötesi**" diye okunur, "tam o durum"
+  /// diye değil: sipariş `hazir` iken uygulama kapanıp `yolda` iken
+  /// açılırsa fiş hiç basılmamış olabilir. Fazladan çağrı, kuyruktaki
+  /// `UNIQUE(order_id, type)` sayesinde bedava.
   List<PrintTriggerJob> jobsFor(List<KitchenOrder> orders) {
     final jobs = <PrintTriggerJob>[];
 
     for (final order in orders) {
-      if (_seenOrders.add(order.id)) {
+      if (_isAcceptedOrBeyond(order.status) && _acceptedOrders.add(order.id)) {
         jobs.add(PrintTriggerJob(order.id, ReceiptType.mutfak));
       }
       if (_isReadyOrBeyond(order.status) && _readyOrders.add(order.id)) {
@@ -39,14 +47,34 @@ class PrintTriggers {
     return jobs;
   }
 
-  /// Mutfak fişi basılmış siparişler (bu oturumda görülenler).
-  final Set<int> _seenOrders = <int>{};
+  /// Mutfak fişi tetiklenmiş siparişler (bu oturumda).
+  final Set<int> _acceptedOrders = <int>{};
 
   /// Müşteri fişi tetiklenmiş siparişler.
   final Set<int> _readyOrders = <int>{};
 
-  static bool _isReadyOrBeyond(OrderStatus status) =>
-      status == OrderStatus.hazir || status == OrderStatus.yolda;
+  /// Onaylandı ya da ötesi. `yeni` ve `iptal` dışarıda kalır.
+  static bool _isAcceptedOrBeyond(OrderStatus status) => switch (status) {
+    OrderStatus.onaylandi ||
+    OrderStatus.hazirlaniyor ||
+    OrderStatus.hazir ||
+    OrderStatus.yolda ||
+    OrderStatus.teslimEdildi => true,
+    OrderStatus.yeni || OrderStatus.iptal => false,
+  };
+
+  /// Hazır ya da ötesi. `teslim_edildi` DAHİLDİR: gel-al siparişleri
+  /// `hazir`'dan doğrudan oraya geçer ve arada bir yayın kaçarsa müşteri
+  /// fişi hiç basılmazdı.
+  static bool _isReadyOrBeyond(OrderStatus status) => switch (status) {
+    OrderStatus.hazir ||
+    OrderStatus.yolda ||
+    OrderStatus.teslimEdildi => true,
+    OrderStatus.yeni ||
+    OrderStatus.onaylandi ||
+    OrderStatus.hazirlaniyor ||
+    OrderStatus.iptal => false,
+  };
 }
 
 /// Kuyruğa girecek tek iş.

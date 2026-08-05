@@ -10,6 +10,7 @@ import 'package:mutfakapp/src/data/device_session.dart';
 import 'package:mutfakapp/src/data/providers.dart';
 import 'package:mutfakapp/src/printing/print_queue.dart';
 
+import 'unlock_helper.dart';
 import 'fake_device_session_store.dart';
 import 'fake_kitchen_service.dart';
 
@@ -58,6 +59,7 @@ Future<FakeDeviceSessionStore> pumpPairing(
     ),
   );
   await tester.pump();
+  await unlockApp(tester);
   return store;
 }
 

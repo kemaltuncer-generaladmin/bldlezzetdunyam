@@ -192,10 +192,26 @@ mali değeri yoktur.
 
 ### 5.5 Tetikler
 
+**Sipariş başına tam olarak iki fiş çıkar** (karar 05.08.2026):
+
 | Olay | Fiş |
 |---|---|
-| Yeni sipariş listeye geldi | Mutfak fişi (otomatik) |
-| Durum `hazir` yapıldı | Müşteri fişi (otomatik) |
+| Mutfak siparişi **onayladı** (`onaylandi`) | Mutfak fişi (otomatik) |
+| Durum **`hazir`** yapıldı | Müşteri fişi (otomatik) |
+
+> **`yeni` durumunda fiş BASILMAZ.** Sipariş henüz kabul edilmemiştir ve
+> müşteri iptal edebilir (`docs/03` §4 — iptal `yeni` ve `onaylandi`
+> durumlarında serbest). Önceki davranış siparişi listede görür görmez
+> basıyordu; iptal edilen her sipariş çöpe giden bir fiş demekti.
+
+Her iki eşik de "**o durum ya da ötesi**" diye okunur. Sipariş `hazir`
+iken uygulama kapanıp `yolda` iken açılırsa fiş hiç basılmamış olabilir;
+tetiği kaçırmaktansa fazladan çağırmak yeğdir — kuyruktaki
+`UNIQUE(order_id, type)` ikinci fişi zaten engelliyor.
+
+`teslim_edildi` de "hazır ötesi" sayılır: gel-al siparişi `hazir`dan
+doğrudan oraya geçer ve arada bir yayın kaçarsa müşteri fişi hiç
+basılmazdı.
 
 ## 6. Kiosk davranışı
 
@@ -221,7 +237,25 @@ Environment=DISPLAY=:0
 WantedBy=default.target
 ```
 
-**Uygulama davranışı:** açılışta tam ekran (`window_manager` ile fullscreen + always on top), `Esc` ile çıkılmaz, kapatma yalnızca ayarlar → gizli menü (uzun basma + PIN).
+**Uygulama davranışı:** açılışta tam ekran (`window_manager` ile fullscreen
++ always on top), `Esc` ile çıkılmaz, pencere kapatma düğmesi devre dışı
+(`setPreventClose`).
+
+**Pencere denetimleri** (durum çubuğunun sağında, 05.08.2026'da eklendi):
+
+| Düğme | Ne yapar |
+|---|---|
+| **Küçült** | Pencereyi görev çubuğuna indirir |
+| **Pencere / Tam ekran** | Tam ekran ↔ 1280×800 pencere |
+
+> `alwaysOnTop`, tam ekranla **birlikte** açılıp kapanır. Küçültmeden önce
+> de kapatılır: kapatılmazsa pencere küçülür ve hemen geri gelir, düğme
+> çalışmıyor gibi görünür. Pencere modunda üstte kalan bir KDS, altındaki
+> ayar penceresini kullanılamaz hâle getirirdi.
+
+Gerekçe: kasa tek amaçlı bir makine ama arada masaüstüne inmek gerekiyor —
+yazıcı ayarı, ağ, güncelleme. Bunun tek yolu `systemd` servisini durdurmak
+olmamalı.
 
 ## 7. İlk kurulum akışı (eşleme)
 
@@ -250,7 +284,43 @@ Kod **10 dakika** geçerlidir; kasanın başında değilken üretmeyin.
 > 05.08.2026'da MSI kasada bu dosyanın **olmadığı** doğrulandı; ilk
 > açılışta derlemedeki üretim adresi kullanılacak.
 
-## 8. Ayarlar ekranı (gizli, PIN korumalı)
+## 7.5 Açılış kilidi (05.08.2026)
+
+Uygulama açıldığında **bir kez** parola sorar: *"Şifreyi giriniz"*. Doğru
+parola girilince KDS açılır ve **bir daha sorulmaz** — ayarlar, fiş
+yeniden basma, eşleme sıfırlama hiçbiri parola istemez.
+
+> **Neden her işlemde değil:** elleri dolu bir mutfak personeline her
+> işlemde parola girdirmek, parolanın duvara yazılmasıyla sonuçlanır.
+> Kilidin amacı yoldan geçenin ekrana dokunup sipariş durumu
+> değiştirmesini engellemek; asıl koruma kasanın kilitli mutfakta
+> durmasıdır.
+
+Parola **sunucuya sorulmaz**: internet yokken de açılmalı, mutfak sabah
+bağlantı bekleyemez. Sunucu tarafındaki yetki zaten cihaz token'ıdır.
+
+Oturum boyunca hatırlanır, kalıcı saklanmaz: uygulama yeniden başlarsa
+(elektrik kesintisi, çökme, güncelleme) parola tekrar istenir.
+
+> **Kaynakta düz metin parola YOKTUR** — depo herkese açık ve gizli-tarama
+> botları bulurdu. `unlock_password.dart` içinde yalnızca tuzlanmış
+> SHA-256 özeti durur. Bunun gerçek bir kriptografik koruma olmadığını
+> biliyoruz; parolayı bilen biri özeti saniyede doğrular. Amaç parolanın
+> aranabilir bir dizge olarak repoda durmaması.
+
+Parola değiştirme:
+
+```bash
+python3 -c "import hashlib;print(hashlib.sha256(('bld-mutfak-kasasi-v1'+'YENİ').encode()).hexdigest())"
+# çıktıyı mutfakapp/lib/src/lock/unlock_password.dart içindeki
+# unlockPasswordDigest sabitine yazın, yeniden derleyin
+```
+
+## 8. Ayarlar ekranı
+
+**PIN KALDIRILDI (05.08.2026).** Önceki plan ayarları ayrı bir PIN
+arkasına almaktı; açılış kilidi geldiği için ikinci bir parola katmanı
+yalnızca sürtünme üretiyordu. Ayarlar doğrudan açılır.
 
 - Sunucu adresi
 - Yazıcı cihaz yolu + **test fişi bas** butonu

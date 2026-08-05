@@ -28,6 +28,7 @@ dependencies:
 
   # Kiosk davranışı: açılışta tam ekran + always on top (docs/05 §6).
   window_manager: ^0.5.2
+  crypto: ^3.0.6
 
   # Cihaz token'ı ve ayarlar (docs/05 §2).
   shared_preferences: ^2.5.5

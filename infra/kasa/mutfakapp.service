@@ -1,13 +1,23 @@
 # Mutfak KDS — systemd user servisi (docs/05-mutfakapp.md §6, ADR-06).
 #
 # Kurulum:
-#   mkdir -p ~/.config/systemd/user
+#   mkdir -p ~/.config/systemd/user ~/.local/opt
+#   cp -r mutfakapp/build/linux/x64/release/bundle ~/.local/opt/mutfakapp
 #   cp mutfakapp.service ~/.config/systemd/user/
 #   systemctl --user daemon-reload
 #   systemctl --user enable --now mutfakapp
-#   sudo loginctl enable-linger mutfak
 #
 # Amaç: elektrik kesintisinden sonra kimsenin müdahale etmesi gerekmemeli.
+#
+# NEDEN ~/.local/opt, /opt DEĞİL: bu bir systemd **kullanıcı** servisidir ve
+# zaten masaüstü kullanıcısı olarak koşar. /opt'a kurmak yalnızca sudo
+# gerektirir, karşılığında hiçbir şey kazandırmaz. Kurulumun sudo istememesi
+# sahada güncelleme yapmayı da kolaylaştırıyor.
+#
+# `loginctl enable-linger` GEREKMİYOR: otomatik login açık olduğu için
+# kullanıcı oturumu açılışta başlar ve servis onunla gelir. Linger, oturum
+# hiç açılmasa bile servisi ayakta tutmak içindir — kasada öyle bir durum
+# yok, ekranın açık olması zaten şart.
 
 [Unit]
 Description=Mutfak KDS
@@ -16,7 +26,7 @@ PartOf=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=/opt/mutfakapp/mutfakapp
+ExecStart=%h/.local/opt/mutfakapp/mutfakapp
 Restart=always
 RestartSec=5
 Environment=DISPLAY=:0

@@ -14,6 +14,7 @@ import '../../config/app_config.dart';
 import '../../data/printer_probe.dart';
 import '../../data/providers.dart';
 import '../../l10n/app_localizations.dart';
+import '../../window/kiosk_window.dart';
 
 class KdsStatusBar extends ConsumerWidget {
   const KdsStatusBar({super.key});
@@ -75,6 +76,7 @@ class KdsStatusBar extends ConsumerWidget {
               style: const TextStyle(fontSize: KdsTextScale.statusBar),
             ),
           ),
+          const _WindowButtons(),
         ],
       ),
     );
@@ -96,8 +98,59 @@ String _connectionLabel(AppL10n l10n, OrderSourceConnection state) =>
       OrderSourceConnection.revoked => l10n.connectionRevoked,
     };
 
-/// Ayarlar ekranı `K-08`'de PIN arkasına alınacak; şimdilik düğme sahadaki
-/// teşhis için gereken üç değeri gösterir (`docs/05` §8 "sürüm bilgisi").
+/// Pencere denetimleri: küçült ve tam ekran aç/kapa.
+///
+/// Kasa kiosk modunda açılır ama arada masaüstüne inmek gerekiyor —
+/// yazıcı ayarı, ağ, güncelleme. Bunu yapmanın tek yolu servisi durdurmak
+/// olmamalı.
+class _WindowButtons extends StatefulWidget {
+  const _WindowButtons();
+
+  @override
+  State<_WindowButtons> createState() => _WindowButtonsState();
+}
+
+class _WindowButtonsState extends State<_WindowButtons> {
+  static const _window = KioskWindow();
+
+  bool _fullScreen = true;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          onPressed: () => unawaited(_window.minimize()),
+          tooltip: l10n.windowMinimize,
+          icon: const Icon(Icons.remove),
+        ),
+        IconButton(
+          onPressed: _toggle,
+          tooltip: _fullScreen
+              ? l10n.windowFullScreenOff
+              : l10n.windowFullScreenOn,
+          icon: Icon(_fullScreen ? Icons.fullscreen_exit : Icons.fullscreen),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _toggle() async {
+    // Gerçek durumu pencere yöneticisinden alıyoruz, kendi bayrağımızı
+    // körlemesine ters çevirmiyoruz: kullanıcı F11 ile de değiştirebilir
+    // ve ikon o zaman yalan söylerdi.
+    final full = await _window.toggleFullScreen();
+    if (mounted) setState(() => _fullScreen = full);
+  }
+}
+
+/// Ayarlar penceresi teşhis için gereken üç değeri gösterir
+/// (`docs/05` §8 "sürüm bilgisi"). Parola İSTEMEZ: açılışta bir kez
+/// soruluyor, her işlemde tekrar sormak parolanın duvara yazılmasıyla
+/// sonuçlanır.
 void _showDeviceInfo(BuildContext context, WidgetRef ref) {
   final l10n = AppL10n.of(context);
   final config = ref.read(appConfigProvider);

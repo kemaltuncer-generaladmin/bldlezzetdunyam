@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'data/providers.dart';
 import 'kds/kds_screen.dart';
+import 'lock/unlock_screen.dart';
 import 'l10n/app_localizations.dart';
 import 'pairing/pairing_screen.dart';
 import 'theme/kds_theme.dart';
@@ -48,8 +49,19 @@ class _AppRootState extends ConsumerState<AppRoot> {
   /// Eşleme ekranına iptal yüzünden mi düşüldü? Yalnızca uyarı metni içindir.
   bool _revoked = false;
 
+  /// Açılış parolası girildi mi?
+  ///
+  /// Oturum boyunca hatırlanır ve bir daha sorulmaz. Kalıcı olarak
+  /// saklanmaz: uygulama yeniden başlarsa (elektrik kesintisi, çökme,
+  /// güncelleme) parola tekrar istenir — kilidin amacı zaten bu.
+  bool _unlocked = false;
+
   @override
   Widget build(BuildContext context) {
+    if (!_unlocked) {
+      return UnlockScreen(onUnlocked: () => setState(() => _unlocked = true));
+    }
+
     final session = ref.watch(deviceSessionProvider);
 
     // Eşlenmemişken sipariş kaynağını hiç kurmayız: token'sız polling
