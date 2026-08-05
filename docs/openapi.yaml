@@ -159,6 +159,87 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
 
   # ─────────────────────────────── Katalog ──────────────────────────────
+    patch:
+      tags: [Kimlik]
+      summary: Profil güncelle
+      description: |
+        Ad, soyad ve telefon güncellenir. Gönderilmeyen alanlar değişmez.
+
+        **E-posta DEĞİŞTİRİLEMEZ.** Giriş kimliği odur; değiştirmek yeni
+        adrese onay bağlantısı göndermeyi gerektirir, o olmadan hesabı
+        başkasının e-postasına taşımanın yolu olur. Gövdede `email`
+        gönderilirse sessizce yok sayılır.
+      operationId: updateMe
+      security:
+        - CustomerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name: { type: string, maxLength: 64 }
+                last_name: { type: string, maxLength: 64 }
+                telephone:
+                  type: string
+                  pattern: '^[1-9][0-9]{9}$'
+                  description: 10 hane, başında 0 veya +90 olmadan.
+      responses:
+        '200':
+          description: Güncel profil
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Customer' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422':
+          description: Doğrulama hatası
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /auth/password:
+    parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
+    post:
+      tags: [Kimlik]
+      summary: Parola değiştir
+      description: |
+        **Mevcut parola zorunludur.** Token'ı çalınmış bir oturumun
+        parolayı değiştirip hesabı tamamen ele geçirmesini engelleyen tek
+        şey budur.
+
+        Başarılı olduğunda **diğer tüm token'lar iptal edilir** ve çağırana
+        yeni bir token verilir. Parola değiştirmenin amacı "başkası
+        giremesin"dir; eski oturumları açık bırakmak o amacı boşa çıkarır.
+
+        `bld-auth` oran sınırına tabidir (dakikada 10): mevcut parolayı
+        denemek kaba kuvvete açıktır.
+      operationId: changePassword
+      security:
+        - CustomerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, password]
+              properties:
+                current_password: { type: string }
+                password: { type: string, minLength: 8, maxLength: 128 }
+      responses:
+        '200':
+          description: Değiştirildi; yeni token döner
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422':
+          description: Mevcut parola yanlış veya doğrulama hatası
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /locations:
     parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']

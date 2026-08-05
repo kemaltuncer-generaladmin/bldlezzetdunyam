@@ -45,6 +45,11 @@ Route::prefix('api')
         Route::middleware(['bld.auth', 'bld.scope:customer'])->group(function (): void {
             Route::post('auth/logout', [AuthController::class, 'logout']);
             Route::get('auth/me', [AuthController::class, 'me']);
+            Route::patch('auth/me', [AuthController::class, 'updateMe']);
+            // Parola değişimi kaba kuvvete açık (mevcut parolayı deneme):
+            // giriş/kayıtla aynı sıkı sınırı paylaşır.
+            Route::post('auth/password', [AuthController::class, 'changePassword'])
+                ->middleware('throttle:bld-auth');
             Route::post('me/push-token', [AuthController::class, 'pushToken']);
 
             // Adres defteri. Sipariş adresi buradan KOPYALANIR, bağlanmaz —

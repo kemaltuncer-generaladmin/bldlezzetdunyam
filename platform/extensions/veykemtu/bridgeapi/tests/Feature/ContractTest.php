@@ -6,6 +6,7 @@ namespace Veykemtu\BridgeApi\Tests\Feature;
 
 use Igniter\Cart\Models\Order;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
 use Veykemtu\BridgeApi\Models\KitchenDevice;
@@ -44,9 +45,38 @@ class ContractTest extends TestCase
      */
     protected function refreshTestDatabase(): void
     {
+        $this->assertTestDatabase();
+
         $this->laravelRefreshTestDatabase();
 
         $this->artisan('igniter:up');
+    }
+
+    /**
+     * Test veritabanına bağlı olduğumuzu ŞEMA DÜŞÜRÜLMEDEN ÖNCE doğrular.
+     *
+     * NEDEN BURADA VE NEDEN BU KADAR SERT: bir sonraki satır
+     * `migrate:fresh` koşuyor, yani bağlı olduğu veritabanının bütün
+     * tablolarını düşürüyor. Yanlış veritabanına bağlıysak veri gider ve
+     * bunu ancak sonradan fark ederiz.
+     *
+     * İki kez yaşandı: PHPUnit'in `<env>` girdisi ortamda zaten tanımlı
+     * `DB_DATABASE`'i ezmiyor ve testler geliştirme veritabanını
+     * siliyordu. `force="true"` bunu düzeltti; bu kontrol de aynı hatanın
+     * sessizce geri gelmesini engelliyor.
+     */
+    private function assertTestDatabase(): void
+    {
+        $name = (string) DB::connection()->getDatabaseName();
+
+        if (!str_ends_with($name, '_test')) {
+            $this->fail(
+                "Testler '{$name}' veritabanına bağlı ve bir sonraki adım "
+                ."tüm tabloları düşürecekti. Test veritabanı adı '_test' ile "
+                .'bitmelidir — platform/phpunit.xml içindeki DB_DATABASE '
+                .'girdisine bakın (force="true" olmalı).',
+            );
+        }
     }
 
     protected function setUp(): void
@@ -258,6 +288,80 @@ class ContractTest extends TestCase
         );
         // `group` alanı öğrenci kanalıyla birlikte kaldırıldı (docs/00 §4).
         $this->assertArrayNotHasKey('group', $json);
+    }
+
+    // ── Profil ve parola ──────────────────────────────────────────────────
+
+    public function test_profil_guncellenir(): void
+    {
+        $this->asCustomer()->patchJson('/api/auth/me', [
+            'first_name' => 'Yeni',
+            'telephone' => '5559998877',
+        ], self::HEADERS)
+            ->assertOk()
+            ->assertJsonPath('first_name', 'Yeni')
+            ->assertJsonPath('telephone', '5559998877');
+    }
+
+    public function test_eposta_degistirilemez(): void
+    {
+        // E-posta giriş kimliği. Değiştirmek yeni adrese onay bağlantısı
+        // ister; o olmadan hesabı başkasının e-postasına taşımanın yolu
+        // olurdu. Sessizce yok sayılıyor.
+        $before = $this->asCustomer()->getJson('/api/auth/me', self::HEADERS)->json('email');
+
+        $this->asCustomer()
+            ->patchJson('/api/auth/me', ['email' => 'kacak@ornek.com'], self::HEADERS)
+            ->assertOk()
+            ->assertJsonPath('email', $before);
+    }
+
+    public function test_yanlis_mevcut_parolayla_degistirilemez(): void
+    {
+        // Token'ı çalınmış bir oturumun hesabı tamamen ele geçirmesini
+        // engelleyen tek kontrol bu.
+        $this->asCustomer()->postJson('/api/auth/password', [
+            'current_password' => 'yanlis',
+            'password' => 'yeniparola9',
+        ], self::HEADERS)
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_FAILED');
+    }
+
+    public function test_parola_degisince_eski_tokenlar_olur(): void
+    {
+        $token = $this->postJson('/api/auth/register', $this->registerPayload([
+            'email' => 'parola@ornek.com',
+            'telephone' => '5551112233',
+        ]), self::HEADERS)->json('token');
+
+        $this->withToken($token)->postJson('/api/auth/password', [
+            'current_password' => 'parola123',
+            'password' => 'yeniparola9',
+        ], self::HEADERS)->assertOk()->assertJsonStructure(['token']);
+
+        // Parola değiştirmenin amacı "başkası giremesin"dir; eski
+        // oturumları açık bırakmak o amacı boşa çıkarır.
+        $this->withToken($token)->getJson('/api/auth/me', self::HEADERS)
+            ->assertUnauthorized();
+    }
+
+    public function test_yeni_parolayla_giris_yapilir(): void
+    {
+        $token = $this->postJson('/api/auth/register', $this->registerPayload([
+            'email' => 'parola2@ornek.com',
+            'telephone' => '5551112244',
+        ]), self::HEADERS)->json('token');
+
+        $this->withToken($token)->postJson('/api/auth/password', [
+            'current_password' => 'parola123',
+            'password' => 'yeniparola9',
+        ], self::HEADERS);
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'parola2@ornek.com',
+            'password' => 'yeniparola9',
+        ], self::HEADERS)->assertOk();
     }
 
     // ── Adres defteri ─────────────────────────────────────────────────────

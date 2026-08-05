@@ -100,6 +100,73 @@ class AuthController extends ApiController
         ]);
     }
 
+    /**
+     * Profil güncelleme.
+     *
+     * E-POSTA DEĞİŞTİRİLEMEZ. Giriş kimliği odur; değiştirmek doğrulama
+     * akışı (yeni adrese onay bağlantısı) ister, o da yoksa hesabı
+     * başkasının e-postasına taşımanın yolu olur. Ayrı bir iş.
+     */
+    public function updateMe(Request $request): JsonResponse
+    {
+        /** @var ApiCustomer $customer */
+        $customer = $request->user();
+
+        $data = $request->validate([
+            'first_name' => ['sometimes', 'required', 'string', 'max:64'],
+            'last_name' => ['sometimes', 'required', 'string', 'max:64'],
+            'telephone' => ['sometimes', 'required', 'string', 'regex:/^[1-9][0-9]{9}$/'],
+        ], [
+            'telephone.regex' => 'Telefon 10 haneli olmalı (başında 0 veya +90 olmadan).',
+        ]);
+
+        foreach (['first_name', 'last_name', 'telephone'] as $alan) {
+            if (array_key_exists($alan, $data)) {
+                $customer->{$alan} = $data[$alan];
+            }
+        }
+
+        $customer->save();
+
+        return $this->me($request);
+    }
+
+    /**
+     * Parola değiştirme.
+     *
+     * MEVCUT PAROLA ZORUNLU. Token çalınmış bir oturumun parolayı
+     * değiştirip hesabı tamamen ele geçirmesini engelleyen tek şey bu.
+     *
+     * Değişiklikten sonra DİĞER TÜM TOKEN'LAR İPTAL EDİLİR ve çağırana
+     * yenisi verilir: parola değiştirmenin amacı zaten "başkası
+     * giremesin"dir; eski oturumları açık bırakmak o amacı boşa çıkarır.
+     */
+    public function changePassword(Request $request): JsonResponse
+    {
+        /** @var ApiCustomer $customer */
+        $customer = $request->user();
+
+        $data = $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:8', 'max:128', 'different:current_password'],
+        ], [
+            'password.different' => 'Yeni parola eskisiyle aynı olamaz.',
+        ]);
+
+        if (!Hash::check($data['current_password'], (string) $customer->password)) {
+            throw ApiException::validationFailed('Mevcut parola yanlış.', [
+                'current_password' => 'Mevcut parola yanlış.',
+            ]);
+        }
+
+        $customer->password = $data['password'];
+        $customer->save();
+
+        $customer->tokens()->delete();
+
+        return $this->json($this->authPayload($customer));
+    }
+
     public function pushToken(Request $request): JsonResponse
     {
         $data = $request->validate([

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="./vendor/phpunit/phpunit/phpunit.xsd"
-         bootstrap="vendor/autoload.php"
+         bootstrap="tests/bootstrap.php"
          colors="true"
 >
     <testsuites>
@@ -38,7 +38,15 @@
             SQLite kullanılamıyor — TastyIgniter göçleri MySQL'e özgü
             ifadeler içeriyor.
         -->
-        <env name="DB_DATABASE" value="bld_test"/>
+        <!--
+            Test veritabanı BURADA AYARLANMAZ — `tests/bootstrap.php`
+            içinde, Laravel açılmadan önce zorlanır. PHPUnit'in `<env>`
+            girdisi ortamda zaten tanımlı bir değişkeni ezmiyor
+            (konteyner `DB_DATABASE=bld` veriyor) ve `force="true"` de
+            işe yaramıyor, çünkü bu yapılandırma eski şemaya göre
+            doğrulanıyor ve öznitelik sessizce yok sayılıyor. Gerekçenin
+            tamamı o dosyada.
+        -->
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
