@@ -12,6 +12,7 @@ declare(strict_types=1);
  */
 
 use Illuminate\Support\Facades\Route;
+use Veykemtu\BridgeApi\Http\Controllers\AddressController;
 use Veykemtu\BridgeApi\Http\Controllers\AppVersionController;
 use Veykemtu\BridgeApi\Http\Controllers\AuthController;
 use Veykemtu\BridgeApi\Http\Controllers\CatalogController;
@@ -45,6 +46,13 @@ Route::prefix('api')
             Route::post('auth/logout', [AuthController::class, 'logout']);
             Route::get('auth/me', [AuthController::class, 'me']);
             Route::post('me/push-token', [AuthController::class, 'pushToken']);
+
+            // Adres defteri. Sipariş adresi buradan KOPYALANIR, bağlanmaz —
+            // gerekçe AddressController sınıf yorumunda.
+            Route::get('addresses', [AddressController::class, 'index']);
+            Route::post('addresses', [AddressController::class, 'store']);
+            Route::patch('addresses/{address}', [AddressController::class, 'update']);
+            Route::delete('addresses/{address}', [AddressController::class, 'destroy']);
 
             Route::get('orders', [OrderController::class, 'index']);
             Route::post('orders', [OrderController::class, 'store'])

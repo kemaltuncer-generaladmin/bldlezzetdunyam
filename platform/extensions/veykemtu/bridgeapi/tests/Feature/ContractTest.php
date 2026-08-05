@@ -260,6 +260,121 @@ class ContractTest extends TestCase
         $this->assertArrayNotHasKey('group', $json);
     }
 
+    // ── Adres defteri ─────────────────────────────────────────────────────
+
+    public function test_adres_defteri_bos_baslar(): void
+    {
+        $this->asCustomer()->getJson('/api/addresses', self::HEADERS)
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
+    public function test_ilk_adres_kendiliginden_varsayilan_olur(): void
+    {
+        // Tek adresi olan müşteriye ayrıca "varsayılan yap" dedirtmek
+        // anlamsız; ödeme ekranı seçili bir adres bulamazdı.
+        $this->asCustomer()
+            ->postJson('/api/addresses', $this->addressPayload(), self::HEADERS)
+            ->assertCreated()
+            ->assertJsonPath('is_default', true)
+            ->assertJsonPath('label', 'Ofis');
+    }
+
+    public function test_varsayilan_tek_olur(): void
+    {
+        $first = $this->asCustomer()
+            ->postJson('/api/addresses', $this->addressPayload(), self::HEADERS)
+            ->json('id');
+
+        $second = $this->asCustomer()->postJson('/api/addresses', $this->addressPayload([
+            'label' => 'Ev',
+            'is_default' => true,
+        ]), self::HEADERS)->json('id');
+
+        $byId = collect($this->asCustomer()->getJson('/api/addresses', self::HEADERS)->json('data'))
+            ->keyBy('id');
+
+        $this->assertTrue($byId[$second]['is_default']);
+        $this->assertFalse($byId[$first]['is_default'], 'İki adres birden varsayılan kalamaz.');
+    }
+
+    public function test_baskasinin_adresi_404_doner(): void
+    {
+        $id = $this->asCustomer()
+            ->postJson('/api/addresses', $this->addressPayload(), self::HEADERS)
+            ->json('id');
+
+        // 403 dönmek o kimliğin var olduğunu doğrular ve numara taramaya
+        // davet eder — sipariş uçlarıyla aynı kural (docs/03 §5).
+        $this->withToken($this->otherCustomerToken())
+            ->patchJson('/api/addresses/'.$id, $this->addressPayload(), self::HEADERS)
+            ->assertNotFound();
+    }
+
+    public function test_tokensiz_adres_listesi_401(): void
+    {
+        $this->getJson('/api/addresses', self::HEADERS)->assertUnauthorized();
+    }
+
+    public function test_defter_degisince_gecmis_siparisin_adresi_DEGISMEZ(): void
+    {
+        // Bu testin varlık sebebi: siparişi kayıtlı adrese BAĞLAMAK
+        // cazip ve yanlış. Bağlansaydı müşteri adresini düzelttiğinde
+        // teslim edilmiş siparişlerin nereye gittiği de değişirdi.
+        $this->asCustomer()->postJson('/api/addresses', $this->addressPayload(), self::HEADERS);
+
+        $order = $this->placeOrder();
+        $before = $this->asCustomer()
+            ->getJson('/api/orders/'.$order['id'], self::HEADERS)
+            ->json('address.line1');
+
+        $id = $this->asCustomer()->getJson('/api/addresses', self::HEADERS)->json('data.0.id');
+        $this->asCustomer()->patchJson('/api/addresses/'.$id, $this->addressPayload([
+            'line1' => 'Bambaşka Sokak No:99',
+        ]), self::HEADERS)->assertOk();
+
+        $this->assertSame(
+            $before,
+            $this->asCustomer()->getJson('/api/orders/'.$order['id'], self::HEADERS)->json('address.line1'),
+        );
+    }
+
+    public function test_siparis_adresleri_deftere_sizmaz(): void
+    {
+        // Her sipariş kendi adres satırını açar. Bunlar deftere karışsaydı
+        // kırk sipariş veren müşteri kırk satır görürdü.
+        $this->placeOrder();
+        $this->placeOrder();
+
+        $this->asCustomer()->getJson('/api/addresses', self::HEADERS)
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
+    public function test_varsayilan_silinince_bosta_kalmaz(): void
+    {
+        $first = $this->asCustomer()
+            ->postJson('/api/addresses', $this->addressPayload(), self::HEADERS)
+            ->json('id');
+        $this->asCustomer()->postJson('/api/addresses', $this->addressPayload(['label' => 'Ev']), self::HEADERS);
+
+        $this->asCustomer()->deleteJson('/api/addresses/'.$first, [], self::HEADERS)
+            ->assertNoContent();
+
+        $rest = $this->asCustomer()->getJson('/api/addresses', self::HEADERS)->json('data');
+
+        $this->assertCount(1, $rest);
+        $this->assertTrue($rest[0]['is_default'], 'Varsayılan silinince biri devralmalı.');
+    }
+
+    public function test_adres_dogrulanir(): void
+    {
+        $this->asCustomer()
+            ->postJson('/api/addresses', ['label' => 'Eksik'], self::HEADERS)
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_FAILED');
+    }
+
     // ── Kapsam ayrımı (docs/10 S5) ────────────────────────────────────────
 
     public function test_tokensiz_istek_401_doner(): void
@@ -698,6 +813,29 @@ class ContractTest extends TestCase
     private function asKitchen(): static
     {
         return $this->withToken($this->pairedDevice()['token']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    private function addressPayload(array $overrides = []): array
+    {
+        return array_merge([
+            'label' => 'Ofis',
+            'line1' => 'Örnek Mah. 12. Sk No:3',
+            'district' => 'Çankaya',
+            'city' => 'Ankara',
+            'note' => 'Zili çalmayın',
+        ], $overrides);
+    }
+
+    private function otherCustomerToken(): string
+    {
+        return $this->postJson('/api/auth/register', $this->registerPayload([
+            'email' => 'baskasi@ornek.com',
+            'telephone' => '5559998877',
+        ]), self::HEADERS)->json('token');
     }
 
     /** @return array<string, mixed> */

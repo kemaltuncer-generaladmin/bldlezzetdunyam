@@ -150,6 +150,53 @@ class LocationGate
             : self::DEFAULT_BUSY_MESSAGE;
     }
 
+    public function setBusyMessage(Location $location, ?string $message): void
+    {
+        $this->setOption($location, self::KEY_BUSY_MESSAGE, $message);
+    }
+
+    /** `HH:mm` ya da `null` (kesim saati yok). */
+    public function setOrderCutoff(Location $location, ?string $cutoff): void
+    {
+        $this->setOption($location, self::KEY_CUTOFF, $cutoff);
+    }
+
+    /** Kuruş. TL kabul etmiyoruz — dönüşümü çağıran yapar, tek yerde. */
+    public function setMinOrderTotal(Location $location, int $kurus): void
+    {
+        $this->setOption($location, self::KEY_MIN_TOTAL, max(0, $kurus));
+    }
+
+    /** Kuruş. */
+    public function setDeliveryFee(Location $location, int $kurus): void
+    {
+        $this->setOption($location, self::KEY_DELIVERY_FEE, max(0, $kurus));
+    }
+
+    /**
+     * Açık ödeme yöntemleri.
+     *
+     * Sözleşmede olmayan değerler SESSİZCE ELENİR, hata atmayız: yönetici
+     * panelinden gelen bir yazım hatası yüzünden kaydetmeyi reddetmek,
+     * kullanıcıyı çıkmaza sokar. Boş liste de kabul edilmez — hiçbir ödeme
+     * yöntemi olmayan vitrin sipariş alamaz ve sebebi görünmez olurdu.
+     *
+     * @param  list<string>  $methods
+     */
+    public function setPaymentMethods(Location $location, array $methods): void
+    {
+        $temiz = array_values(array_intersect(
+            array_map(strval(...), $methods),
+            self::ALL_PAYMENT_METHODS,
+        ));
+
+        $this->setOption(
+            $location,
+            self::KEY_PAYMENTS,
+            $temiz === [] ? self::DEFAULT_PAYMENT_METHODS : $temiz,
+        );
+    }
+
     /** @return list<string> */
     public function paymentMethods(Location $location): array
     {
