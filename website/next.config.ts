@@ -12,6 +12,15 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   reactStrictMode: true,
   poweredByHeader: false,
+  /*
+   * `output: 'standalone'` yalnızca kodun izini sürdüğü dosyaları kopyalar.
+   * Paylaşım kartının fontları `readFile` ile okunuyor ve statik analizle
+   * görülemiyor; bu satır olmadan üretim imajında dosya bulunamıyor ve kart
+   * çalışma anında patlıyor. Yerelde çalıştığı için gözden kaçması çok kolay.
+   */
+  outputFileTracingIncludes: {
+    '/opengraph-image': ['./assets/fonts/*.ttf'],
+  },
   experimental: {
     /*
      * `radix-ui` ve `lucide-react` barrel paketlerdir: shadcn bileşenleri
@@ -28,9 +37,11 @@ const nextConfig: NextConfig = {
   images: {
     // Menü görselleri API'den mutlak URL olarak gelir (MenuItem.image_url).
     // Üretimde yalnızca kendi CDN'imiz kalacak; mock picsum kullanıyor.
+    // picsum.photos KALDIRILDI: mock artık ürün görseli döndürmüyor
+    // (gerekçe infra/mock/src/seed.js başında). İzin listesinde bırakmak,
+    // ileride biri yanlışlıkla stok fotoğraf koyduğunda bunun sessizce
+    // çalışmasına izin vermek olurdu.
     remotePatterns: [
-      { protocol: 'https', hostname: 'picsum.photos' },
-      { protocol: 'https', hostname: 'fastly.picsum.photos' },
       { protocol: 'https', hostname: 'api.benimlezzetdunyam.com.tr' },
       { protocol: 'https', hostname: 'www.benimlezzetdunyam.com.tr' },
     ],

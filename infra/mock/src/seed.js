@@ -1,3 +1,17 @@
+/*
+ * ÜRÜN GÖRSELLERİ BİLİNÇLİ OLARAK `null`.
+ *
+ * Burada rastgele stok fotoğraf (picsum.photos) döndürülüyordu ve catering
+ * menüsünde üzüm, tren rayı, yağmurdaki insan gibi alakasız kareler
+ * çıkıyordu — site bozuk görünüyordu ve "bu yemekler bunlar mı?" sorusunu
+ * doğuruyordu.
+ *
+ * `null` gelince arayüz marka renginde çizilmiş bir yer tutucu gösteriyor
+ * (`website/components/product-image.tsx`); bu, alakasız bir fotoğraftan çok
+ * daha dürüst ve düzenli duruyor. Gerçek ürün fotoğrafları admin panelden
+ * yüklendiğinde `image_url` dolu gelecek ve yer tutucu kendiliğinden
+ * devreden çıkacak.
+ */
 // Örnek veri. Tutarlar kuruş cinsinden tam sayıdır (docs/03 §1.3).
 //
 // 3 kategori, 12 ürün, 5 sipariş — siparişler durum makinesinin farklı
@@ -30,7 +44,7 @@ export const MENU = [
         description: 'Pilav ile servis edilir',
         price: 18500,
         currency: 'TRY',
-        image_url: 'https://picsum.photos/seed/tavuksote/600/400',
+        image_url: null,
         is_available: true,
         allergens: ['gluten'],
         options: [
@@ -52,7 +66,7 @@ export const MENU = [
         description: 'Pirinç pilavı ve turşu ile',
         price: 19500,
         currency: 'TRY',
-        image_url: 'https://picsum.photos/seed/kurufasulye/600/400',
+        image_url: null,
         is_available: true,
         allergens: [],
         options: [
@@ -74,7 +88,7 @@ export const MENU = [
         description: 'Sebzeli, fırında',
         price: 21000,
         currency: 'TRY',
-        image_url: 'https://picsum.photos/seed/tavukbut/600/400',
+        image_url: null,
         is_available: true,
         allergens: [],
         options: [],
@@ -85,7 +99,7 @@ export const MENU = [
         description: 'Kıymalı patlıcan, pilav ile',
         price: 20000,
         currency: 'TRY',
-        image_url: 'https://picsum.photos/seed/karniyarik/600/400',
+        image_url: null,
         is_available: true,
         allergens: [],
         options: [],
@@ -96,7 +110,7 @@ export const MENU = [
         description: 'Közlenmiş biber ve pilav ile',
         price: 24500,
         currency: 'TRY',
-        image_url: 'https://picsum.photos/seed/kofte/600/400',
+        image_url: null,
         // Bilinçli olarak tükendi: istemciler soluk gösterim ve
         // ITEM_UNAVAILABLE hatasını mock'ta deneyebilsin.
         is_available: false,
@@ -116,7 +130,7 @@ export const MENU = [
         description: 'Limon ve kruton ile',
         price: 8500,
         currency: 'TRY',
-        image_url: 'https://picsum.photos/seed/mercimek/600/400',
+        image_url: null,
         is_available: true,
         allergens: ['gluten'],
         options: [],
@@ -127,7 +141,7 @@ export const MENU = [
         description: 'Naneli tereyağı ile',
         price: 8500,
         currency: 'TRY',
-        image_url: 'https://picsum.photos/seed/ezogelin/600/400',
+        image_url: null,
         is_available: true,
         allergens: [],
         options: [],
@@ -138,7 +152,7 @@ export const MENU = [
         description: 'Zeytinyağlı, mevsim yeşillikleri',
         price: 9500,
         currency: 'TRY',
-        image_url: 'https://picsum.photos/seed/salata/600/400',
+        image_url: null,
         is_available: true,
         allergens: [],
         options: [
@@ -160,7 +174,7 @@ export const MENU = [
         description: 'Domates, salatalık, biber',
         price: 8000,
         currency: 'TRY',
-        image_url: 'https://picsum.photos/seed/coban/600/400',
+        image_url: null,
         is_available: true,
         allergens: [],
         options: [],
@@ -178,7 +192,7 @@ export const MENU = [
         description: 'Fırında, tarçınlı',
         price: 7500,
         currency: 'TRY',
-        image_url: 'https://picsum.photos/seed/sutlac/600/400',
+        image_url: null,
         is_available: true,
         allergens: ['süt'],
         options: [],
@@ -189,7 +203,7 @@ export const MENU = [
         description: 'Şerbetli, kaymak ile',
         price: 9000,
         currency: 'TRY',
-        image_url: 'https://picsum.photos/seed/kemalpasa/600/400',
+        image_url: null,
         is_available: true,
         allergens: ['gluten', 'süt'],
         options: [],
@@ -200,7 +214,7 @@ export const MENU = [
         description: '300 ml',
         price: 3000,
         currency: 'TRY',
-        image_url: 'https://picsum.photos/seed/ayran/600/400',
+        image_url: null,
         is_available: true,
         allergens: ['süt'],
         options: [],
