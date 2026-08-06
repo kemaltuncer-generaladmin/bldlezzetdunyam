@@ -26,7 +26,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   if (await getCurrentCustomerSafe()) redirect(next);
 
   return (
-    <div className="bg-gradient-to-b from-brand-50 to-neutral-50">
+    <div className="bg-linear-to-b from-brand-50 to-neutral-50">
       <div className="mx-auto w-full max-w-md px-4 py-10 sm:py-16">
         <h1 className="text-2xl font-bold">Giriş yap</h1>
         <p className="mt-2 text-sm text-neutral-600">

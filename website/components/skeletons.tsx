@@ -3,7 +3,7 @@
 export function ProductCardSkeleton() {
   return (
     <div className="bld-card overflow-hidden" aria-hidden="true">
-      <div className="bld-skeleton aspect-[4/3] rounded-none" />
+      <div className="bld-skeleton aspect-4/3 rounded-none" />
       <div className="space-y-2 p-4">
         <div className="bld-skeleton h-5 w-2/3" />
         <div className="bld-skeleton h-4 w-full" />

@@ -1,6 +1,124 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@theme {
+  --color-brand-50: #fff7ed;
+  --color-brand-100: #ffedd5;
+  --color-brand-200: #fed7aa;
+  --color-brand-300: #fdba74;
+  --color-brand-400: #fb923c;
+  --color-brand-500: #f97316;
+  --color-brand-600: #ea580c;
+  --color-brand-700: #c2410c;
+  --color-brand-800: #9a3412;
+  --color-brand-900: #7c2d12;
+
+  --color-neutral-0: #ffffff;
+  --color-neutral-50: #fafaf9;
+  --color-neutral-100: #f5f5f4;
+  --color-neutral-200: #e7e5e4;
+  --color-neutral-400: #a8a29e;
+  --color-neutral-600: #57534e;
+  --color-neutral-800: #292524;
+  --color-neutral-900: #1c1917;
+
+  --color-success: #16a34a;
+  --color-warning: #ca8a04;
+  --color-danger: #dc2626;
+  --color-info: #2563eb;
+
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+
+  --radius-card: 0.75rem;
+
+  --container-content: 72rem;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility bld-card {
+  @apply rounded-card border border-neutral-200 bg-neutral-0 shadow-xs;
+}
+
+@utility bld-skeleton {
+  @apply animate-pulse rounded-md bg-neutral-200;
+}
+
+@utility bld-btn {
+  /*
+   * Düğme ve rozet sınıfları tek yerde: aynı Tailwind dizisi sekiz ekranda
+   * kopyalanınca biri güncellenmeyip görsel olarak ayrışıyordu.
+   * Dokunma hedefi her yerde en az 44 px yüksekliğinde kalır.
+   */
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors;
+}
+
+@utility bld-btn-primary {
+  @apply bld-btn bg-brand-700 text-neutral-0 hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-600;
+}
+
+@utility bld-btn-secondary {
+  @apply bld-btn border border-neutral-200 bg-neutral-0 text-neutral-900 hover:bg-neutral-100;
+}
+
+@utility bld-btn-ghost {
+  @apply bld-btn border border-brand-600 bg-neutral-0 text-brand-700 hover:bg-brand-50;
+}
+
+@utility bld-chip {
+  @apply inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition-colors;
+}
+
+@utility bld-chip-idle {
+  @apply bld-chip border-neutral-200 bg-neutral-0 text-neutral-800 hover:border-brand-300 hover:bg-brand-50;
+}
+
+@utility bld-chip-active {
+  @apply bld-chip border-brand-700 bg-brand-700 text-neutral-0;
+}
+
+@utility bld-badge {
+  @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold leading-none;
+}
+
+@utility bld-field {
+  @apply w-full rounded-lg border border-neutral-200 bg-neutral-0 px-3 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400;
+}
+
+@utility bld-rail {
+  /*
+   * Yatay kaydırılan şerit (kategori çubuğu). Kaydırma çubuğu gizlenir ama
+   * kaydırma korunur; klavye kullanıcısı sekmeyle gezdiğinde tarayıcı
+   * odaklanan öğeyi görünür alana kendisi getirir.
+   */
+  @apply flex gap-2 overflow-x-auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility bld-anchor {
+  /* Yapışkan başlık + kategori çubuğunun altında kalmayan bağlantı hedefi. */
+  scroll-margin-top: 9rem;
+}
 
 @layer base {
   :root {
@@ -18,7 +136,7 @@
 
   /* Erişilebilirlik: klavye odağı her zaman görünür (docs/06 §5). */
   :focus-visible {
-    @apply outline-none ring-2 ring-brand-600 ring-offset-2 ring-offset-neutral-0;
+    @apply outline-hidden ring-2 ring-brand-600 ring-offset-2 ring-offset-neutral-0;
   }
 
   /* Hareket duyarlılığı olan kullanıcılar için animasyonları kıs. */
@@ -31,76 +149,5 @@
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
-  }
-}
-
-@layer components {
-  .bld-card {
-    @apply rounded-card border border-neutral-200 bg-neutral-0 shadow-sm;
-  }
-
-  .bld-skeleton {
-    @apply animate-pulse rounded-md bg-neutral-200;
-  }
-
-  /*
-   * Düğme ve rozet sınıfları tek yerde: aynı Tailwind dizisi sekiz ekranda
-   * kopyalanınca biri güncellenmeyip görsel olarak ayrışıyordu.
-   * Dokunma hedefi her yerde en az 44 px yüksekliğinde kalır.
-   */
-  .bld-btn {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors;
-  }
-
-  .bld-btn-primary {
-    @apply bld-btn bg-brand-700 text-neutral-0 hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-600;
-  }
-
-  .bld-btn-secondary {
-    @apply bld-btn border border-neutral-200 bg-neutral-0 text-neutral-900 hover:bg-neutral-100;
-  }
-
-  .bld-btn-ghost {
-    @apply bld-btn border border-brand-600 bg-neutral-0 text-brand-700 hover:bg-brand-50;
-  }
-
-  .bld-chip {
-    @apply inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition-colors;
-  }
-
-  .bld-chip-idle {
-    @apply bld-chip border-neutral-200 bg-neutral-0 text-neutral-800 hover:border-brand-300 hover:bg-brand-50;
-  }
-
-  .bld-chip-active {
-    @apply bld-chip border-brand-700 bg-brand-700 text-neutral-0;
-  }
-
-  .bld-badge {
-    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold leading-none;
-  }
-
-  .bld-field {
-    @apply w-full rounded-lg border border-neutral-200 bg-neutral-0 px-3 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400;
-  }
-
-  /*
-   * Yatay kaydırılan şerit (kategori çubuğu). Kaydırma çubuğu gizlenir ama
-   * kaydırma korunur; klavye kullanıcısı sekmeyle gezdiğinde tarayıcı
-   * odaklanan öğeyi görünür alana kendisi getirir.
-   */
-  .bld-rail {
-    @apply flex gap-2 overflow-x-auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  .bld-rail::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Yapışkan başlık + kategori çubuğunun altında kalmayan bağlantı hedefi. */
-  .bld-anchor {
-    scroll-margin-top: 9rem;
   }
 }

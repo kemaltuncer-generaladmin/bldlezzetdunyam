@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 
 const LINK_CLASS =
-  'rounded text-sm text-neutral-600 underline-offset-2 hover:text-brand-700 hover:underline';
+  'rounded-sm text-sm text-neutral-600 underline-offset-2 hover:text-brand-700 hover:underline';
 
 export async function SiteFooter() {
   const t = await getTranslations('footer');

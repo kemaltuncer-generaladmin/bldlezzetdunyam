@@ -9,7 +9,7 @@ export default function MenuLoading() {
     <>
       <LoadingAnnouncement label="Menü yükleniyor" />
 
-      <div className="border-b border-neutral-200 bg-gradient-to-b from-brand-50 to-neutral-50">
+      <div className="border-b border-neutral-200 bg-linear-to-b from-brand-50 to-neutral-50">
         <div className="mx-auto max-w-content px-4 py-8 sm:py-10" aria-hidden="true">
           <div className="bld-skeleton h-4 w-32" />
           <div className="bld-skeleton mt-3 h-9 w-64" />

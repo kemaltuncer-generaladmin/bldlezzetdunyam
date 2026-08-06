@@ -151,13 +151,13 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
       <nav aria-label="Ekmek kırıntısı" className="mb-5 text-sm text-neutral-600">
         <ol className="flex flex-wrap items-center gap-1.5">
           <li>
-            <Link href="/" className="rounded hover:text-brand-700 hover:underline">
+            <Link href="/" className="rounded-sm hover:text-brand-700 hover:underline">
               Ana sayfa
             </Link>
           </li>
           <li aria-hidden="true">/</li>
           <li>
-            <Link href="/menu" className="rounded hover:text-brand-700 hover:underline">
+            <Link href="/menu" className="rounded-sm hover:text-brand-700 hover:underline">
               Menü
             </Link>
           </li>
@@ -167,7 +167,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
               <li>
                 <Link
                   href={`/menu#kategori-${category.id}`}
-                  className="rounded hover:text-brand-700 hover:underline"
+                  className="rounded-sm hover:text-brand-700 hover:underline"
                 >
                   {category.name}
                 </Link>
@@ -182,7 +182,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
       </nav>
 
       <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
-        <div className="relative aspect-[4/3] overflow-hidden rounded-card border border-neutral-200 bg-neutral-100">
+        <div className="relative aspect-4/3 overflow-hidden rounded-card border border-neutral-200 bg-neutral-100">
           <ProductImage
             src={item.image_url}
             alt={item.name}
@@ -318,7 +318,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
             </h2>
             <Link
               href="/menu"
-              className="inline-flex items-center gap-1 rounded text-sm font-semibold text-brand-700 underline-offset-2 hover:underline"
+              className="inline-flex items-center gap-1 rounded-sm text-sm font-semibold text-brand-700 underline-offset-2 hover:underline"
             >
               Tüm menü
               <IconChevronRight className="h-4 w-4" />

@@ -25,7 +25,7 @@ export function ProductCard({ item, orderingOpen, priority = false }: Props) {
   return (
     <article
       className={cn(
-        'group relative flex flex-col overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-sm transition-shadow duration-200',
+        'group relative flex flex-col overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-xs transition-shadow duration-200',
         soldOut ? 'border-dashed' : 'hover:shadow-lg',
       )}
     >
@@ -37,7 +37,7 @@ export function ProductCard({ item, orderingOpen, priority = false }: Props) {
         href={href}
         aria-hidden="true"
         tabIndex={-1}
-        className="relative block aspect-[4/3] overflow-hidden bg-neutral-100"
+        className="relative block aspect-4/3 overflow-hidden bg-neutral-100"
       >
         <ProductImage
           src={item.image_url}
@@ -57,7 +57,7 @@ export function ProductCard({ item, orderingOpen, priority = false }: Props) {
           </span>
         )}
         {!soldOut && hasOptions && (
-          <span className="bld-badge absolute left-3 top-3 bg-neutral-0/95 text-neutral-800 shadow-sm">
+          <span className="bld-badge absolute left-3 top-3 bg-neutral-0/95 text-neutral-800 shadow-xs">
             Seçenekli
           </span>
         )}
@@ -65,7 +65,7 @@ export function ProductCard({ item, orderingOpen, priority = false }: Props) {
 
       <div className="flex flex-1 flex-col gap-2 p-4">
         <h3 className="text-base font-semibold leading-snug text-neutral-900">
-          <Link href={href} className="rounded transition-colors hover:text-brand-700">
+          <Link href={href} className="rounded-sm transition-colors hover:text-brand-700">
             {/* Kartın tamamını tıklanabilir yapan görünmez katman. */}
             <span className="absolute inset-0 z-0" aria-hidden="true" />
             <span className="relative">{item.name}</span>

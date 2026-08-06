@@ -81,7 +81,7 @@ export default async function MenuPage() {
     <>
       <JsonLd data={menuJsonLd(snapshot)} />
 
-      <div className="border-b border-neutral-200 bg-gradient-to-b from-brand-50 to-neutral-50">
+      <div className="border-b border-neutral-200 bg-linear-to-b from-brand-50 to-neutral-50">
         <div className="mx-auto max-w-content px-4 py-8 sm:py-10">
           <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">
             Günün menüsü

@@ -80,7 +80,7 @@ export function LoginForm({ next }: { next: string }) {
         Hesabınız yok mu?{' '}
         <Link
           href={`/kayit?next=${encodeURIComponent(next)}`}
-          className="rounded font-semibold text-brand-700 underline-offset-2 hover:underline"
+          className="rounded-sm font-semibold text-brand-700 underline-offset-2 hover:underline"
         >
           Kayıt olun
         </Link>

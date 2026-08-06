@@ -36,7 +36,7 @@ export function ProductImage({ src, alt, sizes, priority = false, className }: P
   }
 
   return (
-    <span className="absolute inset-0 grid place-items-center bg-gradient-to-br from-brand-100 via-brand-50 to-brand-200">
+    <span className="absolute inset-0 grid place-items-center bg-linear-to-br from-brand-100 via-brand-50 to-brand-200">
       <svg
         viewBox="0 0 64 64"
         fill="none"

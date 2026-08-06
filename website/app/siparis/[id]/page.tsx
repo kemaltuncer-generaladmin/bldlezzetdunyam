@@ -45,7 +45,7 @@ export default async function OrderTrackingPage({ params }: { params: Promise<{ 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
       <nav aria-label="Ekmek kırıntısı" className="mb-4 text-sm text-neutral-600">
-        <Link href="/siparislerim" className="rounded hover:text-brand-700 hover:underline">
+        <Link href="/siparislerim" className="rounded-sm hover:text-brand-700 hover:underline">
           Siparişlerim
         </Link>
       </nav>

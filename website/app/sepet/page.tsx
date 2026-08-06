@@ -99,7 +99,7 @@ export default async function CartPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <h2 className="text-base font-semibold">
-                      <Link href={productPath(line.item)} className="rounded hover:text-brand-700">
+                      <Link href={productPath(line.item)} className="rounded-sm hover:text-brand-700">
                         {line.item.name}
                       </Link>
                     </h2>

@@ -110,7 +110,7 @@ function HeroCollage({ items }: { items: MenuItem[] }) {
 
   return (
     <div className="grid grid-cols-2 gap-3" aria-hidden="true">
-      <div className="relative col-span-2 aspect-[16/10] overflow-hidden rounded-card bg-neutral-100 shadow-sm">
+      <div className="relative col-span-2 aspect-16/10 overflow-hidden rounded-card bg-neutral-100 shadow-xs">
         <ProductImage
           src={lead.image_url}
           alt=""
@@ -121,7 +121,7 @@ function HeroCollage({ items }: { items: MenuItem[] }) {
       {rest.slice(0, 2).map((item) => (
         <div
           key={item.id}
-          className="relative aspect-[4/3] overflow-hidden rounded-card bg-neutral-100 shadow-sm"
+          className="relative aspect-4/3 overflow-hidden rounded-card bg-neutral-100 shadow-xs"
         >
           <ProductImage src={item.image_url} alt="" sizes="(max-width: 1024px) 50vw, 250px" />
         </div>
@@ -139,7 +139,7 @@ function CategoryShortcuts({ categories }: { categories: MenuCategory[] }) {
         <h2 className="text-2xl font-bold">Ne yemek istersiniz?</h2>
         <Link
           href="/menu"
-          className="rounded text-sm font-semibold text-brand-700 underline-offset-2 hover:underline"
+          className="rounded-sm text-sm font-semibold text-brand-700 underline-offset-2 hover:underline"
         >
           Tüm kategoriler
         </Link>
@@ -154,7 +154,7 @@ function CategoryShortcuts({ categories }: { categories: MenuCategory[] }) {
             <li key={category.id}>
               <Link
                 href={`/menu#kategori-${category.id}`}
-                className="group flex items-center gap-4 overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 p-3 shadow-sm transition-shadow hover:shadow-md"
+                className="group flex items-center gap-4 overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 p-3 shadow-xs transition-shadow hover:shadow-md"
               >
                 <span className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-neutral-100">
                   <ProductImage
@@ -207,7 +207,7 @@ export default async function HomePage() {
     <>
       <JsonLd data={restaurantJsonLd(snapshot)} />
 
-      <section className="relative overflow-hidden bg-gradient-to-b from-brand-50 via-brand-50 to-neutral-50">
+      <section className="relative overflow-hidden bg-linear-to-b from-brand-50 via-brand-50 to-neutral-50">
         {/* Dekoratif ışık lekesi — içeriğin okunabilirliğini etkilemez. */}
         <div
           aria-hidden="true"
@@ -265,7 +265,7 @@ export default async function HomePage() {
               <h2 className="text-2xl font-bold">Öne çıkan ürünler</h2>
               <Link
                 href="/menu"
-                className="rounded text-sm font-semibold text-brand-700 underline-offset-2 hover:underline"
+                className="rounded-sm text-sm font-semibold text-brand-700 underline-offset-2 hover:underline"
               >
                 Tüm menüyü gör
               </Link>

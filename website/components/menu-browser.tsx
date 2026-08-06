@@ -172,7 +172,7 @@ export function MenuBrowser({ categories, orderingOpen }: Props) {
               type="checkbox"
               checked={availableOnly}
               onChange={(event) => setAvailableOnly(event.target.checked)}
-              className="mt-0.5 h-5 w-5 shrink-0 rounded border-neutral-400 accent-brand-600"
+              className="mt-0.5 h-5 w-5 shrink-0 rounded-sm border-neutral-400 accent-brand-600"
             />
             <span>
               <span className="font-semibold">Yalnızca satışta olanlar</span>
@@ -198,7 +198,7 @@ export function MenuBrowser({ categories, orderingOpen }: Props) {
         için başa dönmek zorunda kalmasın. `top` değeri site başlığının 4rem
         yüksekliğiyle hizalıdır.
       */}
-      <div className="sticky top-16 z-30 -mx-4 mt-4 border-b border-neutral-200 bg-neutral-50/95 px-4 py-2 backdrop-blur lg:mx-0 lg:px-0">
+      <div className="sticky top-16 z-30 -mx-4 mt-4 border-b border-neutral-200 bg-neutral-50/95 px-4 py-2 backdrop-blur-sm lg:mx-0 lg:px-0">
         <div role="group" aria-label="Kategori süzgeci" className="bld-rail">
           <CategoryChip
             active={categoryId === null}

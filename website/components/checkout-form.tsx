@@ -286,7 +286,7 @@ function RadioCard({ title, body, className, ...inputProps }: RadioCardProps) {
     <label
       htmlFor={id}
       className={cn(
-        'flex cursor-pointer gap-3 rounded-lg border border-neutral-200 bg-neutral-0 p-3 text-sm hover:border-brand-300 has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50',
+        'flex cursor-pointer gap-3 rounded-lg border border-neutral-200 bg-neutral-0 p-3 text-sm hover:border-brand-300 has-checked:border-brand-600 has-checked:bg-brand-50',
         className,
       )}
     >

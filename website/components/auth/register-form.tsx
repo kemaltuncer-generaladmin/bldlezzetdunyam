@@ -178,7 +178,7 @@ export function RegisterForm({ next }: { next: string }) {
           <label htmlFor="kvkk_accepted" className="text-sm text-neutral-800">
             <Link
               href="/kvkk"
-              className="rounded font-semibold text-brand-700 underline-offset-2 hover:underline"
+              className="rounded-sm font-semibold text-brand-700 underline-offset-2 hover:underline"
             >
               KVKK Aydınlatma Metni
             </Link>
@@ -200,7 +200,7 @@ export function RegisterForm({ next }: { next: string }) {
         Zaten hesabınız var mı?{' '}
         <Link
           href={`/giris?next=${encodeURIComponent(next)}`}
-          className="rounded font-semibold text-brand-700 underline-offset-2 hover:underline"
+          className="rounded-sm font-semibold text-brand-700 underline-offset-2 hover:underline"
         >
           Giriş yapın
         </Link>

@@ -42,7 +42,7 @@ export function ProductOptions({ item }: { item: MenuItem }) {
                   <label
                     key={value.id}
                     htmlFor={inputId}
-                    className="flex cursor-pointer items-center gap-3 rounded-lg border border-neutral-200 bg-neutral-0 px-3 py-2.5 text-sm hover:border-brand-300 has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50"
+                    className="flex cursor-pointer items-center gap-3 rounded-lg border border-neutral-200 bg-neutral-0 px-3 py-2.5 text-sm hover:border-brand-300 has-checked:border-brand-600 has-checked:bg-brand-50"
                   >
                     <input
                       id={inputId}

@@ -54,7 +54,7 @@ export function OrderSteps({ status, deliveryType }: Props) {
           <li
             key={step.status}
             aria-current={active ? 'step' : undefined}
-            className="flex min-w-[4.5rem] flex-1 flex-col items-center gap-1.5 text-center"
+            className="flex min-w-18 flex-1 flex-col items-center gap-1.5 text-center"
           >
             <div className="flex w-full items-center">
               <span

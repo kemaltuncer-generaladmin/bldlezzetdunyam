@@ -13,7 +13,7 @@ export async function SiteHeader() {
   const t = await getTranslations('nav');
 
   return (
-    <header className="sticky top-0 z-40 border-b border-neutral-200 bg-neutral-0/95 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-neutral-200 bg-neutral-0/95 backdrop-blur-sm">
       <div className="mx-auto flex h-16 max-w-content items-center gap-2 px-4 sm:gap-5">
         <Link
           href="/"
@@ -23,7 +23,7 @@ export async function SiteHeader() {
           {/* Koyu metin açık turuncu üzerine: #1C1917 / #F97316 = 6,0:1 (AA). */}
           <span
             aria-hidden="true"
-            className="grid h-9 w-9 place-items-center rounded-lg bg-brand-500 text-base font-bold text-neutral-900 shadow-sm"
+            className="grid h-9 w-9 place-items-center rounded-lg bg-brand-500 text-base font-bold text-neutral-900 shadow-xs"
           >
             BL
           </span>

@@ -134,7 +134,7 @@ export function CartSummaryBar() {
 
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-neutral-0/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(28,25,23,0.08)] backdrop-blur lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-neutral-0/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(28,25,23,0.08)] backdrop-blur-sm lg:hidden"
       data-testid="cart-summary-bar"
     >
       <div className="mx-auto flex max-w-content items-center gap-3 px-4 py-3">

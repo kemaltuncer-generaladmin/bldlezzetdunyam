@@ -63,7 +63,7 @@ export function LocationFacts({
       {facts.map((fact) => (
         <div
           key={fact.key}
-          className="flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-0 px-3 py-1.5 text-sm shadow-sm"
+          className="flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-0 px-3 py-1.5 text-sm shadow-xs"
         >
           <span className="text-brand-700">{fact.icon}</span>
           <dt className="text-neutral-600">{fact.label}:</dt>
