@@ -40,6 +40,13 @@ services:
       QUEUE_CONNECTION: sync
       SESSION_DRIVER: file
       MAIL_MAILER: log
+      # ── Kurumsal site tazeleme ────────────────────────────────────────
+      # Panelde içerik kaydedilince siteye "önbelleğini tazele" isteği gider.
+      # Boş bırakılırsa istek gönderilmez ve site içeriği kendi ISR süresi
+      # (5 dk) dolunca toparlar — veri kaybı YOK, yalnızca gecikme olur.
+      # Sır, site tarafındaki CONTENT_REVALIDATE_SECRET ile AYNI olmalı.
+      SITE_REVALIDATE_URL: ${SITE_REVALIDATE_URL:-}
+      SITE_REVALIDATE_SECRET: ${CONTENT_REVALIDATE_SECRET:-}
     volumes:
       # Yüklenen medya ve loglar imajda değil, kalıcı birimde durur —
       # yeni sürüm dağıtıldığında silinmemeleri gerekir.
@@ -93,6 +100,21 @@ services:
         NEXT_PUBLIC_API_URL: ${SITE_API_URL:-https://api.benimlezzetdunyam.com.tr/api}
         NEXT_PUBLIC_SITE_URL: ${SITE_URL:-https://benimlezzetdunyam.com.tr}
     restart: unless-stopped
+    # ÇALIŞMA ANI değişkenleri — yukarıdaki NEXT_PUBLIC_* build arg'larının
+    # aksine bunlar sunucuda okunuyor ve tarayıcıya GİTMİYOR. Değişince
+    # yeniden derleme gerekmez, yeniden başlatma yeter.
+    environment:
+      # Panelden gelen tazeleme isteğini doğrulayan paylaşılan sır.
+      # TANIMSIZSA tazeleme ucu tamamen kapalıdır (503) — boş sırla
+      # herkesin tazeleme tetiklemesine izin vermiyoruz.
+      CONTENT_REVALIDATE_SECRET: ${CONTENT_REVALIDATE_SECRET:-}
+      # Teklif formunun gönderileceği hedef.
+      #
+      # DİKKAT: TANIMSIZ BIRAKILIRSA form, ziyaretçiye talebinin
+      # İLETİLEMEDİĞİNİ açıkça söyler (sahte başarı göstermez) ve talep
+      # yalnızca sunucu günlüğüne yazılır. Yayına çıkmadan önce
+      # doldurulmalı; aksi hâlde formu dolduran her müşteri hata görür.
+      QUOTE_WEBHOOK_URL: ${QUOTE_WEBHOOK_URL:-}
     depends_on: [web]
     # DİKKAT: burada `web`deki gibi çıplak bir `SERVICE_FQDN_SITE_3000`
     # sihirli değişkeni YOK. Coolify onu ortam haritasına çevirirken

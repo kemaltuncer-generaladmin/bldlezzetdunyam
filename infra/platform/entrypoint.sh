@@ -131,6 +131,18 @@ if [ "${BLD_SKIP_MIGRATIONS:-}" != "1" ]; then
   # "APPLICATION IN PRODUCTION" uyarısı bastı ve sütunlar eklenmedi.
   su -s /bin/sh -c "php /var/www/platform/artisan igniter:up --force --no-interaction" www-data \
     || echo "[giris] UYARI: göçler koşmadı (veritabanı henüz kurulmamış olabilir)"
+
+  # Kurumsal site içeriğini panele yükler.
+  #
+  # NEDEN BURADA: içerik tabloları göçle oluşuyor ama BOŞ geliyor. Yönetici
+  # panele girdiğinde bomboş bir ekran görür ve sitenin içeriğini elle
+  # yazmak zorunda kalırdı — oysa metinler zaten depoda hazır.
+  #
+  # Komut IDEMPOTENT: var olan kaydı atlar, yalnızca eksikleri ekler. Yani
+  # her dağıtımda koşması güvenli ve panelde yapılan düzenlemeleri EZMEZ.
+  # Üzerine yazmak isteyen elle `--force` ile koşar.
+  su -s /bin/sh -c "php /var/www/platform/artisan veykemtu:siteIceriginiAktar --no-interaction" www-data \
+    || echo "[giris] UYARI: site içeriği aktarılamadı"
 fi
 
 exec "$@"
