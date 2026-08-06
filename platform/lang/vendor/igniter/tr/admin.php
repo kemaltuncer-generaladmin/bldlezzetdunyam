@@ -145,6 +145,13 @@ return [
         'marketing' => 'Pazarlama',
         'status' => 'Sipariş durumları',
         'extension' => 'Eklentiler',
+        // Ekranları gizlenmiş olsa da bu ETİKETLER duruyor: `design`
+        // üst çubukta Temalar ve Medya'yı toplayan başlık, `page` ve
+        // `rating` ise başka yerlerde geçebiliyor. İlk yazışta
+        // atlanmışlardı ve panelde tek İngilizce kelime "Design" kalmıştı.
+        'design' => 'Tasarım',
+        'page' => 'İçerik sayfaları',
+        'rating' => 'Puanlar',
         'theme' => 'Temalar',
         'mail_template' => 'E-posta şablonları',
         'tool' => 'Araçlar',
