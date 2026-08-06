@@ -8,6 +8,7 @@ use Igniter\Cart\Models\Menu;
 use Igniter\Local\Models\Location;
 use Illuminate\Http\JsonResponse;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
+use Veykemtu\BridgeApi\Services\EtaService;
 use Veykemtu\BridgeApi\Services\LocationGate;
 use Veykemtu\BridgeApi\Support\Money;
 
@@ -19,7 +20,10 @@ use Veykemtu\BridgeApi\Support\Money;
  */
 class CatalogController extends ApiController
 {
-    public function __construct(private readonly LocationGate $gate) {}
+    public function __construct(
+        private readonly LocationGate $gate,
+        private readonly EtaService $eta,
+    ) {}
 
     /**
      * Faz 1'de tek vitrin döner ama biçim **dizidir**.
@@ -111,6 +115,18 @@ class CatalogController extends ApiController
             // yayınlamak gerekmesin.
             'busy' => $this->gate->isBusy($location),
             'busy_message' => $this->gate->busyMessage($location),
+            /*
+             * Teslim süresi tahmini. Müşteri teslim saatini seçebiliyordu ama
+             * ne kadar sürdüğünü bilmeden seçiyordu; sonuç gerçekçi olmayan
+             * saatler ve "geç kaldınız" şikâyetiydi — oysa gecikme yok,
+             * beklenti baştan yanlış kurulmuştu.
+             *
+             * İki teslim türü ayrı: gel-al'da yol süresi yok.
+             */
+            'eta' => [
+                'delivery' => $this->eta->estimate($location, 'delivery'),
+                'pickup' => $this->eta->estimate($location, 'pickup'),
+            ],
         ];
     }
 

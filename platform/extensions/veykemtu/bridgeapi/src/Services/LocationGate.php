@@ -51,6 +51,13 @@ class LocationGate
 
     private const string KEY_BUSY_MESSAGE = 'bld_busy_message';
 
+    // ── Teslimat süresi tahmini ────────────────────────────────────────────
+    private const string KEY_PREP_MINUTES = 'bld_prep_minutes';
+
+    private const string KEY_DELIVERY_MINUTES = 'bld_delivery_minutes';
+
+    private const string KEY_BUSY_EXTRA_MINUTES = 'bld_busy_extra_minutes';
+
     /** Yönetici kendi metnini yazmadıysa gösterilecek uyarı. */
     public const string DEFAULT_BUSY_MESSAGE =
         'Mutfağımız şu anda yoğun. Siparişiniz alınır ancak hazırlanması '
@@ -116,6 +123,72 @@ class LocationGate
     public function deliveryFee(Location $location): int
     {
         return (int) $this->option($location, self::KEY_DELIVERY_FEE, 0);
+    }
+
+    /**
+     * Mutfağın bir siparişi hazırlaması için öngörülen dakika.
+     *
+     * Bu değer yalnızca BAŞLANGIÇ NOKTASI. Yeterli sayıda tamamlanmış sipariş
+     * biriktiğinde `EtaService` gerçek ölçümü kullanıyor — çünkü elle girilen
+     * süre iyimser olmaya meyilli ve kimse onu güncellemeyi hatırlamıyor.
+     */
+    public function prepMinutes(Location $location): int
+    {
+        return $this->positiveMinutes($this->option($location, self::KEY_PREP_MINUTES, null), 40);
+    }
+
+    public function setPrepMinutes(Location $location, int $minutes): void
+    {
+        $this->setOption($location, self::KEY_PREP_MINUTES, $this->positiveMinutes($minutes, 40));
+    }
+
+    /** Hazır siparişin adrese ulaşması için öngörülen dakika. Gel-al'da uygulanmaz. */
+    public function deliveryMinutes(Location $location): int
+    {
+        return $this->positiveMinutes($this->option($location, self::KEY_DELIVERY_MINUTES, null), 20);
+    }
+
+    public function setDeliveryMinutes(Location $location, int $minutes): void
+    {
+        $this->setOption($location, self::KEY_DELIVERY_MINUTES, $this->positiveMinutes($minutes, 20));
+    }
+
+    /**
+     * Mutfak "yoğunuz" dediğinde tahmine eklenen dakika.
+     *
+     * Yoğunluk anahtarı zaten var ama şimdiye kadar yalnızca uyarı metni
+     * gösteriyordu. Süreyi de uzatmazsak müşteri yoğun saatte gerçekçi
+     * olmayan bir teslim saati görüyor ve gecikme şikâyeti doğuyor.
+     */
+    public function busyExtraMinutes(Location $location): int
+    {
+        return $this->positiveMinutes(
+            $this->option($location, self::KEY_BUSY_EXTRA_MINUTES, null),
+            15,
+        );
+    }
+
+    public function setBusyExtraMinutes(Location $location, int $minutes): void
+    {
+        $this->setOption($location, self::KEY_BUSY_EXTRA_MINUTES, $this->positiveMinutes($minutes, 15));
+    }
+
+    /**
+     * Dakika alanlarının ortak temizliği.
+     *
+     * Üst sınır var: elle girilen 100000 gibi bir değer müşteriye "yaklaşık
+     * 69 gün" yazdırırdı. Sıfır ve negatif de anlamsız — o durumda varsayılana
+     * dönülüyor, çünkü "0 dakikada teslim" sözü verilmemeli.
+     */
+    private function positiveMinutes(mixed $value, int $default): int
+    {
+        $minutes = (int) $value;
+
+        if ($minutes <= 0) {
+            return $default;
+        }
+
+        return min($minutes, 480);
     }
 
     /**

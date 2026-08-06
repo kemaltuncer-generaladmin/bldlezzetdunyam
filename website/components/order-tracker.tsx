@@ -4,6 +4,7 @@ import { useActionState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cancelOrderAction } from '@/app/actions/order';
 import { IDLE_CANCEL_STATE } from '@/lib/action-state';
+import { OrderEtaNote } from '@/components/delivery-eta';
 import { OrderSteps } from '@/components/order-steps';
 import { formatDateTime, formatPrice } from '@/lib/format';
 import {
@@ -14,7 +15,7 @@ import {
   paymentMethodLabel,
   paymentStatusLabel,
 } from '@/lib/labels';
-import type { OrderDetail } from '@/lib/api/types';
+import type { EtaWindow, OrderDetail } from '@/lib/api/types';
 
 /** 5 saniyede bir yoklama — `docs/06` §4 (Faz 1.5'te WebSocket). */
 const POLL_INTERVAL_MS = 5000;
@@ -45,7 +46,14 @@ async function fetchOrderFromBff(orderId: number): Promise<OrderDetail> {
   return body;
 }
 
-export function OrderTracker({ initialOrder }: { initialOrder: OrderDetail }) {
+export function OrderTracker({
+  initialOrder,
+  eta,
+}: {
+  initialOrder: OrderDetail;
+  /** Vitrinin teslim süresi tahmini; sunucu vermiyorsa `null`. */
+  eta: EtaWindow | null;
+}) {
   const queryClient = useQueryClient();
   const queryKey = useMemo(() => ['order', initialOrder.id] as const, [initialOrder.id]);
 
@@ -92,6 +100,20 @@ export function OrderTracker({ initialOrder }: { initialOrder: OrderDetail }) {
         <div className="mt-5">
           <OrderSteps status={order.status} deliveryType={order.delivery_type} />
         </div>
+
+        {/*
+         * Tahmin yalnızca "en kısa sürede" siparişlerde anlamlı. Müşteri belirli
+         * bir saat seçtiyse teslim zamanını ZATEN kendisi belirlemiş; aşağıda
+         * "İstenen teslim zamanı" olarak duruyor, ikinci bir saat kafa karıştırır.
+         * Sipariş bittiyse veya iptal olduysa da tahminin işi kalmaz.
+         */}
+        {eta && !order.requested_at && !isTerminalStatus(order.status) && (
+          <OrderEtaNote
+            estimate={eta}
+            deliveryType={order.delivery_type}
+            createdAt={order.created_at}
+          />
+        )}
 
         {lastUpdate && (
           <p className="mt-4 text-sm text-neutral-600">

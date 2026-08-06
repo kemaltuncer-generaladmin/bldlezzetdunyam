@@ -94,4 +94,50 @@ void main() {
       );
     });
   });
+
+  group('minuteWindow — dakika aralığı → saat penceresi', () {
+    test('sözleşme örneği: 60-85 dakika', () {
+      // TR 12:15'te verilen sipariş → 13:15-13:40
+      final simdi = DateTime.utc(2026, 8, 4, 9, 15);
+      expect(TurkishTime.minuteWindow(simdi, 60, 85), '13:15-13:40');
+    });
+
+    test('gel-al aralığı ayrı hesaplanır', () {
+      final simdi = DateTime.utc(2026, 8, 4, 9, 15); // TR 12:15
+      expect(TurkishTime.minuteWindow(simdi, 40, 55), '12:55-13:10');
+    });
+
+    test('beş dakikaya yuvarlanır — alt aşağı, üst yukarı', () {
+      // TR 12:17 + 60 = 13:17 → 13:15; + 85 = 13:42 → 13:45
+      final simdi = DateTime.utc(2026, 8, 4, 9, 17);
+      expect(TurkishTime.minuteWindow(simdi, 60, 85), '13:15-13:45');
+    });
+
+    test('yuvarlama saat sınırını taşırabilir', () {
+      // TR 12:00 + 58 = 12:58 → üst uç 13:00
+      final simdi = DateTime.utc(2026, 8, 4, 9);
+      expect(TurkishTime.minuteWindow(simdi, 55, 58), '12:55-13:00');
+    });
+
+    test('gece yarısını doğru geçer', () {
+      final simdi = DateTime.utc(2026, 8, 4, 20, 30); // TR 23:30
+      expect(TurkishTime.minuteWindow(simdi, 40, 55), '00:10-00:25');
+    });
+
+    test('ters sıralı sınırlar yer değiştirir', () {
+      final simdi = DateTime.utc(2026, 8, 4, 9, 15);
+      expect(
+        TurkishTime.minuteWindow(simdi, 85, 60),
+        TurkishTime.minuteWindow(simdi, 60, 85),
+      );
+    });
+
+    test('yerel saatli girdi önce UTC\'ye çevrilir', () {
+      final simdi = DateTime.utc(2026, 8, 4, 9, 15);
+      expect(
+        TurkishTime.minuteWindow(simdi.toLocal(), 60, 85),
+        TurkishTime.minuteWindow(simdi, 60, 85),
+      );
+    });
+  });
 }

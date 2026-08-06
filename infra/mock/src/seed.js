@@ -28,6 +28,16 @@ export const LOCATION = {
   min_order_total: 25000,
   delivery_fee: 4000,
   payment_methods: ['cash', 'account', 'online'],
+  /*
+   * Teslim süresi tahmini (docs/openapi.yaml `LocationEta`). Gerçek sunucu
+   * bunu siparişlerden ölçüyor; mock'ta ölçecek geçmiş yok, bu yüzden
+   * `configured` ve gerçek sunucunun ilk kurulumdaki değerleriyle aynı.
+   * Gel-al'da yol süresi olmadığı için aralık daha dar.
+   */
+  eta: {
+    delivery: { min_minutes: 60, max_minutes: 85, source: 'configured', busy: false },
+    pickup: { min_minutes: 40, max_minutes: 55, source: 'configured', busy: false },
+  },
 };
 
 export const DELIVERY_FEE = 4000;

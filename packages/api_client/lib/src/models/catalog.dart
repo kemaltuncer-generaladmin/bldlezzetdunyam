@@ -1,12 +1,70 @@
 /// Katalog DTO'ları — `docs/openapi.yaml` `Location`, `MenuCategory`, `MenuItem`.
 library;
 
+import 'package:bld_core/bld_core.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'converters.dart';
 
 part 'catalog.freezed.dart';
 part 'catalog.g.dart';
+
+/// Tek bir teslimat tipi için teslim süresi tahmini — `Location.eta.*`.
+///
+/// Dakika aralığıdır, tek bir sayı değil: mutfak süresi doğası gereği
+/// aralıklıdır ve tek sayı vermek tutamayacağımız bir söz verir.
+@freezed
+abstract class EtaWindow with _$EtaWindow {
+  const factory EtaWindow({
+    /// Aralığın alt sınırı (dakika).
+    required int minMinutes,
+
+    /// Aralığın üst sınırı (dakika).
+    required int maxMinutes,
+
+    /// Tahmin ölçüldü mü, yoksa panelde mi girildi?
+    @EtaSourceConverter() @Default(EtaSource.unknown) EtaSource source,
+
+    /// Mutfak yoğun. **Aralık sunucuda zaten uzatılmıştır** — istemci ayrıca
+    /// süre eklemez, yalnızca nedenini söyler.
+    @Default(false) bool busy,
+  }) = _EtaWindow;
+
+  const EtaWindow._();
+
+  factory EtaWindow.fromJson(Map<String, dynamic> json) =>
+      _$EtaWindowFromJson(json);
+
+  /// Aralık gösterilebilir mi?
+  ///
+  /// Sunucu bozuk bir aralık gönderirse (sıfır, negatif veya ters sıralı)
+  /// tahmini hiç göstermemek, saçma bir saat göstermekten iyidir.
+  bool get isUsable => minMinutes > 0 && maxMinutes >= minMinutes;
+
+  /// Tahmin gerçekleşmiş siparişlerden mi hesaplandı?
+  bool get isMeasured => source.isMeasured;
+}
+
+/// Vitrinin iki teslimat tipi için teslim süresi tahminleri.
+@freezed
+abstract class LocationEta with _$LocationEta {
+  const factory LocationEta({EtaWindow? delivery, EtaWindow? pickup}) =
+      _LocationEta;
+
+  const LocationEta._();
+
+  factory LocationEta.fromJson(Map<String, dynamic> json) =>
+      _$LocationEtaFromJson(json);
+
+  /// Seçili teslimat tipinin tahmini. Yoksa veya kullanılamazsa `null`.
+  EtaWindow? forDeliveryType(DeliveryType type) {
+    final eta = switch (type) {
+      DeliveryType.delivery => delivery,
+      DeliveryType.pickup => pickup,
+    };
+    return (eta != null && eta.isUsable) ? eta : null;
+  }
+}
 
 @freezed
 abstract class Location with _$Location {
@@ -29,6 +87,14 @@ abstract class Location with _$Location {
 
     /// Günlük son sipariş saati (`HH:mm`, Europe/Istanbul) veya `null`.
     String? orderCutoff,
+
+    /// Teslim süresi tahminleri.
+    ///
+    /// **İsteğe bağlıdır ve öyle kalmalıdır.** Alan sözleşmeye sonradan
+    /// eklendi; eski bir sunucu, mock veya cihazdaki eski önbellek kaydı bu
+    /// alanı içermez. `null` gelmesi normal bir durumdur, hata değildir —
+    /// istemci o zaman tahmini hiç göstermez.
+    LocationEta? eta,
   }) = _Location;
 
   const Location._();
@@ -45,6 +111,13 @@ abstract class Location with _$Location {
   /// Müşteriye gösterilebilecek ödeme yöntemleri.
   List<PaymentMethod> get selectablePaymentMethods =>
       paymentMethods.where((m) => m.isSelectable).toList(growable: false);
+
+  /// Seçili teslimat tipinin teslim süresi tahmini; yoksa `null`.
+  ///
+  /// Sipariş alınmıyorken `null` döner: kapalı bir vitrinde "60-85 dakika"
+  /// demek, sipariş verilebileceği izlenimi yaratır.
+  EtaWindow? etaFor(DeliveryType type) =>
+      acceptsOrders ? eta?.forDeliveryType(type) : null;
 }
 
 @freezed

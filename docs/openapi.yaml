@@ -1237,7 +1237,7 @@ components:
       type: object
       required:
         [id, name, slug, is_open, ordering_enabled, min_order_total,
-         delivery_fee, payment_methods]
+         delivery_fee, payment_methods, eta]
       properties:
         id: { type: integer, format: int64 }
         name: { type: string }
@@ -1295,6 +1295,64 @@ components:
             değiştirebilir. İstemciler kendi metnini gömmemelidir: metin
             değişince üç uygulamayı birden yayınlamak gerekirdi.
           example: Mutfağımız şu anda yoğun. Siparişiniz alınır ancak hazırlanması normalden uzun sürebilir.
+        eta:
+          $ref: '#/components/schemas/LocationEta'
+
+    LocationEta:
+      type: object
+      description: |
+        Teslim süresi tahmini, teslim türüne göre ayrı. İki tür ayrı verilir
+        çünkü gel-alda **yol süresi yoktur** — müşteri hazır olduğunda gelir.
+        Tek bir tahmin verilseydi istemci gel-al seçildiğinde de yolu içeren
+        bir süre gösterirdi.
+      required: [delivery, pickup]
+      properties:
+        delivery: { $ref: '#/components/schemas/EtaWindow' }
+        pickup: { $ref: '#/components/schemas/EtaWindow' }
+
+    EtaWindow:
+      type: object
+      description: |
+        Sipariş verildiği andan teslime kadar geçecek sürenin **aralığı**.
+
+        **Neden aralık, neden tek sayı değil:** "45 dakika" bir taahhüttür ve
+        47. dakikada ihlal edilir. "40–55 dakika" hem dürüsttür hem mutfağa
+        nefes alanı bırakır.
+
+        Aralık beş dakikaya yuvarlanır: "37–51 dakika" sahte bir kesinlik
+        iddiasıdır.
+      required: [min_minutes, max_minutes, source, busy]
+      properties:
+        min_minutes:
+          type: integer
+          minimum: 5
+          description: Aralığın alt ucu (dakika).
+          examples: [60]
+        max_minutes:
+          type: integer
+          minimum: 10
+          description: Aralığın üst ucu (dakika). Her zaman `min_minutes`'tan büyüktür.
+          examples: [85]
+        source:
+          type: string
+          enum: [measured, configured]
+          description: |
+            Tahminin nereden geldiği.
+
+            - `measured` — son 14 günde tamamlanmış siparişlerin gerçekleşen
+              sürelerinden ölçüldü (medyan → 80. yüzdelik). Bu yola girmek
+              için en az 8 örnek gerekir.
+            - `configured` — henüz yeterli örnek yok, yöneticinin admin
+              panelde girdiği hazırlık/teslimat süresinden türetildi.
+
+            İstemci bu alana göre farklı davranmak ZORUNDA değildir; alan
+            teşhis içindir ("neden bu süre?" sorusunun cevabı).
+        busy:
+          type: boolean
+          description: |
+            Mutfak yoğunluğu bu aralığa **yansıtıldı mı?** `true` ise hem alt
+            hem üst uç, yöneticinin girdiği yoğunluk ek süresi kadar uzatıldı.
+            `Location.busy` ile aynı kaynağı okur.
 
     KitchenSettings:
       type: object

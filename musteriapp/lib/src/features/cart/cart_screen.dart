@@ -2,17 +2,20 @@
 /// (`docs/07-musteriapp.md` §2).
 library;
 
+import 'package:bld_api_client/bld_api_client.dart';
 import 'package:bld_core/bld_core.dart';
 import 'package:bld_design_system/bld_design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/eta_text.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/catalog_providers.dart';
 import '../../providers/infra_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/bld_theme.dart';
+import '../../widgets/eta_notice.dart';
 import '../../widgets/status_views.dart';
 import 'cart_controller.dart';
 import 'cart_model.dart';
@@ -63,6 +66,9 @@ class CartScreen extends ConsumerWidget {
                 ),
                 _CartSummary(
                   cart: cart,
+                  // Teslimat tipi ödeme ekranında seçiliyor; sepette adrese
+                  // gönderim tahmini gösterilir, orada seçime göre güncellenir.
+                  eta: location?.etaFor(DeliveryType.delivery),
                   belowMinimumMessage: belowMinimum
                       ? l10n.cartMinOrderNotMet(
                           Money.format(minOrderTotal),
@@ -156,9 +162,9 @@ class _CartLineTile extends ConsumerWidget {
             if (line.note != null)
               Text(
                 line.note!,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontStyle: FontStyle.italic,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
               ),
             const SizedBox(height: BldSpacing.sm),
             Row(
@@ -198,12 +204,14 @@ class _CartSummary extends StatelessWidget {
   const _CartSummary({
     required this.cart,
     required this.onCheckout,
+    this.eta,
     this.belowMinimumMessage,
     this.closedMessage,
     this.offlineMessage,
   });
 
   final Cart cart;
+  final EtaWindow? eta;
   final VoidCallback? onCheckout;
   final String? belowMinimumMessage;
   final String? closedMessage;
@@ -212,11 +220,8 @@ class _CartSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final blockers = [
-      ?closedMessage,
-      ?offlineMessage,
-      ?belowMinimumMessage,
-    ];
+    final eta = this.eta;
+    final blockers = [?closedMessage, ?offlineMessage, ?belowMinimumMessage];
 
     return Material(
       elevation: 8,
@@ -228,6 +233,19 @@ class _CartSummary extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Tahmin, siparişi tamamlama düğmesinden **önce** gelir:
+              // kullanıcı ne zaman geleceğini onaydan sonra değil, önce görmeli.
+              if (eta != null) ...[
+                EtaNotice(
+                  eta: etaBeforeOrder(
+                    eta,
+                    DeliveryType.delivery,
+                    l10n,
+                    now: DateTime.now().toUtc(),
+                  ),
+                ),
+                const SizedBox(height: BldSpacing.sm),
+              ],
               Row(
                 children: [
                   Expanded(

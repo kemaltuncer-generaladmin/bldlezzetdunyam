@@ -442,6 +442,72 @@ abstract class AppLocalizations {
   /// **'Sepet · {amount}'**
   String menuCartButton(String amount);
 
+  /// No description provided for @etaDeliveryTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Tahmini teslim'**
+  String get etaDeliveryTitle;
+
+  /// No description provided for @etaPickupTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Tahmini hazır olma'**
+  String get etaPickupTitle;
+
+  /// Dakika aralığı ve karşılık gelen saat penceresi.
+  ///
+  /// In tr, this message translates to:
+  /// **'{minutes} dakika · {window} arası'**
+  String etaValue(String minutes, String window);
+
+  /// Ölçülmemiş tahmin. 'yaklaşık' öneki bilinçlidir.
+  ///
+  /// In tr, this message translates to:
+  /// **'yaklaşık {minutes} dakika · {window} arası'**
+  String etaValueApprox(String minutes, String window);
+
+  /// No description provided for @etaMinutesRange.
+  ///
+  /// In tr, this message translates to:
+  /// **'{min}-{max}'**
+  String etaMinutesRange(int min, int max);
+
+  /// No description provided for @etaMeasuredNote.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu süre son siparişlerin gerçekleşen sürelerinden hesaplandı.'**
+  String get etaMeasuredNote;
+
+  /// No description provided for @etaConfiguredNote.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu süre henüz gerçekleşen siparişlerle ölçülmedi; mutfağın bildirdiği ortalamadır ve değişebilir.'**
+  String get etaConfiguredNote;
+
+  /// No description provided for @etaBusyNote.
+  ///
+  /// In tr, this message translates to:
+  /// **'Mutfağımız şu anda yoğun. Süre bu yoğunluğa göre uzatıldı.'**
+  String get etaBusyNote;
+
+  /// No description provided for @etaOrderPlacedTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Tahmini teslim saati'**
+  String get etaOrderPlacedTitle;
+
+  /// No description provided for @etaOrderPickupTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Tahmini hazır olma saati'**
+  String get etaOrderPickupTitle;
+
+  /// No description provided for @etaOrderWindow.
+  ///
+  /// In tr, this message translates to:
+  /// **'{window} arası'**
+  String etaOrderWindow(String window);
+
   /// No description provided for @productAddToCart.
   ///
   /// In tr, this message translates to:

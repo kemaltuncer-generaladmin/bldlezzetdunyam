@@ -71,6 +71,153 @@ void main() {
     });
   });
 
+  group('Location.eta', () {
+    Map<String, dynamic> baseJson() => {
+      'id': 1,
+      'name': 'BLD',
+      'slug': 'catering',
+      'is_open': true,
+      'ordering_enabled': true,
+      'min_order_total': 0,
+      'payment_methods': ['cash'],
+    };
+
+    test('sözleşme örneği ayrıştırılır', () {
+      final location = Location.fromJson({
+        ...baseJson(),
+        'eta': {
+          'delivery': {
+            'min_minutes': 60,
+            'max_minutes': 85,
+            'source': 'configured',
+            'busy': false,
+          },
+          'pickup': {
+            'min_minutes': 40,
+            'max_minutes': 55,
+            'source': 'configured',
+            'busy': false,
+          },
+        },
+      });
+
+      final delivery = location.etaFor(DeliveryType.delivery)!;
+      expect(delivery.minMinutes, 60);
+      expect(delivery.maxMinutes, 85);
+      expect(delivery.source, EtaSource.configured);
+      expect(delivery.isMeasured, isFalse);
+      expect(delivery.busy, isFalse);
+
+      final pickup = location.etaFor(DeliveryType.pickup)!;
+      expect(pickup.minMinutes, 40);
+      expect(pickup.maxMinutes, 55);
+    });
+
+    // Alanın eksikliği hata değildir: eski sunucu, mock ve cihazdaki eski
+    // önbellek kaydı `eta` göndermez.
+    test('eta hiç gelmezse çökmez, null döner', () {
+      final location = Location.fromJson(baseJson());
+
+      expect(location.eta, isNull);
+      expect(location.etaFor(DeliveryType.delivery), isNull);
+      expect(location.etaFor(DeliveryType.pickup), isNull);
+      expect(location.acceptsOrders, isTrue);
+    });
+
+    test('eta içindeki tek tip eksikse diğeri çalışır', () {
+      final location = Location.fromJson({
+        ...baseJson(),
+        'eta': {
+          'pickup': {
+            'min_minutes': 40,
+            'max_minutes': 55,
+            'source': 'measured',
+            'busy': true,
+          },
+        },
+      });
+
+      expect(location.etaFor(DeliveryType.delivery), isNull);
+      final pickup = location.etaFor(DeliveryType.pickup)!;
+      expect(pickup.isMeasured, isTrue);
+      expect(pickup.busy, isTrue);
+    });
+
+    test('bilinmeyen kaynak çökertmez, ölçülmemiş sayılır', () {
+      final location = Location.fromJson({
+        ...baseJson(),
+        'eta': {
+          'delivery': {
+            'min_minutes': 60,
+            'max_minutes': 85,
+            'source': 'harita_servisi',
+            'busy': false,
+          },
+        },
+      });
+
+      final delivery = location.etaFor(DeliveryType.delivery)!;
+      expect(delivery.source, EtaSource.unknown);
+      expect(delivery.isMeasured, isFalse);
+    });
+
+    test('source ve busy eksikse varsayılana düşer', () {
+      final location = Location.fromJson({
+        ...baseJson(),
+        'eta': {
+          'delivery': {'min_minutes': 60, 'max_minutes': 85},
+        },
+      });
+
+      final delivery = location.etaFor(DeliveryType.delivery)!;
+      expect(delivery.source, EtaSource.unknown);
+      expect(delivery.busy, isFalse);
+    });
+
+    test('bozuk aralık gösterilmez', () {
+      Location build(int min, int max) => Location.fromJson({
+        ...baseJson(),
+        'eta': {
+          'delivery': {'min_minutes': min, 'max_minutes': max},
+        },
+      });
+
+      expect(build(0, 0).etaFor(DeliveryType.delivery), isNull);
+      expect(build(85, 60).etaFor(DeliveryType.delivery), isNull);
+      expect(build(60, 85).etaFor(DeliveryType.delivery), isNotNull);
+    });
+
+    test('sipariş alınmıyorken tahmin gösterilmez', () {
+      final location = Location.fromJson({
+        ...baseJson(),
+        'ordering_enabled': false,
+        'eta': {
+          'delivery': {'min_minutes': 60, 'max_minutes': 85},
+        },
+      });
+
+      expect(location.etaFor(DeliveryType.delivery), isNull);
+      // Ham veri yerinde durur; gizleyen yalnızca yardımcıdır.
+      expect(location.eta?.delivery, isNotNull);
+    });
+
+    test('eta önbelleğe yazılıp geri okunabilir', () {
+      final location = Location.fromJson({
+        ...baseJson(),
+        'eta': {
+          'delivery': {
+            'min_minutes': 60,
+            'max_minutes': 85,
+            'source': 'measured',
+            'busy': false,
+          },
+        },
+      });
+
+      expect(Location.fromJson(location.toJson()), location);
+    });
+  });
+
   group('MenuItem', () {
     final json = {
       'id': 101,

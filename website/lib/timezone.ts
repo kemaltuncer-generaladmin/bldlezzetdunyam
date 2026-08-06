@@ -37,6 +37,25 @@ function zoneOffsetMs(instant: Date, timeZone: string): number {
   return asUtc - instant.getTime();
 }
 
+const clockFormatter = new Intl.DateTimeFormat('tr-TR', {
+  timeZone: TIME_ZONE,
+  hour12: false,
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+/**
+ * Bir anı Europe/Istanbul **duvar saatine** çevirir: `13:15`.
+ *
+ * Teslim tahmini "60-85 dakika" yerine "13:15-13:40" olarak da gösteriliyor;
+ * bu çeviri kullanıcının cihaz saat dilimine göre YAPILMAMALI. Yurt dışından
+ * ya da saati yanlış kurulmuş bir cihazdan bakan müşteriye mutfağın saatini
+ * göstermek gerekir, tarayıcının saatini değil.
+ */
+export function istanbulClock(instant: Date): string {
+  return Number.isNaN(instant.getTime()) ? '—' : clockFormatter.format(instant);
+}
+
 const LOCAL_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
 
 /** "2026-08-05T13:30" (Europe/Istanbul) → "2026-08-05T10:30:00.000Z" */

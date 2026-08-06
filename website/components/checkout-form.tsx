@@ -5,11 +5,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createOrderAction } from '@/app/actions/order';
 import { IDLE_CHECKOUT_STATE } from '@/lib/action-state';
+import { EtaOptionNote } from '@/components/delivery-eta';
 import { FormField, inputClass } from '@/components/form-field';
 import { paymentMethodHint, paymentMethodLabel } from '@/lib/labels';
 import { checkoutSchema, type CheckoutValues } from '@/lib/validation/checkout';
 import { cn } from '@/lib/cn';
-import type { PaymentMethod } from '@/lib/api/types';
+import type { LocationEta, PaymentMethod } from '@/lib/api/types';
 
 type Props = {
   /** Yalnızca vitrinin açık ödeme yöntemleri (`docs/06` §3). */
@@ -17,9 +18,11 @@ type Props = {
   /** `datetime-local` alt sınırı, Europe/Istanbul duvar saati. */
   minRequestedAt: string;
   orderCutoff: string | null;
+  /** Teslim süresi tahmini; sunucu vermiyorsa `null` ve hiç gösterilmez. */
+  eta: LocationEta | null;
 };
 
-export function CheckoutForm({ paymentMethods, minRequestedAt, orderCutoff }: Props) {
+export function CheckoutForm({ paymentMethods, minRequestedAt, orderCutoff, eta }: Props) {
   const [serverState, formAction] = useActionState(createOrderAction, IDLE_CHECKOUT_STATE);
   const [pending, startTransition] = useTransition();
 
@@ -174,7 +177,19 @@ export function CheckoutForm({ paymentMethods, minRequestedAt, orderCutoff }: Pr
               {...register('timing')}
               value="asap"
               title="En kısa sürede"
-              body="Mutfak siparişi alır almaz hazırlamaya başlar."
+              body={
+                <>
+                  Mutfak siparişi alır almaz hazırlamaya başlar.
+                  {/*
+                   * Tahmin teslim türüne bağlı: gel-alda yol süresi yok.
+                   * Kullanıcı yukarıda adrese teslim ↔ gel-al arasında
+                   * geçtiğinde buradaki süre de değişir.
+                   */}
+                  {eta && (
+                    <EtaOptionNote estimate={eta[deliveryType]} deliveryType={deliveryType} />
+                  )}
+                </>
+              }
             />
             <RadioCard
               {...register('timing')}
@@ -277,7 +292,8 @@ export function CheckoutForm({ paymentMethods, minRequestedAt, orderCutoff }: Pr
 // olduğu gibi yayılabilir.
 type RadioCardProps = React.ComponentPropsWithRef<'input'> & {
   title: string;
-  body: string;
+  /** Düz metin ya da düğüm — "en kısa sürede" seçeneği canlı tahmin gösteriyor. */
+  body: React.ReactNode;
 };
 
 function RadioCard({ title, body, className, ...inputProps }: RadioCardProps) {

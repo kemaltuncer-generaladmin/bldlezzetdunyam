@@ -1,4 +1,5 @@
 import { TIME_ZONE } from '@/i18n/request';
+import { istanbulClock } from '@/lib/timezone';
 
 /**
  * Para biçimlendirme. Girdi **kuruş** cinsinden tam sayıdır; float aritmetiği
@@ -49,12 +50,6 @@ const dateTimeFormatter = new Intl.DateTimeFormat('tr-TR', {
   minute: '2-digit',
 });
 
-const timeFormatter = new Intl.DateTimeFormat('tr-TR', {
-  timeZone: TIME_ZONE,
-  hour: '2-digit',
-  minute: '2-digit',
-});
-
 const dateFormatter = new Intl.DateTimeFormat('tr-TR', {
   timeZone: TIME_ZONE,
   day: '2-digit',
@@ -68,9 +63,9 @@ export function formatDateTime(iso: string): string {
   return Number.isNaN(date.getTime()) ? '—' : dateTimeFormatter.format(date);
 }
 
+/** ISO 8601 UTC → Europe/Istanbul saati (`13:15`). */
 export function formatTime(iso: string): string {
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? '—' : timeFormatter.format(date);
+  return istanbulClock(new Date(iso));
 }
 
 export function formatDate(iso: string): string {

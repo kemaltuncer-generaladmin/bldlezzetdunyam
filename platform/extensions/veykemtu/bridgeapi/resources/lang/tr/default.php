@@ -12,7 +12,7 @@ declare(strict_types=1);
 return [
     'settings' => [
         'label' => 'BLD Ayarları',
-        'description' => 'Sipariş alım şalteri, kesim saati, asgari sepet, teslimat ücreti, ödeme yöntemleri ve mutfak yoğunluğu.',
+        'description' => 'Sipariş alım şalteri, kesim saati, asgari sepet, teslimat ücreti, ödeme yöntemleri, mutfak yoğunluğu ve teslim süresi tahmini.',
     ],
 
     'side_menu' => [
@@ -31,6 +31,9 @@ return [
 
     'section_busy' => 'Mutfak yoğunluğu',
     'section_busy_comment' => 'Yoğunluk sipariş almayı DURDURMAZ. Yalnızca müşteriye "hazırlanması uzun sürebilir" uyarısı gösterir. Mutfak ekranındaki tuş da bu anahtarı değiştirir.',
+
+    'section_eta' => 'Teslim süresi tahmini',
+    'section_eta_comment' => 'Müşteriye "yaklaşık 60-85 dakika" gibi bir ARALIK gösterilir; tek bir saat sözü verilmez. Buradaki değerler yalnızca BAŞLANGIÇ NOKTASIDIR: son 14 günde en az 8 tamamlanmış sipariş biriktiğinde sistem bu alanları kullanmayı bırakır ve gerçekleşen süreleri ölçerek tahmin üretir. Elle girilen süre iyimser olmaya meyillidir ve kimse onu güncellemeyi hatırlamaz; ölçüm mutfağın bugünkü hızını kendiliğinden takip eder.',
 
     'label_ordering_enabled' => 'Sipariş alımı',
     'help_ordering_enabled' => 'Kapatıldığında hiçbir kanaldan (web, mobil) sipariş alınmaz. Çalışma saatlerinden bağımsızdır ve kendiliğinden geri açılmaz.',
@@ -55,6 +58,15 @@ return [
 
     'label_busy_message' => 'Yoğunluk uyarı metni',
     'help_busy_message' => 'Müşteri uygulamalarında ve sitede gösterilir. Boş bırakırsanız varsayılan metin kullanılır.',
+
+    'label_prep_minutes' => 'Hazırlık süresi (dakika)',
+    'help_prep_minutes' => 'Siparişin mutfakta hazır hâle gelmesi için öngörülen süre. Hem adrese gönderimde hem gel-alda sayılır. 1-480 arası tam sayı.',
+
+    'label_delivery_minutes' => 'Teslimat süresi (dakika)',
+    'help_delivery_minutes' => 'Hazır siparişin adrese ulaşması için öngörülen yol süresi. Gel-al siparişlerde UYGULANMAZ — müşteri gelip aldığı için yol süresi yoktur. 1-480 arası tam sayı.',
+
+    'label_busy_extra_minutes' => 'Yoğunluk ek süresi (dakika)',
+    'help_busy_extra_minutes' => 'Yukarıdaki "Mutfak yoğun" anahtarı açıkken tahmine eklenir; aralığın hem alt hem üst ucu bu kadar uzar. Süreyi de uzatmazsak müşteri yoğun saatte gerçekçi olmayan bir teslim saati görür. 1-480 arası tam sayı.',
 
     'permission_devices' => 'Mutfak kasalarını yönetme (ayar, komut, eşleme)',
 

@@ -11,6 +11,7 @@ export 'src/models/auth.dart';
 export 'src/models/catalog.dart';
 export 'src/models/converters.dart'
     show
+        EtaSource,
         PaymentMethod,
         PaymentStatus,
         ReceiptType,

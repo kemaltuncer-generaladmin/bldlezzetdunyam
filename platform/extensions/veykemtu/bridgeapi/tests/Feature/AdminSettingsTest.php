@@ -169,6 +169,53 @@ class AdminSettingsTest extends TestCase
         $this->assertSame(LocationGate::DEFAULT_PAYMENT_METHODS, $gate->paymentMethods($location));
     }
 
+    /**
+     * Dakika alanları formda `number` tipindedir ve çekirdek onları
+     * postback'te `(int)` ile daraltır. Para alanlarında bu daraltma kuruş
+     * kaybettiriyordu; dakikalarda kaybedilecek bir şey olmadığını burada
+     * sabitliyoruz — alan tipi ileride yanlışlıkla değiştirilirse bu test
+     * düşmez ama gidiş-dönüşün bozulduğu an düşer.
+     */
+    public function test_dakika_alanlari_gate_uzerinden_okunur(): void
+    {
+        [$repository, $gate, $location] = $this->wiring();
+
+        $repository->save($location, $this->formData([
+            SettingsRepository::FIELD_PREP_MINUTES => 25,
+            SettingsRepository::FIELD_DELIVERY_MINUTES => 35,
+            SettingsRepository::FIELD_BUSY_EXTRA_MINUTES => 20,
+        ]));
+
+        $this->assertSame(25, $gate->prepMinutes($location));
+        $this->assertSame(35, $gate->deliveryMinutes($location));
+        $this->assertSame(20, $gate->busyExtraMinutes($location));
+
+        // Sayfayı yeniden açtığımızda kutularda aynı değerler durmalı:
+        // yönetici "kaydettim ama geri geldi" durumuyla karşılaşmamalı.
+        $form = $repository->toFormData($location);
+        $this->assertSame(25, $form[SettingsRepository::FIELD_PREP_MINUTES]);
+        $this->assertSame(35, $form[SettingsRepository::FIELD_DELIVERY_MINUTES]);
+        $this->assertSame(20, $form[SettingsRepository::FIELD_BUSY_EXTRA_MINUTES]);
+    }
+
+    /**
+     * Sıfır ve saçma büyüklükteki değerler gate'te varsayılana/üst sınıra
+     * çekilir. Form doğrulaması zaten 1-480 arası istiyor ama tek savunma
+     * hattı olarak ona güvenmiyoruz: "0 dakikada teslim" sözü verilmemeli.
+     */
+    public function test_gecersiz_dakika_degeri_makul_sinira_cekilir(): void
+    {
+        [$repository, $gate, $location] = $this->wiring();
+
+        $repository->save($location, $this->formData([
+            SettingsRepository::FIELD_PREP_MINUTES => 0,
+            SettingsRepository::FIELD_DELIVERY_MINUTES => 100_000,
+        ]));
+
+        $this->assertSame(40, $gate->prepMinutes($location));
+        $this->assertSame(480, $gate->deliveryMinutes($location));
+    }
+
     // ── Yoğunluk: mutfakla yarış ──────────────────────────────────────────
 
     /**
@@ -540,6 +587,9 @@ class AdminSettingsTest extends TestCase
             SettingsRepository::FIELD_BUSY => 0,
             SettingsRepository::FIELD_BUSY_SNAPSHOT => 0,
             SettingsRepository::FIELD_BUSY_MESSAGE => '',
+            SettingsRepository::FIELD_PREP_MINUTES => 40,
+            SettingsRepository::FIELD_DELIVERY_MINUTES => 20,
+            SettingsRepository::FIELD_BUSY_EXTRA_MINUTES => 15,
         ], $overrides);
     }
 

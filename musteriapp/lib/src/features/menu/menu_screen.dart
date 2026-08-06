@@ -13,10 +13,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/eta_text.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/catalog_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/bld_theme.dart';
+import '../../widgets/eta_notice.dart';
 import '../../widgets/status_views.dart';
 import '../cart/cart_controller.dart';
 
@@ -131,7 +133,7 @@ class _MenuBody extends ConsumerWidget {
   }
 }
 
-/// Vitrin bilgisi: sipariş alınıyor mu, kesim saati, en az tutar.
+/// Vitrin bilgisi: sipariş alınıyor mu, teslim süresi, kesim saati, en az tutar.
 class _LocationHeader extends StatelessWidget {
   const _LocationHeader({required this.location});
 
@@ -140,6 +142,16 @@ class _LocationHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+
+    // Menüde teslimat tipi henüz seçilmedi; yaygın olan adrese gönderim
+    // gösterilir. Yalnızca gel-al tahmini varsa ona düşülür — başlık da
+    // onunla değişir, yoksa yol süresi içermeyen bir süreyi "teslim" diye
+    // sunmuş olurduk.
+    final deliveryType = location.etaFor(DeliveryType.delivery) != null
+        ? DeliveryType.delivery
+        : DeliveryType.pickup;
+    final eta = location.etaFor(deliveryType);
+
     final notes = <String>[
       if (location.orderCutoff != null) l10n.menuCutoff(location.orderCutoff!),
       if (location.minOrderTotal > 0)
@@ -158,6 +170,24 @@ class _LocationHeader extends StatelessWidget {
               style: TextStyle(
                 color: bldColor(BldColors.brand900),
                 fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        if (eta != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              BldSpacing.md,
+              BldSpacing.md,
+              BldSpacing.md,
+              0,
+            ),
+            child: EtaNotice(
+              compact: true,
+              eta: etaBeforeOrder(
+                eta,
+                deliveryType,
+                l10n,
+                now: DateTime.now().toUtc(),
               ),
             ),
           ),
@@ -241,10 +271,13 @@ class _SearchResults extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final needle = query.trim().toLowerCase();
-    final matches = snapshot.allItems.where((item) {
-      final haystack = '${item.name} ${item.description ?? ''}'.toLowerCase();
-      return haystack.contains(needle);
-    }).toList(growable: false);
+    final matches = snapshot.allItems
+        .where((item) {
+          final haystack = '${item.name} ${item.description ?? ''}'
+              .toLowerCase();
+          return haystack.contains(needle);
+        })
+        .toList(growable: false);
 
     if (matches.isEmpty) {
       return Center(

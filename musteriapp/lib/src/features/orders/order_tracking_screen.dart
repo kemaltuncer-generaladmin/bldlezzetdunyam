@@ -12,11 +12,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_error_text.dart';
+import '../../core/eta_text.dart';
 import '../../core/labels.dart';
 import '../../l10n/app_localizations.dart';
+import '../../providers/catalog_providers.dart';
 import '../../providers/infra_providers.dart';
 import '../../providers/order_providers.dart';
 import '../../theme/bld_theme.dart';
+import '../../widgets/eta_notice.dart';
 import '../../widgets/status_views.dart';
 import 'orders_screen.dart';
 
@@ -89,6 +92,19 @@ class _OrderDetailBody extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final offline = ref.watch(connectivityProvider);
 
+    // Tahmini teslim saati üç durumda gösterilmez:
+    // - sipariş bitmişse (teslim edildi / iptal) — geçmişe tahmin yürütülmez,
+    // - müşteri belirli bir saat istediyse — o saat zaten aşağıda yazıyor,
+    // - vitrin bilgisi yoksa veya sunucu `eta` göndermiyorsa.
+    //
+    // `Location.etaFor` yerine doğrudan `eta` okunuyor: o yardımcı vitrin
+    // sipariş almıyorken `null` döner, oysa yolda olan bir sipariş kesim
+    // saatinden sonra da takip edilir ve tahmini geçerliliğini korur.
+    final location = ref.watch(locationProvider).valueOrNull?.location;
+    final eta = (order.status.isTerminal || order.requestedAt != null)
+        ? null
+        : location?.eta?.forDeliveryType(order.deliveryType);
+
     return ListView(
       padding: const EdgeInsets.all(BldSpacing.md),
       children: [
@@ -117,11 +133,25 @@ class _OrderDetailBody extends ConsumerWidget {
         else
           _StatusStepBar(order: order),
 
+        if (eta != null) ...[
+          const SizedBox(height: BldSpacing.lg),
+          EtaNotice(
+            eta: etaAfterOrder(
+              eta,
+              order.deliveryType,
+              l10n,
+              orderCreatedAt: order.createdAt,
+            ),
+          ),
+        ],
+
         const SizedBox(height: BldSpacing.lg),
         _Section(
           title: l10n.trackingItems,
           child: Column(
-            children: [for (final item in order.items) _OrderItemRow(item: item)],
+            children: [
+              for (final item in order.items) _OrderItemRow(item: item),
+            ],
           ),
         ),
 
@@ -129,10 +159,7 @@ class _OrderDetailBody extends ConsumerWidget {
           title: l10n.trackingTotal,
           child: Column(
             children: [
-              _AmountRow(
-                label: l10n.trackingSubtotal,
-                amount: order.subtotal,
-              ),
+              _AmountRow(label: l10n.trackingSubtotal, amount: order.subtotal),
               _AmountRow(
                 label: l10n.trackingDeliveryFee,
                 amount: order.deliveryFee,

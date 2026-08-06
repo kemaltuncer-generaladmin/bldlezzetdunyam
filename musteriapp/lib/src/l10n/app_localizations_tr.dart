@@ -206,6 +206,50 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
+  String get etaDeliveryTitle => 'Tahmini teslim';
+
+  @override
+  String get etaPickupTitle => 'Tahmini hazır olma';
+
+  @override
+  String etaValue(String minutes, String window) {
+    return '$minutes dakika · $window arası';
+  }
+
+  @override
+  String etaValueApprox(String minutes, String window) {
+    return 'yaklaşık $minutes dakika · $window arası';
+  }
+
+  @override
+  String etaMinutesRange(int min, int max) {
+    return '$min-$max';
+  }
+
+  @override
+  String get etaMeasuredNote =>
+      'Bu süre son siparişlerin gerçekleşen sürelerinden hesaplandı.';
+
+  @override
+  String get etaConfiguredNote =>
+      'Bu süre henüz gerçekleşen siparişlerle ölçülmedi; mutfağın bildirdiği ortalamadır ve değişebilir.';
+
+  @override
+  String get etaBusyNote =>
+      'Mutfağımız şu anda yoğun. Süre bu yoğunluğa göre uzatıldı.';
+
+  @override
+  String get etaOrderPlacedTitle => 'Tahmini teslim saati';
+
+  @override
+  String get etaOrderPickupTitle => 'Tahmini hazır olma saati';
+
+  @override
+  String etaOrderWindow(String window) {
+    return '$window arası';
+  }
+
+  @override
   String get productAddToCart => 'Sepete ekle';
 
   @override

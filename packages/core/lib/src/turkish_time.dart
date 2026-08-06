@@ -76,6 +76,27 @@ abstract final class TurkishTime {
         localA.day == localB.day;
   }
 
+  /// `"13:15-13:40"` — bir ana dakika aralığı eklenerek bulunan saat penceresi.
+  ///
+  /// [from] UTC bir andır (şu an, ya da siparişin oluşturulma zamanı); sonuç
+  /// Türkiye duvar saatidir.
+  ///
+  /// **Neden 5 dakikaya yuvarlanır:** tahmin dakika hassasiyetinde değildir.
+  /// "13:17" yazmak, elimizde olmayan bir kesinlik iddia eder; alt sınır aşağı,
+  /// üst sınır yukarı yuvarlanınca pencere hem okunur hem de dürüst kalır.
+  ///
+  /// Sınırlar ters sıralıysa yer değiştirir; böylece sunucudaki bir hata
+  /// ekranda "13:40-13:15" gibi anlamsız bir metne dönüşmez.
+  static String minuteWindow(DateTime from, int minMinutes, int maxMinutes) {
+    final low = minMinutes <= maxMinutes ? minMinutes : maxMinutes;
+    final high = minMinutes <= maxMinutes ? maxMinutes : minMinutes;
+
+    final start = from.toUtc().add(Duration(minutes: low));
+    final end = from.toUtc().add(Duration(minutes: high));
+
+    return '${_roundedTime(start, up: false)}-${_roundedTime(end, up: true)}';
+  }
+
   /// Geçen süreyi kabaca anlatır: `"3 dk önce"`, `"2 sa önce"`.
   ///
   /// KDS kartlarında siparişin ne kadar beklediğini göstermek için.
@@ -89,4 +110,18 @@ abstract final class TurkishTime {
   }
 
   static String _pad(int value) => value.toString().padLeft(2, '0');
+
+  /// UTC anını Türkiye saatine çevirip 5 dakikalık dilime yuvarlar.
+  ///
+  /// Yuvarlama dakikayı taşırabilir (58 → 60), bu yüzden saat hesabı
+  /// [Duration] üzerinden yapılır; gün ve yıl sınırı kendiliğinden doğru olur.
+  static String _roundedTime(DateTime utc, {required bool up}) {
+    final local = toIstanbul(utc);
+    final remainder = local.minute % 5;
+    if (remainder == 0) return time(utc);
+
+    final shift = up ? 5 - remainder : -remainder;
+    final rounded = local.add(Duration(minutes: shift));
+    return '${_pad(rounded.hour)}:${_pad(rounded.minute)}';
+  }
 }

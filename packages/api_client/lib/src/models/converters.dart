@@ -136,6 +136,49 @@ class PaymentStatusConverter implements JsonConverter<PaymentStatus, String> {
   String toJson(PaymentStatus object) => object.wireName;
 }
 
+/// Teslim süresi tahmininin nereden geldiği — `Location.eta`.
+///
+/// **Neden gevşek (bilinmeyen değer çökertmez):** bu alan yalnızca kullanıcıya
+/// hangi dille konuşacağımızı seçtirir, iş kuralı taşımaz. Sunucu ileride
+/// üçüncü bir kaynak eklerse (ör. harita servisi) eski istemcinin sipariş
+/// akışını durdurmasının anlamı yok; en temkinli dile düşer.
+enum EtaSource {
+  /// Gerçekleşmiş siparişlerin sürelerinden ölçüldü.
+  measured('measured'),
+
+  /// Panelde elle girilen başlangıç değeri; henüz ölçülmedi.
+  configured('configured'),
+
+  /// Sözleşmede olmayan bir kaynak. [isMeasured] `false`'tur — ölçülmemiş gibi
+  /// davranmak, ölçülmüş gibi davranmaktan güvenlidir.
+  unknown('');
+
+  const EtaSource(this.wireName);
+
+  final String wireName;
+
+  static EtaSource parse(String value) {
+    for (final source in EtaSource.values) {
+      if (source != unknown && source.wireName == value) return source;
+    }
+    return unknown;
+  }
+
+  /// Tahmin gerçek verilerden mi hesaplandı? Yalnızca bu doğruyken kesin
+  /// konuşulur.
+  bool get isMeasured => this == measured;
+}
+
+class EtaSourceConverter implements JsonConverter<EtaSource, String> {
+  const EtaSourceConverter();
+
+  @override
+  EtaSource fromJson(String json) => EtaSource.parse(json);
+
+  @override
+  String toJson(EtaSource object) => object.wireName;
+}
+
 /// Fiş tipi — `docs/05-mutfakapp.md` §5.3.
 ///
 /// İki tip vardır. Teslim fişi, öğrenci kanalıyla birlikte iptal edilmiştir.

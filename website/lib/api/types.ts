@@ -32,6 +32,8 @@ export type AuthResponse = Schemas['AuthResponse'];
 export type Customer = Schemas['Customer'];
 
 export type Location = Schemas['Location'];
+export type LocationEta = Schemas['LocationEta'];
+export type EtaWindow = Schemas['EtaWindow'];
 export type MenuCategory = Schemas['MenuCategory'];
 export type MenuItem = Schemas['MenuItem'];
 export type MenuOption = Schemas['MenuOption'];

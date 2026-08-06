@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api_error_text.dart';
+import '../../core/eta_text.dart';
 import '../../core/labels.dart';
 import '../../core/time_input.dart';
 import '../../core/validators.dart';
@@ -22,6 +23,7 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/catalog_providers.dart';
 import '../../providers/infra_providers.dart';
 import '../../router/app_router.dart';
+import '../../widgets/eta_notice.dart';
 import '../../widgets/status_views.dart';
 import '../cart/cart_controller.dart';
 
@@ -205,6 +207,13 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
       if (methods.isEmpty) l10n.checkoutPaymentMethodsEmpty,
     ];
 
+    // Kullanıcı belirli bir saat seçtiyse tahmin gösterilmez: sipariş o saate
+    // planlanır, "60-85 dakika içinde" demek yanlış olurdu. Tahmin yalnızca
+    // "en kısa sürede" seçiliyken anlamlıdır.
+    final eta = _requestedAtIstanbul == null
+        ? widget.location.etaFor(_deliveryType)
+        : null;
+
     return Column(
       children: [
         Expanded(
@@ -229,6 +238,20 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
                             setState(() => _deliveryType = selection.first),
                 ),
 
+                // Teslimat tipiyle birlikte değişir: gel-alda yol süresi yok,
+                // sunucu iki ayrı aralık gönderiyor.
+                if (eta != null) ...[
+                  const SizedBox(height: BldSpacing.md),
+                  EtaNotice(
+                    eta: etaBeforeOrder(
+                      eta,
+                      _deliveryType,
+                      l10n,
+                      now: DateTime.now().toUtc(),
+                    ),
+                  ),
+                ],
+
                 // `pickup` seçilirse adres adımı atlanır ve teslimat ücreti
                 // eklenmez (`docs/07-musteriapp.md` §3).
                 if (_deliveryType.requiresAddress) ...[
@@ -241,7 +264,9 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
                   const SizedBox(height: BldSpacing.sm),
                   TextFormField(
                     controller: _district,
-                    decoration: InputDecoration(labelText: l10n.addressDistrict),
+                    decoration: InputDecoration(
+                      labelText: l10n.addressDistrict,
+                    ),
                     validator: (value) => validateRequired(value, l10n),
                   ),
                   const SizedBox(height: BldSpacing.sm),
@@ -273,8 +298,7 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
                       TextButton(
                         onPressed: _submitting
                             ? null
-                            : () =>
-                                  setState(() => _requestedAtIstanbul = null),
+                            : () => setState(() => _requestedAtIstanbul = null),
                         child: Text(l10n.checkoutClearRequestedAt),
                       ),
                     OutlinedButton(
@@ -347,10 +371,7 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(
-        top: BldSpacing.lg,
-        bottom: BldSpacing.sm,
-      ),
+      padding: const EdgeInsets.only(top: BldSpacing.lg, bottom: BldSpacing.sm),
       child: Text(text, style: Theme.of(context).textTheme.titleMedium),
     );
   }

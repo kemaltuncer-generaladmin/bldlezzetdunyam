@@ -6,6 +6,38 @@ part of 'catalog.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+_EtaWindow _$EtaWindowFromJson(Map<String, dynamic> json) => _EtaWindow(
+  minMinutes: (json['min_minutes'] as num).toInt(),
+  maxMinutes: (json['max_minutes'] as num).toInt(),
+  source: json['source'] == null
+      ? EtaSource.unknown
+      : const EtaSourceConverter().fromJson(json['source'] as String),
+  busy: json['busy'] as bool? ?? false,
+);
+
+Map<String, dynamic> _$EtaWindowToJson(_EtaWindow instance) =>
+    <String, dynamic>{
+      'min_minutes': instance.minMinutes,
+      'max_minutes': instance.maxMinutes,
+      'source': const EtaSourceConverter().toJson(instance.source),
+      'busy': instance.busy,
+    };
+
+_LocationEta _$LocationEtaFromJson(Map<String, dynamic> json) => _LocationEta(
+  delivery: json['delivery'] == null
+      ? null
+      : EtaWindow.fromJson(json['delivery'] as Map<String, dynamic>),
+  pickup: json['pickup'] == null
+      ? null
+      : EtaWindow.fromJson(json['pickup'] as Map<String, dynamic>),
+);
+
+Map<String, dynamic> _$LocationEtaToJson(_LocationEta instance) =>
+    <String, dynamic>{
+      'delivery': ?instance.delivery?.toJson(),
+      'pickup': ?instance.pickup?.toJson(),
+    };
+
 _Location _$LocationFromJson(Map<String, dynamic> json) => _Location(
   id: (json['id'] as num).toInt(),
   name: json['name'] as String,
@@ -17,6 +49,9 @@ _Location _$LocationFromJson(Map<String, dynamic> json) => _Location(
       .map((e) => const PaymentMethodConverter().fromJson(e as String))
       .toList(),
   orderCutoff: json['order_cutoff'] as String?,
+  eta: json['eta'] == null
+      ? null
+      : LocationEta.fromJson(json['eta'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$LocationToJson(_Location instance) => <String, dynamic>{
@@ -30,6 +65,7 @@ Map<String, dynamic> _$LocationToJson(_Location instance) => <String, dynamic>{
       .map(const PaymentMethodConverter().toJson)
       .toList(),
   'order_cutoff': ?instance.orderCutoff,
+  'eta': ?instance.eta?.toJson(),
 };
 
 _MenuCategory _$MenuCategoryFromJson(Map<String, dynamic> json) =>

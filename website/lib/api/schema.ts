@@ -560,6 +560,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/kitchen/health": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Kasa sağlık bildirimi
+         * @description Kasa kendi durumunu bildirir, sunucu da kasanın bilemeyeceğini
+         *     döndürür. **Çift yönlü olması bilinçlidir:** ekrandaki sağlık
+         *     paneli ikisini birden gösteriyor ve iki ayrı çağrı yapmasının
+         *     anlamı yok.
+         *
+         *     Bugünkü sipariş sayısını cihaz hesaplayamaz: mutfak listesi
+         *     yalnızca **aktif** siparişleri taşır, teslim edilenler düşer.
+         *     Vardiya boyunca kaç sipariş geçtiğini yalnızca sunucu bilir.
+         *
+         *     `heartbeat` ile karıştırılmamalı: o yalnızca "cihaz ayakta"
+         *     der. "Ayakta" ile "çalışıyor" aynı şey değildir — yazıcının
+         *     kâğıdı bitmiş, kuyrukta on basılmamış fiş birikmiş ve uygulama
+         *     hâlâ düzenli yoklama yapıyor olabilir.
+         *
+         *     Bildirilen değerler **doğrulanmaz**, kaydedilir. Yazıcının
+         *     gerçekten çalıştığını sunucudan anlamanın yolu yok; cihazın
+         *     beyanına güveniyoruz ve zaman damgasıyla saklıyoruz ki bayat veri
+         *     taze sanılmasın.
+         */
+        post: operations["reportKitchenHealth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/kitchen/heartbeat": {
         parameters: {
             query?: never;
@@ -577,6 +618,38 @@ export interface paths {
          *     `last_seen_at` 5 dakikadan eskiyse admin panelde uyarı çıkar.
          */
         get: operations["kitchenHeartbeat"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/site-content": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Kurumsal site içeriği
+         * @description Kurumsal sitenin panelden yönetilen içeriğinin tamamı **tek pakette**.
+         *
+         *     Ayrı uçlar (marka, iletişim, hizmetler…) yapılmadı: sitenin her sayfası
+         *     aynı çekirdek veriye ihtiyaç duyuyor ve ayrı uçlarla ana sayfa yedi
+         *     istek atardı; biri geciktiğinde sayfa yarım kalırdı.
+         *
+         *     **Doldurulmamış bölüm `null` döner, hata değildir.** Yeni kurulan bir
+         *     sistemde panel boşken sitenin hiç açılmaması kabul edilemezdi; site
+         *     `null` gelen bölümü çizmez, kendi yedek değerine düşer.
+         */
+        get: operations["getSiteContent"];
         put?: never;
         post?: never;
         delete?: never;
@@ -779,6 +852,116 @@ export interface components {
              * @example Mutfağımız şu anda yoğun. Siparişiniz alınır ancak hazırlanması normalden uzun sürebilir.
              */
             busy_message?: string;
+            eta: components["schemas"]["LocationEta"];
+        };
+        /**
+         * @description Teslim süresi tahmini, teslim türüne göre ayrı. İki tür ayrı verilir
+         *     çünkü gel-alda **yol süresi yoktur** — müşteri hazır olduğunda gelir.
+         *     Tek bir tahmin verilseydi istemci gel-al seçildiğinde de yolu içeren
+         *     bir süre gösterirdi.
+         */
+        LocationEta: {
+            delivery: components["schemas"]["EtaWindow"];
+            pickup: components["schemas"]["EtaWindow"];
+        };
+        /**
+         * @description Sipariş verildiği andan teslime kadar geçecek sürenin **aralığı**.
+         *
+         *     **Neden aralık, neden tek sayı değil:** "45 dakika" bir taahhüttür ve
+         *     47. dakikada ihlal edilir. "40–55 dakika" hem dürüsttür hem mutfağa
+         *     nefes alanı bırakır.
+         *
+         *     Aralık beş dakikaya yuvarlanır: "37–51 dakika" sahte bir kesinlik
+         *     iddiasıdır.
+         */
+        EtaWindow: {
+            /**
+             * @description Aralığın alt ucu (dakika).
+             * @example 60
+             */
+            min_minutes: number;
+            /**
+             * @description Aralığın üst ucu (dakika). Her zaman `min_minutes`'tan büyüktür.
+             * @example 85
+             */
+            max_minutes: number;
+            /**
+             * @description Tahminin nereden geldiği.
+             *
+             *     - `measured` — son 14 günde tamamlanmış siparişlerin gerçekleşen
+             *       sürelerinden ölçüldü (medyan → 80. yüzdelik). Bu yola girmek
+             *       için en az 8 örnek gerekir.
+             *     - `configured` — henüz yeterli örnek yok, yöneticinin admin
+             *       panelde girdiği hazırlık/teslimat süresinden türetildi.
+             *
+             *     İstemci bu alana göre farklı davranmak ZORUNDA değildir; alan
+             *     teşhis içindir ("neden bu süre?" sorusunun cevabı).
+             * @enum {string}
+             */
+            source: "measured" | "configured";
+            /**
+             * @description Mutfak yoğunluğu bu aralığa **yansıtıldı mı?** `true` ise hem alt
+             *     hem üst uç, yöneticinin girdiği yoğunluk ek süresi kadar uzatıldı.
+             *     `Location.busy` ile aynı kaynağı okur.
+             */
+            busy: boolean;
+        };
+        /**
+         * @description Kasanın **sunucudan yönetilen** ayarları. Yönetici admin panelden
+         *     değiştirir, kasa uygular; kasadaki ayar ekranı bunları yalnızca
+         *     gösterir.
+         *
+         *     **`null` = yönetici dokunmadı.** O alanda kasa kendi derleme
+         *     varsayılanını kullanır. Sunucu varsayılanı dayatmıyoruz: yazıcı
+         *     yolu gibi değerler makineye özgü ve yanlış bir varsayılan fiş
+         *     basımını durdurur.
+         */
+        KitchenSettings: {
+            /** @description Sipariş yoklama aralığı. */
+            poll_seconds?: number | null;
+            /**
+             * @description Yeni sipariş sesi. **Bağlantı uyarısını KAPATMAZ** — o
+             *     susturulamaz (`docs/05` §3).
+             */
+            sound_enabled?: boolean | null;
+            /** @description Sipariş bu süreden uzun beklerse kart uyarı rengine döner. */
+            warning_after_minutes?: number | null;
+            /**
+             * @description Geciken eşiği. `warning_after_minutes`'ten küçük olamaz —
+             *     küçük olsaydı kart hiç kırmızıya dönmezdi, uyarı eşiği zaten
+             *     geçilmiş olurdu. Sunucu küçük değeri uyarı eşiğine çeker.
+             */
+            late_after_minutes?: number | null;
+            printer_device_path?: string | null;
+            /**
+             * @description `ESC t n` kod sayfası. Sahada doğrulanan değer **29**; yanlışı
+             *     tüm Türkçe harfleri boşluk bastırır (`docs/05` §5.2).
+             */
+            printer_code_page?: number | null;
+            /**
+             * @description Sağlık bildiriminin sıklığı. Komutlar bu yanıtla taşındığı
+             *     için aynı zamanda "komut ne kadar sürede varır" demektir.
+             */
+            health_seconds?: number | null;
+            /** @description Bağlantı uyarısının tekrar aralığı. */
+            connection_alarm_seconds?: number | null;
+            /**
+             * @description Mutfak, yeni sipariş alarmını susturabilsin mi? Kapatılırsa
+             *     alarmı durdurmanın tek yolu siparişi onaylamaktır.
+             */
+            alarm_silenceable?: boolean | null;
+            /** Format: date-time */
+            updated_at?: string | null;
+        };
+        KitchenCommand: {
+            /** Format: int64 */
+            id: number;
+            /** @enum {string} */
+            command: "test_receipt" | "reprint" | "clear_failed" | "silence_alarm" | "restart";
+            /** @description `reprint` için `order_id` ve `type`; diğerlerinde boş. */
+            payload: {
+                [key: string]: unknown;
+            };
         };
         /**
          * @description Müşterinin adres defterindeki bir kayıt.
@@ -1039,6 +1222,171 @@ export interface components {
             /** Format: date-time */
             printed_at?: string | null;
         };
+        ContactChannel: {
+            /** @description Ekranda görünen biçim, örn. `0212 000 00 00`. */
+            display: string;
+            /**
+             * @description `tel:` / `mailto:` / `https://wa.me/...`. Panelde ayrı bir alan
+             *     DEĞİLDİR; yöneticinin yazdığı okunur numaradan sunucuda türetilir,
+             *     böylece biçim hatası yüzünden çalışmayan bağlantı oluşmaz.
+             */
+            href: string;
+        };
+        SiteBrand: {
+            name?: string;
+            short_name?: string;
+            parent_group?: string;
+            tagline?: string;
+            description?: string;
+            /** @description Panelden yüklenir. Boşsa site harf işaretini kullanır. */
+            logo_url?: string | null;
+            /**
+             * @description `#RRGGBB`. Kaydedilmeden önce beyaz metinle kontrastı ölçülür;
+             *     WCAG AA eşiğini (4,5:1) geçmeyen renk reddedilir.
+             */
+            primary_color?: string | null;
+        };
+        SiteContact: {
+            phone?: components["schemas"]["ContactChannel"] | null;
+            whatsapp?: components["schemas"]["ContactChannel"] | null;
+            email?: components["schemas"]["ContactChannel"] | null;
+            /** @description Açık adres ve il birlikte doldurulmadıysa `null` döner. */
+            address?: {
+                street_address?: string;
+                district?: string;
+                city?: string;
+                postal_code?: string | null;
+                map_embed_url?: string | null;
+            } | null;
+            working_hours?: {
+                label?: string;
+                value?: string;
+            }[];
+            social?: {
+                label?: string;
+                href?: string;
+            }[];
+        };
+        SiteService: {
+            slug: string;
+            title: string;
+            summary: string;
+            intro: string;
+            /**
+             * @description Lucide ikon bileşeninin adı. İstemci tanımadığı adı sessizce
+             *     varsayılana düşürür — boş kutu göstermez.
+             */
+            icon: string;
+            /**
+             * @description Serbest anlatım. Zengin metin editöründen gelir ve **kayıt anında**
+             *     sunucuda izin listesine göre temizlenir; istemci ek temizlik yapmaz.
+             */
+            body_html?: string | null;
+            audience?: string[];
+            how_it_works?: {
+                title?: string;
+                body?: string;
+            }[];
+            benefits?: string[];
+            menu_planning?: string;
+            quote_needs?: string[];
+        };
+        SitePost: {
+            slug: string;
+            title: string;
+            description: string;
+            category: string;
+            /** Format: date */
+            published_at: string;
+            /** @description Elle girilmediyse gövdeden hesaplanır. */
+            reading_minutes?: number;
+            /** @description Sunucuda temizlenmiş HTML (bkz. `SiteService.body_html`). */
+            body_html: string;
+        };
+        SiteContent: {
+            brand?: components["schemas"]["SiteBrand"] | null;
+            contact?: components["schemas"]["SiteContact"] | null;
+            company?: {
+                mission?: string;
+                vision?: string;
+                group_relation?: string;
+                values?: {
+                    title?: string;
+                    body?: string;
+                }[];
+                process_steps?: {
+                    title?: string;
+                    icon?: string;
+                    body?: string;
+                }[];
+                differentiators?: {
+                    title?: string;
+                    icon?: string;
+                    body?: string;
+                }[];
+            } | null;
+            faq: {
+                question?: string;
+                answer?: string;
+            }[];
+            sectors: {
+                slug?: string;
+                title?: string;
+                icon?: string;
+                need?: string;
+                answer?: string;
+                service_slug?: string;
+            }[];
+            menus?: {
+                solutions?: {
+                    slug?: string;
+                    title?: string;
+                    summary?: string;
+                    audience?: string;
+                    principle?: string;
+                    courses?: {
+                        label?: string;
+                        /**
+                         * @description Panelde virgülle ayrılmış tek metin olarak girilir;
+                         *     istemci diziye çevirir.
+                         */
+                        examples?: string | string[];
+                    }[];
+                }[];
+                seasonal?: {
+                    season?: string;
+                    note?: string;
+                }[];
+            } | null;
+            quality?: {
+                chain?: {
+                    title?: string;
+                    icon?: string;
+                    body?: string;
+                }[];
+                allergen?: {
+                    text?: string;
+                }[];
+                /**
+                 * @description **Boş dizi anlamlıdır**: firma belge beyan etmemiştir ve site
+                 *     sertifika iddiası içermeyen bir açıklama gösterir. Doldurulan
+                 *     her belge sitede yayınlanır.
+                 */
+                certifications?: {
+                    name?: string;
+                    issuer?: string;
+                    valid_until?: string | null;
+                }[];
+            } | null;
+            services: components["schemas"]["SiteService"][];
+            posts: components["schemas"]["SitePost"][];
+            /**
+             * Format: date-time
+             * @description Üç içerik tablosunun en son değişme zamanı. İstemci bunu yeniden
+             *     çizim gerekip gerekmediğine karar vermek için kullanır.
+             */
+            updated_at?: string | null;
+        };
     };
     responses: {
         /** @description Token yok veya geçersiz (`UNAUTHENTICATED`) */
@@ -1122,6 +1470,10 @@ export type SchemaRegisterRequest = components['schemas']['RegisterRequest'];
 export type SchemaAuthResponse = components['schemas']['AuthResponse'];
 export type SchemaCustomer = components['schemas']['Customer'];
 export type SchemaLocation = components['schemas']['Location'];
+export type SchemaLocationEta = components['schemas']['LocationEta'];
+export type SchemaEtaWindow = components['schemas']['EtaWindow'];
+export type SchemaKitchenSettings = components['schemas']['KitchenSettings'];
+export type SchemaKitchenCommand = components['schemas']['KitchenCommand'];
 export type SchemaSavedAddress = components['schemas']['SavedAddress'];
 export type SchemaSavedAddressInput = components['schemas']['SavedAddressInput'];
 export type SchemaMenuCategory = components['schemas']['MenuCategory'];
@@ -1141,6 +1493,12 @@ export type SchemaKitchenOrder = components['schemas']['KitchenOrder'];
 export type SchemaReceiptLine = components['schemas']['ReceiptLine'];
 export type SchemaKitchenReceipt = components['schemas']['KitchenReceipt'];
 export type SchemaCustomerReceipt = components['schemas']['CustomerReceipt'];
+export type SchemaContactChannel = components['schemas']['ContactChannel'];
+export type SchemaSiteBrand = components['schemas']['SiteBrand'];
+export type SchemaSiteContact = components['schemas']['SiteContact'];
+export type SchemaSiteService = components['schemas']['SiteService'];
+export type SchemaSitePost = components['schemas']['SitePost'];
+export type SchemaSiteContent = components['schemas']['SiteContent'];
 export type ResponseUnauthenticated = components['responses']['Unauthenticated'];
 export type ResponseForbiddenOrRevoked = components['responses']['ForbiddenOrRevoked'];
 export type ResponseNotFound = components['responses']['NotFound'];
@@ -2004,6 +2362,84 @@ export interface operations {
             };
         };
     };
+    reportKitchenHealth: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Yazıcı cihazına yazılabiliyor mu? */
+                    printer_ok: boolean;
+                    /** @description Kuyrukta bekleyen fiş sayısı. */
+                    print_queue_pending: number;
+                    /** @description Basılamamış ve vazgeçilmiş fiş sayısı. */
+                    print_queue_failed: number;
+                    app_version?: string;
+                    /** @description Bir önceki turda teslim edilen komutların sonuçları. */
+                    command_results?: {
+                        /** Format: int64 */
+                        id: number;
+                        ok: boolean;
+                        message?: string | null;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Vitrin özeti */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: date-time */
+                        server_time: string;
+                        /**
+                         * @description Bugün oluşturulan sipariş sayısı, **iptaller hariç**.
+                         *     Gün sınırı Europe/Istanbul'a göredir: UTC gece yarısı
+                         *     kullanılsaydı 00:00–03:00 arası siparişler "dün"
+                         *     sayılırdı.
+                         */
+                        orders_today: number;
+                        /** @description Mutfak ekranında kart olarak duran sipariş sayısı. */
+                        orders_active: number;
+                        settings?: components["schemas"]["KitchenSettings"];
+                        /**
+                         * @description Kasanın çalıştıracağı tek seferlik komutlar. Yanıtta
+                         *     dönen komutlar **teslim edilmiş** sayılır ve tekrar
+                         *     gönderilmez; kasa sonuçlarını bir sonraki bildirimde
+                         *     `command_results` ile bildirir.
+                         *
+                         *     Sonucu gelmeyen komut 10 dakika sonra yeniden
+                         *     gönderilir: kasa komutu alıp çökmüş olabilir ve
+                         *     komutun hiç çalışmaması sessiz bir başarısızlıktır.
+                         */
+                        commands?: components["schemas"]["KitchenCommand"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["ForbiddenOrRevoked"];
+            /** @description Doğrulama hatası */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     kitchenHeartbeat: {
         parameters: {
             query?: never;
@@ -2032,6 +2468,30 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["ForbiddenOrRevoked"];
+        };
+    };
+    getSiteContent: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description İçerik paketi */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteContent"];
+                };
+            };
         };
     };
     getAppVersion: {

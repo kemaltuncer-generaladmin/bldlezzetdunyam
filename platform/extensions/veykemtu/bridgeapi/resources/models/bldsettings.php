@@ -17,6 +17,14 @@ use Veykemtu\BridgeApi\Services\LocationGate;
  * PARA ALANLARI `text` TİPİNDEDİR, `number` DEĞİL: form parçacığı `number`
  * tipini postback'te `(int)` ile daraltıyor ve "45.50" değeri 45'e düşüyor.
  * Ayrıntı ve dönüşüm: `Veykemtu\BridgeApi\Admin\LiraField`.
+ *
+ * DAKİKA ALANLARI İSE `number` TİPİNDEDİR — yukarıdaki kuralın istisnası
+ * değil, aynı kuralın diğer yüzü. `Igniter\Admin\Widgets\Form::getSaveData()`
+ * içindeki daraltma tam olarak `'number', 'switch' => (int) $value` satırıdır;
+ * kaybettiği tek şey ondalık kısımdır. Hazırlık/teslimat/yoğunluk süreleri
+ * zaten TAM SAYI dakikadır (`LocationGate::positiveMinutes()` da `int`
+ * döndürüyor), dolayısıyla kaybedilecek bir şey yok. Karşılığında `number`
+ * tarayıcıda sayısal klavye ve `min`/`max` sınırlarını bedava veriyor.
  */
 return [
     'form' => [
@@ -104,6 +112,38 @@ return [
                 'attributes' => ['rows' => 3, 'maxlength' => 500],
                 'comment' => 'lang:veykemtu.bridgeapi::default.help_busy_message',
             ],
+            // Yoğunluk bölümünün HEMEN ALTINDA duruyor: "yoğunluk ek süresi"
+            // ancak yukarıdaki anahtar açıkken işliyor, iki bölüm arasına
+            // başka bir konu girseydi bu bağ görünmezdi.
+            'eta_section' => [
+                'type' => 'section',
+                'label' => 'lang:veykemtu.bridgeapi::default.section_eta',
+                'comment' => 'lang:veykemtu.bridgeapi::default.section_eta_comment',
+            ],
+            SettingsRepository::FIELD_PREP_MINUTES => [
+                'label' => 'lang:veykemtu.bridgeapi::default.label_prep_minutes',
+                'type' => 'number',
+                'span' => 'left',
+                'default' => 40,
+                'comment' => 'lang:veykemtu.bridgeapi::default.help_prep_minutes',
+                'attributes' => ['min' => 1, 'max' => 480, 'step' => 1],
+            ],
+            SettingsRepository::FIELD_DELIVERY_MINUTES => [
+                'label' => 'lang:veykemtu.bridgeapi::default.label_delivery_minutes',
+                'type' => 'number',
+                'span' => 'right',
+                'default' => 20,
+                'comment' => 'lang:veykemtu.bridgeapi::default.help_delivery_minutes',
+                'attributes' => ['min' => 1, 'max' => 480, 'step' => 1],
+            ],
+            SettingsRepository::FIELD_BUSY_EXTRA_MINUTES => [
+                'label' => 'lang:veykemtu.bridgeapi::default.label_busy_extra_minutes',
+                'type' => 'number',
+                'span' => 'left',
+                'default' => 15,
+                'comment' => 'lang:veykemtu.bridgeapi::default.help_busy_extra_minutes',
+                'attributes' => ['min' => 1, 'max' => 480, 'step' => 1],
+            ],
         ],
         'rules' => [
             [
@@ -152,6 +192,25 @@ return [
                 SettingsRepository::FIELD_BUSY_MESSAGE,
                 'lang:veykemtu.bridgeapi::default.label_busy_message',
                 'nullable|string|max:500',
+            ],
+            // Alt sınır 1: "0 dakikada teslim" sözü verilemez. Üst sınır 480
+            // (8 saat): daha büyük bir değer müşteriye günlerle ifade edilen
+            // bir tahmin yazdırırdı. Aynı sınırlar gate'te de uygulanıyor —
+            // burası yöneticiye HATA GÖSTERİR, gate ise API'yi korur.
+            [
+                SettingsRepository::FIELD_PREP_MINUTES,
+                'lang:veykemtu.bridgeapi::default.label_prep_minutes',
+                'required|integer|min:1|max:480',
+            ],
+            [
+                SettingsRepository::FIELD_DELIVERY_MINUTES,
+                'lang:veykemtu.bridgeapi::default.label_delivery_minutes',
+                'required|integer|min:1|max:480',
+            ],
+            [
+                SettingsRepository::FIELD_BUSY_EXTRA_MINUTES,
+                'lang:veykemtu.bridgeapi::default.label_busy_extra_minutes',
+                'required|integer|min:1|max:480',
             ],
         ],
     ],

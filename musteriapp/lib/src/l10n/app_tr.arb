@@ -85,6 +85,41 @@
     "placeholders": { "amount": { "type": "String" } }
   },
 
+  "etaDeliveryTitle": "Tahmini teslim",
+  "etaPickupTitle": "Tahmini hazır olma",
+  "etaValue": "{minutes} dakika · {window} arası",
+  "@etaValue": {
+    "description": "Dakika aralığı ve karşılık gelen saat penceresi.",
+    "placeholders": {
+      "minutes": { "type": "String" },
+      "window": { "type": "String" }
+    }
+  },
+  "etaValueApprox": "yaklaşık {minutes} dakika · {window} arası",
+  "@etaValueApprox": {
+    "description": "Ölçülmemiş tahmin. 'yaklaşık' öneki bilinçlidir.",
+    "placeholders": {
+      "minutes": { "type": "String" },
+      "window": { "type": "String" }
+    }
+  },
+  "etaMinutesRange": "{min}-{max}",
+  "@etaMinutesRange": {
+    "placeholders": {
+      "min": { "type": "int" },
+      "max": { "type": "int" }
+    }
+  },
+  "etaMeasuredNote": "Bu süre son siparişlerin gerçekleşen sürelerinden hesaplandı.",
+  "etaConfiguredNote": "Bu süre henüz gerçekleşen siparişlerle ölçülmedi; mutfağın bildirdiği ortalamadır ve değişebilir.",
+  "etaBusyNote": "Mutfağımız şu anda yoğun. Süre bu yoğunluğa göre uzatıldı.",
+  "etaOrderPlacedTitle": "Tahmini teslim saati",
+  "etaOrderPickupTitle": "Tahmini hazır olma saati",
+  "etaOrderWindow": "{window} arası",
+  "@etaOrderWindow": {
+    "placeholders": { "window": { "type": "String" } }
+  },
+
   "productAddToCart": "Sepete ekle",
   "productQuantity": "Adet",
   "productNote": "Ürün notu (isteğe bağlı)",

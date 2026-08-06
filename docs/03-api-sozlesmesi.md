@@ -122,7 +122,11 @@ Faz 1'de tek vitrin döner. Dizi biçimi korunur (ileride vitrin eklenirse kır�
     "delivery_fee":4000,
     "payment_methods":["cash","account","online"],
     "busy": false,
-    "busy_message":"Mutfağımız şu anda yoğun. Siparişiniz alınır ancak hazırlanması normalden uzun sürebilir." }
+    "busy_message":"Mutfağımız şu anda yoğun. Siparişiniz alınır ancak hazırlanması normalden uzun sürebilir.",
+    "eta": {
+      "delivery": { "min_minutes":60, "max_minutes":85, "source":"configured", "busy":false },
+      "pickup":   { "min_minutes":40, "max_minutes":55, "source":"configured", "busy":false }
+    } }
 ]}
 ```
 
@@ -136,6 +140,51 @@ Faz 1'de tek vitrin döner. Dizi biçimi korunur (ileride vitrin eklenirse kır�
 | `payment_methods` | Bu vitrinde **açık** olan ödeme yöntemleri. İstemci ödeme ekranında yalnızca bunları gösterir. Listede olmayan bir yöntemle sipariş → `422 VALIDATION_FAILED`. |
 | `busy` | Mutfak yoğun mu? Mutfak ekranındaki tek tuşla açılır (`POST /kitchen/busy`). **Sipariş almayı ENGELLEMEZ** — istemci yalnızca `busy_message` uyarısını gösterir, sipariş düğmeleri açık kalır. Siparişi gerçekten kesen şalter `ordering_enabled`'dır ve yalnızca yönetici değiştirir; mutfak personeli tek tuşla cirosu kapatabilmemeli. |
 | `busy_message` | `busy` doğruyken gösterilecek metin. Yönetici değiştirebilir. **İstemciler kendi metnini gömmemelidir**: metin değişince üç uygulamayı birden yayınlamak gerekirdi. |
+| `eta` | Teslim süresi tahmini, teslim türüne göre ayrı: `{ "delivery": {...}, "pickup": {...} }`. Her ikisi de bir `EtaWindow`'dur. Ayrıntı aşağıda. |
+
+#### `eta` — teslim süresi tahmini
+
+Her `EtaWindow` dört alandan oluşur: `min_minutes`, `max_minutes` (dakika,
+sipariş anından teslime), `source` (`measured` \| `configured`) ve `busy`.
+
+**Neden tek sayı değil, aralık.** "45 dakika" bir taahhüttür ve 47. dakikada
+ihlal edilir; müşteri saatine bakar ve şikâyet eder. "40–55 dakika" hem
+dürüsttür hem mutfağa nefes alanı bırakır. Aralık beş dakikaya yuvarlanır —
+"37–51 dakika" sahte bir kesinlik iddiasıdır. İstemci bu iki sayıyı **birlikte**
+göstermelidir; yalnızca alt ucu göstermek aralığı tekrar taahhüde çevirir.
+
+**Neden ölçüm elle girilen değerden üstün.** Yönetici admin panelde bir
+hazırlık ve bir teslimat süresi girer, ama bu değer iki hastalığa yakalanır:
+kurulurken iyimser girilir ("15 dakikada hazır olur") ve bir daha kimse
+güncellemeyi hatırlamaz. Mutfak hızlanır ya da yavaşlar, panel aynı kalır.
+Bu yüzden son 14 günde **en az 8 tamamlanmış sipariş** biriktiğinde sunucu
+elle girilen değeri bırakır ve gerçekleşen süreleri kullanır: aralığın alt ucu
+medyan (tipik durum), üst ucu 80. yüzdelik (kötü ama olağan durum). Ortalama
+kullanılmaz — tek bir çok geç sipariş ortalamayı saatlerce yukarı çeker.
+Dört saati aşan kayıtlar (unutulup elle kapatılan, test amaçlı açılan
+siparişler) ölçüme hiç girmez. Elle girilen değer yine de gereklidir: yeni
+kurulan bir sistemde hiç sipariş yokken de bir cevap verilebilmesi için.
+`source` alanı hangi yolun kullanıldığını söyler ve yalnızca teşhis içindir;
+istemcinin iki duruma farklı davranması **gerekmez**.
+
+**Gel-alda yol süresi yoktur.** `pickup` penceresi yalnızca hazırlık süresini
+içerir, teslimat süresini içermez — müşteri sipariş hazır olduğunda gelip
+alır, aradaki yolu kendi katetmektedir. Ölçüm tarafında da fark aynıdır:
+adrese teslimde süre `teslim_edildi` durumuna kadar, gel-alda `hazir`
+durumuna kadar sayılır. Tek bir tahmin verilseydi gel-al seçen müşteriye
+hiç yaşamayacağı bir yol süresi eklenirdi.
+
+**Yoğunlukta aralık uzar.** `busy` doğruyken pencerenin hem alt hem üst ucuna
+yöneticinin girdiği yoğunluk ek süresi (varsayılan 15 dakika) eklenir ve
+`EtaWindow.busy` de `true` döner. Yoğunluk anahtarı önceden yalnızca uyarı
+metni gösteriyordu; süreyi de uzatmazsak müşteri yoğun saatte gerçekçi
+olmayan bir teslim saati görür ve gecikme şikâyeti doğar — oysa gecikme yok,
+beklenti baştan yanlış kurulmuştur.
+
+> **Tahmin 10 dakika önbelleklenir.** Ölçüm her istekte yeniden
+> hesaplanmaz; 14 günlük bir pencerenin sonucu on dakikada bir kayda değer
+> biçimde değişmez. Yoğunluk ek süresi ise önbelleğin **dışında** eklenir —
+> mutfak tuşa bastığında aralık anında uzar.
 
 > **Yoğunluk tazedir, önbelleklenmez.** Web sitesi menüyü 60 saniyelik ISR
 > ile önbelleğe alır ama yoğunluk bandını ayrı ve taze okur

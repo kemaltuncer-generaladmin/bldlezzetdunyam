@@ -5,10 +5,12 @@ import { ErrorState } from '@/components/error-state';
 import { OrderTracker } from '@/components/order-tracker';
 import { QueryProvider } from '@/components/query-provider';
 import { ApiError } from '@/lib/api/client';
+import { fetchPrimaryLocation } from '@/lib/api/catalog';
 import { fetchOrder } from '@/lib/api/orders';
+import { readEtaWindow } from '@/lib/eta';
 import { formatDateTime } from '@/lib/format';
 import { requireSession } from '@/lib/require-session';
-import type { OrderDetail } from '@/lib/api/types';
+import type { EtaWindow, OrderDetail } from '@/lib/api/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +44,20 @@ export default async function OrderTrackingPage({ params }: { params: Promise<{ 
     );
   }
 
+  /*
+   * Tahmin vitrinden gelir, siparişten değil. Katalog önbelleği (60 sn)
+   * yeterli: tahmin beş dakikaya yuvarlı, saniyesi önemli değil. Vitrin
+   * okunamazsa sipariş takibi tahminsiz çalışmaya devam etmeli — bu ekranın
+   * asıl işi durum göstermek.
+   */
+  let eta: EtaWindow | null = null;
+  try {
+    const location = await fetchPrimaryLocation();
+    eta = readEtaWindow(location, order.delivery_type);
+  } catch {
+    eta = null;
+  }
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
       <nav aria-label="Ekmek kırıntısı" className="mb-4 text-sm text-neutral-600">
@@ -57,7 +73,7 @@ export default async function OrderTrackingPage({ params }: { params: Promise<{ 
 
       <div className="mt-6">
         <QueryProvider>
-          <OrderTracker initialOrder={order} />
+          <OrderTracker initialOrder={order} eta={eta} />
         </QueryProvider>
       </div>
     </div>

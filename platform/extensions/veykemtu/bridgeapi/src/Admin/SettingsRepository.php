@@ -46,6 +46,12 @@ final class SettingsRepository
      */
     public const string FIELD_BUSY_SNAPSHOT = 'busy_snapshot';
 
+    public const string FIELD_PREP_MINUTES = 'prep_minutes';
+
+    public const string FIELD_DELIVERY_MINUTES = 'delivery_minutes';
+
+    public const string FIELD_BUSY_EXTRA_MINUTES = 'busy_extra_minutes';
+
     public function __construct(private readonly LocationGate $gate) {}
 
     /**
@@ -84,6 +90,12 @@ final class SettingsRepository
             // yazmadıysa bu varsayılandır; kutuyu boşaltmak varsayılana döner
             // (`save()` bunu `null` olarak yazar).
             self::FIELD_BUSY_MESSAGE => $this->gate->busyMessage($location),
+            // Dakika alanları gate'ten HER ZAMAN dolu döner (kayıt yoksa
+            // varsayılan). Boş kutu göstermiyoruz: yönetici boş bir alanı
+            // "tahmin kapalı" sanır, oysa tahmin her koşulda üretiliyor.
+            self::FIELD_PREP_MINUTES => $this->gate->prepMinutes($location),
+            self::FIELD_DELIVERY_MINUTES => $this->gate->deliveryMinutes($location),
+            self::FIELD_BUSY_EXTRA_MINUTES => $this->gate->busyExtraMinutes($location),
         ];
     }
 
@@ -114,6 +126,14 @@ final class SettingsRepository
 
         $methods = $data[self::FIELD_PAYMENTS] ?? [];
         $this->gate->setPaymentMethods($location, is_array($methods) ? $methods : []);
+
+        // Sıfır veya eksik değer gate'te varsayılana dönüyor
+        // (`LocationGate::positiveMinutes`), üst sınır da orada. Burada ikinci
+        // bir sınır koymuyoruz: iki yerde yaşayan bir kural, biri
+        // değiştiğinde sessizce ayrışır.
+        $this->gate->setPrepMinutes($location, (int) ($data[self::FIELD_PREP_MINUTES] ?? 0));
+        $this->gate->setDeliveryMinutes($location, (int) ($data[self::FIELD_DELIVERY_MINUTES] ?? 0));
+        $this->gate->setBusyExtraMinutes($location, (int) ($data[self::FIELD_BUSY_EXTRA_MINUTES] ?? 0));
 
         $this->saveBusy($location, $data);
         $this->saveBusyMessage($location, $data);

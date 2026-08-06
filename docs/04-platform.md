@@ -40,8 +40,9 @@ kabul edilir. Bu yüzden `www.` yazmak, site apex'te duruyorsa hatadır.
 **Ayarlar → Eklentiler → BLD Ayarları** — yan menüde de var
 (Restoran → BLD Ayarları).
 
-Yedi şalter buradan yönetilir: yoğunluk, yoğunluk metni, sipariş alım
-şalteri, kesim saati, asgari sepet, teslimat ücreti, ödeme yöntemleri.
+On alan buradan yönetilir: yoğunluk, yoğunluk metni, sipariş alım şalteri,
+kesim saati, asgari sepet, teslimat ücreti, ödeme yöntemleri ve teslim
+süresi tahmininin üç dakika alanı (hazırlık, teslimat, yoğunluk eki).
 
 > **Değerlerin tek kaynağı `LocationGate`'tir.** Sayfa `location_options`
 > tablosuna doğrudan tek sorgu atmaz. İkinci bir kaynak açılsaydı,
@@ -56,7 +57,7 @@ yerde (`Admin/LiraField`) ve tamamen tam sayı aritmetiğiyle:
 `(float) "45,50"` PHP'de `45.0`'dır ve virgülle yazan bir yöneticinin
 asgari sepeti sessizce 50 kuruş eksilirdi.
 
-> **Alanlar `number` değil `text` tipinde.** `Igniter\Admin\Widgets\Form::getSaveData()`
+> **Para alanları `number` değil `text` tipinde.** `Igniter\Admin\Widgets\Form::getSaveData()`
 > `number` tipini postback'te `(int)` ile daraltıyor — "45.50" kaydedilmeden
 > önce 45'e düşüyor ve kuruşlar tamamen kayboluyor. Bir test bunu sabitliyor.
 
@@ -65,6 +66,41 @@ Form, sayfa çizildiği andaki değeri gizli alanda taşır ve `busy` yalnızca
 gönderilen değer ondan **farklıysa** yazılır. Yönetici sayfayı açık
 bırakıp yarım saat sonra ilgisiz bir alanı kaydederse mutfağın bu arada
 bastığı tuş ezilmez.
+
+### Teslim süresi tahmini bölümü (07.08.2026)
+
+Sayfanın en altındaki **Teslim süresi tahmini** bölümünde üç alan var:
+
+| Alan | Varsayılan | Ne yapar |
+|---|---|---|
+| Hazırlık süresi (dakika) | 40 | Siparişin mutfakta hazır olması. Her iki teslim türünde de sayılır. |
+| Teslimat süresi (dakika) | 20 | Hazır siparişin adrese ulaşması. **Gel-alda uygulanmaz** — müşteri gelip aldığı için yol süresi yoktur. |
+| Yoğunluk ek süresi (dakika) | 15 | "Mutfak yoğun" açıkken tahminin hem alt hem üst ucuna eklenir. |
+
+Bölüm bilinçli olarak yoğunluk bölümünün **hemen altındadır**: ek süre ancak
+oradaki anahtar açıkken işler, araya başka bir konu girseydi bu bağ
+görünmezdi.
+
+> **Bu üç değer BAŞLANGIÇ NOKTASIDIR, nihai kaynak değildir.** Son 14 günde
+> en az 8 tamamlanmış sipariş biriktiğinde `Services\EtaService` bu alanları
+> kullanmayı bırakır ve gerçekleşen süreleri ölçer (medyan → 80. yüzdelik).
+> Sebep: elle girilen süre iyimser girilir ve kimse güncellemeyi hatırlamaz;
+> mutfak hızlanır ya da yavaşlar, panel aynı kalır. Bölüm açıklaması bunu
+> yöneticiye de söyler — yoksa "değeri değiştirdim, tahmin değişmedi" diye
+> hata bildirimi gelirdi.
+
+Değerler API'de `Location.eta` olarak açılır (`docs/03-api-sozlesmesi.md`
+§3). Tek sayı değil **aralık** döner: "45 dakika" bir taahhüttür ve 47.
+dakikada ihlal edilir.
+
+> **Bu alanlar `number` tipinde — para alanlarının aksine.** Yukarıdaki
+> `(int)` daraltmasının kaybettirdiği tek şey ondalık kısımdır; dakikalar
+> zaten tam sayı olduğu için kaybedilecek bir şey yok. Karşılığında tarayıcı
+> sayısal klavyeyi ve `min`/`max` sınırlarını bedava veriyor. Doğrulama
+> kuralı `1-480` arası tam sayı: alt sınır "0 dakikada teslim" sözünü, üst
+> sınır günlerle ifade edilen tahminleri engelliyor. Aynı sınır
+> `LocationGate::positiveMinutes()` içinde de var — form yöneticiye hata
+> gösterir, gate API'yi korur.
 
 ## 2.6 İçerikler bölümü — kurumsal site yönetimi (06.08.2026)
 

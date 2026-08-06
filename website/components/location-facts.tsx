@@ -1,5 +1,7 @@
+import { EtaFactValue } from '@/components/delivery-eta';
 import { IconCheck, IconClock, IconTruck, IconWallet } from '@/components/icons';
 import { formatPrice } from '@/lib/format';
+import { readLocationEta } from '@/lib/eta';
 import { paymentMethodLabel } from '@/lib/labels';
 import { cn } from '@/lib/cn';
 import type { Location } from '@/lib/api/types';
@@ -7,8 +9,9 @@ import type { Location } from '@/lib/api/types';
 type Fact = {
   key: string;
   icon: React.ReactNode;
+  /** Metin değil düğüm: teslim tahmini duvar saatini tarayıcıda hesaplıyor. */
+  value: React.ReactNode;
   label: string;
-  value: string;
 };
 
 /**
@@ -39,6 +42,29 @@ export function LocationFacts({
       value: location.delivery_fee > 0 ? formatPrice(location.delivery_fee) : 'Ücretsiz',
     },
   ];
+
+  /*
+   * Teslim süresi ücretin hemen ardında: müşteri "ne kadar tutar" ile "ne
+   * zaman gelir" sorularını birlikte soruyor. İki teslim türü ayrı çip —
+   * gel-al belirgin biçimde daha hızlı ve bu fark seçimi değiştiriyor.
+   */
+  const eta = readLocationEta(location);
+  if (eta) {
+    facts.push(
+      {
+        key: 'eta-delivery',
+        icon: <IconClock className="h-4 w-4" />,
+        label: 'Tahmini teslim',
+        value: <EtaFactValue estimate={eta.delivery} />,
+      },
+      {
+        key: 'eta-pickup',
+        icon: <IconClock className="h-4 w-4" />,
+        label: 'Gel-al hazır',
+        value: <EtaFactValue estimate={eta.pickup} />,
+      },
+    );
+  }
 
   if (location.order_cutoff) {
     facts.push({

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { CartLineControls } from '@/components/cart-line-controls';
+import { EtaSummary } from '@/components/delivery-eta';
 import { EmptyState } from '@/components/empty-state';
 import { ErrorState } from '@/components/error-state';
 import { IconCart, IconChevronRight, IconTruck } from '@/components/icons';
@@ -10,6 +11,7 @@ import { OrderingClosedBanner } from '@/components/ordering-banner';
 import { ProductImage } from '@/components/product-image';
 import { isOrderingOpen } from '@/lib/api/catalog';
 import { resolveCart, type ResolvedCart } from '@/lib/cart';
+import { readLocationEta } from '@/lib/eta';
 import { formatPrice } from '@/lib/format';
 import { productPath } from '@/lib/slug';
 
@@ -42,6 +44,7 @@ export default async function CartPage() {
   const minOrderTotal = cart.location?.min_order_total ?? 0;
   const deliveryFee = cart.location?.delivery_fee ?? 0;
   const belowMinimum = cart.subtotal < minOrderTotal;
+  const eta = readLocationEta(cart.location);
   const canCheckout =
     cart.lines.length > 0 && orderingOpen && !cart.hasUnavailable && !belowMinimum;
 
@@ -177,6 +180,9 @@ export default async function CartPage() {
             <p className="mt-1 text-xs text-neutral-600">
               Kesin tutar siparişi oluştururken sunucuda hesaplanır.
             </p>
+
+            {/* Sunucu tahmini vermiyorsa (eski sürüm) kutu hiç çizilmez. */}
+            {eta && <EtaSummary eta={eta} className="mt-4" />}
 
             <MinOrderProgress
               subtotal={cart.subtotal}

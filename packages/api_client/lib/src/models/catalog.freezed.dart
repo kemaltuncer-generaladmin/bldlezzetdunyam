@@ -13,6 +13,602 @@ part of 'catalog.dart';
 T _$identity<T>(T value) => value;
 
 /// @nodoc
+mixin _$EtaWindow {
+
+/// Aralığın alt sınırı (dakika).
+ int get minMinutes;/// Aralığın üst sınırı (dakika).
+ int get maxMinutes;/// Tahmin ölçüldü mü, yoksa panelde mi girildi?
+@EtaSourceConverter() EtaSource get source;/// Mutfak yoğun. **Aralık sunucuda zaten uzatılmıştır** — istemci ayrıca
+/// süre eklemez, yalnızca nedenini söyler.
+ bool get busy;
+/// Create a copy of EtaWindow
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$EtaWindowCopyWith<EtaWindow> get copyWith => _$EtaWindowCopyWithImpl<EtaWindow>(this as EtaWindow, _$identity);
+
+  /// Serializes this EtaWindow to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is EtaWindow&&(identical(other.minMinutes, minMinutes) || other.minMinutes == minMinutes)&&(identical(other.maxMinutes, maxMinutes) || other.maxMinutes == maxMinutes)&&(identical(other.source, source) || other.source == source)&&(identical(other.busy, busy) || other.busy == busy));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,minMinutes,maxMinutes,source,busy);
+
+@override
+String toString() {
+  return 'EtaWindow(minMinutes: $minMinutes, maxMinutes: $maxMinutes, source: $source, busy: $busy)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $EtaWindowCopyWith<$Res>  {
+  factory $EtaWindowCopyWith(EtaWindow value, $Res Function(EtaWindow) _then) = _$EtaWindowCopyWithImpl;
+@useResult
+$Res call({
+ int minMinutes, int maxMinutes,@EtaSourceConverter() EtaSource source, bool busy
+});
+
+
+
+
+}
+/// @nodoc
+class _$EtaWindowCopyWithImpl<$Res>
+    implements $EtaWindowCopyWith<$Res> {
+  _$EtaWindowCopyWithImpl(this._self, this._then);
+
+  final EtaWindow _self;
+  final $Res Function(EtaWindow) _then;
+
+/// Create a copy of EtaWindow
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? minMinutes = null,Object? maxMinutes = null,Object? source = null,Object? busy = null,}) {
+  return _then(_self.copyWith(
+minMinutes: null == minMinutes ? _self.minMinutes : minMinutes // ignore: cast_nullable_to_non_nullable
+as int,maxMinutes: null == maxMinutes ? _self.maxMinutes : maxMinutes // ignore: cast_nullable_to_non_nullable
+as int,source: null == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
+as EtaSource,busy: null == busy ? _self.busy : busy // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [EtaWindow].
+extension EtaWindowPatterns on EtaWindow {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _EtaWindow value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _EtaWindow() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _EtaWindow value)  $default,){
+final _that = this;
+switch (_that) {
+case _EtaWindow():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _EtaWindow value)?  $default,){
+final _that = this;
+switch (_that) {
+case _EtaWindow() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int minMinutes,  int maxMinutes, @EtaSourceConverter()  EtaSource source,  bool busy)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _EtaWindow() when $default != null:
+return $default(_that.minMinutes,_that.maxMinutes,_that.source,_that.busy);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int minMinutes,  int maxMinutes, @EtaSourceConverter()  EtaSource source,  bool busy)  $default,) {final _that = this;
+switch (_that) {
+case _EtaWindow():
+return $default(_that.minMinutes,_that.maxMinutes,_that.source,_that.busy);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int minMinutes,  int maxMinutes, @EtaSourceConverter()  EtaSource source,  bool busy)?  $default,) {final _that = this;
+switch (_that) {
+case _EtaWindow() when $default != null:
+return $default(_that.minMinutes,_that.maxMinutes,_that.source,_that.busy);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _EtaWindow extends EtaWindow {
+  const _EtaWindow({required this.minMinutes, required this.maxMinutes, @EtaSourceConverter() this.source = EtaSource.unknown, this.busy = false}): super._();
+  factory _EtaWindow.fromJson(Map<String, dynamic> json) => _$EtaWindowFromJson(json);
+
+/// Aralığın alt sınırı (dakika).
+@override final  int minMinutes;
+/// Aralığın üst sınırı (dakika).
+@override final  int maxMinutes;
+/// Tahmin ölçüldü mü, yoksa panelde mi girildi?
+@override@JsonKey()@EtaSourceConverter() final  EtaSource source;
+/// Mutfak yoğun. **Aralık sunucuda zaten uzatılmıştır** — istemci ayrıca
+/// süre eklemez, yalnızca nedenini söyler.
+@override@JsonKey() final  bool busy;
+
+/// Create a copy of EtaWindow
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$EtaWindowCopyWith<_EtaWindow> get copyWith => __$EtaWindowCopyWithImpl<_EtaWindow>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$EtaWindowToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _EtaWindow&&(identical(other.minMinutes, minMinutes) || other.minMinutes == minMinutes)&&(identical(other.maxMinutes, maxMinutes) || other.maxMinutes == maxMinutes)&&(identical(other.source, source) || other.source == source)&&(identical(other.busy, busy) || other.busy == busy));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,minMinutes,maxMinutes,source,busy);
+
+@override
+String toString() {
+  return 'EtaWindow(minMinutes: $minMinutes, maxMinutes: $maxMinutes, source: $source, busy: $busy)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$EtaWindowCopyWith<$Res> implements $EtaWindowCopyWith<$Res> {
+  factory _$EtaWindowCopyWith(_EtaWindow value, $Res Function(_EtaWindow) _then) = __$EtaWindowCopyWithImpl;
+@override @useResult
+$Res call({
+ int minMinutes, int maxMinutes,@EtaSourceConverter() EtaSource source, bool busy
+});
+
+
+
+
+}
+/// @nodoc
+class __$EtaWindowCopyWithImpl<$Res>
+    implements _$EtaWindowCopyWith<$Res> {
+  __$EtaWindowCopyWithImpl(this._self, this._then);
+
+  final _EtaWindow _self;
+  final $Res Function(_EtaWindow) _then;
+
+/// Create a copy of EtaWindow
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? minMinutes = null,Object? maxMinutes = null,Object? source = null,Object? busy = null,}) {
+  return _then(_EtaWindow(
+minMinutes: null == minMinutes ? _self.minMinutes : minMinutes // ignore: cast_nullable_to_non_nullable
+as int,maxMinutes: null == maxMinutes ? _self.maxMinutes : maxMinutes // ignore: cast_nullable_to_non_nullable
+as int,source: null == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
+as EtaSource,busy: null == busy ? _self.busy : busy // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
+mixin _$LocationEta {
+
+ EtaWindow? get delivery; EtaWindow? get pickup;
+/// Create a copy of LocationEta
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LocationEtaCopyWith<LocationEta> get copyWith => _$LocationEtaCopyWithImpl<LocationEta>(this as LocationEta, _$identity);
+
+  /// Serializes this LocationEta to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LocationEta&&(identical(other.delivery, delivery) || other.delivery == delivery)&&(identical(other.pickup, pickup) || other.pickup == pickup));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,delivery,pickup);
+
+@override
+String toString() {
+  return 'LocationEta(delivery: $delivery, pickup: $pickup)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LocationEtaCopyWith<$Res>  {
+  factory $LocationEtaCopyWith(LocationEta value, $Res Function(LocationEta) _then) = _$LocationEtaCopyWithImpl;
+@useResult
+$Res call({
+ EtaWindow? delivery, EtaWindow? pickup
+});
+
+
+$EtaWindowCopyWith<$Res>? get delivery;$EtaWindowCopyWith<$Res>? get pickup;
+
+}
+/// @nodoc
+class _$LocationEtaCopyWithImpl<$Res>
+    implements $LocationEtaCopyWith<$Res> {
+  _$LocationEtaCopyWithImpl(this._self, this._then);
+
+  final LocationEta _self;
+  final $Res Function(LocationEta) _then;
+
+/// Create a copy of LocationEta
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? delivery = freezed,Object? pickup = freezed,}) {
+  return _then(_self.copyWith(
+delivery: freezed == delivery ? _self.delivery : delivery // ignore: cast_nullable_to_non_nullable
+as EtaWindow?,pickup: freezed == pickup ? _self.pickup : pickup // ignore: cast_nullable_to_non_nullable
+as EtaWindow?,
+  ));
+}
+/// Create a copy of LocationEta
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$EtaWindowCopyWith<$Res>? get delivery {
+    if (_self.delivery == null) {
+    return null;
+  }
+
+  return $EtaWindowCopyWith<$Res>(_self.delivery!, (value) {
+    return _then(_self.copyWith(delivery: value));
+  });
+}/// Create a copy of LocationEta
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$EtaWindowCopyWith<$Res>? get pickup {
+    if (_self.pickup == null) {
+    return null;
+  }
+
+  return $EtaWindowCopyWith<$Res>(_self.pickup!, (value) {
+    return _then(_self.copyWith(pickup: value));
+  });
+}
+}
+
+
+/// Adds pattern-matching-related methods to [LocationEta].
+extension LocationEtaPatterns on LocationEta {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _LocationEta value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _LocationEta() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _LocationEta value)  $default,){
+final _that = this;
+switch (_that) {
+case _LocationEta():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _LocationEta value)?  $default,){
+final _that = this;
+switch (_that) {
+case _LocationEta() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( EtaWindow? delivery,  EtaWindow? pickup)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _LocationEta() when $default != null:
+return $default(_that.delivery,_that.pickup);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( EtaWindow? delivery,  EtaWindow? pickup)  $default,) {final _that = this;
+switch (_that) {
+case _LocationEta():
+return $default(_that.delivery,_that.pickup);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( EtaWindow? delivery,  EtaWindow? pickup)?  $default,) {final _that = this;
+switch (_that) {
+case _LocationEta() when $default != null:
+return $default(_that.delivery,_that.pickup);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _LocationEta extends LocationEta {
+  const _LocationEta({this.delivery, this.pickup}): super._();
+  factory _LocationEta.fromJson(Map<String, dynamic> json) => _$LocationEtaFromJson(json);
+
+@override final  EtaWindow? delivery;
+@override final  EtaWindow? pickup;
+
+/// Create a copy of LocationEta
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$LocationEtaCopyWith<_LocationEta> get copyWith => __$LocationEtaCopyWithImpl<_LocationEta>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$LocationEtaToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LocationEta&&(identical(other.delivery, delivery) || other.delivery == delivery)&&(identical(other.pickup, pickup) || other.pickup == pickup));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,delivery,pickup);
+
+@override
+String toString() {
+  return 'LocationEta(delivery: $delivery, pickup: $pickup)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$LocationEtaCopyWith<$Res> implements $LocationEtaCopyWith<$Res> {
+  factory _$LocationEtaCopyWith(_LocationEta value, $Res Function(_LocationEta) _then) = __$LocationEtaCopyWithImpl;
+@override @useResult
+$Res call({
+ EtaWindow? delivery, EtaWindow? pickup
+});
+
+
+@override $EtaWindowCopyWith<$Res>? get delivery;@override $EtaWindowCopyWith<$Res>? get pickup;
+
+}
+/// @nodoc
+class __$LocationEtaCopyWithImpl<$Res>
+    implements _$LocationEtaCopyWith<$Res> {
+  __$LocationEtaCopyWithImpl(this._self, this._then);
+
+  final _LocationEta _self;
+  final $Res Function(_LocationEta) _then;
+
+/// Create a copy of LocationEta
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? delivery = freezed,Object? pickup = freezed,}) {
+  return _then(_LocationEta(
+delivery: freezed == delivery ? _self.delivery : delivery // ignore: cast_nullable_to_non_nullable
+as EtaWindow?,pickup: freezed == pickup ? _self.pickup : pickup // ignore: cast_nullable_to_non_nullable
+as EtaWindow?,
+  ));
+}
+
+/// Create a copy of LocationEta
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$EtaWindowCopyWith<$Res>? get delivery {
+    if (_self.delivery == null) {
+    return null;
+  }
+
+  return $EtaWindowCopyWith<$Res>(_self.delivery!, (value) {
+    return _then(_self.copyWith(delivery: value));
+  });
+}/// Create a copy of LocationEta
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$EtaWindowCopyWith<$Res>? get pickup {
+    if (_self.pickup == null) {
+    return null;
+  }
+
+  return $EtaWindowCopyWith<$Res>(_self.pickup!, (value) {
+    return _then(_self.copyWith(pickup: value));
+  });
+}
+}
+
+
+/// @nodoc
 mixin _$Location {
 
  int get id; String get name; String get slug;/// Çalışma saatlerinden türetilir — şu an sipariş saati içinde miyiz?
@@ -20,7 +616,13 @@ mixin _$Location {
  bool get orderingEnabled;/// Kuruş. Altında sipariş `422 VALIDATION_FAILED`.
  int get minOrderTotal;/// Bu vitrinde **açık** olan ödeme yöntemleri. İstemci yalnızca bunları gösterir.
 @PaymentMethodConverter() List<PaymentMethod> get paymentMethods;/// Günlük son sipariş saati (`HH:mm`, Europe/Istanbul) veya `null`.
- String? get orderCutoff;
+ String? get orderCutoff;/// Teslim süresi tahminleri.
+///
+/// **İsteğe bağlıdır ve öyle kalmalıdır.** Alan sözleşmeye sonradan
+/// eklendi; eski bir sunucu, mock veya cihazdaki eski önbellek kaydı bu
+/// alanı içermez. `null` gelmesi normal bir durumdur, hata değildir —
+/// istemci o zaman tahmini hiç göstermez.
+ LocationEta? get eta;
 /// Create a copy of Location
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -33,16 +635,16 @@ $LocationCopyWith<Location> get copyWith => _$LocationCopyWithImpl<Location>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Location&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.slug, slug) || other.slug == slug)&&(identical(other.isOpen, isOpen) || other.isOpen == isOpen)&&(identical(other.orderingEnabled, orderingEnabled) || other.orderingEnabled == orderingEnabled)&&(identical(other.minOrderTotal, minOrderTotal) || other.minOrderTotal == minOrderTotal)&&const DeepCollectionEquality().equals(other.paymentMethods, paymentMethods)&&(identical(other.orderCutoff, orderCutoff) || other.orderCutoff == orderCutoff));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Location&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.slug, slug) || other.slug == slug)&&(identical(other.isOpen, isOpen) || other.isOpen == isOpen)&&(identical(other.orderingEnabled, orderingEnabled) || other.orderingEnabled == orderingEnabled)&&(identical(other.minOrderTotal, minOrderTotal) || other.minOrderTotal == minOrderTotal)&&const DeepCollectionEquality().equals(other.paymentMethods, paymentMethods)&&(identical(other.orderCutoff, orderCutoff) || other.orderCutoff == orderCutoff)&&(identical(other.eta, eta) || other.eta == eta));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,slug,isOpen,orderingEnabled,minOrderTotal,const DeepCollectionEquality().hash(paymentMethods),orderCutoff);
+int get hashCode => Object.hash(runtimeType,id,name,slug,isOpen,orderingEnabled,minOrderTotal,const DeepCollectionEquality().hash(paymentMethods),orderCutoff,eta);
 
 @override
 String toString() {
-  return 'Location(id: $id, name: $name, slug: $slug, isOpen: $isOpen, orderingEnabled: $orderingEnabled, minOrderTotal: $minOrderTotal, paymentMethods: $paymentMethods, orderCutoff: $orderCutoff)';
+  return 'Location(id: $id, name: $name, slug: $slug, isOpen: $isOpen, orderingEnabled: $orderingEnabled, minOrderTotal: $minOrderTotal, paymentMethods: $paymentMethods, orderCutoff: $orderCutoff, eta: $eta)';
 }
 
 
@@ -53,11 +655,11 @@ abstract mixin class $LocationCopyWith<$Res>  {
   factory $LocationCopyWith(Location value, $Res Function(Location) _then) = _$LocationCopyWithImpl;
 @useResult
 $Res call({
- int id, String name, String slug, bool isOpen, bool orderingEnabled, int minOrderTotal,@PaymentMethodConverter() List<PaymentMethod> paymentMethods, String? orderCutoff
+ int id, String name, String slug, bool isOpen, bool orderingEnabled, int minOrderTotal,@PaymentMethodConverter() List<PaymentMethod> paymentMethods, String? orderCutoff, LocationEta? eta
 });
 
 
-
+$LocationEtaCopyWith<$Res>? get eta;
 
 }
 /// @nodoc
@@ -70,7 +672,7 @@ class _$LocationCopyWithImpl<$Res>
 
 /// Create a copy of Location
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? slug = null,Object? isOpen = null,Object? orderingEnabled = null,Object? minOrderTotal = null,Object? paymentMethods = null,Object? orderCutoff = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? slug = null,Object? isOpen = null,Object? orderingEnabled = null,Object? minOrderTotal = null,Object? paymentMethods = null,Object? orderCutoff = freezed,Object? eta = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -80,10 +682,23 @@ as bool,orderingEnabled: null == orderingEnabled ? _self.orderingEnabled : order
 as bool,minOrderTotal: null == minOrderTotal ? _self.minOrderTotal : minOrderTotal // ignore: cast_nullable_to_non_nullable
 as int,paymentMethods: null == paymentMethods ? _self.paymentMethods : paymentMethods // ignore: cast_nullable_to_non_nullable
 as List<PaymentMethod>,orderCutoff: freezed == orderCutoff ? _self.orderCutoff : orderCutoff // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,eta: freezed == eta ? _self.eta : eta // ignore: cast_nullable_to_non_nullable
+as LocationEta?,
   ));
 }
+/// Create a copy of Location
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LocationEtaCopyWith<$Res>? get eta {
+    if (_self.eta == null) {
+    return null;
+  }
 
+  return $LocationEtaCopyWith<$Res>(_self.eta!, (value) {
+    return _then(_self.copyWith(eta: value));
+  });
+}
 }
 
 
@@ -165,10 +780,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff,  LocationEta? eta)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Location() when $default != null:
-return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff);case _:
+return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff,_that.eta);case _:
   return orElse();
 
 }
@@ -186,10 +801,10 @@ return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnable
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff,  LocationEta? eta)  $default,) {final _that = this;
 switch (_that) {
 case _Location():
-return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff);case _:
+return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff,_that.eta);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -206,10 +821,10 @@ return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnable
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff,  LocationEta? eta)?  $default,) {final _that = this;
 switch (_that) {
 case _Location() when $default != null:
-return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff);case _:
+return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff,_that.eta);case _:
   return null;
 
 }
@@ -221,7 +836,7 @@ return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnable
 @JsonSerializable()
 
 class _Location extends Location {
-  const _Location({required this.id, required this.name, required this.slug, required this.isOpen, required this.orderingEnabled, required this.minOrderTotal, @PaymentMethodConverter() required final  List<PaymentMethod> paymentMethods, this.orderCutoff}): _paymentMethods = paymentMethods,super._();
+  const _Location({required this.id, required this.name, required this.slug, required this.isOpen, required this.orderingEnabled, required this.minOrderTotal, @PaymentMethodConverter() required final  List<PaymentMethod> paymentMethods, this.orderCutoff, this.eta}): _paymentMethods = paymentMethods,super._();
   factory _Location.fromJson(Map<String, dynamic> json) => _$LocationFromJson(json);
 
 @override final  int id;
@@ -244,6 +859,13 @@ class _Location extends Location {
 
 /// Günlük son sipariş saati (`HH:mm`, Europe/Istanbul) veya `null`.
 @override final  String? orderCutoff;
+/// Teslim süresi tahminleri.
+///
+/// **İsteğe bağlıdır ve öyle kalmalıdır.** Alan sözleşmeye sonradan
+/// eklendi; eski bir sunucu, mock veya cihazdaki eski önbellek kaydı bu
+/// alanı içermez. `null` gelmesi normal bir durumdur, hata değildir —
+/// istemci o zaman tahmini hiç göstermez.
+@override final  LocationEta? eta;
 
 /// Create a copy of Location
 /// with the given fields replaced by the non-null parameter values.
@@ -258,16 +880,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Location&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.slug, slug) || other.slug == slug)&&(identical(other.isOpen, isOpen) || other.isOpen == isOpen)&&(identical(other.orderingEnabled, orderingEnabled) || other.orderingEnabled == orderingEnabled)&&(identical(other.minOrderTotal, minOrderTotal) || other.minOrderTotal == minOrderTotal)&&const DeepCollectionEquality().equals(other._paymentMethods, _paymentMethods)&&(identical(other.orderCutoff, orderCutoff) || other.orderCutoff == orderCutoff));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Location&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.slug, slug) || other.slug == slug)&&(identical(other.isOpen, isOpen) || other.isOpen == isOpen)&&(identical(other.orderingEnabled, orderingEnabled) || other.orderingEnabled == orderingEnabled)&&(identical(other.minOrderTotal, minOrderTotal) || other.minOrderTotal == minOrderTotal)&&const DeepCollectionEquality().equals(other._paymentMethods, _paymentMethods)&&(identical(other.orderCutoff, orderCutoff) || other.orderCutoff == orderCutoff)&&(identical(other.eta, eta) || other.eta == eta));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,slug,isOpen,orderingEnabled,minOrderTotal,const DeepCollectionEquality().hash(_paymentMethods),orderCutoff);
+int get hashCode => Object.hash(runtimeType,id,name,slug,isOpen,orderingEnabled,minOrderTotal,const DeepCollectionEquality().hash(_paymentMethods),orderCutoff,eta);
 
 @override
 String toString() {
-  return 'Location(id: $id, name: $name, slug: $slug, isOpen: $isOpen, orderingEnabled: $orderingEnabled, minOrderTotal: $minOrderTotal, paymentMethods: $paymentMethods, orderCutoff: $orderCutoff)';
+  return 'Location(id: $id, name: $name, slug: $slug, isOpen: $isOpen, orderingEnabled: $orderingEnabled, minOrderTotal: $minOrderTotal, paymentMethods: $paymentMethods, orderCutoff: $orderCutoff, eta: $eta)';
 }
 
 
@@ -278,11 +900,11 @@ abstract mixin class _$LocationCopyWith<$Res> implements $LocationCopyWith<$Res>
   factory _$LocationCopyWith(_Location value, $Res Function(_Location) _then) = __$LocationCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String name, String slug, bool isOpen, bool orderingEnabled, int minOrderTotal,@PaymentMethodConverter() List<PaymentMethod> paymentMethods, String? orderCutoff
+ int id, String name, String slug, bool isOpen, bool orderingEnabled, int minOrderTotal,@PaymentMethodConverter() List<PaymentMethod> paymentMethods, String? orderCutoff, LocationEta? eta
 });
 
 
-
+@override $LocationEtaCopyWith<$Res>? get eta;
 
 }
 /// @nodoc
@@ -295,7 +917,7 @@ class __$LocationCopyWithImpl<$Res>
 
 /// Create a copy of Location
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? slug = null,Object? isOpen = null,Object? orderingEnabled = null,Object? minOrderTotal = null,Object? paymentMethods = null,Object? orderCutoff = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? slug = null,Object? isOpen = null,Object? orderingEnabled = null,Object? minOrderTotal = null,Object? paymentMethods = null,Object? orderCutoff = freezed,Object? eta = freezed,}) {
   return _then(_Location(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -305,11 +927,24 @@ as bool,orderingEnabled: null == orderingEnabled ? _self.orderingEnabled : order
 as bool,minOrderTotal: null == minOrderTotal ? _self.minOrderTotal : minOrderTotal // ignore: cast_nullable_to_non_nullable
 as int,paymentMethods: null == paymentMethods ? _self._paymentMethods : paymentMethods // ignore: cast_nullable_to_non_nullable
 as List<PaymentMethod>,orderCutoff: freezed == orderCutoff ? _self.orderCutoff : orderCutoff // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,eta: freezed == eta ? _self.eta : eta // ignore: cast_nullable_to_non_nullable
+as LocationEta?,
   ));
 }
 
+/// Create a copy of Location
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LocationEtaCopyWith<$Res>? get eta {
+    if (_self.eta == null) {
+    return null;
+  }
 
+  return $LocationEtaCopyWith<$Res>(_self.eta!, (value) {
+    return _then(_self.copyWith(eta: value));
+  });
+}
 }
 
 

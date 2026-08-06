@@ -14,6 +14,7 @@ export function locationOut(location) {
     min_order_total: location.min_order_total,
     delivery_fee: location.delivery_fee,
     payment_methods: location.payment_methods,
+    eta: location.eta,
   };
 }
 

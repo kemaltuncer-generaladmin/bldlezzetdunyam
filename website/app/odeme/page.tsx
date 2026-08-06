@@ -7,6 +7,7 @@ import { KitchenBusyBanner } from '@/components/kitchen-busy-banner';
 import { OrderingClosedBanner } from '@/components/ordering-banner';
 import { isOrderingOpen } from '@/lib/api/catalog';
 import { resolveCart } from '@/lib/cart';
+import { readLocationEta } from '@/lib/eta';
 import { formatPrice } from '@/lib/format';
 import { requireSession } from '@/lib/require-session';
 import { istanbulNowLocalValue } from '@/lib/timezone';
@@ -84,6 +85,12 @@ export default async function CheckoutPage() {
               paymentMethods={paymentMethods}
               minRequestedAt={istanbulNowLocalValue(30)}
               orderCutoff={cart.location?.order_cutoff ?? null}
+              /*
+               * Tahmin ÖZETTE değil formda gösteriliyor. Özet teslim türünü
+               * bilmiyor; oraya adrese teslim süresini yazsaydık kullanıcı
+               * gel-al'ı seçtiğinde iki farklı süre aynı ekranda çakışırdı.
+               */
+              eta={readLocationEta(cart.location)}
             />
           )}
         </div>
