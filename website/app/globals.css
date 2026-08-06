@@ -1,5 +1,19 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
 
+@custom-variant dark (&:is(.dark *));
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   KATMAN 1 — PRIMITIVE
+   Ham değerler. Hiçbir bileşen bunları doğrudan kullanmaz; katman 2'deki
+   semantik token'lar üzerinden tüketilir.
+
+   RENKLER `packages/design_system/lib/src/colors.dart` İÇİNDEKİ `BldColors`
+   SINIFININ BİREBİR KARŞILIĞIDIR. Tek kaynak o Dart dosyasıdır — Flutter
+   uygulamaları da oradan besleniyor. Orada bir değer değişirse burada da
+   değişmeli. (Palet yer tutucudur: BILINMEYENLER #11.)
+   ═══════════════════════════════════════════════════════════════════════════ */
 @theme {
   --color-brand-50: #fff7ed;
   --color-brand-100: #ffedd5;
@@ -26,78 +40,226 @@
   --color-danger: #dc2626;
   --color-info: #2563eb;
 
+  /* Gövde, form, fiyat: Inter. Rakam ve etiket okunurluğu için. */
   --font-sans: var(--font-inter), system-ui, sans-serif;
+  /* Başlıklar: Playfair Display. Menü/restoran sıcaklığını taşıyan tek öğe. */
+  --font-display: var(--font-playfair), Georgia, serif;
 
   --radius-card: 0.75rem;
-
   --container-content: 72rem;
 }
 
-/*
-  The default border color has changed to `currentcolor` in Tailwind CSS v4,
-  so we've added these compatibility styles to make sure everything still
-  looks the same as it did with Tailwind CSS v3.
+/* ═══════════════════════════════════════════════════════════════════════════
+   KATMAN 2 — SEMANTIC
+   shadcn/ui'ın beklediği sözleşme. Bileşenler yalnızca bunları kullanır,
+   böylece tema değiştirmek tek dosyada olur.
 
-  If we ever want to remove these styles, we need to add an explicit border
-  color utility to any element that depends on these defaults.
-*/
+   Değerler ölçülerek seçildi (WCAG 2.1, docs/06 §5 "kontrast AA"):
+     beyaz / brand-600 = 3,56:1 ✗  ← bu yüzden birincil buton brand-600 DEĞİL
+     beyaz / brand-700 = 5,18:1 ✓
+     brand-700 / neutral-50 = 4,96:1 ✓  (bağlantı metni)
+     neutral-600 / neutral-50 = 7,30:1 ✓ (ikincil metin)
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --background: var(--color-neutral-50);
+  --foreground: var(--color-neutral-900);
+
+  --card: var(--color-neutral-0);
+  --card-foreground: var(--color-neutral-900);
+  --popover: var(--color-neutral-0);
+  --popover-foreground: var(--color-neutral-900);
+
+  /* brand-700, brand-600 değil — beyaz etiketin AA geçmesi için. */
+  --primary: var(--color-brand-700);
+  --primary-foreground: var(--color-neutral-0);
+
+  --secondary: var(--color-neutral-100);
+  --secondary-foreground: var(--color-neutral-900);
+
+  --muted: var(--color-neutral-100);
+  --muted-foreground: var(--color-neutral-600);
+
+  --accent: var(--color-brand-50);
+  --accent-foreground: var(--color-brand-800);
+
+  --destructive: var(--color-danger);
+  --destructive-foreground: var(--color-neutral-0);
+
+  --border: var(--color-neutral-200);
+  --input: var(--color-neutral-200);
+  /* Odak halkası brand-600: zeminle 3:1 üstü, ama metin taşımadığı için
+     buton dolgusundan daha canlı olabilir. */
+  --ring: var(--color-brand-600);
+
+  /*
+   * Sıcak yüzey — hero bandı, öne çıkan bölüm zemini. Uygulamanın tamamını
+   * krem yapmak yerine (skill'in önerisi #FFF7ED zemindi) sıcaklığı bilinçli
+   * yerlerde kullanıyoruz: gövde metni beyaza yakın zeminde en yüksek
+   * kontrastı koruyor, sıcaklık da anlam taşıyan bölümlere ayrılıyor.
+   */
+  --surface-warm: var(--color-brand-50);
+  --surface-warm-foreground: var(--color-neutral-900);
+
+  color-scheme: light;
+}
+
+.dark {
+  --background: var(--color-neutral-900);
+  --foreground: var(--color-neutral-100);
+
+  --card: var(--color-neutral-800);
+  --card-foreground: var(--color-neutral-100);
+  --popover: var(--color-neutral-800);
+  --popover-foreground: var(--color-neutral-100);
+
+  /*
+   * Karanlık temada ilişki tersine döner: açık turuncu dolgu + koyu etiket.
+   * neutral-900 / brand-400 = 7,73:1 (AAA). Aynı yerde beyaz etiket kullansak
+   * 3,56:1'e düşerdi.
+   */
+  --primary: var(--color-brand-400);
+  --primary-foreground: var(--color-neutral-900);
+
+  --secondary: var(--color-neutral-800);
+  --secondary-foreground: var(--color-neutral-100);
+
+  --muted: var(--color-neutral-800);
+  --muted-foreground: var(--color-neutral-400);
+
+  --accent: color-mix(in oklch, var(--color-neutral-800), var(--color-brand-500) 14%);
+  --accent-foreground: var(--color-brand-300);
+
+  --destructive: #f87171;
+  --destructive-foreground: var(--color-neutral-900);
+
+  /*
+   * Kenarlıklar color-mix ile türetiliyor, yeni hex uydurmuyoruz: paletin tek
+   * kaynağı colors.dart ve oraya karanlık temaya özel ton eklemek Flutter
+   * tarafını da ilgilendiren bir karar olurdu.
+   */
+  --border: color-mix(in oklch, var(--color-neutral-900), var(--color-neutral-400) 22%);
+  --input: color-mix(in oklch, var(--color-neutral-900), var(--color-neutral-400) 28%);
+  --ring: var(--color-brand-400);
+
+  --surface-warm: color-mix(in oklch, var(--color-neutral-900), var(--color-brand-700) 18%);
+  --surface-warm-foreground: var(--color-neutral-100);
+
+  color-scheme: dark;
+}
+
+/* Semantik token'ları Tailwind yardımcı sınıflarına bağlar:
+   `--primary` → `bg-primary`, `text-primary`, `ring-primary/50` … */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-surface-warm: var(--surface-warm);
+  --color-surface-warm-foreground: var(--surface-warm-foreground);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TABAN
+   ═══════════════════════════════════════════════════════════════════════════ */
 @layer base {
-  *,
-  ::after,
-  ::before,
-  ::backdrop,
-  ::file-selector-button {
-    border-color: var(--color-gray-200, currentcolor);
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    @apply font-sans;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+
+  /* Erişilebilirlik: klavye odağı her zaman görünür (docs/06 §5). */
+  :focus-visible {
+    @apply outline-hidden ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Hareket duyarlılığı olan kullanıcılar için animasyonları kıs. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   GEÇİŞ DÖNEMİ YARDIMCILARI
+
+   Arayüz shadcn/ui bileşenlerine taşınıyor. Aşağıdaki `bld-*` sınıfları henüz
+   taşınmamış ekranları ayakta tutuyor; bir ekran shadcn'e geçtikçe oradaki
+   kullanımlar silinir ve son kullanım kalkınca sınıfın kendisi de kalkar.
+   Yeni kod bunları KULLANMAZ.
+   ═══════════════════════════════════════════════════════════════════════════ */
 @utility bld-card {
-  @apply rounded-card border border-neutral-200 bg-neutral-0 shadow-xs;
+  @apply rounded-card border bg-card text-card-foreground shadow-xs;
 }
 
 @utility bld-skeleton {
-  @apply animate-pulse rounded-md bg-neutral-200;
+  @apply animate-pulse rounded-md bg-muted;
 }
 
 @utility bld-btn {
-  /*
-   * Düğme ve rozet sınıfları tek yerde: aynı Tailwind dizisi sekiz ekranda
-   * kopyalanınca biri güncellenmeyip görsel olarak ayrışıyordu.
-   * Dokunma hedefi her yerde en az 44 px yüksekliğinde kalır.
-   */
-  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors;
+  /* Dokunma hedefi her yerde en az 44 px yüksekliğinde kalır. */
+  @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors;
 }
 
 @utility bld-btn-primary {
-  @apply bld-btn bg-brand-700 text-neutral-0 hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-600;
+  @apply bld-btn bg-primary text-primary-foreground hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground;
 }
 
 @utility bld-btn-secondary {
-  @apply bld-btn border border-neutral-200 bg-neutral-0 text-neutral-900 hover:bg-neutral-100;
+  @apply bld-btn border bg-card text-card-foreground hover:bg-muted;
 }
 
 @utility bld-btn-ghost {
-  @apply bld-btn border border-brand-600 bg-neutral-0 text-brand-700 hover:bg-brand-50;
+  @apply bld-btn border-primary text-primary hover:bg-accent border bg-card;
 }
 
 @utility bld-chip {
-  @apply inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition-colors;
+  @apply inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition-colors;
 }
 
 @utility bld-chip-idle {
-  @apply bld-chip border-neutral-200 bg-neutral-0 text-neutral-800 hover:border-brand-300 hover:bg-brand-50;
+  @apply bld-chip bg-card text-foreground hover:border-brand-300 hover:bg-accent;
 }
 
 @utility bld-chip-active {
-  @apply bld-chip border-brand-700 bg-brand-700 text-neutral-0;
+  @apply bld-chip border-primary bg-primary text-primary-foreground;
 }
 
 @utility bld-badge {
-  @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold leading-none;
+  @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs leading-none font-semibold;
 }
 
 @utility bld-field {
-  @apply w-full rounded-lg border border-neutral-200 bg-neutral-0 px-3 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400;
+  @apply border-input bg-card text-foreground placeholder:text-muted-foreground w-full rounded-lg border px-3 py-2.5 text-sm;
 }
 
 @utility bld-rail {
@@ -118,36 +280,4 @@
 @utility bld-anchor {
   /* Yapışkan başlık + kategori çubuğunun altında kalmayan bağlantı hedefi. */
   scroll-margin-top: 9rem;
-}
-
-@layer base {
-  :root {
-    color-scheme: light;
-  }
-
-  html {
-    -webkit-text-size-adjust: 100%;
-    scroll-behavior: smooth;
-  }
-
-  body {
-    @apply bg-neutral-50 text-neutral-900 antialiased;
-  }
-
-  /* Erişilebilirlik: klavye odağı her zaman görünür (docs/06 §5). */
-  :focus-visible {
-    @apply outline-hidden ring-2 ring-brand-600 ring-offset-2 ring-offset-neutral-0;
-  }
-
-  /* Hareket duyarlılığı olan kullanıcılar için animasyonları kıs. */
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-      scroll-behavior: auto !important;
-    }
-  }
 }
