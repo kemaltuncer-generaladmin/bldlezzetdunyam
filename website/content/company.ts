@@ -1,6 +1,11 @@
 /**
  * Kurumsal içerik: süreç, ayırt edici yanlar, misyon/vizyon/değerler ve SSS.
  *
+ * **YEDEK / BAŞLANGIÇ DEĞERİ.** Tek kaynak admin panelidir; sayfalar bu
+ * içeriği `lib/api/site-content.ts` üzerinden okur. Buradaki değerler yalnızca
+ * API'ye ulaşılamadığında veya panelde ilgili bölüm boş olduğunda kullanılır.
+ * Burada yapılan düzenleme yayındaki siteyi değiştirmez.
+ *
  * Kuruluş yılı, çalışan sayısı, günlük üretim kapasitesi gibi rakamlar
  * bilinçli olarak yok — repoda doğrulanmış bir kaynağı yok. Güven, rakam
  * iddiasıyla değil, işin nasıl yürüdüğünü anlatarak kuruluyor.

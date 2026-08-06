@@ -7,7 +7,7 @@ import { PageHero } from '@/components/site/page-hero';
 import { Section, SectionHeading } from '@/components/site/section';
 import { Button } from '@/components/ui/button';
 import { PRIMARY_CTA } from '@/content/navigation';
-import { MENU_SOLUTIONS, SEASONAL_APPROACH } from '@/content/menus';
+import { fetchSiteContent } from '@/lib/api/site-content';
 import { breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
 import type { LucideIcon } from 'lucide-react';
 import type { Crumb } from '@/components/site/page-hero';
@@ -18,6 +18,8 @@ import type { Crumb } from '@/components/site/page-hero';
  * Bu sayfa bir sipariş ekranı DEĞİL: sepet, fiyat ve "ekle" butonu yok.
  * Amacı, teklif görüşmesinden önce menü kurgusunun nasıl düşünüldüğünü
  * göstermek. Günlük sipariş akışı `/menu` altında yaşıyor.
+ *
+ * Kurgular admin panelinden geliyor; API kapalıysa yedek kurgular basılır.
  */
 
 const CRUMBS: readonly Crumb[] = [{ href: '/menu-cozumleri', label: 'Menü Çözümleri' }];
@@ -30,14 +32,20 @@ const SEASON_ICONS: Record<string, LucideIcon> = {
   Kış: Snowflake,
 };
 
-export const metadata = pageMetadata({
-  title: 'Menü Çözümleri',
-  description:
-    'Kurumsal dört kap, personel üç kap, öğrenci menüsü, kahvaltı ve ikram paketleri, davet menüsü ve özel beslenme alternatifleri için örnek menü kurguları.',
-  path: '/menu-cozumleri',
-});
+export async function generateMetadata() {
+  const { brand, menus } = await fetchSiteContent();
 
-export default function MenuSolutionsPage() {
+  return pageMetadata({
+    title: 'Menü Çözümleri',
+    description: `Örnek menü kurguları: ${menus.solutions.map((solution) => solution.title).join(', ')}.`,
+    path: '/menu-cozumleri',
+    brandName: brand.name,
+  });
+}
+
+export default async function MenuSolutionsPage() {
+  const { menus } = await fetchSiteContent();
+
   return (
     <>
       <JsonLd data={breadcrumbJsonLd(CRUMBS)} />
@@ -58,7 +66,7 @@ export default function MenuSolutionsPage() {
         />
 
         <div className="mt-12 grid gap-5 lg:grid-cols-2">
-          {MENU_SOLUTIONS.map((solution) => (
+          {menus.solutions.map((solution) => (
             <MenuSolutionCard
               key={solution.slug}
               title={solution.title}
@@ -100,7 +108,7 @@ export default function MenuSolutionsPage() {
         </div>
 
         <ul className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          {SEASONAL_APPROACH.map((entry) => {
+          {menus.seasonal.map((entry) => {
             const Icon = SEASON_ICONS[entry.season];
             return (
               <li key={entry.season} className="border-t border-white/20 pt-6">
@@ -131,7 +139,7 @@ export default function MenuSolutionsPage() {
         />
 
         <dl className="mt-12 space-y-6">
-          {MENU_SOLUTIONS.map((solution) => (
+          {menus.solutions.map((solution) => (
             <div
               key={solution.slug}
               className="border-t pt-6 md:grid md:grid-cols-[16rem_1fr] md:gap-10"

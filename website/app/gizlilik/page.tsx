@@ -5,7 +5,7 @@ import { JsonLd } from '@/components/json-ld';
 import { PageHero, type Crumb } from '@/components/site/page-hero';
 import { Section } from '@/components/site/section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { BRAND, CONTACT } from '@/content/site';
+import { fetchSiteContent, type SiteContact } from '@/lib/api/site-content';
 import { breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
 
 const TITLE = 'Gizlilik Politikası';
@@ -14,37 +14,48 @@ const DESCRIPTION =
 
 const CRUMBS: readonly Crumb[] = [{ href: '/gizlilik', label: TITLE }];
 
-export const metadata: Metadata = pageMetadata({
-  title: TITLE,
-  description: DESCRIPTION,
-  path: '/gizlilik',
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const { brand } = await fetchSiteContent();
+
+  return pageMetadata({
+    title: TITLE,
+    description: DESCRIPTION,
+    path: '/gizlilik',
+    brandName: brand.name,
+  });
+}
 
 /**
  * Veri sorumlusu kimlik bilgileri.
  *
- * Değerler `content/site.ts` içinden okunuyor; orada `null` olan alan burada
- * uydurulmuş bir metinle değil, "girilmesi gerekiyor" işaretiyle görünür.
- * Firma sahibi `CONTACT` alanlarını doldurduğu anda gerçek değer basılır.
+ * Değerler admin panelinden geliyor; girilmemiş bir alan burada uydurulmuş bir
+ * metinle değil, "girilmesi gerekiyor" işaretiyle görünür. Firma sahibi
+ * iletişim alanlarını doldurduğu anda gerçek değer basılır — bu yüzden liste
+ * modül düzeyinde sabit değil, her istekte içerikten üretiliyor.
  *
- * Ticari unvan, vergi dairesi, MERSİS ve KEP için `site.ts` içinde henüz alan
- * yok — bu satırlar bilgi gelene kadar her hâlükârda eksik görünür. Alanlar
- * eklenirken bu dosyadaki `value` ifadeleri de bağlanmalıdır.
+ * Ticari unvan, vergi dairesi, MERSİS ve KEP sözleşmede henüz yok — bu
+ * satırlar bilgi gelene kadar her hâlükârda eksik görünür. Alanlar
+ * `/site-content` sözleşmesine eklendiğinde buradaki `value` ifadeleri de
+ * bağlanmalıdır.
  */
-const CONTROLLER_FIELDS: readonly { readonly label: string; readonly value: string | null }[] = [
-  { label: 'Ticari unvan', value: null },
-  {
-    label: 'Merkez adresi',
-    value: CONTACT.address
-      ? `${CONTACT.address.streetAddress}, ${CONTACT.address.district} / ${CONTACT.address.city}`
-      : null,
-  },
-  { label: 'Vergi dairesi ve numarası', value: null },
-  { label: 'MERSİS numarası', value: null },
-  { label: 'KEP adresi', value: null },
-  { label: 'Telefon', value: CONTACT.phone ? CONTACT.phone.display : null },
-  { label: 'E-posta', value: CONTACT.email ? CONTACT.email.display : null },
-];
+function controllerFields(
+  contact: SiteContact,
+): readonly { readonly label: string; readonly value: string | null }[] {
+  return [
+    { label: 'Ticari unvan', value: null },
+    {
+      label: 'Merkez adresi',
+      value: contact.address
+        ? `${contact.address.streetAddress}, ${contact.address.district} / ${contact.address.city}`
+        : null,
+    },
+    { label: 'Vergi dairesi ve numarası', value: null },
+    { label: 'MERSİS numarası', value: null },
+    { label: 'KEP adresi', value: null },
+    { label: 'Telefon', value: contact.phone ? contact.phone.display : null },
+    { label: 'E-posta', value: contact.email ? contact.email.display : null },
+  ];
+}
 
 /** Kimlik alanlarına ek olarak, metnin kendisinde netleşmesi gereken başlıklar. */
 const OPEN_ITEMS: readonly string[] = [
@@ -54,10 +65,14 @@ const OPEN_ITEMS: readonly string[] = [
   'Sipariş kayıtları için uygulanacak saklama süreleri',
 ];
 
-const PENDING_FIELDS: readonly string[] = [
-  ...CONTROLLER_FIELDS.filter((field) => field.value === null).map((field) => field.label),
-  ...OPEN_ITEMS,
-];
+function pendingFields(
+  fields: readonly { readonly label: string; readonly value: string | null }[],
+): readonly string[] {
+  return [
+    ...fields.filter((field) => field.value === null).map((field) => field.label),
+    ...OPEN_ITEMS,
+  ];
+}
 
 /** `null` alanlar için ortak işaret — sahte değer basmak yerine eksikliği söyler. */
 function MissingValue() {
@@ -69,7 +84,11 @@ function MissingValue() {
   );
 }
 
-export default function GizlilikPage() {
+export default async function GizlilikPage() {
+  const { brand, contact } = await fetchSiteContent();
+  const controller = controllerFields(contact);
+  const pending = pendingFields(controller);
+
   return (
     <>
       <JsonLd data={breadcrumbJsonLd(CRUMBS)} />
@@ -94,7 +113,7 @@ export default function GizlilikPage() {
             </AlertDescription>
           </Alert>
 
-          {PENDING_FIELDS.length > 0 && (
+          {pending.length > 0 && (
             <div className="mt-6 rounded-xl border p-5">
               <h2 className="text-base font-semibold">Yayın öncesi tamamlanacak bilgiler</h2>
               <p className="mt-1 text-sm/6 text-muted-foreground">
@@ -102,7 +121,7 @@ export default function GizlilikPage() {
                 kutu kendiliğinden kaybolur.
               </p>
               <ul className="mt-3 grid gap-1.5 text-sm sm:grid-cols-2">
-                {PENDING_FIELDS.map((field) => (
+                {pending.map((field) => (
                   <li key={field} className="flex items-start gap-2">
                     <TriangleAlert
                       aria-hidden="true"
@@ -118,7 +137,7 @@ export default function GizlilikPage() {
           <div className="bld-prose mt-10">
             <h2>1. Bu politika neyi kapsar?</h2>
             <p>
-              Bu metin, {BRAND.name} web sitesi üzerinden toplanan verilerin nasıl işlendiğini
+              Bu metin, {brand.name} web sitesi üzerinden toplanan verilerin nasıl işlendiğini
               anlatır. Kişisel verilerin korunmasına ilişkin ayrıntılı aydınlatma{' '}
               <Link href="/kvkk">KVKK Aydınlatma Metni</Link> sayfasında, sitede kullanılan çerezler
               ise <Link href="/cerez-politikasi">Çerez Politikası</Link> sayfasında yer alıyor.
@@ -137,7 +156,7 @@ export default function GizlilikPage() {
           </div>
 
           <dl className="mt-6 divide-y rounded-xl border">
-            {CONTROLLER_FIELDS.map((field) => (
+            {controller.map((field) => (
               <div
                 key={field.label}
                 className="grid gap-1 px-4 py-3 sm:grid-cols-[15rem_1fr] sm:items-center sm:gap-4"
@@ -262,27 +281,27 @@ export default function GizlilikPage() {
             </p>
           </div>
 
-          {(CONTACT.email !== null || CONTACT.phone !== null) && (
+          {(contact.email !== null || contact.phone !== null) && (
             <ul className="mt-4 space-y-1 text-sm">
-              {CONTACT.email && (
+              {contact.email && (
                 <li>
                   E-posta:{' '}
                   <a
                     className="text-primary underline underline-offset-4"
-                    href={CONTACT.email.href}
+                    href={contact.email.href}
                   >
-                    {CONTACT.email.display}
+                    {contact.email.display}
                   </a>
                 </li>
               )}
-              {CONTACT.phone && (
+              {contact.phone && (
                 <li>
                   Telefon:{' '}
                   <a
                     className="text-primary underline underline-offset-4"
-                    href={CONTACT.phone.href}
+                    href={contact.phone.href}
                   >
-                    {CONTACT.phone.display}
+                    {contact.phone.display}
                   </a>
                 </li>
               )}

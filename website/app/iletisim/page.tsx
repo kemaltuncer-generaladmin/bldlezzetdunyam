@@ -5,23 +5,34 @@ import { Button } from '@/components/ui/button';
 import { JsonLd } from '@/components/json-ld';
 import { PageHero, type Crumb } from '@/components/site/page-hero';
 import { Section, SectionHeading } from '@/components/site/section';
-import { CONTACT, HAS_ANY_CONTACT_CHANNEL, PENDING_CONTACT_FIELDS } from '@/content/site';
+import {
+  fetchSiteContent,
+  hasAnyContactChannel,
+  pendingContactFields,
+} from '@/lib/api/site-content';
 import { breadcrumbJsonLd, organizationJsonLd, pageMetadata } from '@/lib/seo';
 
-export const metadata = pageMetadata({
-  title: 'İletişim',
-  description:
-    'Benim Lezzet Dünyam ile iletişime geçin. Kurumsal catering, toplu yemek ve organizasyon talepleriniz için bize ulaşın.',
-  path: '/iletisim',
-});
+export async function generateMetadata() {
+  const { brand } = await fetchSiteContent();
+
+  return pageMetadata({
+    title: 'İletişim',
+    description: `${brand.name} ile iletişime geçin. Kurumsal catering, toplu yemek ve organizasyon talepleriniz için bize ulaşın.`,
+    path: '/iletisim',
+    brandName: brand.name,
+  });
+}
 
 const CRUMBS: readonly Crumb[] = [{ href: '/iletisim', label: 'İletişim' }];
 
-export default function IletisimPage() {
+export default async function IletisimPage() {
+  const { brand, contact } = await fetchSiteContent();
+  const pending = pendingContactFields(contact);
+
   return (
     <>
       <JsonLd data={breadcrumbJsonLd(CRUMBS)} />
-      <JsonLd data={organizationJsonLd()} />
+      <JsonLd data={organizationJsonLd(brand, contact)} />
 
       <PageHero
         crumbs={CRUMBS}
@@ -40,76 +51,75 @@ export default function IletisimPage() {
          * ziyaretçi neden numara göremediğini anlıyor ve teklif formuna
          * yönlendiriliyor — yani sayfa boş kalmıyor, akış kesilmiyor.
          *
-         * `content/site.ts` içindeki alanlar doldurulduğunda bu uyarı
-         * kendiliğinden kaybolur.
+         * Panelde ilgili alanlar doldurulduğunda bu uyarı kendiliğinden
+         * kaybolur.
          */}
-        {PENDING_CONTACT_FIELDS.length > 0 && (
+        {pending.length > 0 && (
           <Alert className="mt-8 max-w-3xl">
             <Info aria-hidden="true" />
             <AlertTitle>İletişim bilgileri henüz yayınlanmadı</AlertTitle>
             <AlertDescription>
               <p>
-                Şu alanlar sitede henüz tanımlı değil: {PENDING_CONTACT_FIELDS.join(', ')}. Bu
-                bilgiler girilene kadar bize ulaşmanın en hızlı yolu teklif formu — talebinizi
-                bırakın, size dönelim.
+                Şu alanlar sitede henüz tanımlı değil: {pending.join(', ')}. Bu bilgiler girilene
+                kadar bize ulaşmanın en hızlı yolu teklif formu — talebinizi bırakın, size dönelim.
               </p>
             </AlertDescription>
           </Alert>
         )}
 
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {CONTACT.phone && (
+          {contact.phone && (
             <a
-              href={CONTACT.phone.href}
+              href={contact.phone.href}
               className="group rounded-2xl border bg-card p-6 transition-colors hover:border-primary/40"
             >
               <Phone aria-hidden="true" className="size-5 text-primary" />
               <h3 className="mt-4 font-display text-base font-semibold">Telefon</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{CONTACT.phone.display}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{contact.phone.display}</p>
             </a>
           )}
 
-          {CONTACT.whatsapp && (
+          {contact.whatsapp && (
             <a
-              href={CONTACT.whatsapp.href}
+              href={contact.whatsapp.href}
               className="group rounded-2xl border bg-card p-6 transition-colors hover:border-primary/40"
             >
               <MessageCircle aria-hidden="true" className="size-5 text-primary" />
               <h3 className="mt-4 font-display text-base font-semibold">WhatsApp</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{CONTACT.whatsapp.display}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{contact.whatsapp.display}</p>
             </a>
           )}
 
-          {CONTACT.email && (
+          {contact.email && (
             <a
-              href={CONTACT.email.href}
+              href={contact.email.href}
               className="group rounded-2xl border bg-card p-6 transition-colors hover:border-primary/40"
             >
               <Mail aria-hidden="true" className="size-5 text-primary" />
               <h3 className="mt-4 font-display text-base font-semibold">E-posta</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{CONTACT.email.display}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{contact.email.display}</p>
             </a>
           )}
 
-          {CONTACT.address && (
+          {contact.address && (
             <div className="rounded-2xl border bg-card p-6">
               <MapPin aria-hidden="true" className="size-5 text-primary" />
               <h3 className="mt-4 font-display text-base font-semibold">Adres</h3>
               <address className="mt-1 text-sm/6 text-muted-foreground not-italic">
-                {CONTACT.address.streetAddress}
+                {contact.address.streetAddress}
                 <br />
-                {CONTACT.address.district} / {CONTACT.address.city}
-                {CONTACT.address.postalCode && <> · {CONTACT.address.postalCode}</>}
+                {contact.address.district} / {contact.address.city}
+                {contact.address.postalCode && <> · {contact.address.postalCode}</>}
               </address>
             </div>
           )}
 
-          {CONTACT.workingHours.length > 0 && (
+          {contact.workingHours.length > 0 && (
             <div className="rounded-2xl border bg-card p-6">
               <Clock aria-hidden="true" className="size-5 text-primary" />
               <h3 className="mt-4 font-display text-base font-semibold">Çalışma saatleri</h3>
               <dl className="mt-1 space-y-1 text-sm text-muted-foreground">
-                {CONTACT.workingHours.map((entry) => (
+                {contact.workingHours.map((entry) => (
                   <div key={entry.label} className="flex justify-between gap-4">
                     <dt>{entry.label}</dt>
                     <dd>{entry.value}</dd>
@@ -133,13 +143,13 @@ export default function IletisimPage() {
       </Section>
 
       {/* Harita yalnızca gerçek bir gömme adresi girildiyse. */}
-      {CONTACT.address?.mapEmbedUrl && (
+      {contact.address?.mapEmbedUrl && (
         <Section tone="muted" aria-labelledby="harita-baslik">
           <SectionHeading id="harita-baslik" title="Nasıl gelinir?" level={2} />
           <div className="mt-8 aspect-video overflow-hidden rounded-2xl border">
             <iframe
-              src={CONTACT.address.mapEmbedUrl}
-              title="Benim Lezzet Dünyam konum haritası"
+              src={contact.address.mapEmbedUrl}
+              title={`${brand.name} konum haritası`}
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
               className="size-full border-0"
@@ -174,7 +184,7 @@ export default function IletisimPage() {
       </Section>
 
       {/* Hiç kanal yoksa sayfanın sonunda tekrar forma yönlendirmek gerekiyor. */}
-      {!HAS_ANY_CONTACT_CHANNEL && (
+      {!hasAnyContactChannel(contact) && (
         <Section aria-labelledby="son-cagri">
           <SectionHeading
             id="son-cagri"

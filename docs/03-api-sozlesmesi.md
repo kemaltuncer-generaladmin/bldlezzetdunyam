@@ -380,7 +380,67 @@ KDS'in canlı olduğunu bildirir; `last_seen_at` güncellenir.
 
 ---
 
-## 6. Sürüm ucu
+## 6. Site içeriği ucu (kimlik gerektirmez)
+
+Kurumsal web sitesinin panelden yönetilen içeriği. Admin panelde **İçerikler**
+bölümünden düzenlenir; kod değişikliği gerektirmez.
+
+### GET /api/site-content
+
+Tüm içerik **tek pakette** döner. Ayrı uçlar (marka, iletişim, hizmetler…)
+bilinçli olarak yapılmadı: sitenin her sayfası aynı çekirdek veriye ihtiyaç
+duyuyor ve ayrı uçlarla ana sayfa yedi istek atardı — biri geciktiğinde sayfa
+yarım kalırdı.
+
+```json
+{
+  "brand":    { "name": "Benim Lezzet Dünyam", "logo_url": null, "primary_color": "#C2410C" },
+  "contact":  { "phone": { "display": "0212 000 00 00", "href": "tel:+902120000000" },
+                "whatsapp": null, "email": null, "address": null,
+                "working_hours": [], "social": [] },
+  "company":  { "mission": "…", "vision": "…", "values": [], "process_steps": [] },
+  "faq":      [{ "question": "…", "answer": "…" }],
+  "sectors":  [{ "slug": "sanayi", "title": "Sanayi ve üretim", "icon": "Factory",
+                 "need": "…", "answer": "…", "service_slug": "kurumsal-toplu-yemek" }],
+  "menus":    { "solutions": [], "seasonal": [] },
+  "quality":  { "chain": [], "allergen": [], "certifications": [] },
+  "services": [{ "slug": "tasima-yemek", "title": "Taşıma yemek", "icon": "Truck",
+                 "body_html": null, "audience": [], "how_it_works": [] }],
+  "posts":    [{ "slug": "…", "title": "…", "published_at": "2026-02-18",
+                 "reading_minutes": 5, "body_html": "<p>…</p>" }],
+  "updated_at": "2026-08-06T20:15:00Z"
+}
+```
+
+**Doldurulmamış bölüm `null` döner ve bu bir hata değildir.** Yeni kurulan bir
+sistemde panel boşken sitenin hiç açılmaması kabul edilemezdi. Site `null`
+gelen bölümü çizmez; ayrıca API'ye hiç erişemezse kendi yedek değerlerine
+düşer (`website/lib/api/site-content.ts`).
+
+**Telefon `href` alanı panelde ayrı bir kutu değildir.** Yönetici numarayı
+okunur biçimde yazar (`0212 000 00 00`); `tel:` / `https://wa.me/` bağlantısı
+sunucuda türetilir. İki ayrı alan istemek, ilk yazım hatasında çalışmayan bir
+bağlantı bırakırdı.
+
+**`body_html` sunucuda temizlenmiştir.** Zengin metin editöründen gelen HTML
+**kayıt anında** izin listesinden geçirilir (`HtmlSanitizer`): `<script>`,
+`style`, `<div>`, `<img>` ve olay öznitelikleri düşer, etiketin içindeki metin
+korunur. İstemci ek temizlik yapmaz — okuma her istekte olur, kayıt nadiren.
+
+**Marka rengi kaydedilmeden önce ölçülür.** Beyaz metinle kontrastı WCAG AA
+eşiğini (4,5:1) geçmeyen renk reddedilir ve yöneticiye ölçülen oran söylenir.
+Kırpmak veya "en yakın uygun tona" çevirmek, yöneticinin markasının rengini
+yanlış bilmesine yol açardı.
+
+### Önbellek ve tazeleme
+
+Paket sunucuda 60 dakika önbelleklenir. Panelde kaydet'e basıldığında önbellek
+**anında** temizlenir ve siteye tazeleme isteği gider; yönetici değişikliği
+süre dolmasını beklemeden görür.
+
+---
+
+## 7. Sürüm ucu
 
 ### GET /api/app-version?app_id=mutfakapp
 ```json
@@ -396,7 +456,7 @@ KDS'in canlı olduğunu bildirir; `last_seen_at` güncellenir.
 
 ---
 
-## 7. WebSocket (Faz 1.5)
+## 8. WebSocket (Faz 1.5)
 
 Laravel Reverb. Bağlantı: `wss://api.benimlezzetdunyam.com.tr/app/<key>`
 
@@ -420,7 +480,7 @@ Laravel Reverb. Bağlantı: `wss://api.benimlezzetdunyam.com.tr/app/<key>`
 
 ---
 
-## 8. Oran sınırları
+## 9. Oran sınırları
 
 | Uç grubu | Sınır |
 |---|---|
@@ -440,7 +500,7 @@ arıza türü.
 payla karşılar. Sınır **cihaz başınadır**, IP başına değil: kasa ve yönetici
 çoğu zaman aynı ağdan çıkar ve IP sınırı ikisini birbirine kırdırırdı.
 
-## 9. OpenAPI
+## 10. OpenAPI
 
 Makine tarafından okunabilir sözleşme: **`docs/openapi.yaml`** (OpenAPI 3.1). Bu markdown insan için açıklama, `openapi.yaml` ise **normatif** biçimdir; ikisi çelişirse `openapi.yaml` kazanır.
 

@@ -3,29 +3,37 @@ import { JsonLd } from '@/components/json-ld';
 import { CtaBand } from '@/components/site/cta-band';
 import { PageHero } from '@/components/site/page-hero';
 import { Section, SectionHeading } from '@/components/site/section';
-import { ALLERGEN_APPROACH, CERTIFICATIONS, QUALITY_CHAIN } from '@/content/quality';
+import { fetchSiteContent } from '@/lib/api/site-content';
 import { breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
 import type { Crumb } from '@/components/site/page-hero';
 
 /**
  * Kalite ve hijyen sayfası.
  *
- * Sertifika bölümü `CERTIFICATIONS` doluysa basılır; boşken sahte bir belge
- * iddiası doğmasın diye bölüm hiç render edilmez ve yerine uygulanan yöntemi
- * anlatan bir açıklama kalır. Gerekçe: `content/quality.ts` dosya başı yorumu.
+ * Sertifika bölümü liste doluysa basılır; boşken sahte bir belge iddiası
+ * doğmasın diye bölüm hiç render edilmez ve yerine uygulanan yöntemi anlatan
+ * bir açıklama kalır. Gerekçe: `content/quality.ts` dosya başı yorumu.
+ *
+ * İçerik panelden gelir. Sertifikalarda BOŞ liste yedeğe düşmez: belge
+ * iddiası asla yedekten doğmamalı (`lib/api/site-content.ts`).
  */
 
 const CRUMBS: readonly Crumb[] = [{ href: '/kalite-hijyen', label: 'Kalite ve Hijyen' }];
 
-export const metadata = pageMetadata({
-  title: 'Kalite ve Hijyen',
-  description:
-    'Hammadde girişinden teslimata kadar sekiz halkalı hijyen zinciri, alerjen yönetimi ve izlenebilirlik yaklaşımımız.',
-  path: '/kalite-hijyen',
-});
+export async function generateMetadata() {
+  const { brand, quality } = await fetchSiteContent();
 
-export default function KaliteHijyenPage() {
-  const hasCertifications = CERTIFICATIONS.length > 0;
+  return pageMetadata({
+    title: 'Kalite ve Hijyen',
+    description: `Hammadde girişinden teslimata kadar ${quality.chain.length} halkalı hijyen zinciri, alerjen yönetimi ve izlenebilirlik yaklaşımımız.`,
+    path: '/kalite-hijyen',
+    brandName: brand.name,
+  });
+}
+
+export default async function KaliteHijyenPage() {
+  const { quality } = await fetchSiteContent();
+  const hasCertifications = quality.certifications.length > 0;
 
   return (
     <>
@@ -51,11 +59,11 @@ export default function KaliteHijyenPage() {
         <SectionHeading
           id="zincir-baslik"
           eyebrow="Hijyen zinciri"
-          title="Hammaddeden teslimata sekiz halka"
+          title={`Hammaddeden teslimata ${quality.chain.length} halka`}
         />
 
         <ol className="mt-10 grid bld-reveal gap-5 md:grid-cols-2">
-          {QUALITY_CHAIN.map((link, index) => {
+          {quality.chain.map((link, index) => {
             const Icon = link.icon;
             return (
               <li
@@ -99,7 +107,7 @@ export default function KaliteHijyenPage() {
           </p>
 
           <ul className="mt-8 bld-reveal space-y-4">
-            {ALLERGEN_APPROACH.map((item) => (
+            {quality.allergen.map((item) => (
               <li key={item} className="flex gap-3">
                 <Check aria-hidden="true" className="mt-1 size-4 shrink-0" />
                 <span className="text-base/7 opacity-90">{item}</span>
@@ -127,7 +135,7 @@ export default function KaliteHijyenPage() {
 
           {hasCertifications ? (
             <ul className="mt-8 grid gap-5 sm:grid-cols-2">
-              {CERTIFICATIONS.map((certification) => (
+              {quality.certifications.map((certification) => (
                 <li
                   key={certification.name}
                   className="rounded-2xl border bg-card p-6 text-card-foreground"

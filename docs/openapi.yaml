@@ -53,6 +53,11 @@ tags:
   - name: Mutfak
     description: Tümü `kitchen` kapsamı gerektirir. Bu uçlar fiyat, müşteri iletişim bilgisi
       ve rapor **döndürmez**. Tek istisna, müşteri fişi ucundaki teslimat adresidir.
+  - name: Site
+    description: |
+      Kurumsal web sitesinin içeriği. Kimlik gerektirmez — içeriğin tamamı
+      zaten sitede herkese açık yayınlanıyor; token istemek statik üretimi
+      zorlaştırıp hiçbir şeyi korumazdı.
   - name: Sürüm
     description: İstemci sürüm kontrolü ve zorunlu güncelleme eşiği.
 
@@ -941,6 +946,30 @@ paths:
 
   # ─────────────────────────────── Sürüm ────────────────────────────────
 
+  /site-content:
+    parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
+    get:
+      tags: [Site]
+      summary: Kurumsal site içeriği
+      description: |
+        Kurumsal sitenin panelden yönetilen içeriğinin tamamı **tek pakette**.
+
+        Ayrı uçlar (marka, iletişim, hizmetler…) yapılmadı: sitenin her sayfası
+        aynı çekirdek veriye ihtiyaç duyuyor ve ayrı uçlarla ana sayfa yedi
+        istek atardı; biri geciktiğinde sayfa yarım kalırdı.
+
+        **Doldurulmamış bölüm `null` döner, hata değildir.** Yeni kurulan bir
+        sistemde panel boşken sitenin hiç açılmaması kabul edilemezdi; site
+        `null` gelen bölümü çizmez, kendi yedek değerine düşer.
+      operationId: getSiteContent
+      security: []
+      responses:
+        '200':
+          description: İçerik paketi
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SiteContent' }
+
   /app-version:
     parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
     get:
@@ -1674,3 +1703,244 @@ components:
             **tek** yer burasıdır.
         customer_label: { type: [string, 'null'] }
         printed_at: { type: [string, 'null'], format: date-time }
+
+    # ─────────────────────────── SİTE İÇERİĞİ ───────────────────────────
+    #
+    # Bu şemalardaki alanların çoğu `null` olabilir ve bu bir hata değildir:
+    # panelde henüz doldurulmamış demektir. Sitenin davranışı `content/site.ts`
+    # başındaki gerekçeyle aynı — bilinmeyen bilgi uydurulmaz, ilgili blok hiç
+    # çizilmez.
+
+    ContactChannel:
+      type: object
+      required: [display, href]
+      properties:
+        display:
+          type: string
+          description: Ekranda görünen biçim, örn. `0212 000 00 00`.
+        href:
+          type: string
+          description: |
+            `tel:` / `mailto:` / `https://wa.me/...`. Panelde ayrı bir alan
+            DEĞİLDİR; yöneticinin yazdığı okunur numaradan sunucuda türetilir,
+            böylece biçim hatası yüzünden çalışmayan bağlantı oluşmaz.
+
+    SiteBrand:
+      type: object
+      properties:
+        name: { type: string }
+        short_name: { type: string }
+        parent_group: { type: string }
+        tagline: { type: string }
+        description: { type: string }
+        logo_url:
+          type: [string, 'null']
+          description: Panelden yüklenir. Boşsa site harf işaretini kullanır.
+        primary_color:
+          type: [string, 'null']
+          description: |
+            `#RRGGBB`. Kaydedilmeden önce beyaz metinle kontrastı ölçülür;
+            WCAG AA eşiğini (4,5:1) geçmeyen renk reddedilir.
+
+    SiteContact:
+      type: object
+      properties:
+        phone:
+          oneOf: [{ $ref: '#/components/schemas/ContactChannel' }, { type: 'null' }]
+        whatsapp:
+          oneOf: [{ $ref: '#/components/schemas/ContactChannel' }, { type: 'null' }]
+        email:
+          oneOf: [{ $ref: '#/components/schemas/ContactChannel' }, { type: 'null' }]
+        address:
+          type: [object, 'null']
+          description: Açık adres ve il birlikte doldurulmadıysa `null` döner.
+          properties:
+            street_address: { type: string }
+            district: { type: string }
+            city: { type: string }
+            postal_code: { type: [string, 'null'] }
+            map_embed_url: { type: [string, 'null'] }
+        working_hours:
+          type: array
+          items:
+            type: object
+            properties:
+              label: { type: string }
+              value: { type: string }
+        social:
+          type: array
+          items:
+            type: object
+            properties:
+              label: { type: string }
+              href: { type: string }
+
+    SiteService:
+      type: object
+      required: [slug, title, summary, intro, icon]
+      properties:
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: string }
+        intro: { type: string }
+        icon:
+          type: string
+          description: |
+            Lucide ikon bileşeninin adı. İstemci tanımadığı adı sessizce
+            varsayılana düşürür — boş kutu göstermez.
+        body_html:
+          type: [string, 'null']
+          description: |
+            Serbest anlatım. Zengin metin editöründen gelir ve **kayıt anında**
+            sunucuda izin listesine göre temizlenir; istemci ek temizlik yapmaz.
+        audience: { type: array, items: { type: string } }
+        how_it_works:
+          type: array
+          items:
+            type: object
+            properties:
+              title: { type: string }
+              body: { type: string }
+        benefits: { type: array, items: { type: string } }
+        menu_planning: { type: string }
+        quote_needs: { type: array, items: { type: string } }
+
+    SitePost:
+      type: object
+      required: [slug, title, description, category, published_at, body_html]
+      properties:
+        slug: { type: string }
+        title: { type: string }
+        description: { type: string }
+        category: { type: string }
+        published_at: { type: string, format: date }
+        reading_minutes:
+          type: integer
+          description: Elle girilmediyse gövdeden hesaplanır.
+        body_html:
+          type: string
+          description: Sunucuda temizlenmiş HTML (bkz. `SiteService.body_html`).
+
+    SiteContent:
+      type: object
+      required: [faq, sectors, services, posts]
+      properties:
+        brand:
+          oneOf: [{ $ref: '#/components/schemas/SiteBrand' }, { type: 'null' }]
+        contact:
+          oneOf: [{ $ref: '#/components/schemas/SiteContact' }, { type: 'null' }]
+        company:
+          type: [object, 'null']
+          properties:
+            mission: { type: string }
+            vision: { type: string }
+            group_relation: { type: string }
+            values:
+              type: array
+              items:
+                type: object
+                properties: { title: { type: string }, body: { type: string } }
+            process_steps:
+              type: array
+              items:
+                type: object
+                properties:
+                  title: { type: string }
+                  icon: { type: string }
+                  body: { type: string }
+            differentiators:
+              type: array
+              items:
+                type: object
+                properties:
+                  title: { type: string }
+                  icon: { type: string }
+                  body: { type: string }
+        faq:
+          type: array
+          items:
+            type: object
+            properties: { question: { type: string }, answer: { type: string } }
+        sectors:
+          type: array
+          items:
+            type: object
+            properties:
+              slug: { type: string }
+              title: { type: string }
+              icon: { type: string }
+              need: { type: string }
+              answer: { type: string }
+              service_slug: { type: string }
+        menus:
+          type: [object, 'null']
+          properties:
+            solutions:
+              type: array
+              items:
+                type: object
+                properties:
+                  slug: { type: string }
+                  title: { type: string }
+                  summary: { type: string }
+                  audience: { type: string }
+                  principle: { type: string }
+                  courses:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        label: { type: string }
+                        examples:
+                          description: |
+                            Panelde virgülle ayrılmış tek metin olarak girilir;
+                            istemci diziye çevirir.
+                          oneOf:
+                            - type: string
+                            - type: array
+                              items: { type: string }
+            seasonal:
+              type: array
+              items:
+                type: object
+                properties: { season: { type: string }, note: { type: string } }
+        quality:
+          type: [object, 'null']
+          properties:
+            chain:
+              type: array
+              items:
+                type: object
+                properties:
+                  title: { type: string }
+                  icon: { type: string }
+                  body: { type: string }
+            allergen:
+              type: array
+              items:
+                type: object
+                properties: { text: { type: string } }
+            certifications:
+              description: |
+                **Boş dizi anlamlıdır**: firma belge beyan etmemiştir ve site
+                sertifika iddiası içermeyen bir açıklama gösterir. Doldurulan
+                her belge sitede yayınlanır.
+              type: array
+              items:
+                type: object
+                properties:
+                  name: { type: string }
+                  issuer: { type: string }
+                  valid_until: { type: [string, 'null'] }
+        services:
+          type: array
+          items: { $ref: '#/components/schemas/SiteService' }
+        posts:
+          type: array
+          items: { $ref: '#/components/schemas/SitePost' }
+        updated_at:
+          type: [string, 'null']
+          format: date-time
+          description: |
+            Üç içerik tablosunun en son değişme zamanı. İstemci bunu yeniden
+            çizim gerekip gerekmediğine karar vermek için kullanır.

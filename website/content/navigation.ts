@@ -1,6 +1,11 @@
 /**
  * Site gezinme yapısı — header, mobil menü, footer ve sitemap tek kaynaktan
  * beslenir. Yeni bir sayfa eklendiğinde yalnızca burası güncellenir.
+ *
+ * Diğer `content/*.ts` dosyalarının aksine bu dosya **yedek değil, hâlâ tek
+ * kaynak**: gezinme yapısı `/site-content` sözleşmesinde yok ve olmamalı.
+ * Menü bağlantıları var olan rotalara işaret etmek zorunda; panelden girilen
+ * bir adres kolayca 404 üretir. Rotalar kodla birlikte değişir, içerikle değil.
  */
 
 export interface NavLink {

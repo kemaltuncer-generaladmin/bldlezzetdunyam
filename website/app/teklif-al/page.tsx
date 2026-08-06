@@ -2,15 +2,20 @@ import { Clock, FileText, MessageSquare, Phone } from 'lucide-react';
 import { JsonLd } from '@/components/json-ld';
 import { PageHero, type Crumb } from '@/components/site/page-hero';
 import { QuoteForm } from '@/components/site/quote-form';
-import { CONTACT } from '@/content/site';
+import { fetchSiteContent } from '@/lib/api/site-content';
 import { breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
 
-export const metadata = pageMetadata({
-  title: 'Teklif Al',
-  description:
-    'Kurumsal catering, toplu yemek ve organizasyon hizmetleri için teklif talebi oluşturun. Kişi sayınızı ve hizmet türünüzü iletin, menü önerisiyle birlikte dönelim.',
-  path: '/teklif-al',
-});
+export async function generateMetadata() {
+  const { brand } = await fetchSiteContent();
+
+  return pageMetadata({
+    title: 'Teklif Al',
+    description:
+      'Kurumsal catering, toplu yemek ve organizasyon hizmetleri için teklif talebi oluşturun. Kişi sayınızı ve hizmet türünüzü iletin, menü önerisiyle birlikte dönelim.',
+    path: '/teklif-al',
+    brandName: brand.name,
+  });
+}
 
 const CRUMBS: readonly Crumb[] = [{ href: '/teklif-al', label: 'Teklif Al' }];
 
@@ -32,7 +37,9 @@ const WHAT_HAPPENS_NEXT = [
   },
 ] as const;
 
-export default function TeklifAlPage() {
+export default async function TeklifAlPage() {
+  const { contact } = await fetchSiteContent();
+
   return (
     <>
       <JsonLd data={breadcrumbJsonLd(CRUMBS)} />
@@ -76,7 +83,7 @@ export default function TeklifAlPage() {
           </div>
 
           {/* Doğrudan iletişim bloğu yalnızca gerçek bir kanal girilmişse basılır. */}
-          {(CONTACT.phone || CONTACT.whatsapp) && (
+          {(contact.phone || contact.whatsapp) && (
             <div className="rounded-2xl border bg-surface-warm p-6 text-surface-warm-foreground">
               <h2 className="font-display text-lg font-semibold tracking-tight">
                 Form yerine konuşalım
@@ -85,18 +92,18 @@ export default function TeklifAlPage() {
                 Acil bir talebiniz varsa doğrudan arayabilirsiniz.
               </p>
               <div className="mt-4 space-y-2">
-                {CONTACT.phone && (
+                {contact.phone && (
                   <a
-                    href={CONTACT.phone.href}
+                    href={contact.phone.href}
                     className="flex min-h-11 items-center gap-2 text-sm font-semibold text-primary"
                   >
                     <Phone aria-hidden="true" className="size-4" />
-                    {CONTACT.phone.display}
+                    {contact.phone.display}
                   </a>
                 )}
-                {CONTACT.whatsapp && (
+                {contact.whatsapp && (
                   <a
-                    href={CONTACT.whatsapp.href}
+                    href={contact.whatsapp.href}
                     className="flex min-h-11 items-center gap-2 text-sm font-semibold text-primary"
                   >
                     <MessageSquare aria-hidden="true" className="size-4" />

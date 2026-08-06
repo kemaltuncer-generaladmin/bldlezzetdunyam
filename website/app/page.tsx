@@ -19,12 +19,7 @@ import { JsonLd } from '@/components/json-ld';
 import { CtaBand } from '@/components/site/cta-band';
 import { FeatureItem, ProcessStepCard, SectorCard, ServiceCard } from '@/components/site/cards';
 import { Section, SectionHeading } from '@/components/site/section';
-import { DIFFERENTIATORS, FAQ, PROCESS_STEPS } from '@/content/company';
-import { MENU_SOLUTIONS } from '@/content/menus';
-import { QUALITY_CHAIN } from '@/content/quality';
-import { SECTORS } from '@/content/sectors';
-import { SERVICES } from '@/content/services';
-import { BRAND } from '@/content/site';
+import { fetchSiteContent } from '@/lib/api/site-content';
 import { faqJsonLd, organizationJsonLd, pageMetadata } from '@/lib/seo';
 
 /**
@@ -33,18 +28,20 @@ import { faqJsonLd, organizationJsonLd, pageMetadata } from '@/lib/seo';
  * Sipariş kataloğuna **bağlı değil.** Önceki sürüm menüyü API'den çekiyordu ve
  * API erişilemediğinde ana sayfanın tamamı hata ekranına düşüyordu — kurumsal
  * bir ziyaretçinin ilk gördüğü şeyin sipariş altyapısının sağlığına bağlı
- * olması yanlış. Sayfa artık tamamen statik; sipariş akışına `/menu`
- * üzerinden giriliyor.
+ * olması yanlış. İçerik admin panelinden gelir (`lib/api/site-content.ts`);
+ * API erişilemezse yedeğe düşülür ve sayfa yine dolu açılır. Sipariş akışına
+ * `/menu` üzerinden giriliyor.
  */
-export const metadata = pageMetadata({
-  title: 'Kurumsal Catering ve Toplu Yemek Hizmeti',
-  description:
-    'Kurumlara, okullara, sağlık kuruluşlarına ve organizasyonlara toplu yemek ve catering hizmeti. Menü planlaması, hijyenik üretim ve zamanında teslimat.',
-  path: '/',
-});
+export async function generateMetadata() {
+  const { brand } = await fetchSiteContent();
 
-/** Ana sayfada tam liste yerine öne çıkan altı hizmet gösteriliyor. */
-const FEATURED_SERVICES = SERVICES.slice(0, 6);
+  return pageMetadata({
+    title: 'Kurumsal Catering ve Toplu Yemek Hizmeti',
+    description: brand.description,
+    path: '/',
+    brandName: brand.name,
+  });
+}
 
 /** Hero altındaki güven şeridi — rakam değil, çalışma biçimi. */
 const TRUST_STRIP = [
@@ -78,11 +75,17 @@ const OPERATING_MODELS = [
   },
 ] as const;
 
-export default function HomePage() {
+export default async function HomePage() {
+  const content = await fetchSiteContent();
+  const { brand, company, faq, menus, quality, sectors, services } = content;
+
+  /** Ana sayfada tam liste yerine öne çıkan altı hizmet gösteriliyor. */
+  const featuredServices = services.slice(0, 6);
+
   return (
     <>
-      <JsonLd data={organizationJsonLd()} />
-      <JsonLd data={faqJsonLd(FAQ)} />
+      <JsonLd data={organizationJsonLd(brand, content.contact)} />
+      <JsonLd data={faqJsonLd(faq)} />
 
       {/* ── 1. Hero ───────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden border-b bg-surface-warm text-surface-warm-foreground">
@@ -149,7 +152,7 @@ export default function HomePage() {
                 Nasıl çalışıyoruz
               </p>
               <ol className="mt-6 space-y-5">
-                {PROCESS_STEPS.slice(0, 4).map((step, index) => (
+                {company.processSteps.slice(0, 4).map((step, index) => (
                   <li key={step.title} className="flex gap-4">
                     <span
                       aria-hidden="true"
@@ -181,7 +184,7 @@ export default function HomePage() {
         />
 
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURED_SERVICES.map((service) => (
+          {featuredServices.map((service) => (
             <div key={service.slug} className="bld-reveal">
               <ServiceCard
                 href={`/hizmetler/${service.slug}`}
@@ -213,7 +216,7 @@ export default function HomePage() {
         />
 
         <div className="mt-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-          {DIFFERENTIATORS.map((item) => (
+          {company.differentiators.map((item) => (
             <div key={item.title} className="bld-reveal">
               <FeatureItem icon={item.icon} title={item.title} body={item.body} tone="dark" />
             </div>
@@ -231,7 +234,7 @@ export default function HomePage() {
         />
 
         <ol className="mt-12 max-w-3xl">
-          {PROCESS_STEPS.map((step, index) => (
+          {company.processSteps.map((step, index) => (
             <ProcessStepCard
               key={step.title}
               index={index + 1}
@@ -253,7 +256,7 @@ export default function HomePage() {
         />
 
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {MENU_SOLUTIONS.slice(0, 3).map((solution) => (
+          {menus.solutions.slice(0, 3).map((solution) => (
             <article
               key={solution.slug}
               className="flex bld-reveal flex-col rounded-2xl border bg-card p-6 text-card-foreground"
@@ -301,7 +304,7 @@ export default function HomePage() {
 
           <div>
             <ul className="grid gap-6 sm:grid-cols-2">
-              {QUALITY_CHAIN.slice(0, 4).map((principle) => (
+              {quality.chain.slice(0, 4).map((principle) => (
                 <li key={principle.title} className="bld-reveal">
                   <FeatureItem
                     icon={principle.icon}
@@ -332,7 +335,7 @@ export default function HomePage() {
         />
 
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {SECTORS.slice(0, 6).map((sector) => (
+          {sectors.slice(0, 6).map((sector) => (
             <div key={sector.slug} className="bld-reveal">
               <SectorCard
                 icon={sector.icon}
@@ -384,7 +387,7 @@ export default function HomePage() {
           />
 
           <Accordion type="single" collapsible className="w-full">
-            {FAQ.map((item, index) => (
+            {faq.map((item, index) => (
               <AccordionItem key={item.question} value={`sss-${index}`}>
                 <AccordionTrigger className="text-left text-base font-medium">
                   {item.question}
@@ -400,7 +403,7 @@ export default function HomePage() {
 
       {/* ── 10. Teklif çağrısı ────────────────────────────────────────────── */}
       <CtaBand
-        title={`${BRAND.shortName} ile çalışmak için ilk adım`}
+        title={`${brand.shortName} ile çalışmak için ilk adım`}
         description="Kişi sayınızı, hizmet türünüzü ve konumunuzu iletin; menü önerisi ve fiyatlandırmayla birlikte size dönelim."
       />
     </>

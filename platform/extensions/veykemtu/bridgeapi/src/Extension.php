@@ -22,11 +22,16 @@ use Veykemtu\BridgeApi\Console\DemoMenuCommand;
 use Veykemtu\BridgeApi\Console\KitchenDeviceCommand;
 use Veykemtu\BridgeApi\Console\PurgeOrdersCommand;
 use Veykemtu\BridgeApi\Console\SetupCommand;
+use Veykemtu\BridgeApi\Console\SiteContentImportCommand;
 use Veykemtu\BridgeApi\Console\TranslationAuditCommand;
 use Veykemtu\BridgeApi\Exceptions\ApiExceptionRenderer;
 use Veykemtu\BridgeApi\Http\Middleware\AuthenticateToken;
 use Veykemtu\BridgeApi\Http\Middleware\RequireAppHeaders;
 use Veykemtu\BridgeApi\Http\Middleware\RequireScope;
+use Veykemtu\BridgeApi\Models\SiteContent;
+use Veykemtu\BridgeApi\Models\SitePost;
+use Veykemtu\BridgeApi\Models\SiteService;
+use Veykemtu\BridgeApi\Observers\SiteContentObserver;
 
 /**
  * BLD Köprü API eklentisi.
@@ -68,6 +73,7 @@ class Extension extends BaseExtension
         $this->registerConsoleCommand('veykemtu.demoMenu', DemoMenuCommand::class);
         $this->registerConsoleCommand('veykemtu.siparisTemizle', PurgeOrdersCommand::class);
         $this->registerConsoleCommand('veykemtu.ceviriDenetle', TranslationAuditCommand::class);
+        $this->registerConsoleCommand('veykemtu.siteIceriginiAktar', SiteContentImportCommand::class);
     }
 
     /**
@@ -110,6 +116,22 @@ class Extension extends BaseExtension
         $this->registerRoutes();
         $this->registerExceptionRenderer();
         $this->trimAdminNavigation();
+        $this->observeSiteContent();
+    }
+
+    /**
+     * Kurumsal site içeriği değişince paket önbelleğini düşürür.
+     *
+     * KAYIT BURADA, MODELLERİN `booted()`'INDA DEĞİL: gerekçe
+     * `Observers\SiteContentObserver` sınıf yorumundadır. Üç modelin de aynı
+     * gözlemciyi paylaşması, "yeni bir içerik modeli eklendi ama önbellek
+     * temizliği unutuldu" hatasını tek satıra indirir.
+     */
+    private function observeSiteContent(): void
+    {
+        SiteContent::observe(SiteContentObserver::class);
+        SiteService::observe(SiteContentObserver::class);
+        SitePost::observe(SiteContentObserver::class);
     }
 
     /**

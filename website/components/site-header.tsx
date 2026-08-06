@@ -7,29 +7,38 @@ import { BrandMark } from '@/components/site/brand-mark';
 import { MainNav } from '@/components/site/main-nav';
 import { MobileNav } from '@/components/site/mobile-nav';
 import { PRIMARY_CTA } from '@/content/navigation';
-import { BRAND, CONTACT } from '@/content/site';
+import { fetchSiteContent } from '@/lib/api/site-content';
 
 /**
  * Site başlığı.
  *
- * Bilinçli olarak **statik**: cookie okumaz, oturum sorgulamaz. Böylece `/`,
+ * Bilinçli olarak **oturumsuz**: cookie okumaz, oturum sorgulamaz. Böylece `/`,
  * `/hizmetler` ve diğer pazarlama sayfaları statik/ISR kalabiliyor. Sipariş
  * akışına ait sepet rozeti ve oturum adı artık başlıkta değil — kurumsal
  * ziyaretçinin ilk gördüğü şey sepet olmamalı; sipariş akışına footer ve
  * `/menu` üzerinden giriliyor.
+ *
+ * Marka ve iletişim bilgisi panelden geliyor. `fetchSiteContent` hata
+ * fırlatmıyor: API kapalıysa yedek içerikle aynı başlık basılır, başlık
+ * hiçbir koşulda kaybolmaz.
  */
 export async function SiteHeader() {
   const t = await getTranslations('nav');
+  const { brand, contact } = await fetchSiteContent();
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70">
       <div className="mx-auto flex h-18 max-w-content items-center gap-3 px-4 sm:px-6">
         <Link
           href="/"
-          aria-label={`${BRAND.name} — ana sayfa`}
+          aria-label={`${brand.name} — ana sayfa`}
           className="shrink-0 rounded-md focus-visible:ring-2"
         >
-          <BrandMark />
+          <BrandMark
+            brandName={brand.name}
+            brandShortName={brand.shortName}
+            logoSrc={brand.logoSrc}
+          />
         </Link>
 
         <div className="ml-auto flex items-center gap-2">
@@ -49,11 +58,11 @@ export async function SiteHeader() {
             }}
           />
 
-          {CONTACT.phone && (
+          {contact.phone && (
             <Button asChild variant="ghost" size="sm" className="hidden xl:inline-flex">
-              <a href={CONTACT.phone.href}>
+              <a href={contact.phone.href}>
                 <Phone aria-hidden="true" />
-                {CONTACT.phone.display}
+                {contact.phone.display}
               </a>
             </Button>
           )}
@@ -73,7 +82,21 @@ export async function SiteHeader() {
             <Link href={PRIMARY_CTA.href}>{PRIMARY_CTA.label}</Link>
           </Button>
 
-          <MobileNav />
+          {/*
+           * İstemci bileşeni: panelden gelen değerler prop olarak iniyor.
+           * İkonlar burada seçilemez (bileşen referansı istemciye
+           * gönderilemez), bu yüzden kanal türü metin olarak geçiyor.
+           */}
+          <MobileNav
+            brandName={brand.name}
+            brandShortName={brand.shortName}
+            logoSrc={brand.logoSrc}
+            channels={[
+              contact.phone && { kind: 'phone' as const, ...contact.phone },
+              contact.whatsapp && { kind: 'whatsapp' as const, ...contact.whatsapp },
+              contact.email && { kind: 'email' as const, ...contact.email },
+            ].filter((channel) => channel !== null)}
+          />
         </div>
       </div>
     </header>

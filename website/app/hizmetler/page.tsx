@@ -6,29 +6,37 @@ import { CtaBand } from '@/components/site/cta-band';
 import { PageHero } from '@/components/site/page-hero';
 import { Section, SectionHeading } from '@/components/site/section';
 import { Button } from '@/components/ui/button';
-import { SERVICES } from '@/content/services';
 import { PRIMARY_CTA } from '@/content/navigation';
+import { fetchSiteContent } from '@/lib/api/site-content';
 import { breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
 import type { Crumb } from '@/components/site/page-hero';
 
 /**
  * Hizmet listesi.
  *
- * Kartların tamamı `content/services.ts` içinden üretiliyor: yeni bir hizmet
- * eklendiğinde bu dosyaya dokunmak gerekmiyor, hem liste hem detay sayfası
- * kendiliğinden oluşuyor.
+ * Kartların tamamı panelden gelen hizmet kataloğundan üretiliyor: yeni bir
+ * hizmet eklendiğinde bu dosyaya dokunmak gerekmiyor, hem liste hem detay
+ * sayfası kendiliğinden oluşuyor. API kapalıysa yedek katalog basılır.
  */
 
 const CRUMBS: readonly Crumb[] = [{ href: '/hizmetler', label: 'Hizmetlerimiz' }];
 
-export const metadata = pageMetadata({
-  title: 'Hizmetlerimiz',
-  description:
-    'Kurumsal toplu yemek, taşıma yemek, yerinde üretim, okul ve sağlık kuruluşu yemek hizmeti, şantiye catering, davet ve toplantı ikramları.',
-  path: '/hizmetler',
-});
+export async function generateMetadata() {
+  const { brand, services } = await fetchSiteContent();
 
-export default function ServicesPage() {
+  return pageMetadata({
+    title: 'Hizmetlerimiz',
+    // Açıklama katalogdan türetiliyor: panelde hizmet eklenip çıkarıldığında
+    // arama sonucundaki özet de kendiliğinden güncelleniyor.
+    description: `Catering hizmetlerimiz: ${services.map((service) => service.title).join(', ')}.`,
+    path: '/hizmetler',
+    brandName: brand.name,
+  });
+}
+
+export default async function ServicesPage() {
+  const { services } = await fetchSiteContent();
+
   return (
     <>
       <JsonLd data={breadcrumbJsonLd(CRUMBS)} />
@@ -49,7 +57,7 @@ export default function ServicesPage() {
         />
 
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {SERVICES.map((service) => (
+          {services.map((service) => (
             <ServiceCard
               key={service.slug}
               href={`/hizmetler/${service.slug}`}

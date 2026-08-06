@@ -66,6 +66,103 @@ gönderilen değer ondan **farklıysa** yazılır. Yönetici sayfayı açık
 bırakıp yarım saat sonra ilgisiz bir alanı kaydederse mutfağın bu arada
 bastığı tuş ezilmez.
 
+## 2.6 İçerikler bölümü — kurumsal site yönetimi (06.08.2026)
+
+Kurumsal web sitesinin **tüm** içeriği panelden yönetilir; site metnini
+değiştirmek için kod yazmak gerekmez.
+
+Yan menüde **İçerikler** başlığı altında üç ekran:
+
+| Ekran | Ne yönetilir |
+|---|---|
+| Site İçeriği | Marka (ad, slogan, logo, ana renk), iletişim, kurumsal metinler, SSS, sektörler, menü çözümleri, kalite zinciri |
+| Hizmetler | Hizmet kayıtları — kendi adresi, sırası, taslak/yayın durumu |
+| Bilgi Merkezi | Blog yazıları — kendi adresi, kategorisi, yayın tarihi |
+
+Site bunları `GET /api/site-content` ile tek pakette çeker
+(`docs/03-api-sozlesmesi.md` §6).
+
+### Neden üç tablo, tek tablo değil?
+
+İçeriğin iki farklı doğası var. **Kayıt olanlar** (hizmet, yazı) zamanla
+çoğalır, kendi adresi olur, taslakta bekler. Bunlar satır olmalı — tek bir
+devasa alan içinde düzenlenselerdi taslak/yayın ayrımı yapılamaz ve iki kişi
+aynı anda kaydettiğinde biri diğerinin yazısını ezerdi. **Sınırlı listeler**
+(iletişim, SSS, sektörler) sabit sayıda ve birlikte okunur; dört maddelik bir
+SSS için panele ayrı bir bölüm koymak gereksizdi.
+
+### Yapılandırılmış alan + serbest metin, ikisi birden
+
+Kartları ve ızgaraları besleyen alanlar yapılandırılmıştır (başlık, özet,
+madde listesi) — sitenin görsel düzeni oradan doğuyor. Her kaydın ayrıca bir
+`body_html` alanı var: zengin metin editöründen serbest anlatım.
+
+> **Her şey serbest HTML olsaydı site görselliğini KAYBEDERDİ.** Kart, ızgara
+> ve renk bantları yapılandırılmış veriden üretiliyor; hepsi tek bir metin
+> kutusuna indirgenseydi sayfa "başlık + paragraf" yığınına dönerdi.
+
+### `body_html` kayıt anında temizlenir
+
+Editörden gelen HTML `Services/HtmlSanitizer` ile **izin listesinden**
+geçirilir. `<script>`, olay öznitelikleri (`onerror=`), `style`, `class`,
+`<div>`, `<img>` ve `javascript:` bağlantıları düşer; **etiketin içindeki
+metin korunur** — yöneticinin yazdığı cümle kaybolmaz, yalnızca biçimi düşer.
+
+Yasaklananları saymak yerine izin verilenleri saymanın sebebi: yasak listesi
+kaybedilen bir yarıştır. Temizlik okuma anında değil kayıt anında yapılır —
+okuma her istekte olur, kayıt nadiren; ayrıca veritabanında temiz veri durması
+siteyi tek savunma hattı olmaktan çıkarır.
+
+En sık karşılaşılan durum saldırı değil **Word yapıştırması**: yüzlerce satır
+`style="font-family:Calibri"` sitede tasarım sistemi dışına çıkan yazı tipleri
+üretir.
+
+### Marka rengi kaydedilmeden önce ölçülür
+
+Ana renk panelden seçilebilir. Bu güzel bir özgürlük ama tehlikeli: açık bir
+ton seçildiğinde butonlardaki beyaz yazı okunamaz olur ve site erişilebilirlik
+gerekliliğini (`docs/06-website.md` §5) sessizce kaybeder — rengi seçen kişi
+kontrast oranı hesaplamaz.
+
+`Admin/BrandGuard` beyaz metinle kontrastı ölçer ve WCAG AA eşiğini (4,5:1)
+geçmeyen rengi **reddeder**, ölçülen oranı yöneticiye söyler.
+
+> **Kırpmıyoruz, "en yakın uygun tona" çevirmiyoruz.** Yönetici seçtiği rengin
+> değiştirildiğini fark etmez ve markasının rengini yanlış bilir.
+
+Ölçülmüş örnekler: `#C2410C` → 5,18:1 kabul · `#EA580C` → 3,56:1 red ·
+`#F97316` → 2,80:1 red. Ayrıştırılamayan girdi 0 döner, yani reddedilir.
+
+### Telefon tek alan
+
+Site `{display, href}` çifti bekliyor ama panelde iki kutu göstermek
+("0212 000 00 00" ve "tel:+902120000000") yöneticiyi bir biçim kuralını elle
+uygulamaya zorlardı; ilk yazım hatasında bağlantı çalışmazdı. Yönetici numarayı
+okunur yazar, `href` sunucuda türetilir.
+
+### Boş alan = gösterme
+
+Doldurulmamış iletişim kanalı sitede **hiç görünmez** — yer tutucu, boş satır
+veya "—" çıkmaz. Bu bir eksiklik değil, arayüzün anladığı bir durum: değer
+girildiği anda ilgili blok kendiliğinden belirir.
+
+Aynı ilke sertifikalarda da geçerli ve orada **hukuki** bir gerekçesi var:
+belge listesi boşken site sertifika iddiası içermeyen bir açıklama gösterir.
+Gıda sektöründe sahip olunmayan belgeyi beyan etmenin yaptırımı vardır.
+
+### Başlangıç verisi
+
+`php artisan veykemtu:siteIceriginiAktar` sitenin mevcut içeriğini
+veritabanına aktarır; yönetici panele girdiğinde boş ekran değil, düzenlemeye
+hazır içerik bulur. Komut tekrar çalıştırılabilir ve **panelde yapılan
+düzenlemeleri ezmez** (üzerine yazmak için `--force`).
+
+### Önbellek ve tazeleme
+
+Paket sunucuda 60 dakika önbelleklenir. Kaydet'e basıldığında önbellek anında
+temizlenir ve siteye tazeleme isteği gider; yönetici değişikliği süre dolmasını
+beklemeden görür.
+
 ## 3. Eklenti yapısı
 
 Tüm özel kod: `platform/extensions/veykemtu/<modul>/`

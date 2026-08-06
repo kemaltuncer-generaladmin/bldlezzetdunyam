@@ -5,8 +5,13 @@
  * catering fiyatı zaten kişi sayısı, hizmet sıklığı ve konuma göre değişiyor;
  * uydurma rakam yerine teklif akışına yönlendiriyoruz.
  *
- * Menü içerikleri **örnektir**: firmanın gerçekte uyguladığı menüler
- * girildiğinde bu dosya güncellenir, sayfalara dokunmak gerekmez.
+ * **YEDEK / BAŞLANGIÇ DEĞERİ.** Tek kaynak admin panelidir; sayfa menüleri
+ * `lib/api/site-content.ts` üzerinden okur. Panelde bir kabın örnekleri
+ * virgülle ayrılmış TEK METİN olarak giriliyor, siteye gelirken diziye
+ * çevriliyor — burada zaten dizi olarak duruyorlar.
+ *
+ * Menü içerikleri **örnektir**: firmanın gerçekte uyguladığı menüler panele
+ * girildiğinde bu dosyaya dokunmak gerekmez.
  */
 
 export interface MenuCourse {

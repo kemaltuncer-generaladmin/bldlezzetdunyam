@@ -1,12 +1,13 @@
 /**
- * Bilgi Merkezi yazıları.
+ * Bilgi Merkezi yazıları — **YEDEK / BAŞLANGIÇ DEĞERİ**.
  *
- * Projede CMS yok. Yazılar burada yapılandırılmış veri olarak duruyor; ileride
- * bir CMS'e taşınacaksa `Post` tipini karşılayan bir kaynak yazmak yeterli,
- * sayfalara dokunmak gerekmez.
+ * Tek kaynak admin panelidir; yazılar `lib/api/site-content.ts` üzerinden
+ * gelir ve gövdeleri sunucuda temizlenmiş `body_html` olarak taşınır.
  *
- * Gövde serbest HTML değil, tipli bloklardan oluşuyor: hem render tarafı
- * güvenli kalıyor hem de başlık hiyerarşisi (h2/h3) yanlışlıkla bozulamıyor.
+ * Buradaki yedek gövdeler ise serbest HTML değil, tipli bloklardan oluşuyor:
+ * repoya yazılan içerikte enjeksiyon yüzeyi hiç açılmıyor ve başlık
+ * hiyerarşisi (h2/h3) yanlışlıkla bozulamıyor. Yazı sayfası hangisi doluysa
+ * onu basar — böylece API kapalıyken de yazılar okunabilir kalır.
  */
 
 export type PostBlock =
@@ -345,11 +346,9 @@ export const POSTS: readonly Post[] = [
   },
 ];
 
-export function findPost(slug: string): Post | undefined {
-  return POSTS.find((post) => post.slug === slug);
-}
-
-/** Yayın tarihine göre yeniden eskiye. */
-export const POSTS_BY_DATE: readonly Post[] = [...POSTS].sort((a, b) =>
-  b.publishedAt.localeCompare(a.publishedAt),
-);
+/*
+ * Not: `findPost` ve tarihe göre sıralama artık burada değil. Yedek listeyle
+ * panelden gelen listeyi ayrı ayrı sıralamak/aramak iki farklı doğruluk
+ * kaynağı yaratıyordu; ikisi de birleştirilmiş içerik üzerinde çalışıyor
+ * (`lib/api/site-content.ts`).
+ */

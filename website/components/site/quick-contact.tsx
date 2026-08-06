@@ -1,11 +1,12 @@
 import { MessageCircle, Phone } from 'lucide-react';
-import { CONTACT } from '@/content/site';
+import { fetchSiteContent } from '@/lib/api/site-content';
 
 /**
  * Sabit hızlı iletişim düğmesi.
  *
  * Hiçbir kanal girilmemişse **hiç render edilmez** — boş bir baloncuk
- * göstermek yerine.
+ * göstermek yerine. Kanallar panelden gelir; API kapalıyken yedeğe düşülür ve
+ * yedekte kanal olmadığı için düğme yine görünmez.
  *
  * Yerleşim notu: mobilde sağ altta duruyor ve içeriğin üstüne biniyor. Bunun
  * kapattığı alanı telafi etmek için `<body>` yerine burada değil, `layout`
@@ -14,11 +15,13 @@ import { CONTACT } from '@/content/site';
  * ana ekran çubuğunun altında kalmasın, ve footer'ın son satırı zaten
  * yasal bağlantılardan oluştuğu için üzerine binmesi bilgi kaybı yaratmıyor.
  */
-export function QuickContact() {
-  const channel = CONTACT.whatsapp ?? CONTACT.phone;
+export async function QuickContact() {
+  const { contact } = await fetchSiteContent();
+
+  const channel = contact.whatsapp ?? contact.phone;
   if (!channel) return null;
 
-  const isWhatsapp = CONTACT.whatsapp !== null;
+  const isWhatsapp = contact.whatsapp !== null;
   const Icon = isWhatsapp ? MessageCircle : Phone;
   const label = isWhatsapp ? 'WhatsApp ile yazın' : `Telefon: ${channel.display}`;
 

@@ -19,6 +19,7 @@ use Veykemtu\BridgeApi\Http\Controllers\CatalogController;
 use Veykemtu\BridgeApi\Http\Controllers\HealthController;
 use Veykemtu\BridgeApi\Http\Controllers\KitchenController;
 use Veykemtu\BridgeApi\Http\Controllers\OrderController;
+use Veykemtu\BridgeApi\Http\Controllers\SiteContentController;
 
 Route::prefix('api')
     ->middleware(['bld.headers'])
@@ -35,6 +36,11 @@ Route::prefix('api')
         Route::get('locations', [CatalogController::class, 'locations']);
         Route::get('locations/{location}/menu', [CatalogController::class, 'menu']);
         Route::get('app-version', [AppVersionController::class, 'show']);
+
+        // Kurumsal site içeriği. Kimlik gerektirmez — içerik zaten herkese
+        // açık yayınlanıyor; token istemek statik üretimi zorlaştırıp hiçbir
+        // şeyi korumazdı.
+        Route::get('site-content', [SiteContentController::class, 'show']);
 
         // Eşleme kodu tek kullanımlık ve 10 dk ömürlü; kaba kuvvete karşı
         // ayrıca oran sınırı uygulanır.

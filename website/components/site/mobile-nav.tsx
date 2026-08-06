@@ -15,8 +15,21 @@ import {
 } from '@/components/ui/sheet';
 import { BrandMark } from '@/components/site/brand-mark';
 import { LEGAL_NAV, MAIN_NAV, PRIMARY_CTA } from '@/content/navigation';
-import { CONTACT } from '@/content/site';
 import { cn } from '@/lib/utils';
+
+/**
+ * İletişim kanalı — sunucudan prop olarak inen düz veri.
+ *
+ * `icon` alanı YOK: bileşen referansı sunucudan istemciye geçirilemez. Kanal
+ * türü metin olarak geliyor, ikon burada seçiliyor.
+ */
+export type MobileNavChannel = {
+  readonly kind: 'phone' | 'whatsapp' | 'email';
+  readonly display: string;
+  readonly href: string;
+};
+
+const CHANNEL_ICONS = { phone: Phone, whatsapp: MessageCircle, email: Mail } as const;
 
 /**
  * Sipariş akışı rotaları — `MainNav` ile aynı liste.
@@ -46,7 +59,17 @@ const ORDERING_ROUTES = [
  * Alt menüler burada açılır-kapanır değil, düz liste hâlinde: mobilde iki
  * seviyeli açılım fazladan bir dokunuş ve fazladan bir hata payı demek.
  */
-export function MobileNav() {
+export function MobileNav({
+  brandName,
+  brandShortName,
+  logoSrc,
+  channels,
+}: {
+  brandName?: string;
+  brandShortName?: string;
+  logoSrc?: string | null;
+  channels: readonly MobileNavChannel[];
+}) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -57,18 +80,6 @@ export function MobileNav() {
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
-
-  const channels = [
-    CONTACT.phone && { icon: Phone, label: CONTACT.phone.display, href: CONTACT.phone.href },
-    CONTACT.whatsapp && {
-      icon: MessageCircle,
-      label: 'WhatsApp',
-      href: CONTACT.whatsapp.href,
-    },
-    CONTACT.email && { icon: Mail, label: CONTACT.email.display, href: CONTACT.email.href },
-  ].filter((channel): channel is { icon: typeof Phone; label: string; href: string } =>
-    Boolean(channel),
-  );
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -87,7 +98,7 @@ export function MobileNav() {
         <SheetHeader className="border-b p-4 text-left">
           <SheetTitle asChild>
             <span>
-              <BrandMark />
+              <BrandMark brandName={brandName} brandShortName={brandShortName} logoSrc={logoSrc} />
             </span>
           </SheetTitle>
           <SheetDescription className="sr-only">
@@ -153,14 +164,19 @@ export function MobileNav() {
           </Button>
 
           {/* Girilmemiş kanal hiç render edilmez — sahte numara göstermek yerine. */}
-          {channels.map((channel) => (
-            <Button key={channel.href} asChild variant="outline" size="lg" className="w-full">
-              <a href={channel.href}>
-                <channel.icon aria-hidden="true" />
-                {channel.label}
-              </a>
-            </Button>
-          ))}
+          {channels.map((channel) => {
+            const Icon = CHANNEL_ICONS[channel.kind];
+            // WhatsApp'ta numara değil eylem yazılır; `href` zaten wa.me adresi.
+            const label = channel.kind === 'whatsapp' ? 'WhatsApp' : channel.display;
+            return (
+              <Button key={channel.href} asChild variant="outline" size="lg" className="w-full">
+                <a href={channel.href}>
+                  <Icon aria-hidden="true" />
+                  {label}
+                </a>
+              </Button>
+            );
+          })}
         </div>
       </SheetContent>
     </Sheet>

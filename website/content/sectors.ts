@@ -1,6 +1,10 @@
 /**
  * Hizmet verilen alanlar.
  *
+ * **YEDEK / BAŞLANGIÇ DEĞERİ.** Tek kaynak admin panelidir; sayfa listeyi
+ * `lib/api/site-content.ts` üzerinden okur. Panelde `icon` alanı lucide ikon
+ * ADI olarak (metin) girilir ve `lib/lucide-icon.ts` bunu bileşene çevirir.
+ *
  * Bu liste **sektörleri** anlatır, referans firma değil. Repoda doğrulanmış
  * müşteri bilgisi yok; sahte logo veya firma adı üretmek yerine hangi alanlarda
  * çalışıldığını ve o alanın neye ihtiyaç duyduğunu anlatıyoruz.

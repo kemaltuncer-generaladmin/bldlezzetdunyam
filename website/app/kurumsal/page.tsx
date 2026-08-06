@@ -4,15 +4,7 @@ import { FeatureItem, ProcessStepCard } from '@/components/site/cards';
 import { CtaBand } from '@/components/site/cta-band';
 import { PageHero } from '@/components/site/page-hero';
 import { Section, SectionHeading } from '@/components/site/section';
-import {
-  DIFFERENTIATORS,
-  GROUP_RELATION,
-  MISSION,
-  PROCESS_STEPS,
-  VALUES,
-  VISION,
-} from '@/content/company';
-import { BRAND } from '@/content/site';
+import { fetchSiteContent } from '@/lib/api/site-content';
 import { breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
 import type { Crumb } from '@/components/site/page-hero';
 
@@ -20,32 +12,39 @@ import type { Crumb } from '@/components/site/page-hero';
  * Kurumsal sayfası.
  *
  * Tarihçe bölümü bilerek yok: kuruluş yılı, ölçek ve dönüm noktaları için
- * repoda doğrulanmış bir kaynak bulunmuyor. Anlatım rakam yerine çalışma
- * biçimi üzerinden kuruluyor — içeriğin tamamı `content/company.ts`'ten gelir.
+ * doğrulanmış bir kaynak bulunmuyor. Anlatım rakam yerine çalışma biçimi
+ * üzerinden kuruluyor — içeriğin tamamı admin panelinden gelir, API kapalıysa
+ * `content/company.ts` yedeğinden.
  */
 
 const CRUMBS: readonly Crumb[] = [{ href: '/kurumsal', label: 'Kurumsal' }];
 
-export const metadata = pageMetadata({
-  title: 'Kurumsal',
-  description:
-    'Benim Lezzet Dünyam nasıl çalışır: misyonu, değerleri, ilk görüşmeden düzenli hizmete uzanan süreci ve catering yaklaşımı.',
-  path: '/kurumsal',
-});
+export async function generateMetadata() {
+  const { brand } = await fetchSiteContent();
 
-export default function KurumsalPage() {
+  return pageMetadata({
+    title: 'Kurumsal',
+    description: `${brand.name} nasıl çalışır: misyonu, değerleri, ilk görüşmeden düzenli hizmete uzanan süreci ve catering yaklaşımı.`,
+    path: '/kurumsal',
+    brandName: brand.name,
+  });
+}
+
+export default async function KurumsalPage() {
+  const { brand, company } = await fetchSiteContent();
+
   return (
     <>
       <JsonLd data={breadcrumbJsonLd(CRUMBS)} />
 
-      <PageHero crumbs={CRUMBS} eyebrow="Kurumsal" title="Hakkımızda" description={BRAND.tagline} />
+      <PageHero crumbs={CRUMBS} eyebrow="Kurumsal" title="Hakkımızda" description={brand.tagline} />
 
       <Section aria-labelledby="hakkimizda-baslik">
         <SectionHeading
           id="hakkimizda-baslik"
           eyebrow="Ne yapıyoruz"
           title="Kalabalık sofraların işletmesi"
-          description={BRAND.description}
+          description={brand.description}
         />
         <div className="bld-prose mt-8 max-w-2xl bld-reveal">
           <p>
@@ -74,7 +73,7 @@ export default function KurumsalPage() {
               <Target className="size-5" />
             </span>
             <h3 className="mt-4 font-display text-xl font-semibold tracking-tight">Misyonumuz</h3>
-            <p className="mt-3 text-base/7 opacity-85">{MISSION}</p>
+            <p className="mt-3 text-base/7 opacity-85">{company.mission}</p>
           </div>
 
           <div>
@@ -85,7 +84,7 @@ export default function KurumsalPage() {
               <Compass className="size-5" />
             </span>
             <h3 className="mt-4 font-display text-xl font-semibold tracking-tight">Vizyonumuz</h3>
-            <p className="mt-3 text-base/7 opacity-85">{VISION}</p>
+            <p className="mt-3 text-base/7 opacity-85">{company.vision}</p>
           </div>
         </div>
       </Section>
@@ -99,7 +98,7 @@ export default function KurumsalPage() {
         />
 
         <ul className="mt-10 grid bld-reveal gap-6 sm:grid-cols-2">
-          {VALUES.map((value) => (
+          {company.values.map((value) => (
             <li
               key={value.title}
               className="rounded-2xl border border-l-4 border-l-primary bg-card p-6 text-card-foreground"
@@ -120,7 +119,7 @@ export default function KurumsalPage() {
         />
 
         <ol className="mt-10">
-          {PROCESS_STEPS.map((step, index) => (
+          {company.processSteps.map((step, index) => (
             <ProcessStepCard
               key={step.title}
               index={index + 1}
@@ -140,19 +139,19 @@ export default function KurumsalPage() {
           >
             Şirket ailesi
           </h2>
-          <p className="mt-5 text-base/7 opacity-85">{GROUP_RELATION}</p>
+          <p className="mt-5 text-base/7 opacity-85">{company.groupRelation}</p>
         </div>
       </Section>
 
       <Section aria-labelledby="neden-bld-baslik">
         <SectionHeading
           id="neden-bld-baslik"
-          eyebrow={`Neden ${BRAND.shortName}`}
+          eyebrow={`Neden ${brand.shortName}`}
           title="Farkı yaratan, vaat değil çalışma biçimi"
         />
 
         <div className="mt-10 grid bld-reveal gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          {DIFFERENTIATORS.map((item) => (
+          {company.differentiators.map((item) => (
             <FeatureItem key={item.title} icon={item.icon} title={item.title} body={item.body} />
           ))}
         </div>

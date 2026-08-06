@@ -5,7 +5,7 @@ import { JsonLd } from '@/components/json-ld';
 import { PageHero, type Crumb } from '@/components/site/page-hero';
 import { Section } from '@/components/site/section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { BRAND } from '@/content/site';
+import { fetchSiteContent } from '@/lib/api/site-content';
 import { breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
 
 const TITLE = 'Çerez Politikası';
@@ -14,11 +14,16 @@ const DESCRIPTION =
 
 const CRUMBS: readonly Crumb[] = [{ href: '/cerez-politikasi', label: TITLE }];
 
-export const metadata: Metadata = pageMetadata({
-  title: TITLE,
-  description: DESCRIPTION,
-  path: '/cerez-politikasi',
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const { brand } = await fetchSiteContent();
+
+  return pageMetadata({
+    title: TITLE,
+    description: DESCRIPTION,
+    path: '/cerez-politikasi',
+    brandName: brand.name,
+  });
+}
 
 interface CookieRow {
   readonly name: string;
@@ -69,7 +74,9 @@ const COOKIES: readonly CookieRow[] = [
   },
 ];
 
-export default function CerezPolitikasiPage() {
+export default async function CerezPolitikasiPage() {
+  const { brand } = await fetchSiteContent();
+
   return (
     <>
       <JsonLd data={breadcrumbJsonLd(CRUMBS)} />
@@ -99,7 +106,7 @@ export default function CerezPolitikasiPage() {
               oturumunuzu ve sepetinizi böyle hatırlar.
             </p>
             <p>
-              {BRAND.name} sitesinde çerezler yalnızca sitenin çalışması ve alışveriş akışının
+              {brand.name} sitesinde çerezler yalnızca sitenin çalışması ve alışveriş akışının
               sürmesi için kullanılıyor. Reklam veya profilleme amaçlı bir çerez bulunmuyor.
             </p>
 

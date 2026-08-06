@@ -1,8 +1,13 @@
 /**
- * Site geneli marka ve iletişim bilgileri — TEK KAYNAK.
+ * Site geneli marka ve iletişim bilgileri — **YEDEK / BAŞLANGIÇ DEĞERİ**.
  *
- * Telefon, adres, e-posta gibi değerler hiçbir bileşene tekrar yazılmaz;
- * hepsi buradan okunur.
+ * Tek kaynak artık **admin panelidir**; site bu değerleri `GET /site-content`
+ * üzerinden okur (`lib/api/site-content.ts`). Bu dosya yalnızca API'ye
+ * ulaşılamadığında ya da bir bölüm panelde henüz doldurulmadığında devreye
+ * girer. Silinmez: onsuz API kapalıyken site bomboş açılırdı.
+ *
+ * Burada bir değeri değiştirmek **yayındaki siteyi değiştirmez** — panelde
+ * karşılığı doldurulmuşsa panel kazanır.
  *
  * ## `null` ne demek?
  *
@@ -12,10 +17,12 @@
  *
  * `null` bir eksiklik işareti değil, arayüzün anladığı bir durumdur: bileşenler
  * `null` alanı yer tutucu metinle doldurmaz, o satırı/bağlantıyı hiç
- * göstermez. Firma sahibi değeri girdiği anda ilgili blok kendiliğinden
- * görünür hâle gelir — başka hiçbir dosyaya dokunmak gerekmez.
+ * göstermez. Firma sahibi değeri **panelden** girdiği anda ilgili blok
+ * kendiliğinden görünür hâle gelir — koda dokunmak gerekmez.
  *
- * Doldurulması gereken alanların listesi: `PENDING_CONTACT_FIELDS`.
+ * Bu felsefe korunuyor: panelden boş dönen bir kanal da `null` olarak
+ * geçiyor ve aynı biçimde gizleniyor. Hangi alanların hâlâ eksik olduğunu
+ * `pendingContactFields()` (bkz. `lib/api/site-content.ts`) hesaplar.
  */
 
 export type Nullable<T> = T | null;
@@ -62,8 +69,9 @@ export const BRAND = {
  * turuncu zeminde genel bir servis kapağı, uygulama simgesi olarak üretilmiş.
  *
  * Logoyu yeniden çizmek marka kimliğini uydurmak olurdu. Bunun yerine harf
- * işareti kullanıyoruz; gerçek dosya `public/logo.svg` olarak eklendiğinde
- * `logoSrc` doldurulur ve `BrandMark` bileşeni otomatik olarak görsele geçer.
+ * işareti kullanıyoruz; panelden bir logo yüklendiğinde (`brand.logo_url`)
+ * veya gerçek dosya `public/logo.svg` olarak eklenip `src` doldurulduğunda
+ * `BrandMark` bileşeni kendiliğinden görsele geçer.
  */
 export const LOGO = {
   src: null as Nullable<string>,
@@ -81,21 +89,3 @@ export const CONTACT = {
 } as const;
 
 export const SOCIAL: readonly { readonly label: string; readonly href: string }[] = [];
-
-/**
- * Firma sahibinin doldurması gereken alanlar.
- *
- * İletişim sayfası bu listeyi okuyup, henüz girilmemiş kanallar yüzünden
- * sayfanın boş kalmasını engelleyen bir yönlendirme gösterir (form her hâlükârda
- * çalışır). Liste boşaldığında o yönlendirme kendiliğinden kaybolur.
- */
-export const PENDING_CONTACT_FIELDS: readonly string[] = [
-  CONTACT.phone ? null : 'telefon',
-  CONTACT.whatsapp ? null : 'WhatsApp',
-  CONTACT.email ? null : 'e-posta',
-  CONTACT.address ? null : 'adres',
-  CONTACT.workingHours.length > 0 ? null : 'çalışma saatleri',
-].filter((field): field is string => field !== null);
-
-export const HAS_ANY_CONTACT_CHANNEL =
-  CONTACT.phone !== null || CONTACT.whatsapp !== null || CONTACT.email !== null;

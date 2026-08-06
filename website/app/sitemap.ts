@@ -1,24 +1,25 @@
 import type { MetadataRoute } from 'next';
 import { SITE_URL } from '@/lib/api/client';
 import { fetchCatalog, flattenItems } from '@/lib/api/catalog';
+import { fetchSiteContent } from '@/lib/api/site-content';
 import { productSlug } from '@/lib/slug';
-import { POSTS } from '@/content/posts';
-import { SERVICES } from '@/content/services';
 
 export const revalidate = 3600;
 
 /**
  * `sitemap.xml` — `docs/06` §2 zorunluluğu.
  *
- * Kurumsal sayfalar `content/` dosyalarından türetiliyor: yeni bir hizmet veya
- * yazı eklendiğinde site haritası kendiliğinden güncelleniyor, kimsenin
- * buraya elle satır eklemesi gerekmiyor.
+ * Hizmet ve yazı adresleri admin panelinden türetiliyor: yeni bir hizmet veya
+ * yazı yayınlandığında site haritası kendiliğinden güncelleniyor, kimsenin
+ * buraya elle satır eklemesi gerekmiyor. İçerik API'si erişilemezse yedek
+ * katalogla üretilir — harita hiçbir koşulda hizmetsiz kalmaz.
  *
- * Ürün adresleri menüden geliyor; API erişilemezse yalnızca statik sayfalar
- * yayınlanır (site haritası boş kalmasın).
+ * Ürün adresleri menüden geliyor; sipariş API'si erişilemezse yalnızca
+ * kurumsal sayfalar yayınlanır (site haritası boş kalmasın).
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
+  const { posts, services } = await fetchSiteContent();
 
   const corporateEntries: MetadataRoute.Sitemap = [
     { url: `${SITE_URL}/`, lastModified: now, changeFrequency: 'weekly', priority: 1 },
@@ -53,14 +54,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/menu`, lastModified: now, changeFrequency: 'daily', priority: 0.6 },
   ];
 
-  const serviceEntries: MetadataRoute.Sitemap = SERVICES.map((service) => ({
+  const serviceEntries: MetadataRoute.Sitemap = services.map((service) => ({
     url: `${SITE_URL}/hizmetler/${service.slug}`,
     lastModified: now,
     changeFrequency: 'monthly',
     priority: 0.8,
   }));
 
-  const postEntries: MetadataRoute.Sitemap = POSTS.map((post) => ({
+  const postEntries: MetadataRoute.Sitemap = posts.map((post) => ({
     url: `${SITE_URL}/bilgi-merkezi/${post.slug}`,
     lastModified: new Date(post.publishedAt),
     changeFrequency: 'yearly',

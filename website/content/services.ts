@@ -1,5 +1,10 @@
 /**
- * Hizmet kataloğu — hem hizmet listesi hem detay sayfaları buradan üretilir.
+ * Hizmet kataloğu — **YEDEK / BAŞLANGIÇ DEĞERİ**.
+ *
+ * Tek kaynak admin panelidir; hizmet listesi ve detay sayfaları içeriği
+ * `lib/api/site-content.ts` üzerinden alır. Panelden gelen hizmetler ayrıca
+ * serbest bir `body_html` gövdesi taşıyabilir — yedekte böyle bir alan yok,
+ * çünkü buradaki metinler zaten yapılandırılmış alanlara bölünmüş durumda.
  *
  * Metinler bilinçli olarak **yeteneği** anlatır, **iddiayı** değil: "şu kadar
  * kişiye hizmet veriyoruz" gibi doğrulanmamış rakamlar yok, çünkü repoda böyle
@@ -408,7 +413,3 @@ export const SERVICES: readonly Service[] = [
     ],
   },
 ];
-
-export function findService(slug: string): Service | undefined {
-  return SERVICES.find((service) => service.slug === slug);
-}

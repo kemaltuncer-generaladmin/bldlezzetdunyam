@@ -6,12 +6,20 @@ import { PostCard } from '@/components/site/cards';
 import { CtaBand } from '@/components/site/cta-band';
 import { PageHero, type Crumb } from '@/components/site/page-hero';
 import { Section, SectionHeading } from '@/components/site/section';
-import { POSTS, POSTS_BY_DATE, findPost, type Post, type PostBlock } from '@/content/posts';
+import { fetchSiteContent, findPost, type SitePost } from '@/lib/api/site-content';
 import { articleJsonLd, breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
+import type { PostBlock } from '@/content/posts';
 
-/** Yazı sayısı sabit ve küçük; hepsi derleme anında üretilir. */
-export function generateStaticParams(): { slug: string }[] {
-  return POSTS.map((post) => ({ slug: post.slug }));
+/**
+ * Slug listesi panelden geliyor.
+ *
+ * `dynamicParams` kapatılmıyor: derleme sırasında API'ye ulaşılamazsa yalnızca
+ * yedekteki yazılar üretilir, panelde sonradan yayınlanan bir yazı ise hiç
+ * üretilmez. Kapalı olsaydı ikisi de 404 dönerdi.
+ */
+export async function generateStaticParams(): Promise<{ slug: string }[]> {
+  const { posts } = await fetchSiteContent();
+  return posts.map((post) => ({ slug: post.slug }));
 }
 
 export async function generateMetadata({
@@ -20,7 +28,8 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const post = findPost(slug);
+  const { brand, posts } = await fetchSiteContent();
+  const post = findPost(posts, slug);
 
   // Bilinmeyen slug'da sayfa zaten `notFound()` çağırıyor; metadata da buna
   // uygun olsun ki 404 sayfası son yazının başlığını taşımasın.
@@ -30,6 +39,7 @@ export async function generateMetadata({
     title: post.title,
     description: post.description,
     path: `/bilgi-merkezi/${post.slug}`,
+    brandName: brand.name,
   });
 }
 
@@ -43,19 +53,19 @@ const DATE_FORMAT = new Intl.DateTimeFormat('tr-TR', {
  * İlgili yazılar: önce aynı kategoriden olanlar, yetmezse en yeni yazılarla
  * tamamlanır. Böylece tek yazılık bir kategoride bile bölüm boş kalmıyor.
  */
-function relatedPosts(current: Post): readonly Post[] {
-  const others = POSTS_BY_DATE.filter((post) => post.slug !== current.slug);
+function relatedPosts(posts: readonly SitePost[], current: SitePost): readonly SitePost[] {
+  const others = posts.filter((post) => post.slug !== current.slug);
   const sameCategory = others.filter((post) => post.category === current.category);
   const rest = others.filter((post) => post.category !== current.category);
   return [...sameCategory, ...rest].slice(0, 3);
 }
 
 /**
- * Gövde render'ı.
+ * Yedek gövde render'ı.
  *
- * Blok dizisi HTML'e değil, tipli bileşenlere çevriliyor: `dangerouslySetInnerHTML`
- * yok, dolayısıyla içerik kaynağı bir gün CMS'e taşınsa bile enjeksiyon yüzeyi
- * açılmıyor. Başlık bloğu her zaman `h2` — sayfadaki tek `h1` PageHero'da.
+ * `content/posts.ts` içindeki yazılar serbest HTML değil, tipli bloklardan
+ * oluşuyor; burada bileşenlere çevriliyor. Başlık bloğu her zaman `h2` —
+ * sayfadaki tek `h1` PageHero'da.
  */
 function PostBody({ blocks }: { blocks: readonly PostBlock[] }) {
   return (
@@ -97,7 +107,8 @@ function PostBody({ blocks }: { blocks: readonly PostBlock[] }) {
 
 export default async function YaziPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const post = findPost(slug);
+  const { brand, posts } = await fetchSiteContent();
+  const post = findPost(posts, slug);
   if (!post) notFound();
 
   const path = `/bilgi-merkezi/${post.slug}`;
@@ -105,7 +116,7 @@ export default async function YaziPage({ params }: { params: Promise<{ slug: str
     { href: '/bilgi-merkezi', label: 'Bilgi Merkezi' },
     { href: path, label: post.title },
   ];
-  const related = relatedPosts(post);
+  const related = relatedPosts(posts, post);
 
   return (
     <>
@@ -116,6 +127,7 @@ export default async function YaziPage({ params }: { params: Promise<{ slug: str
           description: post.description,
           path,
           publishedAt: post.publishedAt,
+          brandName: brand.name,
         })}
       />
 
@@ -135,7 +147,20 @@ export default async function YaziPage({ params }: { params: Promise<{ slug: str
       <Section>
         {/* Ölçü satır uzunluğu için dar kolon; gövde metni tam genişlikte okunmaz. */}
         <article className="max-w-2xl">
-          <PostBody blocks={post.body} />
+          {/*
+           * Panelden gelen gövde temizlenmiş HTML'dir: kaydetme anında sunucu
+           * tarafında bir izin listesinden geçiriliyor (script, iframe, olay
+           * öznitelikleri ve stil elenmiş). Bu yüzden `dangerouslySetInnerHTML`
+           * burada bilinçli bir tercih; alternatifi, güvenilir kaynaktan gelen
+           * biçimlendirmeyi düz metne indirip yazıyı okunamaz hâle getirmekti.
+           *
+           * `bodyHtml` yoksa yazı yedekten geliyordur ve tipli bloklar basılır.
+           */}
+          {post.bodyHtml ? (
+            <div className="bld-prose" dangerouslySetInnerHTML={{ __html: post.bodyHtml }} />
+          ) : (
+            <PostBody blocks={post.body} />
+          )}
         </article>
       </Section>
 

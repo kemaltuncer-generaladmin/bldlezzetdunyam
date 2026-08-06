@@ -2,22 +2,28 @@ import Link from 'next/link';
 import { ArrowRight, MessageCircle, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PRIMARY_CTA } from '@/content/navigation';
-import { CONTACT } from '@/content/site';
+import { fetchSiteContent } from '@/lib/api/site-content';
 
 /**
  * Sayfa sonu dönüşüm bandı.
  *
  * Her bölüme CTA serpiştirmek yerine sayfa başına **bir** güçlü çağrı
  * kullanıyoruz. Birincil eylem her zaman "Teklif Al"; telefon ve WhatsApp
- * ikincil kalıyor ve yalnızca değer girilmişse görünüyor.
+ * ikincil kalıyor ve yalnızca panelde değer girilmişse görünüyor.
+ *
+ * Başlık/açıklama prop olarak kalıyor: bunlar bulunduğu sayfaya göre değişen
+ * arayüz metinleri, panelden yönetilen içerik değil. Teklif Al her zaman
+ * çalışır — iletişim kanalı hiç yoksa bile band boşalmaz.
  */
-export function CtaBand({
+export async function CtaBand({
   title = 'İhtiyacınıza özel teklif alın',
   description = 'Kişi sayınızı ve hizmet türünüzü iletin; menü önerisi ve fiyatlandırmayla birlikte dönelim.',
 }: {
   title?: string;
   description?: string;
 }) {
+  const { contact } = await fetchSiteContent();
+
   return (
     <section aria-labelledby="teklif-cagrisi" className="bg-background">
       <div className="mx-auto max-w-content px-4 pb-16 sm:px-6 sm:pb-24">
@@ -45,28 +51,28 @@ export function CtaBand({
                 </Link>
               </Button>
 
-              {CONTACT.phone && (
+              {contact.phone && (
                 <Button
                   asChild
                   size="lg"
                   variant="outline"
                   className="border-cream/30 bg-transparent text-cream hover:bg-cream/10 hover:text-cream"
                 >
-                  <a href={CONTACT.phone.href}>
+                  <a href={contact.phone.href}>
                     <Phone aria-hidden="true" />
-                    {CONTACT.phone.display}
+                    {contact.phone.display}
                   </a>
                 </Button>
               )}
 
-              {CONTACT.whatsapp && (
+              {contact.whatsapp && (
                 <Button
                   asChild
                   size="lg"
                   variant="outline"
                   className="border-cream/30 bg-transparent text-cream hover:bg-cream/10 hover:text-cream"
                 >
-                  <a href={CONTACT.whatsapp.href}>
+                  <a href={contact.whatsapp.href}>
                     <MessageCircle aria-hidden="true" />
                     WhatsApp
                   </a>

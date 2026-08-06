@@ -17,6 +17,9 @@ return [
 
     'side_menu' => [
         'settings' => 'BLD Ayarları',
+        'content' => 'İçerikler',
+        'services' => 'Hizmetler',
+        'posts' => 'Bilgi Merkezi',
     ],
 
     'permission_settings' => 'BLD sipariş ayarlarını görüntüleme ve değiştirme',
@@ -215,6 +218,161 @@ return [
     ],
 
     'side_menu_devices' => 'Mutfak kasaları',
+
+    'permission_content' => 'Kurumsal site içeriğini yönetme (hizmetler, bilgi merkezi yazıları)',
+
+    /**
+     * Hizmetler ekranı.
+     *
+     * Bu ekranda yöneticinin yapabileceği geri alınması en zor hata ADRESİ
+     * (`slug`) DEĞİŞTİRMEKTİR: paylaşılmış her bağlantı, arama motorundaki
+     * her kayıt kırılır. Alanın altındaki uyarı bu yüzden kısa bir etiket
+     * değil, sonucu söyleyen bir cümledir.
+     */
+    'services' => [
+        'text_title' => 'Hizmetler',
+        'text_form_name' => 'Hizmet',
+        'text_create_title' => 'Yeni hizmet',
+        'text_edit_title' => 'Hizmeti düzenle',
+        'text_empty' => 'Kayıtlı hizmet yok. "Yeni hizmet" ile ekleyin; yayınladığınız hizmetler sitedeki Hizmetler sayfasında listelenir.',
+        'text_filter_search' => 'Başlık veya adrese göre ara',
+        'button_new' => 'Yeni hizmet',
+        'confirm_delete' => 'Bu hizmet silinecek ve sitedeki adresi çalışmaz hâle gelecek. Hizmeti geçici olarak kaldırmak istiyorsanız silmek yerine "Sitede yayında" anahtarını kapatın. Silinsin mi?',
+
+        'column_title' => 'Hizmet',
+        'column_slug' => 'Adres',
+        'column_sort_order' => 'Sıra',
+        'column_published' => 'Yayında',
+        'column_updated' => 'Güncellenme',
+
+        'label_title' => 'Hizmet adı',
+        'help_title' => 'Sitede kartın ve detay sayfasının başlığı olarak görünür.',
+
+        'label_slug' => 'Adres (slug)',
+        'help_slug' => 'Sitedeki bağlantının son parçası: /hizmetler/BURASI. YENİ KAYITTA BAŞLIKTAN OTOMATİK ÜRETİLİR. Yayındaki bir hizmetin adresini değiştirmeyin: daha önce paylaşılan bağlantılar ve arama motoru kayıtları kırılır, ziyaretçi "sayfa bulunamadı" görür. Yalnızca küçük harf, rakam ve tire kullanın.',
+
+        'label_icon' => 'Kart ikonu',
+        'help_icon' => 'Hizmet kartının üzerinde görünen simge. Listede olmayan bir simge kullanılamaz; sitede kırık kutu görünmemesi için seçenekler sınırlıdır.',
+
+        'label_sort_order' => 'Sıra',
+        'help_sort_order' => 'Küçük sayı üstte görünür. Aynı sayıyı taşıyan hizmetler kendi aralarında eklenme sırasına göre dizilir. Boş bırakırsanız 0 kabul edilir.',
+
+        'label_published' => 'Sitede yayında',
+        'help_published' => 'Kapalıyken hizmet sitede hiç görünmez; kayıt burada durur, silinmez. Metni bitirmeden kaydetmek için bu anahtarı kapalı tutun.',
+
+        'section_card' => 'Kart ve giriş metni',
+        'section_card_comment' => 'Özet hizmetler sayfasındaki kartta, giriş ise detay sayfasının en üstünde görünür. İkisi aynı cümle olmamalı: kartta okuyan kişi "bu bana uygun mu" sorusuna, detayda "nasıl işliyor" sorusuna cevap arıyor.',
+
+        'label_summary' => 'Kart özeti',
+        'help_summary' => 'Kartta görünen tek cümle. En fazla 400 karakter, ama bir-iki satırda kalması kartların aynı boyda görünmesini sağlar.',
+
+        'label_intro' => 'Giriş paragrafı',
+        'help_intro' => 'Detay sayfasının açılış metni. Hizmetin ne olduğunu ve kime hitap ettiğini anlatan bir-iki paragraf.',
+
+        'section_detail' => 'Detay sayfası bölümleri',
+        'section_detail_comment' => 'Aşağıdaki her bölüm detay sayfasında ayrı bir başlık olarak çizilir. Boş bıraktığınız bölüm sayfada HİÇ GÖRÜNMEZ — boş başlık çizilmez, o yüzden yalnızca gerçekten dolduracağınız bölümleri doldurun.',
+
+        'label_audience' => 'Kimler için uygun?',
+        'help_audience' => 'Her satıra bir madde yazın. Ziyaretçi burada kendini tanıyabilmeli; "herkes için" gibi maddeler hiçbir şey söylemez.',
+        'label_audience_item' => 'Madde',
+        'prompt_audience' => 'Madde ekle',
+
+        'label_how_it_works' => 'Hizmet nasıl işler?',
+        'help_how_it_works' => 'Sıralı adımlar; sayfada yukarıdan aşağı numaralandırılır. Adımları müşterinin göreceği sırayla yazın: ilk temastan servis sonrasına kadar.',
+        'label_step_title' => 'Adım başlığı',
+        'label_step_body' => 'Adım açıklaması',
+        'prompt_how_it_works' => 'Adım ekle',
+
+        'label_benefits' => 'Müşteriye ne kazandırır?',
+        'help_benefits' => 'Her satıra bir kazanım. Doğrulanamayan rakam yazmayın ("%30 tasarruf" gibi); yazılamayan söz sonradan tartışma çıkarır.',
+        'label_benefit_item' => 'Kazanım',
+        'prompt_benefits' => 'Kazanım ekle',
+
+        'label_menu_planning' => 'Menü nasıl planlanır?',
+        'help_menu_planning' => 'Bu hizmette menünün neye göre kurgulandığını anlatan paragraf. Boş bırakılamaz: teklif isteyen kurumun en sık sorduğu soru budur.',
+
+        'label_quote_needs' => 'Teklif almak için ne gerekir?',
+        'help_quote_needs' => 'Teklif hazırlamak için müşteriden istenen bilgiler. Her satıra bir madde. Eksik yazılırsa teklif süreci iki-üç yazışma uzar.',
+        'label_quote_item' => 'Gereken bilgi',
+        'prompt_quote_needs' => 'Bilgi ekle',
+
+        'empty_list' => 'Bu bölüm boş — sitede hiç görünmeyecek.',
+
+        'section_body' => 'Serbest anlatım (isteğe bağlı)',
+        'section_body_comment' => 'Yukarıdaki bölümler sayfanın düzenini kuruyor. Bu alan onların dışında kalan bir anlatım gerektiğinde kullanılır ve BOŞ BIRAKILABİLİR. Yapıştırdığınız biçimlendirmenin bir kısmı kaydedilirken temizlenir: tasarım dışına çıkan yazı tipleri, renkler ve tablolar sayfayı bozduğu için kabul edilmez.',
+
+        'label_body_html' => 'Ek metin',
+        'help_body_html' => 'Başlık, paragraf, kalın/italik, madde listesi ve bağlantı kullanılabilir. Görsel gömülemez.',
+
+        // ── İkon seçenekleri. Simgenin adı değil NE GÖSTERDİĞİ yazılı: ──
+        // panelde çalışan kişinin Lucide kataloğunu bilmesi beklenemez.
+        'icon_building' => 'Bina — kurumsal, ofis, fabrika',
+        'icon_truck' => 'Kamyon — taşıma, teslimat',
+        'icon_chef_hat' => 'Aşçı şapkası — mutfak, üretim',
+        'icon_graduation_cap' => 'Mezuniyet külahı — okul, eğitim',
+        'icon_stethoscope' => 'Steteskop — hastane, sağlık',
+        'icon_hard_hat' => 'Baret — şantiye, saha',
+        'icon_calendar_heart' => 'Kalpli takvim — düğün, özel gün',
+        'icon_coffee' => 'Kahve — ikram, kahvaltı, kokteyl',
+        'icon_utensils_crossed' => 'Çatal bıçak — genel yemek hizmeti',
+        'icon_soup' => 'Çorba — sıcak yemek, öğün',
+        'icon_users' => 'İnsanlar — topluluk, personel',
+        'icon_package' => 'Paket — kumanya, paketli öğün',
+    ],
+
+    /**
+     * Bilgi merkezi yazıları ekranı.
+     *
+     * Metinlerin ağırlığı iki alanda: okuma süresinin boş bırakılabilmesi
+     * (yönetici boş alanı "hata" sanıp rastgele bir sayı yazmasın) ve yayın
+     * tarihinin sıralamayı belirlemesi.
+     */
+    'posts' => [
+        'text_title' => 'Bilgi Merkezi yazıları',
+        'text_form_name' => 'Yazı',
+        'text_create_title' => 'Yeni yazı',
+        'text_edit_title' => 'Yazıyı düzenle',
+        'text_empty' => 'Kayıtlı yazı yok. "Yeni yazı" ile ekleyin; yayınladığınız yazılar sitedeki Bilgi Merkezi sayfasında en yeniden eskiye doğru listelenir.',
+        'text_filter_search' => 'Başlık, kategori veya adrese göre ara',
+        'button_new' => 'Yeni yazı',
+        'confirm_delete' => 'Bu yazı silinecek ve sitedeki adresi çalışmaz hâle gelecek. Yazıyı geçici olarak kaldırmak istiyorsanız silmek yerine "Sitede yayında" anahtarını kapatın. Silinsin mi?',
+
+        'column_title' => 'Başlık',
+        'column_category' => 'Kategori',
+        'column_published_at' => 'Yayın tarihi',
+        'column_published' => 'Yayında',
+
+        'label_title' => 'Başlık',
+        'help_title' => 'Yazının listede ve detay sayfasında görünen başlığı.',
+
+        'label_slug' => 'Adres (slug)',
+        'help_slug' => 'Sitedeki bağlantının son parçası: /bilgi-merkezi/BURASI. YENİ KAYITTA BAŞLIKTAN OTOMATİK ÜRETİLİR. Yayınlanmış bir yazının adresini değiştirmeyin: paylaşılan bağlantılar ve arama motoru kayıtları kırılır. Yalnızca küçük harf, rakam ve tire kullanın.',
+
+        'label_category' => 'Kategori',
+        'help_category' => 'Yazının üzerinde rozet olarak görünür, örneğin "Gıda güvenliği" veya "Menü planlama". Aynı kategoriyi birebir aynı yazın; "Gıda Güvenliği" ve "Gıda güvenliği" sitede iki ayrı rozet olur.',
+
+        'label_published_at' => 'Yayın tarihi',
+        'help_published_at' => 'Yazının sitedeki sırasını bu tarih belirler; en yeni tarih en üstte görünür. Yazının oluşturulma tarihiyle aynı olmak zorunda değildir.',
+
+        'label_reading_minutes' => 'Okuma süresi (dakika)',
+        'help_reading_minutes' => 'BOŞ BIRAKILABİLİR — boş bırakırsanız süre yazının uzunluğundan otomatik hesaplanır ve çoğu durumda doğru sonucu verir. Yalnızca hesaplanan süreyi yanlış buluyorsanız elle yazın.',
+        'text_auto_minutes' => 'Otomatik hesaplanır',
+
+        'label_published' => 'Sitede yayında',
+        'help_published' => 'Kapalıyken yazı sitede hiç görünmez; kayıt burada durur, silinmez. Yarım kalan yazıyı kaydetmek için bu anahtarı kapalı tutun.',
+
+        'section_summary' => 'Liste kartı',
+        'section_summary_comment' => 'Aşağıdaki metin yazının kendisi değil, listede ve paylaşım önizlemelerinde görünen tanıtımıdır.',
+
+        'label_description' => 'Kısa açıklama',
+        'help_description' => 'Listede başlığın altında görünen bir-iki cümle. En fazla 400 karakter. Yazının ilk cümlesini kopyalamak yerine "bu yazıyı okursam ne öğrenirim" sorusuna cevap verin.',
+
+        'section_body' => 'Yazı metni',
+        'section_body_comment' => 'Yapıştırdığınız biçimlendirmenin bir kısmı kaydedilirken temizlenir: tasarım dışına çıkan yazı tipleri, renkler ve tablolar sayfayı bozduğu için kabul edilmez. Yazdığınız cümleler korunur, yalnızca biçimleri düşer.',
+
+        'label_body_html' => 'Yazı',
+        'help_body_html' => 'Başlık, paragraf, kalın/italik, madde listesi ve bağlantı kullanılabilir. Görsel gömülemez.',
+    ],
 
     'dashboard' => [
         'label' => 'BLD işletme durumu',

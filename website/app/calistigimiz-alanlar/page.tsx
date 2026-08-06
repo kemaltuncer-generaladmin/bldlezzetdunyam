@@ -4,7 +4,7 @@ import { SectorCard } from '@/components/site/cards';
 import { CtaBand } from '@/components/site/cta-band';
 import { PageHero } from '@/components/site/page-hero';
 import { Section, SectionHeading } from '@/components/site/section';
-import { SECTORS } from '@/content/sectors';
+import { fetchSiteContent } from '@/lib/api/site-content';
 import { breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
 import type { Crumb } from '@/components/site/page-hero';
 
@@ -18,14 +18,20 @@ import type { Crumb } from '@/components/site/page-hero';
 
 const CRUMBS: readonly Crumb[] = [{ href: '/calistigimiz-alanlar', label: 'Çalıştığımız Alanlar' }];
 
-export const metadata = pageMetadata({
-  title: 'Çalıştığımız Alanlar',
-  description:
-    'Sanayi, eğitim, sağlık, kamu, ofis, şantiye ve organizasyon: her alanın yemek hizmetinden beklentisi ve bizim verdiğimiz karşılık.',
-  path: '/calistigimiz-alanlar',
-});
+export async function generateMetadata() {
+  const { brand, sectors } = await fetchSiteContent();
 
-export default function CalistigimizAlanlarPage() {
+  return pageMetadata({
+    title: 'Çalıştığımız Alanlar',
+    description: `${sectors.map((sector) => sector.title).join(', ')}: her alanın yemek hizmetinden beklentisi ve bizim verdiğimiz karşılık.`,
+    path: '/calistigimiz-alanlar',
+    brandName: brand.name,
+  });
+}
+
+export default async function CalistigimizAlanlarPage() {
+  const { sectors } = await fetchSiteContent();
+
   return (
     <>
       <JsonLd data={breadcrumbJsonLd(CRUMBS)} />
@@ -80,7 +86,7 @@ export default function CalistigimizAlanlarPage() {
         />
 
         <ul className="mt-10 grid bld-reveal gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {SECTORS.map((sector) => (
+          {sectors.map((sector) => (
             // `grid`: kart, satırdaki en uzun kartla aynı yüksekliğe uzasın diye.
             <li key={sector.slug} className="grid">
               <SectorCard

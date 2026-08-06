@@ -1,6 +1,10 @@
 /**
  * Kalite ve hijyen yaklaşımı.
  *
+ * **YEDEK / BAŞLANGIÇ DEĞERİ.** Tek kaynak admin panelidir; sayfa içeriği
+ * `lib/api/site-content.ts` üzerinden gelir. Burası yalnızca API kapalıyken
+ * veya bölüm panelde boşken devreye girer.
+ *
  * ## Sertifika iddiası neden yok?
  *
  * Repoda BLD adına düzenlenmiş ISO, HACCP, TSE veya gıda üretim izni belgesi
@@ -8,8 +12,10 @@
  * değil, gıda sektöründe yaptırımı olan bir beyandır.
  *
  * Bu yüzden sayfa **uygulanan yöntemi** anlatır. Firma belge bilgilerini
- * verdiğinde `CERTIFICATIONS` dizisi doldurulur; sayfadaki sertifika bölümü
- * kendiliğinden görünür hâle gelir.
+ * panele girdiğinde sertifika listesi dolar ve sayfadaki bölüm kendiliğinden
+ * görünür hâle gelir. Sertifikalar tek istisnadır: panelden gelen **boş
+ * liste** yedeğe düşmez, olduğu gibi kabul edilir — belge iddiası asla
+ * "yedekten" doğmamalı.
  */
 
 import type { LucideIcon } from 'lucide-react';
