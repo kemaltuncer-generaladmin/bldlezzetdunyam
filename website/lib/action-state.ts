@@ -37,6 +37,29 @@ export const IDLE_CHECKOUT_STATE: CheckoutState = {
   fieldErrors: {},
 };
 
+/**
+ * Teklif formu durumu.
+ *
+ * `unconfigured`, `error`'dan ayrı bir durum: ikisi de "gönderilemedi" demek
+ * ama sebepleri farklı ve kullanıcıya söylenecek şey farklı. `error`'da
+ * "tekrar deneyin" doğru bir öneri; `unconfigured`'da tekrar denemek hiçbir
+ * şeyi değiştirmez, sorun sunucu yapılandırmasında.
+ */
+export type QuoteState = {
+  status: 'idle' | 'ok' | 'error' | 'unconfigured';
+  message: string | null;
+  fieldErrors: Record<string, string>;
+  /** Her gönderimde değişir; istemci başarı ekranını buna göre tetikler. */
+  at: number;
+};
+
+export const IDLE_QUOTE_STATE: QuoteState = {
+  status: 'idle',
+  message: null,
+  fieldErrors: {},
+  at: 0,
+};
+
 export type CancelState = {
   status: 'idle' | 'error' | 'ok';
   message: string | null;

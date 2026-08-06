@@ -24,7 +24,7 @@ export default async function AccountPage() {
     <div className="mx-auto max-w-2xl px-4 py-8 sm:py-12">
       <h1 className="text-3xl font-bold text-neutral-900">Hesabım</h1>
 
-      <div className="bld-card mt-6 p-5">
+      <div className="mt-6 bld-card p-5">
         <h2 className="text-lg font-semibold text-neutral-900">Profil bilgileri</h2>
         <dl className="mt-4 divide-y divide-neutral-200">
           {rows.map((row) => (
@@ -40,7 +40,7 @@ export default async function AccountPage() {
         </p>
       </div>
 
-      <div className="bld-card mt-4 p-5">
+      <div className="mt-4 bld-card p-5">
         <h2 className="text-lg font-semibold text-neutral-900">Adreslerim</h2>
         <p className="mt-2 text-sm text-neutral-600">
           Kayıtlı adres defteri Faz 1 kapsamında değildir. Teslimat adresini her siparişte ödeme

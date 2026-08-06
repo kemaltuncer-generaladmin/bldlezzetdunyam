@@ -1,10 +1,10 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, Playfair_Display } from 'next/font/google';
-import { NextIntlClientProvider } from 'next-intl';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
+import { QuickContact } from '@/components/site/quick-contact';
 import { ThemeProvider } from '@/components/theme-provider';
-import { getMessages, getTranslations } from 'next-intl/server';
+import { getTranslations } from 'next-intl/server';
 import { SITE_URL } from '@/lib/api/client';
 import { cn } from '@/lib/utils';
 import './globals.css';
@@ -60,8 +60,19 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+/**
+ * Kök yerleşim.
+ *
+ * `NextIntlClientProvider` BİLİNÇLİ OLARAK YOK. Sitede istemci tarafında
+ * çeviri okuyan hiçbir bileşen kalmadı (tek kullanıcı `HeaderActions`'tı,
+ * metinleri artık prop olarak alıyor). Sağlayıcı burada dururken next-intl'in
+ * ICU biçimlendirme çalışma zamanı sitedeki her sayfaya iniyordu.
+ *
+ * Sunucu tarafı çeviri (`getTranslations`) etkilenmez; o istemciye hiçbir şey
+ * göndermez.
+ */
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [messages, t] = await Promise.all([getMessages(), getTranslations('nav')]);
+  const t = await getTranslations('nav');
 
   return (
     // `suppressHydrationWarning`: next-themes sunucuda bilinemeyen temayı
@@ -69,19 +80,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="tr" className={cn(inter.variable, playfair.variable)} suppressHydrationWarning>
       <body className="flex min-h-dvh flex-col">
         <ThemeProvider>
-          <NextIntlClientProvider messages={messages}>
-            <a
-              href="#icerik"
-              className="focus:bg-primary focus:text-primary-foreground sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-md focus:px-4 focus:py-2"
-            >
-              {t('skipToContent')}
-            </a>
-            <SiteHeader />
-            <main id="icerik" className="flex-1">
-              {children}
-            </main>
-            <SiteFooter />
-          </NextIntlClientProvider>
+          <a
+            href="#icerik"
+            className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
+          >
+            {t('skipToContent')}
+          </a>
+          <SiteHeader />
+          <main id="icerik" className="flex-1">
+            {children}
+          </main>
+          <SiteFooter />
+          <QuickContact />
         </ThemeProvider>
       </body>
     </html>

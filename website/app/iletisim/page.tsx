@@ -1,49 +1,197 @@
-import type { Metadata } from 'next';
 import Link from 'next/link';
-import { LegalNotice } from '@/components/legal-notice';
+import { ArrowRight, Clock, Info, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { JsonLd } from '@/components/json-ld';
+import { PageHero, type Crumb } from '@/components/site/page-hero';
+import { Section, SectionHeading } from '@/components/site/section';
+import { CONTACT, HAS_ANY_CONTACT_CHANNEL, PENDING_CONTACT_FIELDS } from '@/content/site';
+import { breadcrumbJsonLd, organizationJsonLd, pageMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: 'İletişim',
   description:
-    'Benim Lezzet Dünyam ile iletişime geçin: sipariş, teklif ve kurumsal catering talepleriniz için.',
-  alternates: { canonical: '/iletisim' },
-};
+    'Benim Lezzet Dünyam ile iletişime geçin. Kurumsal catering, toplu yemek ve organizasyon talepleriniz için bize ulaşın.',
+  path: '/iletisim',
+});
+
+const CRUMBS: readonly Crumb[] = [{ href: '/iletisim', label: 'İletişim' }];
 
 export default function IletisimPage() {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
-      <h1 className="text-3xl font-bold text-neutral-900">İletişim</h1>
-      <p className="mt-3 text-sm leading-relaxed text-neutral-800">
-        Kurumsal catering teklifleri, toplu sipariş talepleri ve mevcut siparişleriniz hakkındaki
-        sorularınız için bize ulaşabilirsiniz.
-      </p>
+    <>
+      <JsonLd data={breadcrumbJsonLd(CRUMBS)} />
+      <JsonLd data={organizationJsonLd()} />
 
-      <LegalNotice />
+      <PageHero
+        crumbs={CRUMBS}
+        eyebrow="İletişim"
+        title="Bize ulaşın"
+        description="Teklif talepleri, mevcut hizmetleriniz ve genel sorularınız için aşağıdaki kanallardan bize ulaşabilirsiniz."
+      />
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        <div className="bld-card p-5">
-          <h2 className="text-base font-semibold text-neutral-900">Sipariş vermek için</h2>
-          <p className="mt-2 text-sm text-neutral-600">
-            Menüden seçim yapıp sepetinizi oluşturun; sipariş birkaç adımda tamamlanır.
-          </p>
-          <Link href="/menu" className="bld-btn-primary mt-4">
-            Menüyü aç
-          </Link>
+      <Section aria-labelledby="kanallar-baslik">
+        <SectionHeading id="kanallar-baslik" title="İletişim kanalları" level={2} />
+
+        {/*
+         * İletişim bilgileri henüz girilmemiş.
+         *
+         * Uydurma telefon veya adres basmak yerine durumu açıkça söylüyoruz:
+         * ziyaretçi neden numara göremediğini anlıyor ve teklif formuna
+         * yönlendiriliyor — yani sayfa boş kalmıyor, akış kesilmiyor.
+         *
+         * `content/site.ts` içindeki alanlar doldurulduğunda bu uyarı
+         * kendiliğinden kaybolur.
+         */}
+        {PENDING_CONTACT_FIELDS.length > 0 && (
+          <Alert className="mt-8 max-w-3xl">
+            <Info aria-hidden="true" />
+            <AlertTitle>İletişim bilgileri henüz yayınlanmadı</AlertTitle>
+            <AlertDescription>
+              <p>
+                Şu alanlar sitede henüz tanımlı değil: {PENDING_CONTACT_FIELDS.join(', ')}. Bu
+                bilgiler girilene kadar bize ulaşmanın en hızlı yolu teklif formu — talebinizi
+                bırakın, size dönelim.
+              </p>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {CONTACT.phone && (
+            <a
+              href={CONTACT.phone.href}
+              className="group rounded-2xl border bg-card p-6 transition-colors hover:border-primary/40"
+            >
+              <Phone aria-hidden="true" className="size-5 text-primary" />
+              <h3 className="mt-4 font-display text-base font-semibold">Telefon</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{CONTACT.phone.display}</p>
+            </a>
+          )}
+
+          {CONTACT.whatsapp && (
+            <a
+              href={CONTACT.whatsapp.href}
+              className="group rounded-2xl border bg-card p-6 transition-colors hover:border-primary/40"
+            >
+              <MessageCircle aria-hidden="true" className="size-5 text-primary" />
+              <h3 className="mt-4 font-display text-base font-semibold">WhatsApp</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{CONTACT.whatsapp.display}</p>
+            </a>
+          )}
+
+          {CONTACT.email && (
+            <a
+              href={CONTACT.email.href}
+              className="group rounded-2xl border bg-card p-6 transition-colors hover:border-primary/40"
+            >
+              <Mail aria-hidden="true" className="size-5 text-primary" />
+              <h3 className="mt-4 font-display text-base font-semibold">E-posta</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{CONTACT.email.display}</p>
+            </a>
+          )}
+
+          {CONTACT.address && (
+            <div className="rounded-2xl border bg-card p-6">
+              <MapPin aria-hidden="true" className="size-5 text-primary" />
+              <h3 className="mt-4 font-display text-base font-semibold">Adres</h3>
+              <address className="mt-1 text-sm/6 text-muted-foreground not-italic">
+                {CONTACT.address.streetAddress}
+                <br />
+                {CONTACT.address.district} / {CONTACT.address.city}
+                {CONTACT.address.postalCode && <> · {CONTACT.address.postalCode}</>}
+              </address>
+            </div>
+          )}
+
+          {CONTACT.workingHours.length > 0 && (
+            <div className="rounded-2xl border bg-card p-6">
+              <Clock aria-hidden="true" className="size-5 text-primary" />
+              <h3 className="mt-4 font-display text-base font-semibold">Çalışma saatleri</h3>
+              <dl className="mt-1 space-y-1 text-sm text-muted-foreground">
+                {CONTACT.workingHours.map((entry) => (
+                  <div key={entry.label} className="flex justify-between gap-4">
+                    <dt>{entry.label}</dt>
+                    <dd>{entry.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
+
+          <div className="rounded-2xl border bg-surface-warm p-6 text-surface-warm-foreground">
+            <ArrowRight aria-hidden="true" className="size-5 text-primary" />
+            <h3 className="mt-4 font-display text-base font-semibold">Teklif talebi</h3>
+            <p className="mt-1 text-sm/6 opacity-80">
+              İhtiyacınızı iletin, menü önerisi ve fiyatlandırmayla dönelim.
+            </p>
+            <Button asChild size="sm" className="mt-4">
+              <Link href="/teklif-al">Teklif Al</Link>
+            </Button>
+          </div>
         </div>
+      </Section>
 
-        <div className="bld-card p-5">
-          <h2 className="text-base font-semibold text-neutral-900">Mevcut siparişiniz</h2>
-          <p className="mt-2 text-sm text-neutral-600">
-            Siparişinizin durumunu hesabınızdan anlık olarak takip edebilirsiniz.
-          </p>
-          <Link
-            href="/siparislerim"
-            className="mt-4 inline-block rounded-lg border border-neutral-200 px-5 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-neutral-100"
-          >
-            Siparişlerim
-          </Link>
+      {/* Harita yalnızca gerçek bir gömme adresi girildiyse. */}
+      {CONTACT.address?.mapEmbedUrl && (
+        <Section tone="muted" aria-labelledby="harita-baslik">
+          <SectionHeading id="harita-baslik" title="Nasıl gelinir?" level={2} />
+          <div className="mt-8 aspect-video overflow-hidden rounded-2xl border">
+            <iframe
+              src={CONTACT.address.mapEmbedUrl}
+              title="Benim Lezzet Dünyam konum haritası"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              className="size-full border-0"
+            />
+          </div>
+        </Section>
+      )}
+
+      <Section tone="charcoal" aria-labelledby="siparis-baslik">
+        <div className="grid gap-8 lg:grid-cols-[1.3fr_1fr] lg:items-center">
+          <SectionHeading
+            id="siparis-baslik"
+            eyebrow="Mevcut müşterilerimiz"
+            title="Günlük sipariş ve takip"
+            description="Düzenli hizmet alan kurumlar günlük menüyü görüntüleyebilir, sipariş verebilir ve siparişlerinin durumunu takip edebilir."
+          />
+
+          <div className="flex flex-wrap gap-3">
+            <Button asChild size="lg" className="bg-brand-500 text-charcoal hover:bg-brand-400">
+              <Link href="/menu">Günün menüsü</Link>
+            </Button>
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="border-cream/30 bg-transparent text-cream hover:bg-cream/10 hover:text-cream"
+            >
+              <Link href="/siparislerim">Siparişlerim</Link>
+            </Button>
+          </div>
         </div>
-      </div>
-    </div>
+      </Section>
+
+      {/* Hiç kanal yoksa sayfanın sonunda tekrar forma yönlendirmek gerekiyor. */}
+      {!HAS_ANY_CONTACT_CHANNEL && (
+        <Section aria-labelledby="son-cagri">
+          <SectionHeading
+            id="son-cagri"
+            title="Yazın, biz dönelim"
+            description="Telefon ve e-posta bilgileri yayınlanana kadar teklif formu en hızlı yol."
+            align="center"
+          />
+          <div className="mt-8 flex justify-center">
+            <Button asChild size="lg">
+              <Link href="/teklif-al">
+                Teklif formunu aç
+                <ArrowRight aria-hidden="true" />
+              </Link>
+            </Button>
+          </div>
+        </Section>
+      )}
+    </>
   );
 }

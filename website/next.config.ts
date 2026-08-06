@@ -12,6 +12,19 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   reactStrictMode: true,
   poweredByHeader: false,
+  experimental: {
+    /*
+     * `radix-ui` ve `lucide-react` barrel paketlerdir: shadcn bileşenleri
+     * `import { Slot } from 'radix-ui'` yazar ve bu tek satır, ağaç sarsma
+     * tam çalışmadığında Radix'in tamamını istemci paketine sokar. Ölçtük:
+     * hiçbir Radix bileşeni kullanmayan /kvkk sayfası bile 239 kB'lık ortak
+     * parçayı indiriyordu.
+     *
+     * Bu ayar, barrel'dan yapılan içe aktarımları derleme sırasında doğrudan
+     * alt modüle çevirir.
+     */
+    optimizePackageImports: ['radix-ui', 'lucide-react'],
+  },
   images: {
     // Menü görselleri API'den mutlak URL olarak gelir (MenuItem.image_url).
     // Üretimde yalnızca kendi CDN'imiz kalacak; mock picsum kullanıyor.

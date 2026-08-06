@@ -86,7 +86,7 @@ export function MenuBrowser({ categories, orderingOpen }: Props) {
           <label htmlFor={`${fieldId}-search`} className="sr-only">
             Menüde ara
           </label>
-          <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-neutral-400" />
+          <IconSearch className="pointer-events-none absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-neutral-400" />
           <input
             id={`${fieldId}-search`}
             type="search"
@@ -94,13 +94,13 @@ export function MenuBrowser({ categories, orderingOpen }: Props) {
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Yemek veya kategori arayın"
             autoComplete="off"
-            className="bld-field h-12 pl-10 pr-10 text-base"
+            className="h-12 bld-field pr-10 pl-10 text-base"
           />
           {query.length > 0 && (
             <button
               type="button"
               onClick={() => setQuery('')}
-              className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-neutral-600 hover:bg-neutral-100"
+              className="absolute top-1/2 right-2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-neutral-600 hover:bg-neutral-100"
             >
               <IconClose className="h-4 w-4" />
               <span className="sr-only">Aramayı temizle</span>
@@ -117,7 +117,7 @@ export function MenuBrowser({ categories, orderingOpen }: Props) {
               id={`${fieldId}-sort`}
               value={sort}
               onChange={(event) => setSort(event.target.value as SortKey)}
-              className="bld-field h-12 py-0 pr-8 text-sm font-medium sm:w-52"
+              className="h-12 bld-field py-0 pr-8 text-sm font-medium sm:w-52"
             >
               {SORT_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -143,7 +143,7 @@ export function MenuBrowser({ categories, orderingOpen }: Props) {
       <div
         id={`${fieldId}-filters`}
         hidden={!filtersOpen}
-        className="bld-card mt-3 grid gap-5 p-4 sm:grid-cols-2"
+        className="mt-3 grid gap-5 bld-card p-4 sm:grid-cols-2"
       >
         <div>
           <label htmlFor={`${fieldId}-price`} className="block text-sm font-semibold">
@@ -225,12 +225,12 @@ export function MenuBrowser({ categories, orderingOpen }: Props) {
       </p>
 
       {matchCount === 0 ? (
-        <div className="bld-card mx-auto mt-8 max-w-lg px-5 py-10 text-center">
+        <div className="mx-auto mt-8 max-w-lg bld-card px-5 py-10 text-center">
           <p className="text-lg font-semibold">Aramanıza uyan ürün yok</p>
           <p className="mt-2 text-sm text-neutral-600">
             Farklı bir kelime deneyin ya da süzgeçleri kaldırıp menünün tamamına bakın.
           </p>
-          <button type="button" onClick={resetFilters} className="bld-btn-primary mt-5">
+          <button type="button" onClick={resetFilters} className="mt-5 bld-btn-primary">
             Filtreleri temizle
           </button>
         </div>

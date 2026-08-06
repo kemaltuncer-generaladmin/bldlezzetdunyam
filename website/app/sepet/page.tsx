@@ -81,7 +81,7 @@ export default async function CartPage() {
         <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_21rem]">
           <ul className="space-y-4">
             {cart.lines.map((line) => (
-              <li key={line.key} className="bld-card flex gap-3 p-3 sm:gap-4 sm:p-4">
+              <li key={line.key} className="flex gap-3 bld-card p-3 sm:gap-4 sm:p-4">
                 <Link
                   href={productPath(line.item)}
                   aria-hidden="true"
@@ -99,7 +99,10 @@ export default async function CartPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <h2 className="text-base font-semibold">
-                      <Link href={productPath(line.item)} className="rounded-sm hover:text-brand-700">
+                      <Link
+                        href={productPath(line.item)}
+                        className="rounded-sm hover:text-brand-700"
+                      >
                         {line.item.name}
                       </Link>
                     </h2>
@@ -142,7 +145,7 @@ export default async function CartPage() {
             ))}
           </ul>
 
-          <aside aria-labelledby="siparis-ozeti" className="bld-card h-fit p-5 lg:sticky lg:top-24">
+          <aside aria-labelledby="siparis-ozeti" className="h-fit bld-card p-5 lg:sticky lg:top-24">
             <h2 id="siparis-ozeti" className="text-lg font-semibold">
               Sipariş özeti
             </h2>
@@ -191,20 +194,20 @@ export default async function CartPage() {
             )}
 
             {canCheckout ? (
-              <Link href="/odeme" className="bld-btn-primary mt-5 w-full">
+              <Link href="/odeme" className="mt-5 bld-btn-primary w-full">
                 Siparişi tamamla
                 <IconChevronRight className="h-4 w-4" />
               </Link>
             ) : (
               <p
                 aria-disabled="true"
-                className="bld-btn mt-5 w-full cursor-not-allowed bg-neutral-200 text-neutral-600"
+                className="mt-5 bld-btn w-full cursor-not-allowed bg-neutral-200 text-neutral-600"
               >
                 {orderingOpen ? 'Siparişi tamamla' : 'Sipariş alımı kapalı'}
               </p>
             )}
 
-            <Link href="/menu" className="bld-btn-secondary mt-3 w-full">
+            <Link href="/menu" className="mt-3 bld-btn-secondary w-full">
               Alışverişe devam et
             </Link>
           </aside>

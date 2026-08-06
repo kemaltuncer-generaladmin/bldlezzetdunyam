@@ -25,7 +25,7 @@ export function EmptyState({
   className,
 }: Props) {
   return (
-    <div className={cn('bld-card mx-auto max-w-lg px-6 py-12 text-center', className)}>
+    <div className={cn('mx-auto max-w-lg bld-card px-6 py-12 text-center', className)}>
       {icon && (
         <span
           aria-hidden="true"
@@ -37,7 +37,7 @@ export function EmptyState({
       <p className={cn('text-lg font-semibold', icon ? 'mt-4' : null)}>{title}</p>
       <p className="mt-2 text-sm leading-relaxed text-neutral-600">{message}</p>
       {actionHref && (
-        <Link href={actionHref} className="bld-btn-primary mt-6">
+        <Link href={actionHref} className="mt-6 bld-btn-primary">
           {actionLabel}
         </Link>
       )}

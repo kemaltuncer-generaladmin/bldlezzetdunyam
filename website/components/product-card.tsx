@@ -57,14 +57,14 @@ export function ProductCard({ item, orderingOpen, priority = false }: Props) {
           </span>
         )}
         {!soldOut && hasOptions && (
-          <span className="bld-badge absolute left-3 top-3 bg-neutral-0/95 text-neutral-800 shadow-xs">
+          <span className="absolute top-3 left-3 bld-badge bg-neutral-0/95 text-neutral-800 shadow-xs">
             Seçenekli
           </span>
         )}
       </Link>
 
       <div className="flex flex-1 flex-col gap-2 p-4">
-        <h3 className="text-base font-semibold leading-snug text-neutral-900">
+        <h3 className="text-base leading-snug font-semibold text-neutral-900">
           <Link href={href} className="rounded-sm transition-colors hover:text-brand-700">
             {/* Kartın tamamını tıklanabilir yapan görünmez katman. */}
             <span className="absolute inset-0 z-0" aria-hidden="true" />

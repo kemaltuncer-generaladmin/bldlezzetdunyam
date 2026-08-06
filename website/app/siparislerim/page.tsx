@@ -86,7 +86,7 @@ export default async function MyOrdersPage({
               <li key={order.id}>
                 <Link
                   href={`/siparis/${order.id}`}
-                  className="bld-card flex flex-wrap items-center justify-between gap-3 p-4 transition-shadow hover:shadow-md"
+                  className="flex flex-wrap items-center justify-between gap-3 bld-card p-4 transition-shadow hover:shadow-md"
                 >
                   <div className="min-w-0">
                     <p className="text-base font-semibold text-neutral-900">{order.order_number}</p>

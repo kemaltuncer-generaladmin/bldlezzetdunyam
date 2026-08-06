@@ -145,7 +145,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
     .slice(0, 3);
 
   return (
-    <div className="mx-auto max-w-content px-4 pb-28 pt-6 sm:pt-10 lg:pb-16">
+    <div className="mx-auto max-w-content px-4 pt-6 pb-28 sm:pt-10 lg:pb-16">
       <JsonLd data={productJsonLd(item, canonicalSlug)} />
 
       <nav aria-label="Ekmek kırıntısı" className="mb-5 text-sm text-neutral-600">
@@ -201,7 +201,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
 
         <div className="lg:sticky lg:top-24">
           {category && (
-            <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">
+            <p className="text-sm font-semibold tracking-wide text-brand-700 uppercase">
               {category.name}
             </p>
           )}
@@ -250,7 +250,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
             </div>
           )}
 
-          <div className="bld-card mt-6 p-4 sm:p-5">
+          <div className="mt-6 bld-card p-4 sm:p-5">
             <AddToCartForm
               menuId={item.id}
               disabled={soldOut || !orderingOpen}
@@ -274,7 +274,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                     step={1}
                     defaultValue={1}
                     inputMode="numeric"
-                    className="bld-field mt-1"
+                    className="mt-1 bld-field"
                   />
                 </div>
 
@@ -289,7 +289,7 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
                     maxLength={255}
                     placeholder="Örn. az acılı"
                     aria-describedby="note-aciklama"
-                    className="bld-field mt-1"
+                    className="mt-1 bld-field"
                   />
                   <p id="note-aciklama" className="mt-1 text-xs text-neutral-600">
                     İsteğe bağlı, en fazla 255 karakter.

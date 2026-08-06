@@ -1,53 +1,79 @@
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
+import { Phone } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { HeaderActions } from '@/components/header-actions';
-
-const NAV_LINK_CLASS =
-  'rounded-md px-2 py-2 text-sm font-medium text-neutral-800 transition-colors hover:bg-neutral-100 hover:text-brand-700 sm:px-3';
+import { BrandMark } from '@/components/site/brand-mark';
+import { MainNav } from '@/components/site/main-nav';
+import { MobileNav } from '@/components/site/mobile-nav';
+import { PRIMARY_CTA } from '@/content/navigation';
+import { BRAND, CONTACT } from '@/content/site';
 
 /**
- * Başlık bilinçli olarak **statik**tir: cookie okumaz. Sepet rozeti ve oturum
- * adı istemcide okunur (`HeaderActions`), böylece `/` ve `/menu` ISR kalır.
+ * Site başlığı.
+ *
+ * Bilinçli olarak **statik**: cookie okumaz, oturum sorgulamaz. Böylece `/`,
+ * `/hizmetler` ve diğer pazarlama sayfaları statik/ISR kalabiliyor. Sipariş
+ * akışına ait sepet rozeti ve oturum adı artık başlıkta değil — kurumsal
+ * ziyaretçinin ilk gördüğü şey sepet olmamalı; sipariş akışına footer ve
+ * `/menu` üzerinden giriliyor.
  */
 export async function SiteHeader() {
   const t = await getTranslations('nav');
 
   return (
-    <header className="sticky top-0 z-40 border-b border-neutral-200 bg-neutral-0/95 backdrop-blur-sm">
-      <div className="mx-auto flex h-16 max-w-content items-center gap-2 px-4 sm:gap-5">
+    <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+      <div className="mx-auto flex h-18 max-w-content items-center gap-3 px-4 sm:px-6">
         <Link
           href="/"
-          className="flex shrink-0 items-center gap-2 rounded-md text-neutral-900"
-          aria-label={t('home')}
+          aria-label={`${BRAND.name} — ana sayfa`}
+          className="shrink-0 rounded-md focus-visible:ring-2"
         >
-          {/* Koyu metin açık turuncu üzerine: #1C1917 / #F97316 = 6,0:1 (AA). */}
-          <span
-            aria-hidden="true"
-            className="grid h-9 w-9 place-items-center rounded-lg bg-brand-500 text-base font-bold text-neutral-900 shadow-xs"
-          >
-            BL
-          </span>
-          <span className="hidden text-base font-semibold leading-tight sm:block">
-            Benim Lezzet
-            <br />
-            Dünyam
-          </span>
+          <BrandMark />
         </Link>
 
-        <nav aria-label={t('ariaMain')} className="flex items-center gap-0.5 sm:gap-1">
-          <Link href="/menu" className={NAV_LINK_CLASS}>
-            {t('menu')}
-          </Link>
-          <Link href="/siparislerim" className={`${NAV_LINK_CLASS} hidden sm:block`}>
-            {t('orders')}
-          </Link>
-          <Link href="/iletisim" className={`${NAV_LINK_CLASS} hidden md:block`}>
-            {t('contact')}
-          </Link>
-        </nav>
+        <div className="ml-auto flex items-center gap-2">
+          <MainNav />
 
-        <div className="ml-auto">
-          <HeaderActions />
+          {/*
+           * Sipariş rotalarında sepet/oturum; kurumsal sayfalarda kendini
+           * gizler. Metinler burada (sunucuda) çözülüp prop olarak geçiyor —
+           * gerekçesi bileşenin kendi başlığında.
+           */}
+          <HeaderActions
+            labels={{
+              cart: t('cart'),
+              cartEmpty: t('cartEmpty'),
+              cartCount: t.raw('cartCount'),
+              login: t('login'),
+            }}
+          />
+
+          {CONTACT.phone && (
+            <Button asChild variant="ghost" size="sm" className="hidden xl:inline-flex">
+              <a href={CONTACT.phone.href}>
+                <Phone aria-hidden="true" />
+                {CONTACT.phone.display}
+              </a>
+            </Button>
+          )}
+
+          {/*
+           * En dar ekranlarda (≤ 400 px) gizli. Sipariş sayfalarında başlıkta
+           * ayrıca sepet ve giriş de bulunuyor; hepsi birden 390 px'e sığmayıp
+           * sayfayı yatay kaydırıyordu. Mobil kullanıcı bu eylemi kaybetmiyor:
+           * hamburger menünün ilk düğmesi ve her sayfanın sonundaki çağrı
+           * bandı aynı yere gidiyor.
+           */}
+          <Button
+            asChild
+            size="sm"
+            className="hidden min-[400px]:inline-flex sm:h-11 sm:px-4 sm:text-sm"
+          >
+            <Link href={PRIMARY_CTA.href}>{PRIMARY_CTA.label}</Link>
+          </Button>
+
+          <MobileNav />
         </div>
       </div>
     </header>

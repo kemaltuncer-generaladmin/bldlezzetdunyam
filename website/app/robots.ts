@@ -11,7 +11,18 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/sepet', '/odeme', '/siparis/', '/siparislerim', '/hesabim', '/api/'],
+        // Kişisel veri taşıyan ve oturum gerektiren alanlar dizinlenmez.
+        // Kurumsal sayfaların tamamı serbesttir.
+        disallow: [
+          '/sepet',
+          '/odeme',
+          '/siparis/',
+          '/siparislerim',
+          '/hesabim',
+          '/giris',
+          '/kayit',
+          '/api/',
+        ],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,

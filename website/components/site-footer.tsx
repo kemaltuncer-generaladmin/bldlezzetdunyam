@@ -1,75 +1,151 @@
 import Link from 'next/link';
-import { getTranslations } from 'next-intl/server';
+import { Clock, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
+import { BrandMark } from '@/components/site/brand-mark';
+import { FOOTER_NAV, LEGAL_NAV, PRIMARY_CTA } from '@/content/navigation';
+import { BRAND, CONTACT, SOCIAL } from '@/content/site';
 
-const LINK_CLASS =
-  'rounded-sm text-sm text-neutral-600 underline-offset-2 hover:text-brand-700 hover:underline';
-
-export async function SiteFooter() {
-  const t = await getTranslations('footer');
-  const brand = await getTranslations('brand');
+/**
+ * Site altbilgisi.
+ *
+ * İletişim bloğundaki her satır `content/site.ts` içindeki değere bağlı ve
+ * değer `null` ise satır **hiç basılmaz**. Böylece "Telefon: —" gibi boş
+ * kalıplar veya uydurma bir numara ortaya çıkmıyor.
+ */
+export function SiteFooter() {
   const year = new Date().getFullYear();
 
-  const legalLinks = [
-    { href: '/kvkk', label: t('kvkk') },
-    { href: '/mesafeli-satis', label: t('distanceSales') },
-    { href: '/iletisim', label: t('contact') },
-  ];
-
-  const orderLinks = [
-    { href: '/menu', label: t('menu') },
-    { href: '/sepet', label: t('cart') },
-    { href: '/siparislerim', label: t('orders') },
-  ];
-
   return (
-    <footer className="mt-auto border-t border-neutral-200 bg-neutral-0">
-      <div className="mx-auto grid max-w-content gap-8 px-4 py-12 sm:grid-cols-2 lg:grid-cols-3">
-        <div>
-          <p className="flex items-center gap-2 text-base font-semibold text-neutral-900">
-            <span
-              aria-hidden="true"
-              className="grid h-8 w-8 place-items-center rounded-lg bg-brand-500 text-sm font-bold text-neutral-900"
-            >
-              BL
-            </span>
-            {brand('name')}
-          </p>
-          <p className="mt-3 max-w-sm text-sm leading-relaxed text-neutral-600">
-            {brand('tagline')}
-          </p>
+    <footer className="mt-auto bg-charcoal text-cream">
+      <div className="mx-auto max-w-content px-4 py-14 sm:px-6 sm:py-16">
+        <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+          <div>
+            {/* Koyu zeminde harf işareti okunur kalsın diye sözcük işareti ayrı basılıyor. */}
+            <BrandMark showWordmark={false} />
+            <p className="mt-4 font-display text-lg font-semibold">{BRAND.name}</p>
+            <p className="mt-2 max-w-sm text-sm/6 text-cream/70">{BRAND.tagline}</p>
+
+            <address className="mt-6 space-y-3 text-sm not-italic">
+              {CONTACT.phone && (
+                <a
+                  href={CONTACT.phone.href}
+                  className="flex min-h-11 items-center gap-3 transition-colors hover:text-brand-300"
+                >
+                  <Phone aria-hidden="true" className="size-4 shrink-0" />
+                  {CONTACT.phone.display}
+                </a>
+              )}
+              {CONTACT.whatsapp && (
+                <a
+                  href={CONTACT.whatsapp.href}
+                  className="flex min-h-11 items-center gap-3 transition-colors hover:text-brand-300"
+                >
+                  <MessageCircle aria-hidden="true" className="size-4 shrink-0" />
+                  WhatsApp
+                </a>
+              )}
+              {CONTACT.email && (
+                <a
+                  href={CONTACT.email.href}
+                  className="flex min-h-11 items-center gap-3 transition-colors hover:text-brand-300"
+                >
+                  <Mail aria-hidden="true" className="size-4 shrink-0" />
+                  {CONTACT.email.display}
+                </a>
+              )}
+              {CONTACT.address && (
+                <p className="flex items-start gap-3 text-cream/70">
+                  <MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                  <span>
+                    {CONTACT.address.streetAddress}
+                    <br />
+                    {CONTACT.address.district} / {CONTACT.address.city}
+                  </span>
+                </p>
+              )}
+              {CONTACT.workingHours.length > 0 && (
+                <p className="flex items-start gap-3 text-cream/70">
+                  <Clock aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                  <span>
+                    {CONTACT.workingHours.map((entry) => (
+                      <span key={entry.label} className="block">
+                        {entry.label}: {entry.value}
+                      </span>
+                    ))}
+                  </span>
+                </p>
+              )}
+            </address>
+          </div>
+
+          {FOOTER_NAV.map((group) => (
+            <nav key={group.title} aria-label={group.title}>
+              <p className="text-sm font-semibold">{group.title}</p>
+              <ul className="mt-4 space-y-1">
+                {group.links.map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className="flex min-h-9 items-center text-sm text-cream/70 transition-colors hover:text-brand-300"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
         </div>
 
-        <nav aria-label={t('legalAria')}>
-          <p className="text-sm font-semibold text-neutral-900">{t('infoTitle')}</p>
-          <ul className="mt-3 space-y-2">
-            {legalLinks.map((link) => (
-              <li key={link.href}>
-                <Link href={link.href} className={LINK_CLASS}>
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <div className="mt-12 flex flex-col gap-6 border-t border-cream/15 pt-8 sm:flex-row sm:items-center sm:justify-between">
+          <p className="max-w-md text-xs/5 text-cream/60">
+            {BRAND.name}, {BRAND.parentGroup} şirket ailesinin catering markasıdır.
+          </p>
 
-        <nav aria-label={t('orderAria')}>
-          <p className="text-sm font-semibold text-neutral-900">{t('orderTitle')}</p>
-          <ul className="mt-3 space-y-2">
-            {orderLinks.map((link) => (
-              <li key={link.href}>
-                <Link href={link.href} className={LINK_CLASS}>
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </div>
+          <Link
+            href={PRIMARY_CTA.href}
+            className="inline-flex min-h-11 items-center justify-center rounded-lg bg-brand-500 px-6 text-sm font-semibold text-charcoal transition-colors hover:bg-brand-400"
+          >
+            {PRIMARY_CTA.label}
+          </Link>
+        </div>
 
-      <div className="border-t border-neutral-200">
-        <p className="mx-auto max-w-content px-4 py-4 text-xs text-neutral-600">
-          {t('rights', { year })}
-        </p>
+        <div className="mt-8 flex flex-col gap-4 border-t border-cream/15 pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-cream/60">
+            © {year} {BRAND.name}. Tüm hakları saklıdır.
+          </p>
+
+          <nav aria-label="Yasal bağlantılar">
+            <ul className="flex flex-wrap gap-x-5 gap-y-2">
+              {LEGAL_NAV.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className="text-xs text-cream/60 transition-colors hover:text-cream"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          {SOCIAL.length > 0 && (
+            <ul className="flex gap-4">
+              {SOCIAL.map((item) => (
+                <li key={item.href}>
+                  <a
+                    href={item.href}
+                    className="text-xs text-cream/60 transition-colors hover:text-cream"
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </footer>
   );

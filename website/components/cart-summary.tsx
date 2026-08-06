@@ -76,7 +76,7 @@ export function CartSummaryPanel() {
   return (
     <aside
       aria-label="Sepet özeti"
-      className="bld-card sticky top-32 hidden h-fit p-5 lg:block"
+      className="sticky top-32 hidden h-fit bld-card p-5 lg:block"
       data-testid="cart-summary-panel"
     >
       <h2 className="flex items-center gap-2 text-base font-bold">
@@ -115,7 +115,7 @@ export function CartSummaryPanel() {
             </p>
           )}
 
-          <Link href="/sepet" className="bld-btn-primary mt-4 w-full">
+          <Link href="/sepet" className="mt-4 bld-btn-primary w-full">
             Sepete git
           </Link>
         </>

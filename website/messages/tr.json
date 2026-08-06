@@ -1,38 +1,14 @@
 {
-  "brand": {
-    "name": "Benim Lezzet Dünyam",
-    "tagline": "Kurumsal catering ve günlük yemek hizmeti. Her gün taze pişirir, adrese teslim eder veya gel-al olarak veririz."
-  },
   "nav": {
-    "ariaMain": "Ana gezinme",
-    "home": "Benim Lezzet Dünyam ana sayfa",
-    "menu": "Menü",
-    "contact": "İletişim",
     "cart": "Sepet",
     "cartEmpty": "Sepetiniz boş",
     "cartCount": "Sepette {count} ürün var",
-    "orders": "Siparişlerim",
     "login": "Giriş",
     "skipToContent": "İçeriğe geç"
   },
-  "footer": {
-    "infoTitle": "Bilgi",
-    "orderTitle": "Sipariş",
-    "legalAria": "Yasal bağlantılar",
-    "orderAria": "Sipariş bağlantıları",
-    "kvkk": "KVKK Aydınlatma Metni",
-    "distanceSales": "Mesafeli Satış Sözleşmesi",
-    "contact": "İletişim",
-    "menu": "Menü",
-    "cart": "Sepetim",
-    "orders": "Siparişlerim",
-    "rights": "© {year} Benim Lezzet Dünyam. Tüm hakları saklıdır."
-  },
   "errors": {
-    "title": "Bir sorun oluştu",
-    "retry": "Tekrar deneyin",
     "notFoundTitle": "Aradığınız sayfa bulunamadı",
-    "notFoundBody": "Bağlantı değişmiş veya ürün menüden kaldırılmış olabilir. Güncel menüden devam edebilirsiniz.",
-    "goToMenu": "Menüye git"
+    "notFoundBody": "Bağlantı değişmiş veya sayfa kaldırılmış olabilir. Ana sayfadan devam edebilirsiniz.",
+    "goToMenu": "Ana sayfaya dön"
   }
 }

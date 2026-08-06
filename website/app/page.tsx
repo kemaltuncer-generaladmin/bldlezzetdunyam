@@ -1,344 +1,408 @@
-import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ErrorState } from '@/components/error-state';
 import {
-  IconChevronRight,
-  IconClock,
-  IconLeaf,
-  IconRoute,
-  IconTruck,
-  IconWallet,
-} from '@/components/icons';
+  ArrowRight,
+  ChefHat,
+  ClipboardList,
+  PartyPopper,
+  ShieldCheck,
+  Truck,
+  UtensilsCrossed,
+} from 'lucide-react';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import { Button } from '@/components/ui/button';
 import { JsonLd } from '@/components/json-ld';
-import { KitchenBusyBanner } from '@/components/kitchen-busy-banner';
-import { LocationFacts } from '@/components/location-facts';
-import { OrderingClosedBanner } from '@/components/ordering-banner';
-import { ProductCard } from '@/components/product-card';
-import { ProductImage } from '@/components/product-image';
-import { SITE_URL } from '@/lib/api/client';
-import { fetchCatalog, flattenItems, isOrderingOpen } from '@/lib/api/catalog';
-import { formatPrice } from '@/lib/format';
-import type { CatalogSnapshot } from '@/lib/api/catalog';
-import type { MenuCategory, MenuItem } from '@/lib/api/types';
+import { CtaBand } from '@/components/site/cta-band';
+import { FeatureItem, ProcessStepCard, SectorCard, ServiceCard } from '@/components/site/cards';
+import { Section, SectionHeading } from '@/components/site/section';
+import { DIFFERENTIATORS, FAQ, PROCESS_STEPS } from '@/content/company';
+import { MENU_SOLUTIONS } from '@/content/menus';
+import { QUALITY_CHAIN } from '@/content/quality';
+import { SECTORS } from '@/content/sectors';
+import { SERVICES } from '@/content/services';
+import { BRAND } from '@/content/site';
+import { faqJsonLd, organizationJsonLd, pageMetadata } from '@/lib/seo';
 
 /**
- * ISR — `docs/06` §7. Next segment yapılandırması statik değer ister; asıl
- * veri tazeliği `fetch` seviyesindeki `REVALIDATE_SECONDS` ile de sınırlıdır.
+ * Kurumsal ana sayfa.
+ *
+ * Sipariş kataloğuna **bağlı değil.** Önceki sürüm menüyü API'den çekiyordu ve
+ * API erişilemediğinde ana sayfanın tamamı hata ekranına düşüyordu — kurumsal
+ * bir ziyaretçinin ilk gördüğü şeyin sipariş altyapısının sağlığına bağlı
+ * olması yanlış. Sayfa artık tamamen statik; sipariş akışına `/menu`
+ * üzerinden giriliyor.
  */
-export const revalidate = 60;
-
-export const metadata: Metadata = {
-  title: 'Benim Lezzet Dünyam — Kurumsal Catering ve Günlük Yemek',
+export const metadata = pageMetadata({
+  title: 'Kurumsal Catering ve Toplu Yemek Hizmeti',
   description:
-    'Her gün taze pişen kurumsal catering menüsü. Adrese teslim veya gel-al; online sipariş verin, siparişinizi anlık takip edin.',
-  alternates: { canonical: '/' },
-  openGraph: {
-    title: 'Benim Lezzet Dünyam — Kurumsal Catering',
-    description: 'Her gün taze pişen kurumsal catering menüsü. Adrese teslim veya gel-al.',
-    url: '/',
-    type: 'website',
-  },
-};
+    'Kurumlara, okullara, sağlık kuruluşlarına ve organizasyonlara toplu yemek ve catering hizmeti. Menü planlaması, hijyenik üretim ve zamanında teslimat.',
+  path: '/',
+});
 
-const STEPS = [
+/** Ana sayfada tam liste yerine öne çıkan altı hizmet gösteriliyor. */
+const FEATURED_SERVICES = SERVICES.slice(0, 6);
+
+/** Hero altındaki güven şeridi — rakam değil, çalışma biçimi. */
+const TRUST_STRIP = [
+  { icon: ClipboardList, label: 'Menü haftalık olarak önceden paylaşılır' },
+  { icon: ShieldCheck, label: 'Sıcaklık kontrollü üretim ve teslimat' },
+  { icon: Truck, label: 'Teslimat saati vardiyanıza göre sabitlenir' },
+] as const;
+
+/**
+ * Hizmet modelleri — "firma kapasitesi" bölümü.
+ *
+ * Günlük üretim adedi, araç sayısı, personel sayısı gibi rakamlar YOK: repoda
+ * doğrulanmış kaynağı yok. Kapasite, hangi çalışma modellerini kurabildiğimizi
+ * anlatarak gösteriliyor.
+ */
+const OPERATING_MODELS = [
   {
-    title: 'Menüden seçin',
-    body: 'Günün çorbaları, ana yemekleri ve tatlıları menüde. Porsiyon ve ekstraları seçin.',
+    icon: Truck,
+    title: 'Taşıma yemek',
+    body: 'Üretim merkez mutfakta yapılır, öğün servise hazır teslim edilir. Mutfak altyapısı gerektirmez.',
   },
   {
-    title: 'Teslimatı belirleyin',
-    body: 'Adrese teslim ya da gel-al. İstediğiniz saati bildirin, kesim saatine kadar sipariş alıyoruz.',
+    icon: ChefHat,
+    title: 'Yerinde üretim',
+    body: 'Kurumun kendi mutfağında, bizim ekibimizle günlük üretim. Taşıma süresi ortadan kalkar.',
   },
   {
-    title: 'Siparişinizi takip edin',
-    body: 'Mutfak siparişinizi aldığı andan teslimata kadar durumu ekranınızda güncellenir.',
+    icon: PartyPopper,
+    title: 'Organizasyon catering',
+    body: 'Tek seferlik davet ve etkinlikler için menü, kurulum, servis ve toplama tek pakette.',
   },
 ] as const;
 
-const TRUST_POINTS = [
-  {
-    key: 'fresh',
-    icon: <IconLeaf className="h-6 w-6" />,
-    title: 'Günlük üretim',
-    body: 'Menü her sabah yeniden hazırlanır; sipariş verdiğiniz yemek o gün pişer.',
-  },
-  {
-    key: 'tracking',
-    icon: <IconRoute className="h-6 w-6" />,
-    title: 'Adım adım takip',
-    body: 'Sipariş mutfağa düştüğü anda ekranınıza yansır: onaylandı, hazırlanıyor, yolda.',
-  },
-  {
-    key: 'delivery',
-    icon: <IconTruck className="h-6 w-6" />,
-    title: 'Adrese teslim veya gel-al',
-    body: 'Siparişinizi kapınıza getirelim ya da hazır olduğunda gelip alın; seçim sizin.',
-  },
-  {
-    key: 'payment',
-    icon: <IconWallet className="h-6 w-6" />,
-    title: 'Kurumsal ödeme',
-    body: 'Kapıda ödeme ve cari hesap desteklenir; toplu siparişte tek hesapta toplanır.',
-  },
-] as const;
-
-function restaurantJsonLd(snapshot: CatalogSnapshot): Record<string, unknown> {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'Restaurant',
-    name: 'Benim Lezzet Dünyam',
-    description: 'Kurumsal catering ve günlük yemek hizmeti.',
-    url: SITE_URL,
-    servesCuisine: 'Türk mutfağı',
-    priceRange: '₺₺',
-    hasMenu: `${SITE_URL}/menu`,
-    areaServed: 'Türkiye',
-    acceptsReservations: false,
-    ...(snapshot.location
-      ? {
-          currenciesAccepted: 'TRY',
-          paymentAccepted: snapshot.location.payment_methods.join(', '),
-        }
-      : {}),
-  };
-}
-
-/** Kahraman görsel kolajı — menüdeki gerçek ürün görselleri kullanılır. */
-function HeroCollage({ items }: { items: MenuItem[] }) {
-  const [lead, ...rest] = items;
-  if (!lead) return null;
-
-  return (
-    <div className="grid grid-cols-2 gap-3" aria-hidden="true">
-      <div className="relative col-span-2 aspect-16/10 overflow-hidden rounded-card bg-neutral-100 shadow-xs">
-        <ProductImage
-          src={lead.image_url}
-          alt=""
-          sizes="(max-width: 1024px) 100vw, 520px"
-          priority
-        />
-      </div>
-      {rest.slice(0, 2).map((item) => (
-        <div
-          key={item.id}
-          className="relative aspect-4/3 overflow-hidden rounded-card bg-neutral-100 shadow-xs"
-        >
-          <ProductImage src={item.image_url} alt="" sizes="(max-width: 1024px) 50vw, 250px" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function CategoryShortcuts({ categories }: { categories: MenuCategory[] }) {
-  if (categories.length === 0) return null;
-
-  return (
-    <section className="mx-auto max-w-content px-4 py-10 sm:py-14">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-2xl font-bold">Ne yemek istersiniz?</h2>
-        <Link
-          href="/menu"
-          className="rounded-sm text-sm font-semibold text-brand-700 underline-offset-2 hover:underline"
-        >
-          Tüm kategoriler
-        </Link>
-      </div>
-
-      <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {categories.map((category) => {
-          const items = category.items ?? [];
-          const cover = items.find((item) => item.image_url) ?? items[0];
-
-          return (
-            <li key={category.id}>
-              <Link
-                href={`/menu#kategori-${category.id}`}
-                className="group flex items-center gap-4 overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 p-3 shadow-xs transition-shadow hover:shadow-md"
-              >
-                <span className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-neutral-100">
-                  <ProductImage
-                    src={cover?.image_url}
-                    alt=""
-                    sizes="80px"
-                    className="transition-transform duration-300 motion-safe:group-hover:scale-105"
-                  />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-base font-semibold">{category.name}</span>
-                  <span className="mt-0.5 block text-sm text-neutral-600">{items.length} ürün</span>
-                </span>
-                <IconChevronRight className="h-5 w-5 shrink-0 text-neutral-400 transition-transform motion-safe:group-hover:translate-x-0.5" />
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
-
-export default async function HomePage() {
-  let snapshot: CatalogSnapshot;
-  try {
-    snapshot = await fetchCatalog();
-  } catch {
-    return (
-      <div className="mx-auto max-w-content px-4 py-16">
-        <ErrorState
-          title="Menü yüklenemedi"
-          message="Menü yüklenemedi, tekrar deneyin."
-          retryHref="/"
-        />
-      </div>
-    );
-  }
-
-  const orderingOpen = isOrderingOpen(snapshot.location);
-  const categories = snapshot.categories.filter((category) => (category.items ?? []).length > 0);
-  const available = flattenItems(categories).filter((item) => item.is_available);
-  const featured = available.slice(0, 6);
-  const cheapest = available.reduce<number | null>(
-    (min, item) => (min === null || item.price < min ? item.price : min),
-    null,
-  );
-
+export default function HomePage() {
   return (
     <>
-      <JsonLd data={restaurantJsonLd(snapshot)} />
+      <JsonLd data={organizationJsonLd()} />
+      <JsonLd data={faqJsonLd(FAQ)} />
 
-      <section className="relative overflow-hidden bg-linear-to-b from-brand-50 via-brand-50 to-neutral-50">
-        {/* Dekoratif ışık lekesi — içeriğin okunabilirliğini etkilemez. */}
+      {/* ── 1. Hero ───────────────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden border-b bg-surface-warm text-surface-warm-foreground">
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -right-24 -top-32 h-80 w-80 rounded-full bg-brand-200/50 blur-3xl"
+          className="pointer-events-none absolute -top-40 -right-32 size-[28rem] rounded-full bg-brand-200/40 blur-3xl dark:opacity-30"
         />
 
-        <div className="relative mx-auto grid max-w-content items-center gap-10 px-4 py-12 sm:py-16 lg:grid-cols-2 lg:py-20">
+        <div className="relative mx-auto grid max-w-content items-center gap-12 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[1.15fr_1fr]">
           <div>
-            <p className="bld-badge bg-brand-100 px-3 py-1.5 text-brand-800">
-              Kurumsal catering · Günlük menü
+            <p className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-card px-3 py-1.5 text-xs font-semibold text-primary">
+              <UtensilsCrossed aria-hidden="true" className="size-3.5" />
+              Toplu yemek ve catering hizmetleri
             </p>
-            <h1 className="mt-4 text-3xl font-bold leading-tight sm:text-5xl">
-              Her gün taze pişen yemek, <span className="text-brand-700">kapınıza kadar</span>
+
+            <h1 className="mt-6 font-display text-4xl font-semibold tracking-tight sm:text-6xl sm:leading-[1.05]">
+              Kalabalık sofralar için <span className="text-primary">planlı</span> catering
             </h1>
-            <p className="mt-4 max-w-xl text-base text-neutral-800 sm:text-lg">
-              Ofisiniz, atölyeniz veya etkinliğiniz için günlük menüler hazırlıyoruz. Sipariş verin,
-              mutfaktan çıkışına kadar adım adım takip edin.
+
+            <p className="mt-6 max-w-xl text-base/7 opacity-80 sm:text-lg/8">
+              Kurumlara, okullara, sağlık kuruluşlarına ve organizasyonlara toplu yemek hizmeti
+              veriyoruz. Menüyü planlıyor, hijyenik koşullarda üretiyor ve söz verdiğimiz saatte
+              teslim ediyoruz.
             </p>
 
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Link href="/menu" className="bld-btn-primary px-6 py-3 text-base">
-                Sipariş ver
-                <IconChevronRight className="h-5 w-5" />
-              </Link>
-              <Link href="/siparislerim" className="bld-btn-secondary px-6 py-3 text-base">
-                Siparişlerimi gör
-              </Link>
+            <div className="mt-9 flex flex-wrap gap-3">
+              <Button asChild size="lg">
+                <Link href="/teklif-al">
+                  Teklif Al
+                  <ArrowRight aria-hidden="true" />
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="outline">
+                <Link href="/hizmetler">Hizmetleri İncele</Link>
+              </Button>
             </div>
 
-            {cheapest !== null && (
-              <p className="mt-4 text-sm text-neutral-600">
-                Porsiyon fiyatları {formatPrice(cheapest)} seviyesinden başlıyor.
-              </p>
-            )}
-
-            <LocationFacts location={snapshot.location} className="mt-6" />
-
-            <div className="mt-6 max-w-2xl space-y-3 empty:mt-0">
-              {!orderingOpen && <OrderingClosedBanner location={snapshot.location} />}
-              {/* Yoğunluk bandı sipariş açıkken de görünür: uyarıdır, kapı değil. */}
-              <KitchenBusyBanner />
-            </div>
+            <ul className="mt-10 space-y-3">
+              {TRUST_STRIP.map((item) => (
+                <li key={item.label} className="flex items-center gap-3 text-sm">
+                  <item.icon aria-hidden="true" className="size-4 shrink-0 text-primary" />
+                  <span className="opacity-80">{item.label}</span>
+                </li>
+              ))}
+            </ul>
           </div>
 
-          <HeroCollage items={featured} />
+          {/*
+           * Görsel yerine tipografik pano.
+           *
+           * Projede BLD'ye ait catering fotoğrafı yok. Stok fotoğraf koymak,
+           * "bu bizim mutfağımız" izlenimi yaratıp gerçek olmayan bir şey
+           * göstermek olurdu. Bunun yerine hizmetin ne olduğunu okunur biçimde
+           * anlatan bir pano kullanıyoruz. Gerçek fotoğraflar geldiğinde bu
+           * blok görselle değiştirilecek.
+           */}
+          <div className="relative overflow-hidden rounded-3xl bg-charcoal p-8 text-cream sm:p-10">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -right-16 -bottom-20 size-64 rounded-full bg-brand-600/30 blur-3xl"
+            />
+            <div className="relative">
+              <p className="text-xs font-semibold tracking-[0.16em] text-brand-300 uppercase">
+                Nasıl çalışıyoruz
+              </p>
+              <ol className="mt-6 space-y-5">
+                {PROCESS_STEPS.slice(0, 4).map((step, index) => (
+                  <li key={step.title} className="flex gap-4">
+                    <span
+                      aria-hidden="true"
+                      className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full border border-cream/25 text-xs font-semibold text-cream/70"
+                    >
+                      {index + 1}
+                    </span>
+                    <span>
+                      <span className="block font-display text-base font-semibold">
+                        {step.title}
+                      </span>
+                      <span className="mt-1 block text-sm/6 text-cream/65">{step.body}</span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
         </div>
       </section>
 
-      <CategoryShortcuts categories={categories} />
+      {/* ── 2. Hizmet kategorileri ────────────────────────────────────────── */}
+      <Section aria-labelledby="hizmetler-baslik">
+        <SectionHeading
+          id="hizmetler-baslik"
+          eyebrow="Hizmetlerimiz"
+          title="Hangi düzende çalışmak istiyorsanız"
+          description="Düzenli kurumsal yemekten tek seferlik organizasyona kadar farklı ihtiyaçlar için ayrı hizmet modelleri kuruyoruz."
+        />
 
-      {featured.length > 0 && (
-        <section className="bg-neutral-0 py-12 sm:py-14">
-          <div className="mx-auto max-w-content px-4">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-2xl font-bold">Öne çıkan ürünler</h2>
-              <Link
-                href="/menu"
-                className="rounded-sm text-sm font-semibold text-brand-700 underline-offset-2 hover:underline"
-              >
-                Tüm menüyü gör
-              </Link>
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {FEATURED_SERVICES.map((service) => (
+            <div key={service.slug} className="bld-reveal">
+              <ServiceCard
+                href={`/hizmetler/${service.slug}`}
+                icon={service.icon}
+                title={service.title}
+                summary={service.summary}
+              />
             </div>
+          ))}
+        </div>
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {featured.map((item) => (
-                <ProductCard key={item.id} item={item} orderingOpen={orderingOpen} />
-              ))}
+        <div className="mt-10">
+          <Button asChild variant="outline" size="lg">
+            <Link href="/hizmetler">
+              Tüm hizmetleri gör
+              <ArrowRight aria-hidden="true" />
+            </Link>
+          </Button>
+        </div>
+      </Section>
+
+      {/* ── 3. Neden BLD? ─────────────────────────────────────────────────── */}
+      <Section tone="olive" aria-labelledby="neden-baslik">
+        <SectionHeading
+          id="neden-baslik"
+          eyebrow="Neden Benim Lezzet Dünyam"
+          title="Vaat değil, çalışma biçimi"
+          description="Aşağıdakiler reklam cümlesi değil; hizmetin nasıl yürüdüğünü anlatan pratik başlıklar."
+        />
+
+        <div className="mt-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          {DIFFERENTIATORS.map((item) => (
+            <div key={item.title} className="bld-reveal">
+              <FeatureItem icon={item.icon} title={item.title} body={item.body} tone="dark" />
             </div>
-          </div>
-        </section>
-      )}
+          ))}
+        </div>
+      </Section>
 
-      <section className="mx-auto max-w-content px-4 py-12 sm:py-14">
-        <h2 className="text-2xl font-bold">Nasıl çalışır?</h2>
-        <ol className="mt-6 grid gap-4 sm:grid-cols-3">
-          {STEPS.map((step, index) => (
-            <li key={step.title} className="bld-card p-5">
-              <span
-                aria-hidden="true"
-                className="grid h-10 w-10 place-items-center rounded-full bg-brand-100 text-base font-bold text-brand-800"
-              >
-                {index + 1}
-              </span>
-              <h3 className="mt-3 text-base font-semibold">{step.title}</h3>
-              <p className="mt-1 text-sm leading-relaxed text-neutral-600">{step.body}</p>
-            </li>
+      {/* ── 4. İşleyiş süreci ─────────────────────────────────────────────── */}
+      <Section tone="muted" aria-labelledby="surec-baslik">
+        <SectionHeading
+          id="surec-baslik"
+          eyebrow="Süreç"
+          title="İlk görüşmeden düzenli hizmete"
+          description="Teklif aşamasından itibaren her adımın kimde olduğu belli; sürpriz çıkmaması için akış baştan sabitleniyor."
+        />
+
+        <ol className="mt-12 max-w-3xl">
+          {PROCESS_STEPS.map((step, index) => (
+            <ProcessStepCard
+              key={step.title}
+              index={index + 1}
+              icon={step.icon}
+              title={step.title}
+              body={step.body}
+            />
           ))}
         </ol>
-      </section>
+      </Section>
 
-      <section className="border-y border-neutral-200 bg-neutral-0 py-12 sm:py-14">
-        <div className="mx-auto max-w-content px-4">
-          <h2 className="text-2xl font-bold">Neden Benim Lezzet Dünyam?</h2>
-          <ul className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {TRUST_POINTS.map((point) => (
-              <li key={point.key}>
-                <span
-                  aria-hidden="true"
-                  className="grid h-11 w-11 place-items-center rounded-card bg-brand-50 text-brand-700"
-                >
-                  {point.icon}
-                </span>
-                <h3 className="mt-3 text-base font-semibold">{point.title}</h3>
-                <p className="mt-1 text-sm leading-relaxed text-neutral-600">{point.body}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
+      {/* ── 5. Menü örnekleri ─────────────────────────────────────────────── */}
+      <Section aria-labelledby="menu-baslik">
+        <SectionHeading
+          id="menu-baslik"
+          eyebrow="Menü çözümleri"
+          title="Menü, kurumunuza göre kurulur"
+          description="Aynı menü her yere uymaz. Çalışan profiline, yaş grubuna ve öğün düzenine göre farklı kurgular hazırlıyoruz."
+        />
 
-      <section className="mx-auto max-w-content px-4 py-12 sm:py-16">
-        <div className="rounded-card bg-brand-700 px-6 py-10 text-center sm:px-10">
-          <h2 className="text-2xl font-bold text-neutral-0 sm:text-3xl">
-            Yarının menüsünü bugünden ayırtın
-          </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-brand-50 sm:text-base">
-            {snapshot.location?.order_cutoff
-              ? `Günlük son sipariş saatimiz ${snapshot.location.order_cutoff}. Bu saate kadar verilen siparişler aynı gün hazırlanır.`
-              : 'Sipariş saatleri içinde verdiğiniz siparişler aynı gün hazırlanır.'}
-          </p>
-          <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <Link
-              href="/menu"
-              className="bld-btn bg-neutral-0 px-6 py-3 text-base text-brand-800 hover:bg-brand-50"
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {MENU_SOLUTIONS.slice(0, 3).map((solution) => (
+            <article
+              key={solution.slug}
+              className="flex bld-reveal flex-col rounded-2xl border bg-card p-6 text-card-foreground"
             >
-              Menüyü aç
-              <IconClock className="h-5 w-5" />
+              <h3 className="font-display text-lg font-semibold tracking-tight">
+                {solution.title}
+              </h3>
+              <p className="mt-2 text-sm/6 text-muted-foreground">{solution.summary}</p>
+
+              <dl className="mt-5 flex-1 space-y-3 border-t pt-5">
+                {solution.courses.slice(0, 3).map((course) => (
+                  <div key={course.label}>
+                    <dt className="text-xs font-semibold tracking-wider text-primary uppercase">
+                      {course.label}
+                    </dt>
+                    <dd className="mt-1 text-sm text-muted-foreground">
+                      {course.examples.slice(0, 3).join(' · ')}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </article>
+          ))}
+        </div>
+
+        <div className="mt-10">
+          <Button asChild variant="outline" size="lg">
+            <Link href="/menu-cozumleri">
+              Menü çözümlerinin tamamı
+              <ArrowRight aria-hidden="true" />
             </Link>
+          </Button>
+        </div>
+      </Section>
+
+      {/* ── 6. Kalite ve hijyen ───────────────────────────────────────────── */}
+      <Section tone="warm" aria-labelledby="kalite-baslik">
+        <div className="grid gap-12 lg:grid-cols-[1fr_1.2fr]">
+          <SectionHeading
+            id="kalite-baslik"
+            eyebrow="Kalite ve hijyen"
+            title="Zincirin her halkası kayıt altında"
+            description="Hijyen tek bir aşamanın değil, hammaddeden teslimata uzanan bir zincirin işi. Aşağıda o zincirin ilk dört halkası var."
+          />
+
+          <div>
+            <ul className="grid gap-6 sm:grid-cols-2">
+              {QUALITY_CHAIN.slice(0, 4).map((principle) => (
+                <li key={principle.title} className="bld-reveal">
+                  <FeatureItem
+                    icon={principle.icon}
+                    title={principle.title}
+                    body={principle.body}
+                  />
+                </li>
+              ))}
+            </ul>
+
+            <Button asChild variant="outline" size="lg" className="mt-8">
+              <Link href="/kalite-hijyen">
+                Kalite yaklaşımımızın tamamı
+                <ArrowRight aria-hidden="true" />
+              </Link>
+            </Button>
           </div>
         </div>
-      </section>
+      </Section>
+
+      {/* ── 7. Çalıştığımız alanlar ───────────────────────────────────────── */}
+      <Section tone="muted" aria-labelledby="alanlar-baslik">
+        <SectionHeading
+          id="alanlar-baslik"
+          eyebrow="Çalıştığımız alanlar"
+          title="Her sektörün beklentisi farklı"
+          description="Aşağıda sektör adları var, müşteri logosu yok: doğrulanmış referans verimiz olmadan firma adı veya logo göstermeyi doğru bulmuyoruz."
+        />
+
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {SECTORS.slice(0, 6).map((sector) => (
+            <div key={sector.slug} className="bld-reveal">
+              <SectorCard
+                icon={sector.icon}
+                title={sector.title}
+                need={sector.need}
+                answer={sector.answer}
+                href={`/hizmetler/${sector.serviceSlug}`}
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-10">
+          <Button asChild variant="outline" size="lg">
+            <Link href="/calistigimiz-alanlar">
+              Tüm alanlar
+              <ArrowRight aria-hidden="true" />
+            </Link>
+          </Button>
+        </div>
+      </Section>
+
+      {/* ── 8. Hizmet modelleri (kapasite) ────────────────────────────────── */}
+      <Section tone="charcoal" aria-labelledby="modeller-baslik">
+        <SectionHeading
+          id="modeller-baslik"
+          eyebrow="Çalışma modelleri"
+          title="Mutfağınız olsa da olmasa da"
+          description="Hizmeti kurumun altyapısına göre kuruyoruz; tek bir modele uymak zorunda değilsiniz."
+        />
+
+        <div className="mt-12 grid gap-10 sm:grid-cols-3">
+          {OPERATING_MODELS.map((model) => (
+            <div key={model.title} className="bld-reveal">
+              <FeatureItem icon={model.icon} title={model.title} body={model.body} tone="dark" />
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      {/* ── 9. Sık sorulan sorular ────────────────────────────────────────── */}
+      <Section aria-labelledby="sss-baslik">
+        <div className="grid gap-12 lg:grid-cols-[1fr_1.4fr]">
+          <SectionHeading
+            id="sss-baslik"
+            eyebrow="Sık sorulan sorular"
+            title="Teklif almadan önce merak edilenler"
+            description="Aradığınız cevap yoksa doğrudan sorabilirsiniz; teklif formunda açıklama alanı var."
+          />
+
+          <Accordion type="single" collapsible className="w-full">
+            {FAQ.map((item, index) => (
+              <AccordionItem key={item.question} value={`sss-${index}`}>
+                <AccordionTrigger className="text-left text-base font-medium">
+                  {item.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-sm/7 text-muted-foreground">
+                  {item.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </div>
+      </Section>
+
+      {/* ── 10. Teklif çağrısı ────────────────────────────────────────────── */}
+      <CtaBand
+        title={`${BRAND.shortName} ile çalışmak için ilk adım`}
+        description="Kişi sayınızı, hizmet türünüzü ve konumunuzu iletin; menü önerisi ve fiyatlandırmayla birlikte size dönelim."
+      />
     </>
   );
 }

@@ -39,7 +39,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           </p>
         )}
 
-        <div className="bld-card mt-6 p-5 shadow-md sm:p-6">
+        <div className="mt-6 bld-card p-5 shadow-md sm:p-6">
           <LoginForm next={next} />
         </div>
       </div>

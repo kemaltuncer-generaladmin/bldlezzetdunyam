@@ -91,7 +91,7 @@ export function CheckoutForm({ paymentMethods, minRequestedAt, orderCutoff }: Pr
 
       {/* Gel-al siparişte adres adımı tamamen atlanır (docs/06 §3). */}
       {isDelivery && (
-        <section className="bld-card space-y-4 p-5">
+        <section className="space-y-4 bld-card p-5">
           <h2 className="text-lg font-semibold text-neutral-900">Teslimat adresi</h2>
 
           <FormField id="address_line1" label="Adres" error={fieldError('address_line1')}>

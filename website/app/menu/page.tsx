@@ -83,7 +83,7 @@ export default async function MenuPage() {
 
       <div className="border-b border-neutral-200 bg-linear-to-b from-brand-50 to-neutral-50">
         <div className="mx-auto max-w-content px-4 py-8 sm:py-10">
-          <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">
+          <p className="text-sm font-semibold tracking-wide text-brand-700 uppercase">
             Günün menüsü
           </p>
           <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Catering menüsü</h1>
@@ -96,7 +96,7 @@ export default async function MenuPage() {
       </div>
 
       {/* Alt sepet çubuğu içeriği kapatmasın diye mobilde alttan boşluk. */}
-      <div className="mx-auto max-w-content px-4 pb-28 pt-6 sm:pt-8 lg:pb-16">
+      <div className="mx-auto max-w-content px-4 pt-6 pb-28 sm:pt-8 lg:pb-16">
         <div className="space-y-3 empty:hidden">
           {!orderingOpen && <OrderingClosedBanner location={snapshot.location} />}
           <KitchenBusyBanner />
@@ -113,7 +113,16 @@ export default async function MenuPage() {
           />
         ) : (
           <div className="mt-4 grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
-            <MenuBrowser categories={categories} orderingOpen={orderingOpen} />
+            {/*
+             * `min-w-0`: ızgara öğeleri varsayılan olarak `min-width: auto`
+             * taşır, yani içeriklerinden dar olamazlar. Kategori şeridi
+             * (`bld-rail`) telefonda ekrandan geniş olduğu için sütun onunla
+             * birlikte büyüyor ve SAYFA yatay kayıyordu — oysa şeridin kendi
+             * içinde kayması gerekiyor. 390 px'te belge 529 px'e çıkıyordu.
+             */}
+            <div className="min-w-0">
+              <MenuBrowser categories={categories} orderingOpen={orderingOpen} />
+            </div>
             <CartSummaryPanel />
           </div>
         )}

@@ -88,7 +88,7 @@ export default async function CheckoutPage() {
           )}
         </div>
 
-        <aside className="bld-card h-fit p-5 lg:sticky lg:top-24">
+        <aside className="h-fit bld-card p-5 lg:sticky lg:top-24">
           <h2 className="text-lg font-semibold text-neutral-900">Sipariş özeti</h2>
 
           <ul className="mt-4 space-y-3">
@@ -130,7 +130,7 @@ export default async function CheckoutPage() {
             görünür.
           </p>
 
-          <Link href="/sepet" className="bld-btn-secondary mt-5 w-full">
+          <Link href="/sepet" className="mt-5 bld-btn-secondary w-full">
             Sepeti düzenle
           </Link>
         </aside>

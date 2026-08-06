@@ -15,11 +15,11 @@ export function ErrorState({
   retryLabel = 'Tekrar deneyin',
 }: Props) {
   return (
-    <div role="alert" className="bld-card mx-auto max-w-lg px-5 py-8 text-center">
+    <div role="alert" className="mx-auto max-w-lg bld-card px-5 py-8 text-center">
       <p className="text-lg font-semibold text-neutral-900">{title}</p>
       <p className="mt-2 text-sm text-neutral-600">{message}</p>
       {retryHref && (
-        <Link href={retryHref} className="bld-btn-primary mt-5">
+        <Link href={retryHref} className="mt-5 bld-btn-primary">
           {retryLabel}
         </Link>
       )}

@@ -34,7 +34,7 @@ export default async function RegisterPage({
           Sipariş verebilmek ve siparişinizi anlık takip edebilmek için kısa bir kayıt yeterli.
         </p>
 
-        <div className="bld-card mt-6 p-5 shadow-md sm:p-6">
+        <div className="mt-6 bld-card p-5 shadow-md sm:p-6">
           <RegisterForm next={next} />
         </div>
       </div>
