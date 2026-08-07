@@ -429,5 +429,58 @@
   "mapPickerAttribution": "© OpenStreetMap katkıcıları",
   "@mapPickerAttribution": {
     "description": "OpenStreetMap lisansının gerektirdiği kaynak gösterimi"
+  },
+  "navHome": "Ana Sayfa",
+  "@navHome": {
+    "description": "Alt gezinme çubuğundaki keşif sekmesi"
+  },
+  "homeGreeting": "Bugün ne yesek?",
+  "@homeGreeting": {
+    "description": "Ana sayfa karşılama başlığı"
+  },
+  "homeCategories": "Kategoriler",
+  "@homeCategories": {
+    "description": "Kategori şeridi başlığı"
+  },
+  "homeFeatured": "Bugün öne çıkanlar",
+  "@homeFeatured": {
+    "description": "Öne çıkan ürünler şeridi başlığı"
+  },
+  "homeSeeAll": "Tümünü gör",
+  "@homeSeeAll": {
+    "description": "Menüye giden bağlantı"
+  },
+  "homeLastOrder": "Son siparişiniz",
+  "@homeLastOrder": {
+    "description": "Geçmiş siparişten tekrar sipariş kartının başlığı"
+  },
+  "homeReorder": "Tekrar sipariş ver",
+  "@homeReorder": {
+    "description": "Son siparişi sepete geri koyan düğme"
+  },
+  "homeReorderDone": "{count} ürün sepete eklendi.",
+  "@homeReorderDone": {
+    "description": "Tekrar sipariş sonucu",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeReorderPartial": "{count} ürün sepete eklendi. {missing} ürün artık menüde yok.",
+  "@homeReorderPartial": {
+    "description": "Tekrar siparişte bazı ürünler bulunamadığında",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "missing": {
+        "type": "int"
+      }
+    }
+  },
+  "homeReorderEmpty": "Bu siparişteki ürünlerin hiçbiri şu an menüde yok.",
+  "@homeReorderEmpty": {
+    "description": "Tekrar siparişte hiçbir ürün bulunamadığında"
   }
 }

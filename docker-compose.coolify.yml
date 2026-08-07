@@ -65,6 +65,16 @@ services:
       dockerfile: infra/platform/Dockerfile.web
     restart: unless-stopped
     depends_on: [app]
+    volumes:
+      # Yüklenen medya `app` tarafından bu birime yazılıyor, ama SUNAN
+      # konteyner burası. Birim bağlanmadığı sürece `web` yalnızca imaja
+      # gömülü statik `public/` kopyasını görüyordu ve menü fotoğrafları
+      # 404 dönüyordu — ürünlerde `image_url` dolu olduğu hâlde.
+      #
+      # `:ro` — bu konteyner yalnızca sunar, hiçbir şey yazmaz. Yazma
+      # yetkisi vermek, statik dosya sunucusuna gereksiz bir yetenek
+      # bırakmak olurdu.
+      - platform-storage:/var/www/platform/storage/app:ro
     environment:
       # ÇIPLAK ANAHTAR, DEĞER VERİLMEZ. Coolify bu deseni görünce alan
       # adını üretir, Traefik etiketlerini ekler ve konteyneri `coolify`

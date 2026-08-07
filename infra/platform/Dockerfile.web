@@ -34,6 +34,21 @@ FROM caddy:2-alpine
 
 COPY --from=build /var/www/platform/public /var/www/platform/public
 
+# Yüklenen medyanın sunulabilmesi için `public/storage` bağlantısı.
+#
+# NEDEN İMAJDA: `php artisan storage:link` YALNIZCA `app` konteynerinin
+# giriş betiğinde koşuyor ve bağlantıyı orada kuruyor. Bu imajın `public/`
+# klasörü ise derleme aşamasından gelen ayrı bir kopya — o bağlantı buraya
+# hiç ulaşmıyordu. Sonuç: menü fotoğrafları `image_url` ile duyuruluyor ama
+# `/storage/media/...` isteği 404 dönüyordu.
+#
+# Bağlantı `storage/app/public` hedefini gösteriyor; dosyaların gerçekten
+# görünmesi için `platform-storage` birimi bu konteynere de bağlanmalı
+# (bkz. docker-compose.coolify.yml `web.volumes`). İkisi birlikte gerekli:
+# yalnızca bağlantı kırık hedefe, yalnızca birim ise ulaşılamayan yola
+# işaret eder.
+RUN ln -s ../storage/app/public /var/www/platform/public/storage
+
 # Yapılandırma imaja GÖMÜLÜR, bind mount edilmez.
 #
 # NEDEN: Coolify repo kaynağını uygulama dizininde tutmaz — derleme ayrı

@@ -17,6 +17,7 @@ import '../features/account/address_book_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
 import '../features/cart/cart_screen.dart';
+import '../features/home/home_screen.dart';
 import '../features/checkout/checkout_screen.dart';
 import '../features/menu/menu_screen.dart';
 import '../features/menu/product_detail_screen.dart';
@@ -33,6 +34,7 @@ abstract final class Routes {
   static const String update = '/update';
   static const String login = '/login';
   static const String register = '/register';
+  static const String home = '/home';
   static const String menu = '/menu';
   static const String cart = '/cart';
   static const String checkout = '/checkout';
@@ -85,7 +87,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (gate.requireValue.updateRequired) {
         return path == Routes.update ? null : Routes.update;
       }
-      if (path == Routes.update || path == Routes.splash) return Routes.menu;
+      // Açılış ana sayfaya: uygulama vitrinle karşılıyor. Menü ikinci
+      // sekmede duruyor ve doğrudan adresle de açılabiliyor.
+      if (path == Routes.update || path == Routes.splash) return Routes.home;
 
       if (!session.requireValue.isSignedIn && _requiresAuth(path)) {
         final next = Uri.encodeComponent(state.uri.toString());
@@ -140,6 +144,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state, navigationShell) =>
             HomeShell(navigationShell: navigationShell),
         branches: [
+          // Ana sayfa İLK dal: uygulama vitrinle açılıyor, düz listeyle
+          // değil. Menü kaldırılmadı, ikinci sekmede duruyor.
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: Routes.home,
+                builder: (context, state) => const HomeScreen(),
+              ),
+            ],
+          ),
           StatefulShellBranch(
             routes: [
               GoRoute(

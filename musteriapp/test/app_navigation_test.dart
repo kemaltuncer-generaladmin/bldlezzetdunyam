@@ -119,6 +119,11 @@ void main() {
       ),
     );
 
+    // Uygulama ANA SAYFA ile açılıyor; menü ikinci sekmede.
+    expect(find.text('Bugün ne yesek?'), findsOneWidget);
+
+    await _openMenuTab(tester);
+
     expect(find.text('Ana Yemekler'), findsOneWidget);
     expect(find.text('Tavuk Sote'), findsOneWidget);
     expect(find.text('185,00 ₺'), findsOneWidget);
@@ -134,6 +139,19 @@ void main() {
     await _pumpApp(tester, gate: const VersionGate.undetermined());
 
     expect(find.text('Güncelleme gerekli'), findsNothing);
+
+    // Sürüm belirlenemese bile kullanıcı menüye ulaşabilmeli — sınanan şey
+    // bu, hangi ekranın önce açıldığı değil.
+    await _openMenuTab(tester);
     expect(find.text('Tavuk Sote'), findsOneWidget);
   });
+}
+
+/// Alt çubuktan menü sekmesine geçer.
+///
+/// Sekme ADIYLA bulunuyor, sırasıyla değil: yeni bir sekme eklendiğinde
+/// indeks kayar ve testler sessizce başka bir ekranı doğrulamaya başlardı.
+Future<void> _openMenuTab(WidgetTester tester) async {
+  await tester.tap(find.text('Menü').last);
+  await tester.pumpAndSettle();
 }

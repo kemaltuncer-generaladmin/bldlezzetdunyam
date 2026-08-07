@@ -626,4 +626,39 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get mapPickerAttribution => '© OpenStreetMap katkıcıları';
+
+  @override
+  String get navHome => 'Ana Sayfa';
+
+  @override
+  String get homeGreeting => 'Bugün ne yesek?';
+
+  @override
+  String get homeCategories => 'Kategoriler';
+
+  @override
+  String get homeFeatured => 'Bugün öne çıkanlar';
+
+  @override
+  String get homeSeeAll => 'Tümünü gör';
+
+  @override
+  String get homeLastOrder => 'Son siparişiniz';
+
+  @override
+  String get homeReorder => 'Tekrar sipariş ver';
+
+  @override
+  String homeReorderDone(int count) {
+    return '$count ürün sepete eklendi.';
+  }
+
+  @override
+  String homeReorderPartial(int count, int missing) {
+    return '$count ürün sepete eklendi. $missing ürün artık menüde yok.';
+  }
+
+  @override
+  String get homeReorderEmpty =>
+      'Bu siparişteki ürünlerin hiçbiri şu an menüde yok.';
 }

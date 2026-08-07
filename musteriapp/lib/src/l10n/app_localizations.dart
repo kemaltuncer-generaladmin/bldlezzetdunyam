@@ -1209,6 +1209,66 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'© OpenStreetMap katkıcıları'**
   String get mapPickerAttribution;
+
+  /// Alt gezinme çubuğundaki keşif sekmesi
+  ///
+  /// In tr, this message translates to:
+  /// **'Ana Sayfa'**
+  String get navHome;
+
+  /// Ana sayfa karşılama başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Bugün ne yesek?'**
+  String get homeGreeting;
+
+  /// Kategori şeridi başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Kategoriler'**
+  String get homeCategories;
+
+  /// Öne çıkan ürünler şeridi başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Bugün öne çıkanlar'**
+  String get homeFeatured;
+
+  /// Menüye giden bağlantı
+  ///
+  /// In tr, this message translates to:
+  /// **'Tümünü gör'**
+  String get homeSeeAll;
+
+  /// Geçmiş siparişten tekrar sipariş kartının başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Son siparişiniz'**
+  String get homeLastOrder;
+
+  /// Son siparişi sepete geri koyan düğme
+  ///
+  /// In tr, this message translates to:
+  /// **'Tekrar sipariş ver'**
+  String get homeReorder;
+
+  /// Tekrar sipariş sonucu
+  ///
+  /// In tr, this message translates to:
+  /// **'{count} ürün sepete eklendi.'**
+  String homeReorderDone(int count);
+
+  /// Tekrar siparişte bazı ürünler bulunamadığında
+  ///
+  /// In tr, this message translates to:
+  /// **'{count} ürün sepete eklendi. {missing} ürün artık menüde yok.'**
+  String homeReorderPartial(int count, int missing);
+
+  /// Tekrar siparişte hiçbir ürün bulunamadığında
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu siparişteki ürünlerin hiçbiri şu an menüde yok.'**
+  String get homeReorderEmpty;
 }
 
 class _AppLocalizationsDelegate

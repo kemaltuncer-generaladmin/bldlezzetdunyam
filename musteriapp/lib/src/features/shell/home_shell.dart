@@ -35,6 +35,11 @@ class HomeShell extends ConsumerWidget {
         ),
         destinations: [
           NavigationDestination(
+            icon: const Icon(Icons.home_outlined),
+            selectedIcon: const Icon(Icons.home),
+            label: l10n.navHome,
+          ),
+          NavigationDestination(
             icon: const Icon(Icons.restaurant_menu_outlined),
             selectedIcon: const Icon(Icons.restaurant_menu),
             label: l10n.navMenu,
