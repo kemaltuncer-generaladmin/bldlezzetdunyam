@@ -20,6 +20,48 @@ Map<String, dynamic> _$AddressToJson(_Address instance) => <String, dynamic>{
   'note': ?instance.note,
 };
 
+_SavedAddress _$SavedAddressFromJson(Map<String, dynamic> json) =>
+    _SavedAddress(
+      id: (json['id'] as num).toInt(),
+      line1: json['line1'] as String,
+      district: json['district'] as String,
+      city: json['city'] as String,
+      isDefault: json['is_default'] as bool,
+      label: json['label'] as String?,
+      note: json['note'] as String?,
+    );
+
+Map<String, dynamic> _$SavedAddressToJson(_SavedAddress instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'line1': instance.line1,
+      'district': instance.district,
+      'city': instance.city,
+      'is_default': instance.isDefault,
+      'label': ?instance.label,
+      'note': ?instance.note,
+    };
+
+_SavedAddressInput _$SavedAddressInputFromJson(Map<String, dynamic> json) =>
+    _SavedAddressInput(
+      line1: json['line1'] as String,
+      district: json['district'] as String,
+      city: json['city'] as String,
+      label: json['label'] as String?,
+      note: json['note'] as String?,
+      isDefault: json['is_default'] as bool?,
+    );
+
+Map<String, dynamic> _$SavedAddressInputToJson(_SavedAddressInput instance) =>
+    <String, dynamic>{
+      'line1': instance.line1,
+      'district': instance.district,
+      'city': instance.city,
+      'label': ?instance.label,
+      'note': ?instance.note,
+      'is_default': ?instance.isDefault,
+    };
+
 _OrderCreateItem _$OrderCreateItemFromJson(Map<String, dynamic> json) =>
     _OrderCreateItem(
       menuId: (json['menu_id'] as num).toInt(),

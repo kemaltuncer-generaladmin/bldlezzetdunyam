@@ -1,6 +1,20 @@
 # Geliştirme — TLS yok, tek port. Üretim yapılandırması: infra/Caddyfile
 :80 {
 	root * /var/www/platform/public
+
+	# Medya dosyaları köken kısıtı olmadan sunulur.
+	#
+	# NEDEN: `/storage/media/...` altındaki ürün fotoğrafları zaten herkese
+	# açık statik içerik — API `image_url` ile bu adresi mutlak olarak
+	# döndürüyor. Flutter'ın web hedefi (CanvasKit) görseli `<img>` ile değil
+	# fetch ile alıyor ve CORS başlığı yoksa çiziyor gibi yapıp boş bırakıyor:
+	# konsola hata düşmüyor, menü fotoğrafsız açılıyor ve nedeni görünmüyor.
+	#
+	# Android/iOS'ta bu sorun yok; başlık yalnızca tarayıcıda çalışan istemci
+	# için gerekiyor. Kimlik gerektiren hiçbir şey bu yolun altında değil.
+	@medya path /storage/*
+	header @medya Access-Control-Allow-Origin "*"
+
 	php_fastcgi app:9000
 	file_server
 	encode gzip

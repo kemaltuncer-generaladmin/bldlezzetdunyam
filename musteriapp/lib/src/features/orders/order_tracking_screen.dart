@@ -5,6 +5,8 @@
 /// adımı **yoktur**.
 library;
 
+import 'dart:async';
+
 import 'package:bld_api_client/bld_api_client.dart';
 import 'package:bld_core/bld_core.dart';
 import 'package:bld_design_system/bld_design_system.dart';
@@ -17,6 +19,7 @@ import '../../core/labels.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/catalog_providers.dart';
 import '../../providers/infra_providers.dart';
+import '../../providers/notification_providers.dart';
 import '../../providers/order_providers.dart';
 import '../../theme/bld_theme.dart';
 import '../../widgets/eta_notice.dart';
@@ -31,6 +34,24 @@ class OrderTrackingScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
+
+    /*
+     * KDS ile senkron: mutfak durumu değiştirdiğinde yoklama yeni durumu
+     * getiriyor ve kullanıcıya bildirim düşüyor.
+     *
+     * `ref.listen` build içinde: yoklama bu ekran açıkken çalışıyor, ekran
+     * kapanınca provider zaten atılıyor. Bildirimi sağlayıcı katmanında
+     * kurmadık — orada l10n yok ve durum metinleri koda gömülürdü.
+     */
+    ref.listen<AsyncValue<OrderDetail>>(orderTrackingProvider(orderId), (
+      previous,
+      next,
+    ) {
+      final order = next.valueOrNull;
+      if (order == null) return;
+      unawaited(_notifyStatusChange(ref, order, l10n));
+    });
+
     final orderAsync = ref.watch(orderTrackingProvider(orderId));
 
     return Scaffold(
@@ -45,6 +66,37 @@ class OrderTrackingScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Durum değiştiyse bildirim gösterir.
+///
+/// Hangi durumun bildirildiği cihazda tutuluyor: yoklama beş saniyede bir
+/// çalışıyor, hatırlamasaydık aynı bildirim her turda yeniden düşerdi. `yeni`
+/// bildirilmez — kullanıcı siparişi kendi verdi, haber vermeye gerek yok.
+Future<void> _notifyStatusChange(
+  WidgetRef ref,
+  OrderDetail order,
+  AppLocalizations l10n,
+) async {
+  if (order.status == OrderStatus.yeni) return;
+
+  final cache = ref.read(localCacheProvider);
+  final code = order.status.name;
+  if (cache.readNotifiedStatus(order.id) == code) return;
+
+  await cache.writeNotifiedStatus(order.id, code);
+  await ref
+      .read(notificationsProvider)
+      .showOrderStatus(
+        orderId: order.id,
+        title: order.status == OrderStatus.hazir
+            ? l10n.notificationOrderReadyTitle
+            : l10n.notificationOrderUpdatedTitle,
+        body: l10n.notificationOrderBody(
+          order.orderNumber,
+          orderStatusLabel(order.status, l10n),
+        ),
+      );
 }
 
 class _OrderDetailBody extends ConsumerWidget {

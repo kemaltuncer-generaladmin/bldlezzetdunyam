@@ -340,6 +340,14 @@ class MenuItemTile extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Görsel API'den geliyor (`MenuItem.image_url`), panelden
+                // yönetiliyor. Ürünün görseli yoksa satır görselsiz çizilir —
+                // yer tutucu kutu, listeyi hiçbir şey anlatmayan gri
+                // dikdörtgenlerle doldururdu.
+                if (item.imageUrl != null) ...[
+                  _MenuItemThumb(url: item.imageUrl!),
+                  const SizedBox(width: BldSpacing.md),
+                ],
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,6 +398,32 @@ class MenuItemTile extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Liste satırındaki küçük ürün görseli.
+///
+/// Kare: satırın yüksekliğini metin belirliyor ve 16:9 bir görsel satırı
+/// gereksiz uzatıyordu. Yüklenemezse hiç yer kaplamaz.
+class _MenuItemThumb extends StatelessWidget {
+  const _MenuItemThumb({required this.url});
+
+  final String url;
+
+  static const double _size = 72;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(BldRadius.sm),
+      child: Image.network(
+        url,
+        width: _size,
+        height: _size,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
       ),
     );
   }

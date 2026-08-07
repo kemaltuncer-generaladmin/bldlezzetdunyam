@@ -98,6 +98,7 @@ class BldApi {
     auth = _AuthService(this);
     catalog = _CatalogService(this);
     orders = _OrderService(this);
+    addresses = _AddressService(this);
     kitchen = _KitchenService(this);
     appVersion = _AppVersionService(this);
   }
@@ -108,6 +109,7 @@ class BldApi {
   late final AuthService auth;
   late final CatalogService catalog;
   late final OrderService orders;
+  late final AddressService addresses;
   late final KitchenService kitchen;
   late final AppVersionService appVersion;
 
@@ -288,6 +290,40 @@ class _OrderService implements OrderService {
     '/orders/$id/cancel',
     parse: (data) => OrderDetail.fromJson(BldApi._asMap(data)),
   );
+}
+
+class _AddressService implements AddressService {
+  _AddressService(this._api);
+
+  final BldApi _api;
+
+  @override
+  Future<List<SavedAddress>> list() => _api._send(
+    'GET',
+    '/addresses',
+    parse: (data) => BldApi._asDataList(data, SavedAddress.fromJson),
+  );
+
+  @override
+  Future<SavedAddress> create(SavedAddressInput input) => _api._send(
+    'POST',
+    '/addresses',
+    body: input.toJson(),
+    parse: (data) => SavedAddress.fromJson(BldApi._asMap(data)),
+  );
+
+  @override
+  Future<SavedAddress> update(int id, SavedAddressInput input) => _api._send(
+    'PATCH',
+    '/addresses/$id',
+    body: input.toJson(),
+    parse: (data) => SavedAddress.fromJson(BldApi._asMap(data)),
+  );
+
+  @override
+  // 204 döner; gövde yok.
+  Future<void> delete(int id) =>
+      _api._send<void>('DELETE', '/addresses/$id', parse: (_) {});
 }
 
 class _KitchenService implements KitchenService {

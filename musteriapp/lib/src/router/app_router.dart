@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/account/account_screen.dart';
+import '../features/account/address_book_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
 import '../features/cart/cart_screen.dart';
@@ -37,6 +38,7 @@ abstract final class Routes {
   static const String checkout = '/checkout';
   static const String orders = '/orders';
   static const String account = '/account';
+  static const String addresses = '/account/addresses';
 
   static String productDetail(int menuItemId) => '/menu/item/$menuItemId';
 
@@ -49,7 +51,10 @@ abstract final class Routes {
 /// ve hesap sekmesi giriş yapmamış kullanıcıya giriş düğmesi gösterir. Sipariş
 /// yüzeyleri token olmadan zaten `401` alırdı.
 bool _requiresAuth(String path) =>
-    path.startsWith(Routes.orders) || path.startsWith(Routes.checkout);
+    path.startsWith(Routes.orders) ||
+    path.startsWith(Routes.checkout) ||
+    // Adres defteri `/addresses` uçlarını kullanır; token yoksa 401 alırdı.
+    path == Routes.addresses;
 
 /// Riverpod durum değişimlerini `go_router`'a bağlayan köprü.
 class _RouterRefresh extends ChangeNotifier {
@@ -106,6 +111,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.register,
         builder: (context, state) =>
             RegisterScreen(nextLocation: state.uri.queryParameters['next']),
+      ),
+      GoRoute(
+        path: Routes.addresses,
+        builder: (context, state) => const AddressBookScreen(),
       ),
       GoRoute(
         path: Routes.cart,

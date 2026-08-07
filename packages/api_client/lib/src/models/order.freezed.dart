@@ -285,6 +285,569 @@ as String?,
 
 
 /// @nodoc
+mixin _$SavedAddress {
+
+ int get id; String get line1; String get district; String get city; bool get isDefault;/// Müşterinin verdiği ad — "Ev", "Ofis", "Şantiye".
+ String? get label;/// Kuryeye not. Fişte görünür.
+ String? get note;
+/// Create a copy of SavedAddress
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$SavedAddressCopyWith<SavedAddress> get copyWith => _$SavedAddressCopyWithImpl<SavedAddress>(this as SavedAddress, _$identity);
+
+  /// Serializes this SavedAddress to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SavedAddress&&(identical(other.id, id) || other.id == id)&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault)&&(identical(other.label, label) || other.label == label)&&(identical(other.note, note) || other.note == note));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,line1,district,city,isDefault,label,note);
+
+@override
+String toString() {
+  return 'SavedAddress(id: $id, line1: $line1, district: $district, city: $city, isDefault: $isDefault, label: $label, note: $note)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $SavedAddressCopyWith<$Res>  {
+  factory $SavedAddressCopyWith(SavedAddress value, $Res Function(SavedAddress) _then) = _$SavedAddressCopyWithImpl;
+@useResult
+$Res call({
+ int id, String line1, String district, String city, bool isDefault, String? label, String? note
+});
+
+
+
+
+}
+/// @nodoc
+class _$SavedAddressCopyWithImpl<$Res>
+    implements $SavedAddressCopyWith<$Res> {
+  _$SavedAddressCopyWithImpl(this._self, this._then);
+
+  final SavedAddress _self;
+  final $Res Function(SavedAddress) _then;
+
+/// Create a copy of SavedAddress
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? line1 = null,Object? district = null,Object? city = null,Object? isDefault = null,Object? label = freezed,Object? note = freezed,}) {
+  return _then(_self.copyWith(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as int,line1: null == line1 ? _self.line1 : line1 // ignore: cast_nullable_to_non_nullable
+as String,district: null == district ? _self.district : district // ignore: cast_nullable_to_non_nullable
+as String,city: null == city ? _self.city : city // ignore: cast_nullable_to_non_nullable
+as String,isDefault: null == isDefault ? _self.isDefault : isDefault // ignore: cast_nullable_to_non_nullable
+as bool,label: freezed == label ? _self.label : label // ignore: cast_nullable_to_non_nullable
+as String?,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [SavedAddress].
+extension SavedAddressPatterns on SavedAddress {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _SavedAddress value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _SavedAddress() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _SavedAddress value)  $default,){
+final _that = this;
+switch (_that) {
+case _SavedAddress():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _SavedAddress value)?  $default,){
+final _that = this;
+switch (_that) {
+case _SavedAddress() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String line1,  String district,  String city,  bool isDefault,  String? label,  String? note)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _SavedAddress() when $default != null:
+return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_that.label,_that.note);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String line1,  String district,  String city,  bool isDefault,  String? label,  String? note)  $default,) {final _that = this;
+switch (_that) {
+case _SavedAddress():
+return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_that.label,_that.note);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String line1,  String district,  String city,  bool isDefault,  String? label,  String? note)?  $default,) {final _that = this;
+switch (_that) {
+case _SavedAddress() when $default != null:
+return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_that.label,_that.note);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _SavedAddress extends SavedAddress {
+  const _SavedAddress({required this.id, required this.line1, required this.district, required this.city, required this.isDefault, this.label, this.note}): super._();
+  factory _SavedAddress.fromJson(Map<String, dynamic> json) => _$SavedAddressFromJson(json);
+
+@override final  int id;
+@override final  String line1;
+@override final  String district;
+@override final  String city;
+@override final  bool isDefault;
+/// Müşterinin verdiği ad — "Ev", "Ofis", "Şantiye".
+@override final  String? label;
+/// Kuryeye not. Fişte görünür.
+@override final  String? note;
+
+/// Create a copy of SavedAddress
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$SavedAddressCopyWith<_SavedAddress> get copyWith => __$SavedAddressCopyWithImpl<_SavedAddress>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$SavedAddressToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SavedAddress&&(identical(other.id, id) || other.id == id)&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault)&&(identical(other.label, label) || other.label == label)&&(identical(other.note, note) || other.note == note));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,line1,district,city,isDefault,label,note);
+
+@override
+String toString() {
+  return 'SavedAddress(id: $id, line1: $line1, district: $district, city: $city, isDefault: $isDefault, label: $label, note: $note)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$SavedAddressCopyWith<$Res> implements $SavedAddressCopyWith<$Res> {
+  factory _$SavedAddressCopyWith(_SavedAddress value, $Res Function(_SavedAddress) _then) = __$SavedAddressCopyWithImpl;
+@override @useResult
+$Res call({
+ int id, String line1, String district, String city, bool isDefault, String? label, String? note
+});
+
+
+
+
+}
+/// @nodoc
+class __$SavedAddressCopyWithImpl<$Res>
+    implements _$SavedAddressCopyWith<$Res> {
+  __$SavedAddressCopyWithImpl(this._self, this._then);
+
+  final _SavedAddress _self;
+  final $Res Function(_SavedAddress) _then;
+
+/// Create a copy of SavedAddress
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? line1 = null,Object? district = null,Object? city = null,Object? isDefault = null,Object? label = freezed,Object? note = freezed,}) {
+  return _then(_SavedAddress(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as int,line1: null == line1 ? _self.line1 : line1 // ignore: cast_nullable_to_non_nullable
+as String,district: null == district ? _self.district : district // ignore: cast_nullable_to_non_nullable
+as String,city: null == city ? _self.city : city // ignore: cast_nullable_to_non_nullable
+as String,isDefault: null == isDefault ? _self.isDefault : isDefault // ignore: cast_nullable_to_non_nullable
+as bool,label: freezed == label ? _self.label : label // ignore: cast_nullable_to_non_nullable
+as String?,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
+mixin _$SavedAddressInput {
+
+ String get line1; String get district; String get city; String? get label; String? get note; bool? get isDefault;
+/// Create a copy of SavedAddressInput
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$SavedAddressInputCopyWith<SavedAddressInput> get copyWith => _$SavedAddressInputCopyWithImpl<SavedAddressInput>(this as SavedAddressInput, _$identity);
+
+  /// Serializes this SavedAddressInput to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SavedAddressInput&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.label, label) || other.label == label)&&(identical(other.note, note) || other.note == note)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,line1,district,city,label,note,isDefault);
+
+@override
+String toString() {
+  return 'SavedAddressInput(line1: $line1, district: $district, city: $city, label: $label, note: $note, isDefault: $isDefault)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $SavedAddressInputCopyWith<$Res>  {
+  factory $SavedAddressInputCopyWith(SavedAddressInput value, $Res Function(SavedAddressInput) _then) = _$SavedAddressInputCopyWithImpl;
+@useResult
+$Res call({
+ String line1, String district, String city, String? label, String? note, bool? isDefault
+});
+
+
+
+
+}
+/// @nodoc
+class _$SavedAddressInputCopyWithImpl<$Res>
+    implements $SavedAddressInputCopyWith<$Res> {
+  _$SavedAddressInputCopyWithImpl(this._self, this._then);
+
+  final SavedAddressInput _self;
+  final $Res Function(SavedAddressInput) _then;
+
+/// Create a copy of SavedAddressInput
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? line1 = null,Object? district = null,Object? city = null,Object? label = freezed,Object? note = freezed,Object? isDefault = freezed,}) {
+  return _then(_self.copyWith(
+line1: null == line1 ? _self.line1 : line1 // ignore: cast_nullable_to_non_nullable
+as String,district: null == district ? _self.district : district // ignore: cast_nullable_to_non_nullable
+as String,city: null == city ? _self.city : city // ignore: cast_nullable_to_non_nullable
+as String,label: freezed == label ? _self.label : label // ignore: cast_nullable_to_non_nullable
+as String?,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
+as String?,isDefault: freezed == isDefault ? _self.isDefault : isDefault // ignore: cast_nullable_to_non_nullable
+as bool?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [SavedAddressInput].
+extension SavedAddressInputPatterns on SavedAddressInput {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _SavedAddressInput value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _SavedAddressInput() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _SavedAddressInput value)  $default,){
+final _that = this;
+switch (_that) {
+case _SavedAddressInput():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _SavedAddressInput value)?  $default,){
+final _that = this;
+switch (_that) {
+case _SavedAddressInput() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String line1,  String district,  String city,  String? label,  String? note,  bool? isDefault)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _SavedAddressInput() when $default != null:
+return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_that.isDefault);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String line1,  String district,  String city,  String? label,  String? note,  bool? isDefault)  $default,) {final _that = this;
+switch (_that) {
+case _SavedAddressInput():
+return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_that.isDefault);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String line1,  String district,  String city,  String? label,  String? note,  bool? isDefault)?  $default,) {final _that = this;
+switch (_that) {
+case _SavedAddressInput() when $default != null:
+return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_that.isDefault);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _SavedAddressInput implements SavedAddressInput {
+  const _SavedAddressInput({required this.line1, required this.district, required this.city, this.label, this.note, this.isDefault});
+  factory _SavedAddressInput.fromJson(Map<String, dynamic> json) => _$SavedAddressInputFromJson(json);
+
+@override final  String line1;
+@override final  String district;
+@override final  String city;
+@override final  String? label;
+@override final  String? note;
+@override final  bool? isDefault;
+
+/// Create a copy of SavedAddressInput
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$SavedAddressInputCopyWith<_SavedAddressInput> get copyWith => __$SavedAddressInputCopyWithImpl<_SavedAddressInput>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$SavedAddressInputToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SavedAddressInput&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.label, label) || other.label == label)&&(identical(other.note, note) || other.note == note)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,line1,district,city,label,note,isDefault);
+
+@override
+String toString() {
+  return 'SavedAddressInput(line1: $line1, district: $district, city: $city, label: $label, note: $note, isDefault: $isDefault)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$SavedAddressInputCopyWith<$Res> implements $SavedAddressInputCopyWith<$Res> {
+  factory _$SavedAddressInputCopyWith(_SavedAddressInput value, $Res Function(_SavedAddressInput) _then) = __$SavedAddressInputCopyWithImpl;
+@override @useResult
+$Res call({
+ String line1, String district, String city, String? label, String? note, bool? isDefault
+});
+
+
+
+
+}
+/// @nodoc
+class __$SavedAddressInputCopyWithImpl<$Res>
+    implements _$SavedAddressInputCopyWith<$Res> {
+  __$SavedAddressInputCopyWithImpl(this._self, this._then);
+
+  final _SavedAddressInput _self;
+  final $Res Function(_SavedAddressInput) _then;
+
+/// Create a copy of SavedAddressInput
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? line1 = null,Object? district = null,Object? city = null,Object? label = freezed,Object? note = freezed,Object? isDefault = freezed,}) {
+  return _then(_SavedAddressInput(
+line1: null == line1 ? _self.line1 : line1 // ignore: cast_nullable_to_non_nullable
+as String,district: null == district ? _self.district : district // ignore: cast_nullable_to_non_nullable
+as String,city: null == city ? _self.city : city // ignore: cast_nullable_to_non_nullable
+as String,label: freezed == label ? _self.label : label // ignore: cast_nullable_to_non_nullable
+as String?,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
+as String?,isDefault: freezed == isDefault ? _self.isDefault : isDefault // ignore: cast_nullable_to_non_nullable
+as bool?,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
 mixin _$OrderCreateItem {
 
  int get menuId; int get quantity; List<int> get optionValueIds; String? get note;

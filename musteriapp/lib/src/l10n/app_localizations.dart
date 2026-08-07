@@ -999,6 +999,156 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'Ad soyad'**
   String get accountName;
+
+  /// Hesabım > adres defteri ekranının başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Adreslerim'**
+  String get addressBookTitle;
+
+  /// Adres defteri boşken gösterilen metin
+  ///
+  /// In tr, this message translates to:
+  /// **'Henüz kayıtlı adresiniz yok. Eklerseniz ödeme ekranında tek dokunuşla seçebilirsiniz.'**
+  String get addressBookEmpty;
+
+  /// Yeni adres ekleme düğmesi
+  ///
+  /// In tr, this message translates to:
+  /// **'Adres ekle'**
+  String get addressBookAdd;
+
+  /// Adres düzenleme düğmesi
+  ///
+  /// In tr, this message translates to:
+  /// **'Düzenle'**
+  String get addressBookEdit;
+
+  /// Adres silme düğmesi
+  ///
+  /// In tr, this message translates to:
+  /// **'Sil'**
+  String get addressBookDelete;
+
+  /// Adres silme onayı
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu adres defterinizden silinsin mi? Geçmiş siparişleriniz etkilenmez.'**
+  String get addressBookDeleteConfirm;
+
+  /// Varsayılan adres rozeti
+  ///
+  /// In tr, this message translates to:
+  /// **'Varsayılan'**
+  String get addressBookDefault;
+
+  /// Adresi varsayılan yapma seçeneği
+  ///
+  /// In tr, this message translates to:
+  /// **'Varsayılan yap'**
+  String get addressBookMakeDefault;
+
+  /// Adres etiketi alanı
+  ///
+  /// In tr, this message translates to:
+  /// **'Adres adı (Ev, Ofis…)'**
+  String get addressLabel;
+
+  /// Adres kaydetme düğmesi
+  ///
+  /// In tr, this message translates to:
+  /// **'Kaydet'**
+  String get addressSave;
+
+  /// Yeni adres formunun başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Yeni adres'**
+  String get addressNewTitle;
+
+  /// Adres düzenleme formunun başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Adresi düzenle'**
+  String get addressEditTitle;
+
+  /// Ödeme ekranında kayıtlı adres seçici başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Kayıtlı adreslerim'**
+  String get checkoutSavedAddress;
+
+  /// Kayıtlı adres yerine elle giriş seçeneği
+  ///
+  /// In tr, this message translates to:
+  /// **'Yeni adres gir'**
+  String get checkoutNewAddress;
+
+  /// Sanal POS sayfasını açan düğme
+  ///
+  /// In tr, this message translates to:
+  /// **'Ödeme sayfasını aç'**
+  String get checkoutOpenPayment;
+
+  /// Ödeme sayfası açılamadığında
+  ///
+  /// In tr, this message translates to:
+  /// **'Ödeme sayfası açılamadı. Siparişiniz oluştu; siparişlerim ekranından tekrar deneyebilirsiniz.'**
+  String get checkoutPaymentPageFailed;
+
+  /// Hesabım ekranındaki bildirim bölümü başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Bildirimler'**
+  String get notificationsSection;
+
+  /// Günlük hatırlatma anahtarı
+  ///
+  /// In tr, this message translates to:
+  /// **'Günlük menü hatırlatması'**
+  String get notificationsDailyReminder;
+
+  /// Hatırlatma saati alt metni
+  ///
+  /// In tr, this message translates to:
+  /// **'Her gün {time}'**
+  String notificationsDailyReminderAt(String time);
+
+  /// Hatırlatma saatini değiştirme düğmesi
+  ///
+  /// In tr, this message translates to:
+  /// **'Saati değiştir'**
+  String get notificationsChangeTime;
+
+  /// Bildirim desteklenmeyen platformda
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu platformda bildirim gösterilemiyor.'**
+  String get notificationsUnsupported;
+
+  /// Bildirim izni reddedildiğinde
+  ///
+  /// In tr, this message translates to:
+  /// **'Bildirim izni verilmedi. Cihaz ayarlarından açabilirsiniz.'**
+  String get notificationsDenied;
+
+  /// Sipariş hazır bildirimi başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Siparişiniz hazır'**
+  String get notificationOrderReadyTitle;
+
+  /// Genel sipariş durumu bildirimi başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Sipariş durumu değişti'**
+  String get notificationOrderUpdatedTitle;
+
+  /// Sipariş durumu bildirimi gövdesi
+  ///
+  /// In tr, this message translates to:
+  /// **'{orderNumber} numaralı siparişiniz: {status}'**
+  String notificationOrderBody(String orderNumber, String status);
 }
 
 class _AppLocalizationsDelegate

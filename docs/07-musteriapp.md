@@ -22,10 +22,10 @@
 | Ürün detayı | Görsel, açıklama, seçenekler, adet, not, sepete ekle |
 | Sepet | Kalemler, adet düzenleme, tutar özeti |
 | Ödeme | Teslimat tipi/adres, istenen saat, ödeme yöntemi |
-| Ödeme web görünümü | Sanal POS `redirect_url` (WebView), dönüşte sonuç |
+| Ödeme sayfası | Sanal POS `redirect_url` **sistem tarayıcısında** açılır |
 | Sipariş takip | Adım çubuğu, canlı durum |
 | Siparişlerim | Geçmiş liste, detay |
-| Hesabım | Profil, adresler, çıkış |
+| Hesabım | Profil, adres defteri (`/addresses`), bildirim ayarı, çıkış |
 | Zorunlu güncelleme | `min_supported` altındaysa engelleyici ekran |
 
 ## 3. Sunucu neyi belirler
@@ -37,11 +37,36 @@ Uygulamada iş kuralı **kodlanmaz**; şu üçünü sunucu söyler, uygulama yal
 
 `delivery_type=pickup` seçilirse teslimat adresi adımı atlanır ve teslimat ücreti eklenmez; bu, sunucunun döndüğü tutarla doğrulanır (istemci kendi hesabına güvenmez).
 
-## 4. Push bildirimleri
+### Neden WebView değil?
 
-- İlk girişten sonra izin istenir; token `POST /api/me/push-token` ile gönderilir.
-- Bildirime tıklanınca ilgili sipariş takip ekranı açılır (deep link).
-- Uygulama açıkken bildirim in-app banner olarak gösterilir, ekrandaki veri anında yenilenir.
+Spesifikasyonun ilk hâli uygulama içi WebView diyordu. Üç sebeple sistem
+tarayıcısına geçildi: 3-D Secure akışında bankalar uygulama içi WebView'ları
+giderek daha çok reddediyor; kullanıcı adres çubuğundaki alan adını görüp
+doğrulayamıyor; `webview_flutter` web hedefini desteklemiyor ve tek kod yolu
+kalmıyordu.
+
+## 4. Bildirimler
+
+İki ayrı iş var ve karıştırılmamalı:
+
+| Ne | Nasıl | Uygulama kapalıyken |
+|---|---|---|
+| **Günlük menü hatırlatması** | Cihazda zamanlanır, her gün seçilen saatte (varsayılan 10:30) | **Çalışır** |
+| **Sipariş durumu** | Takip yoklaması durum değişimini görünce bildirir | Çalışmaz — push gerekir |
+
+- Günlük hatırlatma sunucuya bağlı değildir; çevrimdışı da çalışır ve bataryayı
+  yoklamaya harcamaz. Ayar Hesabım ekranında, varsayılan **kapalı**.
+- İzin reddedilirse ayar açılmaz. "Açık" görünen ama hiç bildirim atmayan bir
+  anahtar, kullanıcının uygulamaya güvenini bozan sessiz arızalardan biridir.
+- Aynı durum iki kez bildirilmez: hangi durumun bildirildiği cihazda tutulur
+  (yoklama beş saniyede bir çalışıyor).
+- Bildirime dokunulunca ilgili sipariş takip ekranı açılır.
+- **Push (FCM):** token kaydı hazır (`POST /api/me/push-token`) ama token'ı
+  Firebase üretir; Firebase projesi ve imzalama bilgileri repoda yoktur ve
+  uydurulamaz. Bunlar girildiğinde sözleşme değişmeden devreye girer.
+
+Zaman dilimi veritabanı yüklenmez: Türkiye sabit UTC+3 ve `packages/core`
+aynı kararı zaten vermiş durumda (~1 MB IANA verisi taşımaya değmiyor).
 
 ## 5. Çevrimdışı davranış
 

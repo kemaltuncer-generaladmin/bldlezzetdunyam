@@ -1,7 +1,5 @@
-/// Hesabım — profil ve çıkış (`docs/07-musteriapp.md` §2).
-///
-/// Adres defteri Faz 1'de yoktur: sözleşmede adres uçları bulunmuyor, adres
-/// sipariş gövdesiyle gönderiliyor (`docs/openapi.yaml` `OrderCreateRequest`).
+/// Hesabım — profil, adres defteri, bildirim ayarları ve çıkış
+/// (`docs/07-musteriapp.md` §2).
 library;
 
 import 'package:bld_design_system/bld_design_system.dart';
@@ -10,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../providers/notification_providers.dart';
 import '../../providers/session_provider.dart';
 import '../../router/app_router.dart';
 import '../../widgets/status_views.dart';
@@ -60,6 +59,25 @@ class AccountScreen extends ConsumerWidget {
                 ] else
                   // Token var ama profil çekilemedi (çevrimdışı açılış).
                   Text(l10n.offlineBadge),
+
+                const Divider(height: BldSpacing.lg),
+
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.location_on_outlined),
+                  title: Text(l10n.addressBookTitle),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push(Routes.addresses),
+                ),
+              ],
+
+              // Bildirim ayarı giriş yapmamış kullanıcıya da açık: günlük menü
+              // hatırlatması sunucuya bağlı değil, sipariş vermeyen biri de
+              // "bugün ne var?" hatırlatması isteyebilir.
+              const Divider(height: BldSpacing.lg),
+              const _NotificationSettings(),
+
+              if (session.isSignedIn) ...[
                 const SizedBox(height: BldSpacing.lg),
                 OutlinedButton.icon(
                   onPressed: () async {
@@ -75,6 +93,83 @@ class AccountScreen extends ConsumerWidget {
         },
       ),
     );
+  }
+}
+
+/// Günlük menü hatırlatması.
+///
+/// Anahtar iyimser açılmaz: izin reddedilirse kapalı kalır ve nedeni
+/// söylenir. "Açık" görünen ama hiç bildirim atmayan bir ayar, kullanıcının
+/// uygulamaya güvenini bozan sessiz arızalardan biri.
+class _NotificationSettings extends ConsumerWidget {
+  const _NotificationSettings();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final reminder = ref.watch(dailyReminderProvider);
+    final supported = ref.watch(notificationsProvider).isSupported;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.notificationsSection,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: reminder.enabled,
+          onChanged: supported
+              ? (value) => _toggle(context, ref, enabled: value)
+              : null,
+          title: Text(l10n.notificationsDailyReminder),
+          subtitle: Text(
+            supported
+                ? l10n.notificationsDailyReminderAt(reminder.label)
+                : l10n.notificationsUnsupported,
+          ),
+        ),
+        if (supported && reminder.enabled)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              onPressed: () => _pickTime(context, ref),
+              icon: const Icon(Icons.schedule, size: 18),
+              label: Text(l10n.notificationsChangeTime),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _toggle(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool enabled,
+  }) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    final ok = await ref.read(dailyReminderProvider.notifier).setEnabled(enabled);
+    if (!ok && enabled) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.notificationsDenied)),
+      );
+    }
+  }
+
+  Future<void> _pickTime(BuildContext context, WidgetRef ref) async {
+    final current = ref.read(dailyReminderProvider);
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: current.hour, minute: current.minute),
+    );
+    if (picked == null) return;
+
+    await ref
+        .read(dailyReminderProvider.notifier)
+        .setTime(hour: picked.hour, minute: picked.minute);
   }
 }
 

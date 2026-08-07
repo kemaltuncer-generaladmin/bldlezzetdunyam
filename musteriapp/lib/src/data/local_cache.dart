@@ -23,6 +23,10 @@ class LocalCache {
   static const String _menuAtKey = 'bld.cache.menu.at';
   static const String _locationKey = 'bld.cache.location';
   static const String _cartKey = 'bld.cart';
+  static const String _reminderOnKey = 'bld.bildirim.gunluk.acik';
+  static const String _reminderHourKey = 'bld.bildirim.gunluk.saat';
+  static const String _reminderMinuteKey = 'bld.bildirim.gunluk.dakika';
+  static const String _seenStatusPrefix = 'bld.siparis.gorulen.';
 
   final SharedPreferences _prefs;
 
@@ -114,4 +118,41 @@ class LocalCache {
       return null;
     }
   }
+
+  // ── Bildirim ayarları ───────────────────────────────────────────────────
+
+  /// Günlük menü hatırlatması açık mı? Varsayılan **kapalı**: izin istemeden
+  /// bildirim kurmak kullanıcının kararı olmalı.
+  bool readDailyReminderEnabled() => _prefs.getBool(_reminderOnKey) ?? false;
+
+  /// Hatırlatma saati (yerel duvar saati). Kayıt yoksa çağıran varsayılanı
+  /// (`AppConfig.dailyReminder*`) kullanır.
+  ({int hour, int minute})? readDailyReminderTime() {
+    final hour = _prefs.getInt(_reminderHourKey);
+    final minute = _prefs.getInt(_reminderMinuteKey);
+    if (hour == null || minute == null) return null;
+    return (hour: hour, minute: minute);
+  }
+
+  Future<void> writeDailyReminder({
+    required bool enabled,
+    required int hour,
+    required int minute,
+  }) async {
+    await _prefs.setBool(_reminderOnKey, enabled);
+    await _prefs.setInt(_reminderHourKey, hour);
+    await _prefs.setInt(_reminderMinuteKey, minute);
+  }
+
+  // ── Sipariş durumu bildirimi ────────────────────────────────────────────
+
+  /// Bu sipariş için kullanıcıya en son hangi durum bildirildi?
+  ///
+  /// Yoklama beş saniyede bir çalışıyor; hangi durumun bildirildiğini
+  /// hatırlamazsak aynı bildirim her turda yeniden düşerdi.
+  String? readNotifiedStatus(int orderId) =>
+      _prefs.getString('$_seenStatusPrefix$orderId');
+
+  Future<void> writeNotifiedStatus(int orderId, String status) =>
+      _prefs.setString('$_seenStatusPrefix$orderId', status);
 }

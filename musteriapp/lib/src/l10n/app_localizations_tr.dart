@@ -510,4 +510,88 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get accountName => 'Ad soyad';
+
+  @override
+  String get addressBookTitle => 'Adreslerim';
+
+  @override
+  String get addressBookEmpty =>
+      'Henüz kayıtlı adresiniz yok. Eklerseniz ödeme ekranında tek dokunuşla seçebilirsiniz.';
+
+  @override
+  String get addressBookAdd => 'Adres ekle';
+
+  @override
+  String get addressBookEdit => 'Düzenle';
+
+  @override
+  String get addressBookDelete => 'Sil';
+
+  @override
+  String get addressBookDeleteConfirm =>
+      'Bu adres defterinizden silinsin mi? Geçmiş siparişleriniz etkilenmez.';
+
+  @override
+  String get addressBookDefault => 'Varsayılan';
+
+  @override
+  String get addressBookMakeDefault => 'Varsayılan yap';
+
+  @override
+  String get addressLabel => 'Adres adı (Ev, Ofis…)';
+
+  @override
+  String get addressSave => 'Kaydet';
+
+  @override
+  String get addressNewTitle => 'Yeni adres';
+
+  @override
+  String get addressEditTitle => 'Adresi düzenle';
+
+  @override
+  String get checkoutSavedAddress => 'Kayıtlı adreslerim';
+
+  @override
+  String get checkoutNewAddress => 'Yeni adres gir';
+
+  @override
+  String get checkoutOpenPayment => 'Ödeme sayfasını aç';
+
+  @override
+  String get checkoutPaymentPageFailed =>
+      'Ödeme sayfası açılamadı. Siparişiniz oluştu; siparişlerim ekranından tekrar deneyebilirsiniz.';
+
+  @override
+  String get notificationsSection => 'Bildirimler';
+
+  @override
+  String get notificationsDailyReminder => 'Günlük menü hatırlatması';
+
+  @override
+  String notificationsDailyReminderAt(String time) {
+    return 'Her gün $time';
+  }
+
+  @override
+  String get notificationsChangeTime => 'Saati değiştir';
+
+  @override
+  String get notificationsUnsupported =>
+      'Bu platformda bildirim gösterilemiyor.';
+
+  @override
+  String get notificationsDenied =>
+      'Bildirim izni verilmedi. Cihaz ayarlarından açabilirsiniz.';
+
+  @override
+  String get notificationOrderReadyTitle => 'Siparişiniz hazır';
+
+  @override
+  String get notificationOrderUpdatedTitle => 'Sipariş durumu değişti';
+
+  @override
+  String notificationOrderBody(String orderNumber, String status) {
+    return '$orderNumber numaralı siparişiniz: $status';
+  }
 }

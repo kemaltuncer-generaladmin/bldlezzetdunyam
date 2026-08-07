@@ -22,6 +22,57 @@ abstract class Address with _$Address {
       _$AddressFromJson(json);
 }
 
+/// Adres defterindeki kayıt — `GET /addresses`.
+///
+/// [Address] ile karıştırılmamalı. [Address] siparişin taşıdığı **kopyadır**;
+/// bu ise müşterinin defterindeki kayıttır. Sipariş verilirken defterdeki
+/// satır kopyalanır, bağlanmaz: müşteri adresini düzelttiğinde teslim edilmiş
+/// bir siparişin nereye gittiği değişmemeli (`docs/openapi.yaml` §SavedAddress).
+@freezed
+abstract class SavedAddress with _$SavedAddress {
+  const factory SavedAddress({
+    required int id,
+    required String line1,
+    required String district,
+    required String city,
+    required bool isDefault,
+
+    /// Müşterinin verdiği ad — "Ev", "Ofis", "Şantiye".
+    String? label,
+
+    /// Kuryeye not. Fişte görünür.
+    String? note,
+  }) = _SavedAddress;
+
+  const SavedAddress._();
+
+  factory SavedAddress.fromJson(Map<String, dynamic> json) =>
+      _$SavedAddressFromJson(json);
+
+  /// Siparişe gidecek kopya.
+  Address toOrderAddress() =>
+      Address(line1: line1, district: district, city: city, note: note);
+
+  /// Tek satırda okunabilir hâli — liste ve seçicide kullanılır.
+  String get summary => '$line1, $district / $city';
+}
+
+/// `POST /addresses` ve `PATCH /addresses/{id}` gövdesi.
+@freezed
+abstract class SavedAddressInput with _$SavedAddressInput {
+  const factory SavedAddressInput({
+    required String line1,
+    required String district,
+    required String city,
+    String? label,
+    String? note,
+    bool? isDefault,
+  }) = _SavedAddressInput;
+
+  factory SavedAddressInput.fromJson(Map<String, dynamic> json) =>
+      _$SavedAddressInputFromJson(json);
+}
+
 @freezed
 abstract class OrderCreateItem with _$OrderCreateItem {
   const factory OrderCreateItem({

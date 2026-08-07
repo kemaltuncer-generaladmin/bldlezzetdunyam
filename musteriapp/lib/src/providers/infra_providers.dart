@@ -29,7 +29,9 @@ final tokenStoreProvider = Provider<TokenStore>(
 /// Tek API istemcisi. Uygulamada başka HTTP çağrısı yoktur (`AGENTS.md` §2.4).
 final apiProvider = Provider<BldApi>((ref) {
   final api = BldApi(
-    config: const BldApiConfig(
+    // `const` değil: taban adres platforma göre hesaplanıyor
+    // (`AppConfig.apiBaseUrl`), derleme zamanı sabiti olamaz.
+    config: BldApiConfig(
       baseUrl: AppConfig.apiBaseUrl,
       appId: AppConfig.appId,
       appVersion: AppConfig.appVersion,

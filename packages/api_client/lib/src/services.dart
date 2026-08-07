@@ -38,6 +38,20 @@ abstract interface class CatalogService {
   Future<List<MenuCategory>> menu(int locationId);
 }
 
+/// Adres defteri — `docs/openapi.yaml` §Adresler. Müşteri token'ı gerektirir.
+abstract interface class AddressService {
+  /// Varsayılan adres başta döner.
+  Future<List<SavedAddress>> list();
+
+  /// İlk adres kendiliğinden varsayılan olur.
+  Future<SavedAddress> create(SavedAddressInput input);
+
+  Future<SavedAddress> update(int id, SavedAddressInput input);
+
+  /// Silinen adres varsayılansa kalanlardan biri varsayılan yapılır.
+  Future<void> delete(int id);
+}
+
 /// Müşteri sipariş uçları.
 abstract interface class OrderService {
   Future<OrderCreated> create(OrderCreateRequest request);
