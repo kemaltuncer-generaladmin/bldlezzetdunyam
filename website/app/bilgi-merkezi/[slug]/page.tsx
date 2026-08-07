@@ -5,6 +5,7 @@ import { JsonLd } from '@/components/json-ld';
 import { PostCard } from '@/components/site/cards';
 import { CtaBand } from '@/components/site/cta-band';
 import { PageHero, type Crumb } from '@/components/site/page-hero';
+import { postImage } from '@/lib/site-images';
 import { Section, SectionHeading } from '@/components/site/section';
 import { fetchSiteContent, findPost, type SitePost } from '@/lib/api/site-content';
 import { articleJsonLd, breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
@@ -136,6 +137,7 @@ export default async function YaziPage({ params }: { params: Promise<{ slug: str
         eyebrow={post.category}
         title={post.title}
         description={post.description}
+        image={postImage(post.slug)}
       >
         <p className="text-sm opacity-70">
           <time dateTime={post.publishedAt}>{DATE_FORMAT.format(new Date(post.publishedAt))}</time>
@@ -169,7 +171,7 @@ export default async function YaziPage({ params }: { params: Promise<{ slug: str
           <SectionHeading
             id="ilgili-yazilar"
             title="İlgili yazılar"
-            description="Aynı konuyu farklı açıdan ele alan diğer yazılar."
+            description="Aynı konuya başka açıdan bakanlar."
           />
 
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -182,6 +184,7 @@ export default async function YaziPage({ params }: { params: Promise<{ slug: str
                 description={item.description}
                 publishedAt={item.publishedAt}
                 readingMinutes={item.readingMinutes}
+                image={postImage(item.slug)}
               />
             ))}
           </div>

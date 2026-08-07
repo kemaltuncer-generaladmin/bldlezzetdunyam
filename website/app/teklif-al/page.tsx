@@ -4,6 +4,7 @@ import { PageHero, type Crumb } from '@/components/site/page-hero';
 import { QuoteForm } from '@/components/site/quote-form';
 import { fetchSiteContent } from '@/lib/api/site-content';
 import { breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
+import { PHOTO } from '@/lib/site-images';
 
 export async function generateMetadata() {
   const { brand } = await fetchSiteContent();
@@ -11,7 +12,7 @@ export async function generateMetadata() {
   return pageMetadata({
     title: 'Teklif Al',
     description:
-      'Kurumsal catering, toplu yemek ve organizasyon hizmetleri için teklif talebi oluşturun. Kişi sayınızı ve hizmet türünüzü iletin, menü önerisiyle birlikte dönelim.',
+      'Kurumsal yemek, catering ve organizasyon için teklif isteyin. Kaç kişi, ne zaman, nerede — söyleyin, menü önerisiyle birlikte dönelim.',
     path: '/teklif-al',
     brandName: brand.name,
   });
@@ -22,18 +23,18 @@ const CRUMBS: readonly Crumb[] = [{ href: '/teklif-al', label: 'Teklif Al' }];
 const WHAT_HAPPENS_NEXT = [
   {
     icon: FileText,
-    title: 'Talebinizi inceliyoruz',
-    body: 'Kişi sayısı, hizmet türü ve konum bilgisine göre ihtiyacınızı değerlendiriyoruz.',
+    title: 'Okuyoruz',
+    body: 'Kişi sayısı, hizmet türü ve konuma bakıp ne gerektiğini çıkarıyoruz.',
   },
   {
     icon: MessageSquare,
-    title: 'Gerekirse görüşüyoruz',
-    body: 'Eksik kalan bir nokta varsa telefonla arayıp netleştiriyoruz.',
+    title: 'Gerekirse arıyoruz',
+    body: 'Eksik bir şey varsa telefonla soruyoruz. Uzun sürmüyor.',
   },
   {
     icon: Clock,
     title: 'Menü ve fiyatla dönüyoruz',
-    body: 'Size uygun menü kurgusu ve fiyatlandırmayı birlikte iletiyoruz.',
+    body: 'İkisi aynı cevapta geliyor; menüyü görmeden karar vermiyorsunuz.',
   },
 ] as const;
 
@@ -47,8 +48,9 @@ export default async function TeklifAlPage() {
       <PageHero
         crumbs={CRUMBS}
         eyebrow="Teklif"
-        title="İhtiyacınıza özel teklif alın"
-        description="Catering fiyatı kişi sayısı, öğün düzeni ve konuma göre değişiyor. Aşağıdaki formu doldurun; size uygun menü kurgusu ve fiyatlandırmayla dönelim."
+        title="Kaç kişisiniz?"
+        description="Fiyat kişi sayısına, öğün düzenine ve mesafeye göre değişiyor. Formu doldurun; menü önerisi ve fiyatla birlikte dönelim."
+        image={PHOTO.izgaraTabak.src}
       />
 
       <div className="mx-auto grid max-w-content gap-12 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-[1.6fr_1fr]">
@@ -89,7 +91,7 @@ export default async function TeklifAlPage() {
                 Form yerine konuşalım
               </h2>
               <p className="mt-2 text-sm/6 opacity-80">
-                Acil bir talebiniz varsa doğrudan arayabilirsiniz.
+                İşiniz acilse doğrudan arayın, form beklemesin.
               </p>
               <div className="mt-4 space-y-2">
                 {contact.phone && (
@@ -116,8 +118,7 @@ export default async function TeklifAlPage() {
 
           <div className="text-xs/6 text-muted-foreground">
             <p>
-              Formda paylaştığınız bilgiler yalnızca teklif hazırlamak ve size dönüş yapmak için
-              kullanılır.
+              Formda yazdıklarınız yalnızca teklif hazırlamak ve size dönmek için kullanılıyor.
             </p>
           </div>
         </aside>

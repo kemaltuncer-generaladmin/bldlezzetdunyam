@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { PRIMARY_CTA } from '@/content/navigation';
 import { fetchSiteContent } from '@/lib/api/site-content';
 import { breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
+import { PHOTO, menuSolutionImage } from '@/lib/site-images';
 import type { LucideIcon } from 'lucide-react';
 import type { Crumb } from '@/components/site/page-hero';
 
@@ -52,26 +53,28 @@ export default async function MenuSolutionsPage() {
 
       <PageHero
         crumbs={CRUMBS}
-        eyebrow="Menü Çözümleri"
-        title="Menü, kurumun günlük düzenine göre kurulur"
-        description="Aşağıdaki kurgular, bir menünün hangi kaplardan oluştuğunu ve neye göre planlandığını göstermek için hazırlanmış örneklerdir. Uygulanacak menü, teklif aşamasında sizinle birlikte belirlenir."
+        eyebrow="Menü çözümleri"
+        title="Menüyü günlük düzeniniz belirler"
+        description="Aşağıdakiler örnek. Bir menünün hangi kaplardan kurulduğunu ve neye bakıldığını gösteriyor; sizinki teklif aşamasında birlikte çıkacak."
+        image={PHOTO.kahvalti.src}
       />
 
       <Section aria-labelledby="menu-kurgulari">
         <SectionHeading
           id="menu-kurgulari"
-          eyebrow="Örnek kurgular"
-          title="Menü çözümleri"
-          description="Her kurgu farklı bir öğün molası, farklı bir katılımcı profili ve farklı bir servis hızı için düşünülmüştür."
+          eyebrow="Örnekler"
+          title="Altı ayrı kurgu"
+          description="Her biri başka bir mola süresine, başka bir kalabalığa ve başka bir servis hızına göre."
         />
 
-        <div className="mt-12 grid gap-5 lg:grid-cols-2">
+        <div className="mt-12 grid gap-6 lg:grid-cols-2">
           {menus.solutions.map((solution) => (
             <MenuSolutionCard
               key={solution.slug}
               title={solution.title}
               summary={solution.summary}
               audience={solution.audience}
+              image={menuSolutionImage(solution.slug)}
             >
               {/* Kap listesi tanım listesi: solda kabın adı, sağda örnekler.
                   Örnekler nokta ile ayrılmış tek satır — tablo görünümü
@@ -86,6 +89,10 @@ export default async function MenuSolutionsPage() {
                   </div>
                 ))}
               </dl>
+
+              <p className="mt-5 border-t pt-5 text-sm/6 text-muted-foreground italic">
+                {solution.principle}
+              </p>
             </MenuSolutionCard>
           ))}
         </div>
@@ -102,8 +109,7 @@ export default async function MenuSolutionsPage() {
             Menü mevsime göre değişir
           </h2>
           <p className="mt-4 text-base/7 opacity-85">
-            Aynı menü yıl boyunca tekrar etmez; sebzenin mevsiminde olduğu dönemde öğünler yeniden
-            dengelenir.
+            Aynı liste bütün yıl dönmüyor. Sebzenin mevsimi geldiğinde menü de yerini değiştiriyor.
           </p>
         </div>
 
@@ -130,59 +136,33 @@ export default async function MenuSolutionsPage() {
         </ul>
       </Section>
 
-      <Section tone="muted" aria-labelledby="planlama-ilkeleri">
-        <SectionHeading
-          id="planlama-ilkeleri"
-          eyebrow="Planlama"
-          title="Her menüyü belirleyen ilke"
-          description="Bir menü kurgusunu diğerinden ayıran şey kap sayısı değil, hangi kısıtı önceliklendirdiğidir."
-        />
-
-        <dl className="mt-12 space-y-6">
-          {menus.solutions.map((solution) => (
-            <div
-              key={solution.slug}
-              className="border-t pt-6 md:grid md:grid-cols-[16rem_1fr] md:gap-10"
-            >
-              <dt className="font-display text-lg font-semibold tracking-tight">
-                {solution.title}
-              </dt>
-              <dd className="mt-2 max-w-2xl text-base/7 text-muted-foreground md:mt-0">
-                {solution.principle}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </Section>
-
-      <Section aria-labelledby="fiyat-neden-yok">
+      <Section tone="muted" aria-labelledby="fiyat-neden-yok">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16">
           <SectionHeading
             id="fiyat-neden-yok"
             eyebrow="Fiyatlandırma"
-            title="Bu sayfada neden fiyat yok?"
+            title="Neden fiyat yazmıyor?"
           />
 
           <div>
             <p className="text-base/7">
-              Catering fiyatı tek bir liste rakamına sığmıyor: kişi sayısı, haftalık hizmet günü,
-              kap sayısı, teslim konumu ve servis biçimi birlikte belirliyor. Gerçek koşullarınıza
-              karşılık gelmeyen bir rakam yayınlamak yerine, ihtiyacınıza göre teklif hazırlıyoruz.
+              Kişi sayısı, haftada kaç gün, kaç kap, nereye ve nasıl servis — beşi birden fiyatı
+              değiştiriyor. Size uymayan bir rakam yazmak yerine ihtiyacınıza göre çıkarıyoruz.
             </p>
             <p className="mt-4 text-base/7 text-muted-foreground">
-              Menü önerisi ve fiyatlandırma aynı yanıtta gelir; menüyü görmeden karar vermeniz
-              gerekmez.
+              Menü önerisi ve fiyat aynı cevapta geliyor. Menüyü görmeden karar vermeniz
+              gerekmiyor.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild size="lg">
                 <Link href={PRIMARY_CTA.href}>
-                  İhtiyacınıza özel teklif alın
+                  Teklif alın
                   <ArrowRight aria-hidden="true" />
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline">
-                <Link href="/hizmetler">Hizmetleri inceleyin</Link>
+                <Link href="/hizmetler">Hizmetlere bakın</Link>
               </Button>
             </div>
           </div>

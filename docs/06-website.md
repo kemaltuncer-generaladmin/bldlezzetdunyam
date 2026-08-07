@@ -70,6 +70,24 @@ REVALIDATE_SECONDS=60
 ```
 Sır içeren değer yoktur; ödeme sağlayıcı anahtarları yalnızca `platform/` tarafındadır.
 
+Geliştirmede `NEXT_PUBLIC_API_URL` **ayaktaki platforma** bakar
+(`http://localhost:8080/api`). Prism mock'u (`:4010`) yalnızca sözleşme
+testleri içindir: `/site-content` gibi uçları hiç sunmaz, site sessizce yedek
+içeriğe düşer ve ekranda her şey dolu göründüğü için fark edilmez.
+
+## 6.1 Görseller
+
+Kurumsal sayfaların fotoğrafları `public/gorseller/` altında durur ve
+`lib/site-images.ts` içinde **slug üzerinden** eşleşir; API sözleşmesinde
+görsel alanı yoktur. Dosyayı aynı adla değiştirmek yeterlidir, kod
+düzenlenmez. Oranlar, lisans ve "iddia taşımayan kullanım" kuralı
+`public/gorseller/KAYNAK.md` dosyasındadır.
+
+Menü ürünlerinin fotoğrafı burada DEĞİLDİR: `MenuItem.image_url` ile API'den
+gelir, panelden yönetilir, ilk dolgusu `php artisan veykemtu:menuGorselleri`
+ile yapılır. `next/image` izin listesine API konağı `next.config.ts` içinde
+`NEXT_PUBLIC_API_URL`'den türetilerek eklenir.
+
 ## 7. Performans hedefleri
 
 - LCP < 2.0 sn (4G, orta seviye telefon)

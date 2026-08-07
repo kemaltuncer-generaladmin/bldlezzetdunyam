@@ -4,6 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { JsonLd } from '@/components/json-ld';
 import { PageHero, type Crumb } from '@/components/site/page-hero';
+import { PHOTO } from '@/lib/site-images';
 import { Section, SectionHeading } from '@/components/site/section';
 import {
   fetchSiteContent,
@@ -38,7 +39,8 @@ export default async function IletisimPage() {
         crumbs={CRUMBS}
         eyebrow="İletişim"
         title="Bize ulaşın"
-        description="Teklif talepleri, mevcut hizmetleriniz ve genel sorularınız için aşağıdaki kanallardan bize ulaşabilirsiniz."
+        description="Teklif, mevcut hizmetiniz ya da aklınıza takılan bir şey — aşağıdaki kanallardan yazın."
+        image={PHOTO.mutfakTencere.src}
       />
 
       <Section aria-labelledby="kanallar-baslik">
@@ -162,9 +164,9 @@ export default async function IletisimPage() {
         <div className="grid gap-8 lg:grid-cols-[1.3fr_1fr] lg:items-center">
           <SectionHeading
             id="siparis-baslik"
-            eyebrow="Mevcut müşterilerimiz"
+            eyebrow="Mevcut müşteriler"
             title="Günlük sipariş ve takip"
-            description="Düzenli hizmet alan kurumlar günlük menüyü görüntüleyebilir, sipariş verebilir ve siparişlerinin durumunu takip edebilir."
+            description="Düzenli çalıştığımız kurumlar menüyü buradan görüyor, sipariş veriyor ve nerede olduğunu takip ediyor."
           />
 
           <div className="flex flex-wrap gap-3">
@@ -189,7 +191,7 @@ export default async function IletisimPage() {
           <SectionHeading
             id="son-cagri"
             title="Yazın, biz dönelim"
-            description="Telefon ve e-posta bilgileri yayınlanana kadar teklif formu en hızlı yol."
+            description="Telefon numarası yayına girene kadar en hızlı yol teklif formu."
             align="center"
           />
           <div className="mt-8 flex justify-center">

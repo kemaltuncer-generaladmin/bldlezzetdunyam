@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { Compass, Target } from 'lucide-react';
 import { JsonLd } from '@/components/json-ld';
 import { FeatureItem, ProcessStepCard } from '@/components/site/cards';
@@ -6,6 +7,7 @@ import { PageHero } from '@/components/site/page-hero';
 import { Section, SectionHeading } from '@/components/site/section';
 import { fetchSiteContent } from '@/lib/api/site-content';
 import { breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
+import { PHOTO } from '@/lib/site-images';
 import type { Crumb } from '@/components/site/page-hero';
 
 /**
@@ -24,7 +26,7 @@ export async function generateMetadata() {
 
   return pageMetadata({
     title: 'Kurumsal',
-    description: `${brand.name} nasıl çalışır: misyonu, değerleri, ilk görüşmeden düzenli hizmete uzanan süreci ve catering yaklaşımı.`,
+    description: `${brand.name} nasıl çalışır: neye göre karar veririz, ilk telefondan ilk servise kadar hangi adımlardan geçeriz.`,
     path: '/kurumsal',
     brandName: brand.name,
   });
@@ -37,20 +39,43 @@ export default async function KurumsalPage() {
     <>
       <JsonLd data={breadcrumbJsonLd(CRUMBS)} />
 
-      <PageHero crumbs={CRUMBS} eyebrow="Kurumsal" title="Hakkımızda" description={brand.tagline} />
+      <PageHero
+        crumbs={CRUMBS}
+        eyebrow="Kurumsal"
+        title="Biz kimiz"
+        description={brand.tagline}
+        image={PHOTO.mutfakEkip.src}
+      />
 
       <Section aria-labelledby="hakkimizda-baslik">
-        <SectionHeading
-          id="hakkimizda-baslik"
-          eyebrow="Ne yapıyoruz"
-          title="Kalabalık sofraların işletmesi"
-          description={brand.description}
-        />
-        <div className="bld-prose mt-8 max-w-2xl bld-reveal">
-          <p>
-            Bu sayfa nasıl çalıştığımızı anlatıyor: hangi adımlarla ilerlediğimizi, neye göre karar
-            verdiğimizi ve bir kurumun bizden ne bekleyebileceğini.
-          </p>
+        <div className="grid gap-12 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:gap-16">
+          <div>
+            <SectionHeading
+              id="hakkimizda-baslik"
+              eyebrow="Ne yapıyoruz"
+              title="Kalabalık sofralar kuruyoruz"
+              description={brand.description}
+            />
+            <div className="bld-prose mt-8 max-w-xl">
+              <p>
+                Bir mutfağız. Sabah erken açılır, akşam geç kapanır. Arada yüzlerce tabak çıkar ve
+                hepsinin bir yere yetişmesi gerekir.
+              </p>
+              <p>
+                Bu sayfa o işin nasıl yürüdüğünü anlatıyor — neye göre karar verdiğimizi, hangi
+                adımlardan geçtiğimizi ve bizden ne bekleyebileceğinizi.
+              </p>
+            </div>
+          </div>
+
+          <Image
+            alt={PHOTO.mutfakSef.alt}
+            src={PHOTO.mutfakSef.src}
+            width={900}
+            height={1125}
+            sizes="(max-width: 1024px) 100vw, 480px"
+            className="w-full rounded-3xl object-cover"
+          />
         </div>
       </Section>
 
@@ -92,9 +117,9 @@ export default async function KurumsalPage() {
       <Section aria-labelledby="degerler-baslik">
         <SectionHeading
           id="degerler-baslik"
-          eyebrow="Değerlerimiz"
-          title="Tartışmaya açmadığımız dört başlık"
-          description="Her biri günlük işleyişte karşılığı olan, işler sıkıştığında da geçerli kalan ilkeler."
+          eyebrow="Değerler"
+          title="Pazarlık etmediğimiz dört şey"
+          description="İşler sıkıştığında da geçerli olanlar."
         />
 
         <ul className="mt-10 grid bld-reveal gap-6 sm:grid-cols-2">
@@ -113,9 +138,9 @@ export default async function KurumsalPage() {
       <Section tone="muted" aria-labelledby="surec-baslik">
         <SectionHeading
           id="surec-baslik"
-          eyebrow="Üretim ve hizmet anlayışı"
-          title="İlk görüşmeden düzenli hizmete"
-          description="Süreç her kurumda aynı sırayla ilerler; hangi aşamada olduğunuzu her zaman bilirsiniz."
+          eyebrow="İşleyiş"
+          title="İlk telefondan ilk servise"
+          description="Sıra her kurumda aynı. Hangi adımda olduğunuzu hep bilirsiniz."
         />
 
         <ol className="mt-10">
@@ -147,7 +172,8 @@ export default async function KurumsalPage() {
         <SectionHeading
           id="neden-bld-baslik"
           eyebrow={`Neden ${brand.shortName}`}
-          title="Farkı yaratan, vaat değil çalışma biçimi"
+          title="Bizi ayıran şeyler"
+          description="Reklam cümlesi değil, günlük işleyişten dört başlık."
         />
 
         <div className="mt-10 grid bld-reveal gap-8 sm:grid-cols-2 lg:grid-cols-4">

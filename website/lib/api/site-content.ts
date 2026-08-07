@@ -623,8 +623,8 @@ export const fetchSiteContent = cache(async (): Promise<SiteContent> => {
         tags: [SITE_CONTENT_TAG],
       },
     });
-  } catch {
-    console.warn('[site-content] API okunamadı, yedek içerik kullanılıyor.');
+  } catch (cause) {
+    console.warn('[site-content] API okunamadı, yedek içerik kullanılıyor.', cause);
     return FALLBACK_CONTENT;
   }
 

@@ -13,6 +13,7 @@ import { JsonLd } from '@/components/json-ld';
 import { ProcessStepCard, ServiceCard } from '@/components/site/cards';
 import { CtaBand } from '@/components/site/cta-band';
 import { PageHero } from '@/components/site/page-hero';
+import { serviceImage } from '@/lib/site-images';
 import { Section, SectionHeading } from '@/components/site/section';
 import { Button } from '@/components/ui/button';
 import { PRIMARY_CTA } from '@/content/navigation';
@@ -111,9 +112,10 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
 
       <PageHero
         crumbs={crumbs}
-        eyebrow="Hizmetlerimiz"
+        eyebrow="Hizmetler"
         title={service.title}
         description={service.intro}
+        image={serviceImage(service.slug)}
       />
 
       {/*
@@ -143,8 +145,8 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
             <SectionHeading
               id="kimler-icin"
               eyebrow="Uygunluk"
-              title="Kimler için uygun?"
-              description="Aşağıdaki tarife yakın bir düzeniniz varsa bu hizmet doğrudan uygulanabilir."
+              title="Kimlere uyar?"
+              description="Aşağıdakilerden birine benziyorsanız bu hizmet size göre."
             />
 
             <ul className="space-y-4">
@@ -168,9 +170,9 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
         <Section tone="muted" aria-labelledby="nasil-isler">
           <SectionHeading
             id="nasil-isler"
-            eyebrow="Süreç"
-            title="Nasıl işler?"
-            description="İlk görüşmeden düzenli servise kadar izlediğimiz sıra."
+            eyebrow="İşleyiş"
+            title="Nasıl yürüyor?"
+            description="İlk telefondan düzenli servise kadar izlediğimiz sıra."
           />
 
           {/* Sıralı liste: adımların sırası anlamlı, görsel numaralar da buradan geliyor. */}
@@ -193,8 +195,8 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
           <SectionHeading
             id="ne-kazandirir"
             eyebrow="Karşılığı"
-            title="Ne kazandırır?"
-            description="Bu hizmeti devraldığımızda kurumun üzerinden kalkan işler ve kazandığı öngörülebilirlik."
+            title="Size ne kalır?"
+            description="Bu işi devraldığımızda sizin üzerinizden kalkanlar."
           />
 
           <ul className="mt-10 grid gap-x-10 gap-y-5 sm:grid-cols-2">
@@ -239,8 +241,8 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
             <SectionHeading
               id="teklif-icin"
               eyebrow="Teklif"
-              title="Teklif için ne gerekiyor?"
-              description="Bu birkaç bilgiyle çalışılabilir bir teklif hazırlayabiliyoruz; eksik kalan noktaları görüşmede tamamlıyoruz."
+              title="Bize ne söylemeniz gerekiyor?"
+              description="Şu birkaç bilgiyle çalışılabilir bir teklif çıkarıyoruz. Eksikleri görüşmede tamamlarız."
             />
 
             <div>
@@ -275,7 +277,7 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
             id="diger-hizmetler"
             eyebrow="Devamı"
             title="Diğer hizmetler"
-            description="Aynı kurum içinde birden fazla hizmet birlikte yürütülebilir."
+            description="Aynı kurumda birden fazla hizmeti birlikte yürüttüğümüz oluyor."
           />
 
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

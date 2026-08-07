@@ -5,6 +5,7 @@ import { PageHero } from '@/components/site/page-hero';
 import { Section, SectionHeading } from '@/components/site/section';
 import { fetchSiteContent } from '@/lib/api/site-content';
 import { breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
+import { PHOTO } from '@/lib/site-images';
 import type { Crumb } from '@/components/site/page-hero';
 
 /**
@@ -25,7 +26,7 @@ export async function generateMetadata() {
 
   return pageMetadata({
     title: 'Kalite ve Hijyen',
-    description: `Hammadde girişinden teslimata kadar ${quality.chain.length} halkalı hijyen zinciri, alerjen yönetimi ve izlenebilirlik yaklaşımımız.`,
+    description: `Mal girişinden teslimata ${quality.chain.length} halka: depo, tezgâh, ocak, sıcaklık, yol ve kayıt. Alerjen yönetimi de burada.`,
     path: '/kalite-hijyen',
     brandName: brand.name,
   });
@@ -41,25 +42,18 @@ export default async function KaliteHijyenPage() {
 
       <PageHero
         crumbs={CRUMBS}
-        eyebrow="Kalite ve Hijyen"
-        title="Hijyen, işin kendisidir"
-        description="Toplu üretimde güvenliği tek bir kontrol değil, birbirine bağlı bir zincir sağlar. Aşağıda o zincirin halkaları var."
+        eyebrow="Kalite ve hijyen"
+        title="Temizlik işin kendisi"
+        description="Toplu üretimde güvenliği tek bir kontrol sağlamıyor. Kapıdan giren kasadan teslim edilen kaba kadar uzanan bir zincir var."
+        image={PHOTO.kaliteMutfak.src}
       />
 
-      <Section aria-labelledby="giris-baslik">
-        <SectionHeading
-          id="giris-baslik"
-          eyebrow="Yaklaşımımız"
-          title="Zincirin en zayıf halkası kadar güçlü"
-          description="Her halka bir öncekine bağlı: malzeme uygun değilse depolama, depolama bozuksa üretim anlamını yitirir. Bu yüzden hepsi tek akış olarak yürütülür."
-        />
-      </Section>
-
-      <Section tone="muted" aria-labelledby="zincir-baslik">
+      <Section aria-labelledby="zincir-baslik">
         <SectionHeading
           id="zincir-baslik"
-          eyebrow="Hijyen zinciri"
-          title={`Hammaddeden teslimata ${quality.chain.length} halka`}
+          eyebrow="Zincir"
+          title={`Mal girişinden teslimata ${quality.chain.length} halka`}
+          description="Bir halka koparsa öncekilerin bir anlamı kalmıyor. Bu yüzden hepsi tek akış."
         />
 
         <ol className="mt-10 grid bld-reveal gap-5 md:grid-cols-2">
@@ -103,7 +97,7 @@ export default async function KaliteHijyenPage() {
             Alerjen yaklaşımı
           </h2>
           <p className="mt-4 text-base/7 opacity-80">
-            Alerjen yönetimi tek taraflı yürümez; doğru bilgi kurumdan gelir, uygulama bizde olur.
+            Bu iş tek taraflı yürümüyor: doğru bilgi sizden geliyor, uygulaması bizde.
           </p>
 
           <ul className="mt-8 bld-reveal space-y-4">
@@ -155,13 +149,12 @@ export default async function KaliteHijyenPage() {
           ) : (
             <div className="bld-prose mt-5">
               <p>
-                Bu sayfada belge görseli veya sertifika adı bulunmuyor. Sahip olunmayan bir belgeyi
-                varmış gibi göstermek gıda sektöründe yaptırımı olan bir beyandır; bu yüzden
-                anlattığımız tek şey uygulanan yöntem.
+                Bu sayfada belge görseli ya da sertifika adı yok. Olmayan bir belgeyi varmış gibi
+                göstermek gıdada yaptırımı olan bir beyan. Onun yerine yaptığımız işi yazdık.
               </p>
               <p>
-                Kurumunuzun tedarikçi denetimi kapsamında resmî belge talebi varsa, hangi belgelerin
-                paylaşılabileceğini teklif görüşmesinde açıkça iletiyoruz.
+                Tedarikçi denetiminizde resmî belge isteniyorsa hangilerini verebileceğimizi
+                görüşmede açıkça söylüyoruz.
               </p>
             </div>
           )}

@@ -118,4 +118,12 @@ export const PHOTO = {
     src: '/gorseller/kalite-mutfak.webp',
     alt: 'İş kıyafetiyle ocak başında çalışan aşçı',
   },
+  menuVitrin: {
+    src: '/gorseller/menu-vitrin.webp',
+    alt: 'Servise hazırlanmış salata ve yemek kapları',
+  },
+  siparisPaket: {
+    src: '/gorseller/siparis-paket.webp',
+    alt: 'Yola çıkmaya hazır kapalı yemek kapları',
+  },
 } as const;

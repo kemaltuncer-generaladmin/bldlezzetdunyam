@@ -23,7 +23,7 @@ export const MAIN_NAV: readonly NavItem[] = [
   { href: '/kurumsal', label: 'Kurumsal' },
   {
     href: '/hizmetler',
-    label: 'Hizmetlerimiz',
+    label: 'Hizmetler',
     children: [
       {
         href: '/hizmetler/kurumsal-toplu-yemek',
@@ -95,7 +95,7 @@ export const FOOTER_NAV: readonly {
   {
     title: 'Kurumsal',
     links: [
-      { href: '/kurumsal', label: 'Hakkımızda' },
+      { href: '/kurumsal', label: 'Biz kimiz' },
       { href: '/kalite-hijyen', label: 'Kalite ve hijyen' },
       { href: '/menu-cozumleri', label: 'Menü çözümleri' },
       { href: '/calistigimiz-alanlar', label: 'Çalıştığımız alanlar' },

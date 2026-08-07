@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import { CartSummaryBar, CartSummaryPanel } from '@/components/cart-summary';
 import { EmptyState } from '@/components/empty-state';
 import { ErrorState } from '@/components/error-state';
@@ -12,19 +13,20 @@ import { SITE_URL } from '@/lib/api/client';
 import { fetchCatalog, isOrderingOpen } from '@/lib/api/catalog';
 import { schemaOrgPrice } from '@/lib/format';
 import { productSlug } from '@/lib/slug';
+import { PHOTO } from '@/lib/site-images';
 import type { CatalogSnapshot } from '@/lib/api/catalog';
 
 /** ISR 60 sn — `docs/06` §2/§7. */
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: 'Catering Menüsü',
+  title: 'Günün Menüsü',
   description:
-    'Günlük catering menümüz: çorbalar, ana yemekler, salatalar ve tatlılar. Fiyatlarıyla birlikte inceleyin, adrese teslim veya gel-al sipariş verin.',
+    'Bugün mutfaktan çıkanlar: çorbalar, ana yemekler, salatalar ve tatlılar. Fiyatlarıyla bakın, adrese teslim ya da gel-al sipariş verin.',
   alternates: { canonical: '/menu' },
   openGraph: {
-    title: 'Catering Menüsü | Benim Lezzet Dünyam',
-    description: 'Günlük catering menümüzü fiyatlarıyla inceleyin.',
+    title: 'Günün Menüsü | Benim Lezzet Dünyam',
+    description: 'Bugün mutfaktan ne çıktı? Fiyatlarıyla bakın.',
     url: '/menu',
     type: 'website',
   },
@@ -81,17 +83,41 @@ export default async function MenuPage() {
     <>
       <JsonLd data={menuJsonLd(snapshot)} />
 
-      <div className="border-b border-neutral-200 bg-linear-to-b from-brand-50 to-neutral-50">
-        <div className="mx-auto max-w-content px-4 py-8 sm:py-10">
-          <p className="text-sm font-semibold tracking-wide text-brand-700 uppercase">
+      {/*
+        Sipariş başlığı da kurumsal sayfalarla aynı dili konuşuyor: fotoğraflı
+        koyu bant. Önceki sürüm `from-brand-50` gradyanı ve doğrudan
+        `text-neutral-*` sınıfları kullanıyordu; karanlık temada soluk kalıyor
+        ve sitenin geri kalanından kopuk duruyordu.
+
+        Vitrin bilgileri (asgari sepet, teslimat ücreti, tahmini süre) bandın
+        içinde: sipariş kararını etkileyen sayılar, menüye inmeden görünmeli.
+      */}
+      <div className="relative isolate border-b bg-charcoal text-cream">
+        <Image
+          alt={PHOTO.menuVitrin.alt}
+          src={PHOTO.menuVitrin.src}
+          fill
+          priority
+          sizes="100vw"
+          className="-z-10 object-cover"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 -z-10 bg-linear-to-r from-charcoal/90 via-charcoal/80 to-charcoal/50"
+        />
+
+        <div className="mx-auto max-w-content px-4 py-10 sm:px-6 sm:py-14">
+          <p className="text-xs font-semibold tracking-[0.14em] text-brand-300 uppercase">
             Günün menüsü
           </p>
-          <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Catering menüsü</h1>
-          <p className="mt-2 max-w-2xl text-sm text-neutral-800 sm:text-base">
-            Günlük olarak hazırladığımız yemekler. Fiyatlar porsiyon başınadır, KDV dahildir.
+          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-5xl">
+            Bugün ne var?
+          </h1>
+          <p className="mt-4 max-w-2xl text-base/7 text-cream/80">
+            Her sabah pişirdiklerimiz. Fiyatlar porsiyon başına ve KDV dâhil.
           </p>
 
-          <LocationFacts location={snapshot.location} className="mt-5" />
+          <LocationFacts location={snapshot.location} className="mt-6" />
         </div>
       </div>
 
@@ -106,8 +132,8 @@ export default async function MenuPage() {
           <EmptyState
             className="mt-8"
             icon={<IconPlate className="h-8 w-8" />}
-            title="Menü şu an boş"
-            message="Bugün için henüz ürün yayınlanmadı. Kısa süre içinde tekrar bakın."
+            title="Bugün henüz bir şey çıkmadı"
+            message="Menü hazırlanınca burada görünecek. Biraz sonra tekrar bakın."
             actionHref="/"
             actionLabel="Ana sayfaya dön"
           />

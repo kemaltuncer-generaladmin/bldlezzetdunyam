@@ -8,6 +8,7 @@ import { Section, SectionHeading } from '@/components/site/section';
 import { Button } from '@/components/ui/button';
 import { PRIMARY_CTA } from '@/content/navigation';
 import { fetchSiteContent } from '@/lib/api/site-content';
+import { PHOTO, serviceImage } from '@/lib/site-images';
 import { breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
 import type { Crumb } from '@/components/site/page-hero';
 
@@ -43,27 +44,30 @@ export default async function ServicesPage() {
 
       <PageHero
         crumbs={CRUMBS}
-        eyebrow="Hizmetlerimiz"
-        title="Her ihtiyaç için ayrı bir çalışma düzeni"
-        description="Bir fabrikanın vardiya öğünüyle bir okulun ikindi ikramı aynı biçimde planlanmaz. Hizmetlerimizi, çalıştığımız kurumun günlük akışına göre ayrı ayrı kurguluyoruz."
+        eyebrow="Hizmetler"
+        title="Her iş için ayrı bir düzen"
+        description="Bir fabrikanın vardiya yemeğiyle bir okulun ikindi ikramı aynı şekilde kurulmaz. Sekiz ayrı hizmetimiz var; hepsinin işleyişi kendi sayfasında yazıyor."
+        image={PHOTO.servisBufe.src}
       />
 
       <Section aria-labelledby="hizmet-listesi">
         <SectionHeading
           id="hizmet-listesi"
-          eyebrow="Hizmet kataloğu"
-          title="Ne tür hizmet veriyoruz?"
-          description="Her başlık; kimler için uygun olduğunu, sürecin nasıl işlediğini ve teklif için gereken bilgileri kendi sayfasında anlatıyor."
+          eyebrow="Katalog"
+          title="Ne yapıyoruz?"
+          description="Her başlığın sayfasında kimler için uygun olduğu, nasıl işlediği ve teklif için nelerin gerektiği yazıyor."
         />
 
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {services.map((service) => (
+        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {services.map((service, index) => (
             <ServiceCard
               key={service.slug}
               href={`/hizmetler/${service.slug}`}
               icon={service.icon}
               title={service.title}
               summary={service.summary}
+              image={serviceImage(service.slug)}
+              priority={index < 3}
             />
           ))}
         </div>
@@ -85,12 +89,11 @@ export default async function ServicesPage() {
               id="hangi-hizmet"
               className="font-display text-2xl font-semibold tracking-tight sm:text-3xl"
             >
-              Hangi hizmeti seçeceğinizden emin değil misiniz?
+              Hangisi size uyar, emin değil misiniz?
             </h2>
             <p className="mt-4 max-w-2xl text-base/7 opacity-85">
-              Kişi sayınızı, öğün saatlerinizi ve mutfak imkânlarınızı iletin; hangi çalışma
-              düzeninin size uyduğunu birlikte belirleyelim. Gerekirse iki hizmeti birleştiren bir
-              kurgu da hazırlanabilir.
+              Kaç kişisiniz, saat kaçta yiyorsunuz, mutfağınız var mı — bu üçünü söyleyin, gerisini
+              birlikte çözelim. İki hizmeti birleştirdiğimiz de oluyor.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">

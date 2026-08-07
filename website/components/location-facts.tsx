@@ -84,16 +84,24 @@ export function LocationFacts({
     });
   }
 
+  /*
+   * Çipler kendi renklerini taşır, kapsayıcıdan miras ALMAZ.
+   *
+   * Bileşen artık koyu, fotoğraflı bir bandın içinde de kullanılıyor. `dd`
+   * kendi rengini vermediğinde banttan `text-cream` miras alıyor ve beyaz
+   * çipin üzerinde okunmaz hâle geliyordu — asgari sepet tutarı ekranda
+   * görünmüyordu.
+   */
   return (
     <dl className={cn('flex flex-wrap gap-2', className)}>
       {facts.map((fact) => (
         <div
           key={fact.key}
-          className="flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-0 px-3 py-1.5 text-sm shadow-xs"
+          className="flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-0 px-3 py-1.5 text-sm text-neutral-900 shadow-xs"
         >
           <span className="text-brand-700">{fact.icon}</span>
           <dt className="text-neutral-600">{fact.label}:</dt>
-          <dd className="font-semibold">{fact.value}</dd>
+          <dd className="font-semibold text-neutral-900">{fact.value}</dd>
         </div>
       ))}
     </dl>

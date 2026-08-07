@@ -341,6 +341,32 @@ yol açar.
 `storage/app/public`'tir ve bu bağlantı olmadan panelden yüklenen her
 ürün görseli 404 döner.
 
+## 4.7 Menü görselleri 500 veriyor: "Unable to write file at location: media/..."
+
+**Belirti.** `GET /locations/{id}/menu` `SERVER_ERROR` dönüyor, ayrıntıda
+`League\Flysystem\UnableToWriteFile` ve `media/attachments/public/.../thumb_*.jpg`
+yazıyor. Panelde görsel görünüyor ama API patlıyor.
+
+**Sebep.** Medya dosyaları `root` olarak oluşturulmuş. Küçük resmi (thumb) ise
+php-fpm üretiyor ve o `www-data` olarak çalışıyor; root'un açtığı klasöre
+yazamıyor. En sık nedeni `docker exec bld-app php artisan ...` komutunu
+kullanıcı belirtmeden çalıştırmak — konteynerde varsayılan kullanıcı root.
+
+**Çözüm.**
+
+```bash
+docker exec -u root bld-app \
+  chown -R www-data:www-data /var/www/platform/storage/app/media
+```
+
+**Tekrarlamaması için.** Dosya yazan artisan komutlarını her zaman
+`-u www-data` ile çalıştırın:
+
+```bash
+docker exec -u www-data bld-app php artisan veykemtu:menuGorselleri
+docker exec -u www-data bld-app php artisan veykemtu:siteIceriginiAktar
+```
+
 ## 5. Veri geri yükleme
 
 **Tatbikatı yapılmamış yedek, yedek değildir.** Ayda bir bunu boş bir

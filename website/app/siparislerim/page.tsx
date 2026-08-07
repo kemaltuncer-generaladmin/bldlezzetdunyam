@@ -75,7 +75,7 @@ export default async function MyOrdersPage({
           className="mt-8"
           icon={<IconCart className="h-8 w-8" />}
           title="Henüz siparişiniz yok"
-          message="Menüden seçim yaparak ilk siparişinizi oluşturabilirsiniz."
+          message="Menüye göz atın, ilk siparişinizi buradan verin."
           actionHref="/menu"
           actionLabel="Menüye git"
         />

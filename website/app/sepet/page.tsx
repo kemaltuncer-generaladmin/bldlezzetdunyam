@@ -76,7 +76,7 @@ export default async function CartPage() {
           className="mt-10"
           icon={<IconCart className="h-8 w-8" />}
           title="Sepetiniz boş"
-          message="Menüden ürün ekleyerek siparişinize başlayabilirsiniz. Günün yemekleri her sabah yenilenir."
+          message="Menüden birkaç şey ekleyin. Günün yemekleri her sabah yenileniyor."
           actionHref="/menu"
           actionLabel="Menüye git"
         />

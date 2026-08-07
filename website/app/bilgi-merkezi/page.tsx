@@ -5,11 +5,12 @@ import { CtaBand } from '@/components/site/cta-band';
 import { PageHero, type Crumb } from '@/components/site/page-hero';
 import { Section, SectionHeading } from '@/components/site/section';
 import { fetchSiteContent } from '@/lib/api/site-content';
+import { PHOTO, postImage } from '@/lib/site-images';
 import { breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
 
 const TITLE = 'Bilgi Merkezi';
 const DESCRIPTION =
-  'Catering firması seçimi, menü planlaması, hijyen zinciri ve organizasyon lojistiği üzerine yazılar. Teklif almadan önce netleştirilmesi gereken başlıklar.';
+  'Firma seçimi, menü planlaması, hijyen ve organizasyon lojistiği üzerine yazdıklarımız. Teklif istemeden önce okunursa görüşme kısalıyor.';
 
 const CRUMBS: readonly Crumb[] = [{ href: '/bilgi-merkezi', label: TITLE }];
 
@@ -40,12 +41,12 @@ export default async function BilgiMerkeziPage() {
     <>
       <JsonLd data={breadcrumbJsonLd(CRUMBS)} />
 
-      <PageHero crumbs={CRUMBS} title={TITLE} description={DESCRIPTION}>
+      <PageHero crumbs={CRUMBS} title={TITLE} description={DESCRIPTION} image={PHOTO.mutfakTencere.src}>
         <ul className="flex flex-wrap gap-2">
           {categories.map((category) => (
             <li
               key={category}
-              className="rounded-full border border-primary/25 px-3 py-1 text-xs font-semibold text-primary"
+              className="rounded-full border border-cream/30 px-3 py-1 text-xs font-semibold text-cream"
             >
               {category}
             </li>
@@ -53,11 +54,11 @@ export default async function BilgiMerkeziPage() {
         </ul>
       </PageHero>
 
-      <Section tone="muted" aria-labelledby="tum-yazilar">
+      <Section aria-labelledby="tum-yazilar">
         <SectionHeading
           id="tum-yazilar"
           title="Tüm yazılar"
-          description="Sık sorulan konuları tek tek cevaplamak yerine yazıya döktük; teklif görüşmesinden önce okunduğunda konuşmayı kısaltıyor."
+          description="Aynı soruları çok duyduk, oturup yazdık."
         />
 
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -70,14 +71,15 @@ export default async function BilgiMerkeziPage() {
               description={post.description}
               publishedAt={post.publishedAt}
               readingMinutes={post.readingMinutes}
+              image={postImage(post.slug)}
             />
           ))}
         </div>
       </Section>
 
       <CtaBand
-        title="Yazıda cevabını bulamadığınız bir konu mu var?"
-        description="Kişi sayınızı ve hizmet türünüzü iletin; menü önerisi ve fiyatlandırmayla birlikte dönelim."
+        title="Aradığınız cevap burada yoksa"
+        description="Sorun, cevaplayalım. Teklif formunda açıklama alanı var."
       />
     </>
   );

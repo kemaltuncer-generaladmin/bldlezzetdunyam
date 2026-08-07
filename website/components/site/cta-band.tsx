@@ -16,8 +16,8 @@ import { fetchSiteContent } from '@/lib/api/site-content';
  * çalışır — iletişim kanalı hiç yoksa bile band boşalmaz.
  */
 export async function CtaBand({
-  title = 'İhtiyacınıza özel teklif alın',
-  description = 'Kişi sayınızı ve hizmet türünüzü iletin; menü önerisi ve fiyatlandırmayla birlikte dönelim.',
+  title = 'Kaç kişisiniz? Gerisini konuşalım.',
+  description = 'Kişi sayınızı ve ne tür bir hizmet istediğinizi yazın; menü önerisi ve fiyatla birlikte dönelim.',
 }: {
   title?: string;
   description?: string;
