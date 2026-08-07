@@ -52,7 +52,9 @@ jobs:
         # `adb install` ile kurulabilir. AAB yerine APK: AAB kurmak bundletool
         # ister, APK istemez. Amaç hem Gradle'ı koşturmak hem indirilebilir
         # bir çıktı bırakmak.
-        run: flutter build apk --release
+        # Üretim API adresi derlemeye gömülür (docs/07 §3, app_config.dart).
+        # Public endpoint, sır değil; cihazdaki uygulama buraya bağlanır.
+        run: flutter build apk --release --dart-define=BLD_API_BASE_URL=https://api.benimlezzetdunyam.com.tr/api
 
       - name: APK'yı indirilebilir artifact olarak yükle
         uses: actions/upload-artifact@v4
