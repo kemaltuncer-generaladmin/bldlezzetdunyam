@@ -105,6 +105,43 @@ class _OrderColumnState extends State<OrderColumn> {
   GlobalObjectKey<State<StatefulWidget>> _cardKey(int index) =>
       GlobalObjectKey<State<StatefulWidget>>('${widget.column.name}-$index');
 
+  /// Bir kartın alacağı en dar genişlik.
+  ///
+  /// Bunun altında ürün adı ("30× Mercimek Çorbası") ve eylem düğmesi aynı
+  /// satıra sığmıyor, kart iki kata çıkıp kazanılan yeri geri veriyor.
+  ///
+  /// 1920 px'lik ekranda komşusu boşalmış bir sütun ~795 px'e çıkıyor; eşik
+  /// 400 olsaydı 1,98 çıkıp aşağı yuvarlanır ve iki kart hiç yan yana
+  /// gelmezdi. 360, o sınırın altında pay bırakıyor.
+  static const double _minCardWidth = 360;
+
+  /// Bir satırdaki en fazla kart.
+  ///
+  /// Üçten fazlası 1920 px'de kartları okunmayacak kadar daraltıyor; mutfakta
+  /// ekrana bir metreden bakılıyor.
+  static const int _maxPerRow = 2;
+
+  Widget _buildCard(List<KitchenOrder> orders, int index) {
+    final order = orders[index];
+    return KeyedSubtree(
+      key: _cardKey(index),
+      child: OrderCard(
+        key: ValueKey<int>(order.id),
+        order: order,
+        column: widget.column,
+        age: ageOf(order, now: widget.now, thresholds: widget.thresholds),
+        thresholds: widget.thresholds,
+        highlighted: widget.highlightedIds.contains(order.id),
+        selected: widget.selectedIndex == index,
+        busy: widget.busyIds.contains(order.id),
+        progress: widget.progress,
+        onAdvance: () => widget.onAdvance(order),
+        onToggleItem: (itemIndex) => widget.onToggleItem(order, itemIndex),
+        onReprint: (type) => widget.onReprint(order, type),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppL10n.of(context);
@@ -135,39 +172,71 @@ class _OrderColumnState extends State<OrderColumn> {
                     ),
                   ),
                 )
-              : ListView.separated(
-                  controller: _scroll,
-                  // Komşu kartların çizili durması klavye seçimini görünür
-                  // kılar; 40 kartlık bir listede yalnızca birkaç kart fazla
-                  // çizmek, kaydırmayı takılmaya sokmayacak kadar ucuzdur.
-                  scrollCacheExtent: const ScrollCacheExtent.pixels(1200),
-                  padding: const EdgeInsets.only(bottom: BldSpacing.md),
-                  itemCount: orders.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(height: BldSpacing.md),
-                  itemBuilder: (context, index) {
-                    final order = orders[index];
-                    return KeyedSubtree(
-                      key: _cardKey(index),
-                      child: OrderCard(
-                        key: ValueKey<int>(order.id),
-                        order: order,
-                        column: widget.column,
-                        age: ageOf(
-                          order,
-                          now: widget.now,
-                          thresholds: widget.thresholds,
-                        ),
-                        thresholds: widget.thresholds,
-                        highlighted: widget.highlightedIds.contains(order.id),
-                        selected: widget.selectedIndex == index,
-                        busy: widget.busyIds.contains(order.id),
-                        progress: widget.progress,
-                        onAdvance: () => widget.onAdvance(order),
-                        onToggleItem: (itemIndex) =>
-                            widget.onToggleItem(order, itemIndex),
-                        onReprint: (type) => widget.onReprint(order, type),
-                      ),
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    /*
+                     * SÜTUN GENİŞSE KARTLAR YAN YANA.
+                     *
+                     * Yoğun saatte gerçek tablo şu: YENİ'de sekiz sipariş
+                     * birikiyor, diğer sütunlar boşalıyor. Tek sütunlu
+                     * yerleşimde aşçı bunların yalnızca üçünü görüyordu ve
+                     * kalanı görmek için kaydırması gerekiyordu — oysa
+                     * ekranın üçte ikisi boştu.
+                     *
+                     * Ölçü sipariş sayısına değil GENİŞLİĞE bakıyor: sütun
+                     * ancak komşuları boşaldığı için genişler, yani sıra
+                     * yalnızca panonun dengesi değiştiğinde değişir. Sayıya
+                     * bağlasaydık her yeni siparişte kartlar yer değiştirir
+                     * ve göz her seferinde yeniden arardı.
+                     */
+                    final perRow =
+                        (constraints.maxWidth / _minCardWidth)
+                            .floor()
+                            .clamp(1, _maxPerRow)
+                            // Sütunda kart sayısından fazla sıra açmıyoruz:
+                            // tek kalan sipariş yarım genişlikte durup yanında
+                            // boşluk bırakmasın, tam genişliğe yayılıp daha
+                            // görünür olsun.
+                            .clamp(1, orders.length);
+                    final rowCount = (orders.length + perRow - 1) ~/ perRow;
+
+                    return ListView.separated(
+                      controller: _scroll,
+                      // Komşu kartların çizili durması klavye seçimini görünür
+                      // kılar; 40 kartlık bir listede yalnızca birkaç kart
+                      // fazla çizmek, kaydırmayı takılmaya sokmayacak kadar
+                      // ucuzdur.
+                      scrollCacheExtent: const ScrollCacheExtent.pixels(1200),
+                      padding: const EdgeInsets.only(bottom: BldSpacing.md),
+                      itemCount: rowCount,
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(height: BldSpacing.md),
+                      itemBuilder: (context, rowIndex) {
+                        final first = rowIndex * perRow;
+                        final last = (first + perRow).clamp(0, orders.length);
+
+                        return Row(
+                          // Kartlar farklı yükseklikte (kalem sayısı ve not
+                          // değişiyor); üstten hizalanmazlarsa kısa kart
+                          // uzayıp boş yer kaplıyor.
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (var index = first; index < last; index++) ...[
+                              if (index != first)
+                                const SizedBox(width: BldSpacing.md),
+                              Expanded(child: _buildCard(orders, index)),
+                            ],
+                            // Son satır eksik kalırsa kartlar genişleyip
+                            // üsttekilerle hizasını kaybediyor; boş paylar
+                            // hizayı koruyor.
+                            for (var bos = last - first; bos < perRow; bos++)
+                              ...[
+                                const SizedBox(width: BldSpacing.md),
+                                const Expanded(child: SizedBox.shrink()),
+                              ],
+                          ],
+                        );
+                      },
                     );
                   },
                 ),
@@ -202,14 +271,25 @@ class _ColumnHeader extends StatelessWidget {
     child: Row(
       children: [
         Expanded(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: KdsTextScale.columnHeader,
-              fontWeight: FontWeight.bold,
-              color: KdsAccents.onAccent(accent),
+          /*
+           * KIRPMA YERİNE KÜÇÜLTME.
+           *
+           * Boş sütun daraldığında "HAZIRLANIYOR (0)" başlığı "HAZIRLANIYOR ..."
+           * diye kesiliyordu. Sütunu renginden tanıyan personel için başlık
+           * ikincil ama kesik bir kelime ekranda arıza gibi duruyor. `scaleDown`
+           * yalnızca sığmadığında küçültür; geniş sütunda punto değişmez.
+           */
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              label,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: KdsTextScale.columnHeader,
+                fontWeight: FontWeight.bold,
+                color: KdsAccents.onAccent(accent),
+              ),
             ),
           ),
         ),

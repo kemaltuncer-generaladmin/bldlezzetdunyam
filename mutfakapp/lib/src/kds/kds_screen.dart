@@ -209,7 +209,20 @@ class _Board extends ConsumerWidget {
           for (final column in KdsColumn.values) ...[
             if (column != KdsColumn.values.first)
               const SizedBox(width: BldSpacing.md),
+            /*
+             * BOŞ SÜTUN DARALIR, MEŞGUL SÜTUN GENİŞLER.
+             *
+             * Üç sütun eşit üçte bir paylaşıyordu; yoğun saatte HAZIRLANIYOR
+             * bomboş dururken 620 px kaplıyor, YENİ ise sekiz siparişi tek
+             * sıra hâlinde gösterip kayıyordu. Daralınca meşgul sütun ~830
+             * px'e çıkıyor ve `OrderColumn` kartları yan yana dizebiliyor.
+             *
+             * Tek eşik var — sütun boş mu, dolu mu. Sipariş sayısıyla orantılı
+             * olsaydı her siparişte sütun genişlikleri oynar, göz her seferinde
+             * yeniden yer arardı.
+             */
             Expanded(
+              flex: board[column]!.isEmpty ? 1 : 3,
               child: OrderColumn(
                 column: column,
                 title: titles[column]!,

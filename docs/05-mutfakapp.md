@@ -50,6 +50,40 @@ Tek ekran, üç bölge:
 - `hazir` sütununda `delivery_type=delivery` siparişi "YOLA ÇIKTI", `pickup` siparişi "TESLİM EDİLDİ" butonu gösterir.
 - Geri alma yok; yanlış basılırsa admin panelden düzeltilir (mutfakta yanlışlıkla geri alma riskini önlemek için).
 
+
+### Pano yoğunluğu — boş sütun daralır (07.08.2026)
+
+Üç sütun eşit üçte bir paylaşıyordu. Yoğun saatte gerçek tablo şöyle oluyor:
+YENİ'de sekiz sipariş birikmiş, HAZIRLANIYOR boşalmış, HAZIR'da bir kart var.
+Eşit paylaşımda **ekranın üçte ikisi boş dururken** kuyruğun biriktiği sütun
+kayıyordu — aşçı bir metreden baktığında sırada ne olduğunu göremiyordu.
+
+İki değişiklik birlikte çalışıyor:
+
+1. **Boş sütun daralır.** `Expanded(flex: bos ? 1 : 3)`. Tek eşik var — sütun
+   boş mu, dolu mu. Sipariş sayısıyla orantılı olsaydı her siparişte
+   genişlikler oynar, göz her seferinde yeniden yer arardı.
+2. **Genişleyen sütunda kartlar yan yana dizilir.** `OrderColumn` sütun
+   genişliğini ölçüp satır başına kart sayısını buluyor
+   (`_minCardWidth = 360`, en fazla iki).
+
+Ölçülen sonuç: sekiz siparişli YENİ sütununda kaydırmadan görünen kart sayısı
+**üçten altıya** çıktı. Pano dengeliyken (her sütunda kart varken) düzen
+değişmiyor — hiçbir sütun iki kart sığdıracak kadar genişlemiyor.
+
+> **`_minCardWidth` neden 360?** 1920 px'lik ekranda komşusu boşalmış bir
+> sütun ~795 px'e çıkıyor. Eşik 400 olsaydı `795 / 400 = 1,98` aşağı
+> yuvarlanır ve iki kart hiç yan yana gelmezdi. İlk denemede tam bu oldu.
+
+> **Tek kalan kart sütunun tamamına yayılır.** Yarım genişlikte durup yanında
+> boşluk bırakmıyor; HAZIR sütununda bekleyen tek sipariş daha görünür oluyor.
+
+Başlık artık kırpılmıyor: daralan sütunda "HAZIRLANIYOR (0)" yazısı
+`FittedBox(scaleDown)` ile küçülüyor. Kesik bir kelime ekranda arıza gibi
+duruyordu.
+
+Davranış `test/board_density_test.dart` ile korunuyor (6 test).
+
 ## 4. Veri katmanı
 
 **Zorunlu soyutlama:**
