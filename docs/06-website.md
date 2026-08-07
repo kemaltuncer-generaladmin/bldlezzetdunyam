@@ -102,3 +102,14 @@ ile yapılır. `next/image` izin listesine API konağı `next.config.ts` içinde
 3. Gel-al siparişi → teslimat adresi adımı atlanır, teslimat ücreti eklenmez
 4. Sipariş takip sayfası durum değişimini yansıtır (API mock ile)
 5. `ordering_enabled=false` iken sipariş denemesi → uygun hata mesajı, menü hâlâ görünür
+
+## Hizmet alanı
+
+Ödeme formunda il **sabittir** (Konya, salt okunur girdi) ve ilçe iki
+seçenekli bir listeden gelir (Selçuklu, Karatay). Değerler
+`website/lib/service-area.ts` içindedir; zod şeması aynı denetimi yapar ve
+sunucu kuralı yeniden uygular. Gerekçe ve kutu kenarları:
+`docs/00-genel-bakis.md` §4.1.
+
+Web sitesinde harita ile nokta seçimi **yoktur** (mobil uygulamaya özgüdür);
+bu yüzden web siparişlerinin fişinde konum QR'ı basılmaz.

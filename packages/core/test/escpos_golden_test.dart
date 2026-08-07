@@ -30,6 +30,7 @@ final KitchenReceiptData kitchenDelivery = KitchenReceiptData(
   deliveryType: DeliveryType.delivery,
   printedAt: printedAt,
   requestedAt: requestedAt,
+  customerPhone: '0555 123 45 67',
   customerNote: 'Fatura kurumsal',
   lines: const [
     KitchenReceiptLine(
@@ -72,8 +73,8 @@ final CustomerReceiptData customerDelivery = CustomerReceiptData(
   paymentStatus: ReceiptPaymentStatus.paid,
   address: const ReceiptAddress(
     line1: 'Örnek Mah. 12. Sk No:3',
-    district: 'Çankaya',
-    city: 'Ankara',
+    district: 'Selçuklu',
+    city: 'Konya',
   ),
 );
 
@@ -92,10 +93,10 @@ final CustomerReceiptData customerDeliveryWithPin = CustomerReceiptData(
   paymentStatus: ReceiptPaymentStatus.pending,
   address: const ReceiptAddress(
     line1: 'Örnek Mah. 12. Sk No:3',
-    district: 'Çankaya',
-    city: 'Ankara',
-    latitude: 40.2114567,
-    longitude: 28.9876543,
+    district: 'Selçuklu',
+    city: 'Konya',
+    latitude: 37.8901234,
+    longitude: 32.4876543,
   ),
 );
 
@@ -211,7 +212,7 @@ void main() {
 
       expect(_contains(bytes, url.codeUnits), isTrue);
       // Yedi ondalık korunmalı: yuvarlama iğneyi metrelerce kaydırır.
-      expect(url, contains('40.2114567,28.9876543'));
+      expect(url, contains('37.8901234,32.4876543'));
     });
 
     test('uzunluk baytı cn+fn+m dahil sayılır', () {
@@ -243,10 +244,45 @@ void main() {
       expect(text, isNot(contains('Ödeme')));
     });
 
-    test('mutfak fişinde adres ve telefon geçmez', () {
+    test('mutfak fişinde adres geçmez', () {
       final text = _decode(buildKitchenReceipt(kitchenDelivery));
       expect(text, isNot(contains('Teslimat:')));
-      expect(text, isNot(contains('Ankara')));
+      expect(text, isNot(contains('Konya')));
+    });
+
+    test('mutfak fişinde müşteri telefonu çift boy basılır', () {
+      // Kurye kapıda kaldığında arayacağı numara fişte olmalı — ve mutfağın
+      // ışığında bir metre öteden okunabilmeli.
+      final bytes = buildKitchenReceipt(kitchenDelivery);
+      final text = _decode(bytes);
+      expect(text, contains('Tel: 0555 123 45 67'));
+
+      // Çift boy komutu telefon satırından ÖNCE gelmeli.
+      expect(
+        _contains(bytes, [
+          ...EscPosCommands.doubleSizeOn,
+          ...EscPosCommands.boldOn,
+          ...'Tel: '.codeUnits,
+        ]),
+        isTrue,
+      );
+    });
+
+    test('telefon çift boyda satıra sığar', () {
+      // Çift boyda bir satır 24 karakter: taşan numara yazıcının kendi
+      // kaydırmasına düşer ve ikiye bölünmüş bir telefon okunmaz olur.
+      final text = _decode(buildKitchenReceipt(kitchenDelivery));
+      final line = text
+          .split('\n')
+          .firstWhere((row) => row.startsWith('Tel: '));
+
+      expect(line.length, lessThanOrEqualTo(ReceiptStyle.standard.doubleColumns));
+    });
+
+    test('telefon yoksa Tel satırı hiç basılmaz', () {
+      // Boş bir "Tel:" satırı kuryeye numara olduğunu düşündürüp aratırdı.
+      final text = _decode(buildKitchenReceipt(kitchenPickup));
+      expect(text, isNot(contains('Tel:')));
     });
 
     test('gel-al müşteri fişinde teslimat ücreti satırı yoktur', () {
@@ -259,7 +295,7 @@ void main() {
       final text = _decode(buildCustomerReceipt(customerDelivery));
       expect(text, contains('Teslimat:'));
       expect(text, contains('Örnek Mah. 12. Sk No:3'));
-      expect(text, contains('Çankaya / Ankara'));
+      expect(text, contains('Selçuklu / Konya'));
       expect(text, isNot(contains('GEL-AL')));
     });
 

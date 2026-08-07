@@ -1,7 +1,10 @@
 /// Mutfak (KDS) DTO'ları — `docs/openapi.yaml` §Mutfak.
 ///
-/// Bu modellerde **fiyat ve müşteri iletişim bilgisi yoktur**. Tek istisna
-/// [CustomerReceipt]: müşteri fişi fiyatlı ve (adrese gönderimde) adreslidir.
+/// Bu modellerde **fiyat ve müşteri iletişim bilgisi yoktur**. İstisnalar
+/// yalnızca fişlerdir: [CustomerReceipt] fiyatlı ve (adrese gönderimde)
+/// adreslidir, [KitchenReceipt] ise müşteri telefonunu taşır. Fiş tek bir
+/// sipariş için basılır; ekranda duran kartlar (`KitchenOrder`) hâlâ iletişim
+/// bilgisi görmez.
 library;
 
 import 'package:bld_core/bld_core.dart';
@@ -122,6 +125,12 @@ abstract class KitchenReceipt with _$KitchenReceipt {
     required List<ReceiptLine> lines,
     @Default('mutfak') String type,
     DateTime? requestedAt,
+
+    /// Müşterinin telefonu — yalnızca **fişe** basmak için.
+    ///
+    /// KDS kartında ([KitchenOrder]) telefon yoktur: ekran mutfakta gün boyu
+    /// açık durur. Fiş tek bir sipariş için basılıp kuryeye gider.
+    String? customerPhone,
     String? customerNote,
     DateTime? printedAt,
   }) = _KitchenReceipt;

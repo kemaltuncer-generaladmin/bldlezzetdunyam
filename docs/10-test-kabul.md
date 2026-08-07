@@ -93,12 +93,36 @@ Her senaryo elle koşulur ve sonuç tabloya işlenir. Hepsi geçmeden canlıya a
 
 ### Backend (`platform/`)
 - [ ] `php artisan test` tamamı yeşil
+- [ ] Hizmet alanı dışındaki il/ilçe hem `POST /api/orders` hem
+      `POST/PATCH /api/addresses` ucunda `422` alıyor (`ServiceArea`)
+- [ ] Hizmet alanı kutusunun dışındaki harita iğnesi `422` alıyor
+- [ ] Mutfak fişi `customer_phone` döndürüyor, KDS kartları döndürmüyor
 - [ ] Sözleşmedeki her uç uygulanmış ve manuel doğrulanmış
 - [ ] `OrderStatusTransition` tüm geçiş matrisini kapsayan test
 - [ ] `openapi.json` üretiliyor ve sözleşmeyle uyumlu
 - [ ] Tüm hatalar tek biçimde dönüyor
 - [ ] `platform/vendor/` dokunulmamış
 - [ ] Sır yok, `.env.example` güncel
+
+### Donanım — QR AÇIK MADDE (07.08.2026)
+
+Müşteri fişindeki konum QR'ı sahada kâğıda çıkmıyor. Veri yolu (sunucu → KDS →
+ESC/POS) kodda eksiksiz ve golden test QR baytlarının fişte bulunduğunu
+doğruluyor; geriye iki olasılık kalıyor:
+
+1. Siparişin adresinde harita iğnesi yok — basılacak veri hiç yok.
+2. Yazıcı yerleşik QR komutunu (`GS ( k`) yok sayıyor. Bu komut ESC/POS'un
+   isteğe bağlı bir eklentisidir; desteklemeyen yazıcı hata vermez, sessizce
+   hiçbir şey basmaz.
+
+Ayırt etmek için teşhis fişi: `cd mutfakapp && dart run tool/yazici_teshis.dart`
+Fişte üç bölüm var — A: yerleşik QR (Model 2), B: yerleşik QR (Model 1),
+C: raster nokta görseli (`GS v 0`).
+
+- [ ] A veya B kâğıda çıkıyor → yerleşik QR çalışıyor, sorun sipariş verisinde
+- [ ] İkisi de boş, C çıkıyor → QR görsel olarak çizilip basılmalı
+      (`qr` paketi + `EscPosBuilder.bitImage`, ayrı görev)
+- [ ] Üçü de boş → yazıcı/kablo sorunu, önce onu doğrula
 
 ### Donanım — GERÇEK YAZICIDA DOĞRULANDI (04.08.2026)
 
@@ -147,6 +171,12 @@ Kapandı.
 
 ### Müşteri app (`musteriapp/`)
 - [ ] `flutter analyze` sıfır uyarı
+- [ ] "Beni hatırla" kapalıyken uygulama yeniden açıldığında oturum kapalı;
+      açıkken oturum sürüyor
+- [ ] Adres formlarında il değiştirilemiyor, ilçe yalnızca Selçuklu/Karatay
+- [ ] Harita hizmet alanı kutusunun dışına kaydırılamıyor
+- [ ] Ödeme ekranında bırakılan iğne adres defterine işleniyor (sonraki
+      siparişte harita iğneli açılıyor)
 - [ ] Sepet hesaplama unit testleri geçiyor
 - [ ] Zorunlu güncelleme mantığı çalışıyor
 - [ ] Play kapalı test kanalında yüklü ve açılıyor

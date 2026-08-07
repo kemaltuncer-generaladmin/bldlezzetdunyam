@@ -17,7 +17,7 @@
 | Ekran | İçerik |
 |---|---|
 | Açılış | Token kontrolü, sürüm kontrolü (`/api/app-version`) |
-| Giriş / Kayıt | E-posta + şifre, KVKK onay kutusu |
+| Giriş / Kayıt | E-posta + şifre, KVKK onay kutusu, **"Beni hatırla"** |
 | Menü | Kategori sekmeleri, ürün listesi, arama |
 | Ürün detayı | Görsel, açıklama, seçenekler, adet, not, sepete ekle |
 | Sepet | Kalemler, adet düzenleme, tutar özeti |
@@ -36,6 +36,24 @@ Uygulamada iş kuralı **kodlanmaz**; şu üçünü sunucu söyler, uygulama yal
 - Hangi ödeme yöntemleri açık → `payment_methods`
 
 `delivery_type=pickup` seçilirse teslimat adresi adımı atlanır ve teslimat ücreti eklenmez; bu, sunucunun döndüğü tutarla doğrulanır (istemci kendi hesabına güvenmez).
+
+### "Beni hatırla"
+
+Giriş ekranındaki kutu **işaretliyken** (varsayılan) token `shared_preferences`
+içine yazılır ve oturum uygulama kapansa da sürer — bugüne kadarki davranış
+budur. İşaretli DEĞİLKEN token yalnızca bellekte tutulur, diske hiç yazılmaz:
+uygulama kapandığında oturum biter. Tercihin kendisi diske yazılır, token
+yazılmaz.
+
+### Adres alanları ve harita
+
+İl **sabittir** (Konya), ilçe iki seçenekli listeden gelir (Selçuklu, Karatay)
+ve harita hizmet alanı kutusunun dışına çıkmaz — `docs/00-genel-bakis.md` §4.1.
+Ödeme ekranında kayıtlı bir adres seçiliyken haritadan iğne bırakılırsa iğne
+**adres defterine de işlenir**: müşteri kapısını bir kez göstermeli, her
+siparişte yeniden değil. Deftere yazılan değerler formdaki metinler değil,
+kayıtlı adresin kendi alanlarıdır — o sipariş için yapılan düzeltme deftere
+sızmaz.
 
 ### Neden WebView değil?
 

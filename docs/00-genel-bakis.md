@@ -28,6 +28,22 @@ Bunun sözleşmeye yansıması: API'de `channel`, `channel_label`, `pickup_code`
 
 > **Neden alan tamamen silindi de tek değerli enum bırakılmadı?** ADR-09 alan **eklemeye** izin verir, silmeye vermez. İleride yeni bir kanal gerekirse `channel` alanını *eklemek* geriye uyumludur; bugün tek değerli enum bırakıp yarın değer eklemek ise istemcilerdeki exhaustive `switch` bloklarını kırar. Düşük riskli yön silmektir.
 
+## 4.1 Hizmet alanı — Konya / Selçuklu ve Karatay
+
+**Karar (07.08, işletme sahibi):** Teslimat yapılan tek il **Konya**, tek ilçe kümesi **Selçuklu** ve **Karatay**'dır.
+
+Bunun uygulamalara yansıması:
+
+- Adres formlarında il **sabittir** ve değiştirilemez; ilçe iki seçenekli bir listeden gelir, serbest metin değildir (mobil ve web).
+- Harita ekranı iki ilçeyi kapsayan bir **dikdörtgene hapsedilmiştir**; kamera bu kutunun dışına kaydırılamaz, kutudan uzağa uzaklaştırılamaz. İğne ekranın ortasında sabit olduğu için kutunun dışında bir nokta seçilemez.
+- Sunucu aynı kuralı **yeniden denetler** (`ServiceArea`): il, ilçe ve —varsa— harita iğnesi kutunun dışındaysa hem `POST /api/orders` hem `POST/PATCH /api/addresses` `422 VALIDATION_FAILED` döner. İstemcideki kilit kolaylıktır; kuralı uygulayan sunucudur.
+
+Kutunun kenarları: güney `37.80`, kuzey `38.10`, batı `32.35`, doğu `32.75`.
+
+> **Neden dikdörtgen, ilçe sınırı poligonu değil?** Kutu, iki ilçenin yerleşik alanını kapsar; kenarlarda komşu ilçelerden (özellikle güneybatıda Meram) bir miktar alan da içeri girer. Poligon denetimi sınır verisi taşımayı gerektirir ve dikdörtgenin çözdüğü asıl sorunu — müşterinin haritayı başka şehre kaydırıp orayı işaretlemesi — zaten çözer. Bölge sayısı arttığında liste sunucudan gelmeli (`docs/11-yol-haritasi.md`).
+
+Değerler üç yerde tekrarlanır ve **birlikte** değişir: `packages/core/lib/src/service_area.dart`, `website/lib/service-area.ts`, `platform/extensions/veykemtu/bridgeapi/src/Services/ServiceArea.php`.
+
 ## 5. Uçtan uca akış
 
 ```

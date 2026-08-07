@@ -87,6 +87,27 @@ Uint8List buildKitchenReceipt(
       ..bold(on: false);
   }
 
+  // Telefon başlıkta, kalemlerin üstünde: kurye ya da mutfak numaraya
+  // bakacağı zaman fişin tamamını okumak zorunda kalmasın.
+  //
+  // ÇİFT BOY: numara mutfağın ışığında, kâğıdı eline almadan, bir metre
+  // öteden okunabilmeli. Normal puntoda basıldığında ancak fişi kaldırıp
+  // yakından bakarak okunuyordu.
+  if (_hasText(data.customerPhone)) {
+    builder
+      ..doubleSize(on: true)
+      ..bold(on: true);
+    for (final line in _wrap(
+      'Tel: ${data.customerPhone!.trim()}',
+      style.doubleColumns,
+    )) {
+      builder.line(line);
+    }
+    builder
+      ..doubleSize(on: false)
+      ..bold(on: false);
+  }
+
   builder
     ..align(EscPosAlign.left)
     ..rule();

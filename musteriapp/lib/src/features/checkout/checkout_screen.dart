@@ -30,6 +30,7 @@ import '../../widgets/eta_notice.dart';
 import '../../widgets/status_views.dart';
 import '../cart/cart_controller.dart';
 import '../location/pin_field.dart';
+import '../location/service_area_fields.dart';
 
 class CheckoutScreen extends ConsumerWidget {
   const CheckoutScreen({super.key});
@@ -71,9 +72,11 @@ class _CheckoutForm extends ConsumerStatefulWidget {
 class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
   final _formKey = GlobalKey<FormState>();
   final _line1 = TextEditingController();
-  final _district = TextEditingController();
-  final _city = TextEditingController();
   final _addressNote = TextEditingController();
+
+  /// İl ve ilçe serbest metin değil: il sabit Konya, ilçe iki seçenekli
+  /// listeden gelir (`ServiceAreaFields`).
+  String? _district;
 
   /// Seçili kayıtlı adres. `null` = elle giriş.
   int? _savedAddressId;
@@ -106,8 +109,6 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
   @override
   void dispose() {
     _line1.dispose();
-    _district.dispose();
-    _city.dispose();
     _addressNote.dispose();
     _customerNote.dispose();
     super.dispose();
@@ -150,8 +151,9 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
       _savedAddressId = address?.id;
       if (address == null) return;
       _line1.text = address.line1;
-      _district.text = address.district;
-      _city.text = address.city;
+      // Hizmet alanı daralmadan önce kaydedilmiş bir ilçe gelirse seçim boş
+      // kalır ve müşteri listeden yeniden seçmek zorunda olur.
+      _district = ServiceAreaFields.sanitize(address.district);
       _addressNote.text = address.note ?? '';
 
       // İğne de kopyalanıyor. Kopyalanmasaydı defterdeki adresi seçen
@@ -161,6 +163,59 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
           ? LatLng(address.latitude!, address.longitude!)
           : null;
     });
+  }
+
+  /// İğne değiştiğinde: seçimi forma yaz ve **kayıtlı adrese de işle**.
+  ///
+  /// NEDEN DEFTERE YAZILIYOR: müşteri kapısını haritada bir kez göstermeli,
+  /// her siparişte yeniden değil. Yalnızca forma yazsaydık iğne o siparişle
+  /// birlikte kaybolur, sonraki siparişte harita yine boş açılırdı.
+  ///
+  /// Deftere giden değerler formdaki metinler DEĞİL, kayıtlı adresin kendi
+  /// alanlarıdır: müşteri bu sipariş için kapı numarasını değiştirmiş
+  /// olabilir ve o düzeltme deftere sızmamalı (`_applySavedAddress`).
+  Future<void> _onPinChanged(LatLng? value) async {
+    setState(() => _pin = value);
+
+    final id = _savedAddressId;
+    if (id == null) return;
+
+    final book = ref.read(addressBookProvider).valueOrNull;
+    final saved = book?.where((address) => address.id == id).firstOrNull;
+    if (saved == null) return;
+
+    final samePin = value == null
+        ? !saved.hasPin
+        : saved.latitude == value.latitude && saved.longitude == value.longitude;
+    if (samePin) return;
+
+    try {
+      await ref.read(addressBookProvider.notifier).edit(
+            id,
+            SavedAddressInput(
+              label: saved.label,
+              line1: saved.line1,
+              district: saved.district,
+              city: saved.city,
+              note: saved.note,
+              isDefault: saved.isDefault,
+              latitude: value?.latitude,
+              longitude: value?.longitude,
+            ),
+          );
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      // Sipariş engellenmiyor: iğne formda duruyor ve bu siparişe gidecek.
+      // Kalıcı olmadığını yine de söylüyoruz, yoksa müşteri bir dahaki
+      // sefere iğnesini bulamayınca uygulamayı suçlar.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            apiErrorDisplayMessage(error, AppLocalizations.of(context)),
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _submit() async {
@@ -188,8 +243,9 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
       address: _deliveryType.requiresAddress
           ? Address(
               line1: _line1.text.trim(),
-              district: _district.text.trim(),
-              city: _city.text.trim(),
+              // Doğrulama geçtiyse ilçe seçilidir; il her zaman sabit.
+              district: _district!,
+              city: ServiceArea.city,
               note: _addressNote.text.trim().isEmpty
                   ? null
                   : _addressNote.text.trim(),
@@ -333,18 +389,10 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
                     validator: (value) => validateRequired(value, l10n),
                   ),
                   const SizedBox(height: BldSpacing.sm),
-                  TextFormField(
-                    controller: _district,
-                    decoration: InputDecoration(
-                      labelText: l10n.addressDistrict,
-                    ),
-                    validator: (value) => validateRequired(value, l10n),
-                  ),
-                  const SizedBox(height: BldSpacing.sm),
-                  TextFormField(
-                    controller: _city,
-                    decoration: InputDecoration(labelText: l10n.addressCity),
-                    validator: (value) => validateRequired(value, l10n),
+                  ServiceAreaFields(
+                    district: _district,
+                    onDistrictChanged: (value) =>
+                        setState(() => _district = value),
                   ),
                   const SizedBox(height: BldSpacing.sm),
                   TextFormField(
@@ -356,10 +404,7 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
                   // Harita, serbest metnin ALTINDA ve yerine değil: OSM'de
                   // kapı numarası her yerde keskin değil, adres hâlâ asıl
                   // bilgi. İğne kuryenin son yüz metresi için.
-                  PinField(
-                    point: _pin,
-                    onChanged: (value) => setState(() => _pin = value),
-                  ),
+                  PinField(point: _pin, onChanged: _onPinChanged),
                 ],
 
                 _SectionTitle(l10n.checkoutRequestedAt),

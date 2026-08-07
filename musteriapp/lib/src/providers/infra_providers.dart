@@ -22,7 +22,10 @@ final localCacheProvider = Provider<LocalCache>(
   (ref) => LocalCache(ref.watch(sharedPreferencesProvider)),
 );
 
-final tokenStoreProvider = Provider<TokenStore>(
+/// Somut tip açıkça yazılıyor: giriş ekranı "beni hatırla" tercihini
+/// ayarlamak için `TokenStore` arayüzünde olmayan [
+/// SharedPreferencesTokenStore.setRemember] çağırıyor.
+final tokenStoreProvider = Provider<SharedPreferencesTokenStore>(
   (ref) => SharedPreferencesTokenStore(ref.watch(sharedPreferencesProvider)),
 );
 

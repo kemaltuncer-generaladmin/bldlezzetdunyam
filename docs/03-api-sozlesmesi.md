@@ -396,10 +396,15 @@ Fiş içeriği. Yazdırma verisini sunucu hazırlar, KDS yalnızca biçimlendiri
   "lines": [
     { "quantity":2, "name":"Tavuk Sote", "options":["Normal"], "note":"Az acılı" }
   ],
+  "customer_phone": "5551234567",
   "customer_note": "Fatura kurumsal",
   "printed_at": null
 }
 ```
+`customer_phone` **yalnızca fişte** vardır: kurye kapıda kaldığında arayacak
+numara elinde olsun diye. `GET /api/kitchen/orders` (KDS kartları) telefon
+döndürmez ve döndürmeyecektir — o ekran mutfakta gün boyu açık durur.
+
 **Yanıt 200 (type=musteri)** — ayrıca `items` fiyatlı, `subtotal`, `delivery_fee`, `total`, `payment` ve (`delivery_type=delivery` ise) `address` alanları içerir.
 
 Bu, mutfak kapsamının müşteri adresini görebildiği **tek** uçtur ve yalnızca `type=musteri` içindir; `GET /api/kitchen/orders` adres döndürmez.

@@ -180,6 +180,7 @@ içindedir ve golden test ile doğrulanır.
       SİPARİŞ S-5012
       04.08.2026 14:32
       Teslim: 05.08 09:30
+      Tel: 5551234567     (çift boy)
 --------------------------------
 2×  TAVUK SOTE
     (Normal)
@@ -206,12 +207,26 @@ TOPLAM               495,00
 --------------------------------
 Teslimat:
 Örnek Mah. 12. Sk No:3
-Çankaya / Ankara
+Selçuklu / Konya
+
+        [QR KODU]
+       Haritada aç
 --------------------------------
 Bu belge bilgi fişidir,
 mali değeri yoktur.
 ```
 `delivery_type=pickup` siparişinde "Teslimat" bloğu ve "Teslimat" ücret satırı **basılmaz**; yerine `GEL-AL` yazar.
+
+Mutfak fişindeki `Tel:` satırı `customer_phone` doluysa **çift boy** basılır —
+numara mutfağın ışığında, kâğıdı eline almadan okunabilmeli. Çift boyda satır
+24 karakterdir; şablon numarayı bu genişliğe göre sarar. Fiş, mutfak
+kapsamının müşteri telefonunu gördüğü **tek** yerdir; KDS kartlarında telefon
+yoktur (`docs/03-api-sozlesmesi.md` §GET /api/kitchen/orders/{id}/receipt).
+
+Müşteri fişindeki QR yalnızca adreste harita iğnesi varsa basılır ve içinde
+`https://www.google.com/maps?q=<enlem>,<boylam>` bağlantısı taşır. Serbest metin
+adres QR'la birlikte **yine de** basılır: fiş buruşabilir, kuryenin telefonu
+bitebilir.
 
 ### 5.4 Kuyruk
 

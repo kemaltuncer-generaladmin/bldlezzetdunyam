@@ -15,6 +15,7 @@ use Veykemtu\BridgeApi\Models\ApiCustomer;
 use Veykemtu\BridgeApi\Services\OrderFactory;
 use Veykemtu\BridgeApi\Services\OrderPresenter;
 use Veykemtu\BridgeApi\Services\OrderStatusTransition;
+use Veykemtu\BridgeApi\Services\ServiceArea;
 
 /**
  * Müşteri sipariş uçları — `docs/openapi.yaml` §Sipariş.
@@ -43,8 +44,17 @@ class OrderController extends ApiController
             'delivery_type' => ['required', Rule::in([Order::DELIVERY, Order::COLLECTION, 'pickup'])],
             'address' => ['sometimes', 'nullable', 'array'],
             'address.line1' => ['required_if:delivery_type,delivery', 'nullable', 'string', 'max:255'],
-            'address.district' => ['required_if:delivery_type,delivery', 'nullable', 'string', 'max:96'],
-            'address.city' => ['required_if:delivery_type,delivery', 'nullable', 'string', 'max:96'],
+            // Hizmet alanı denetimi (`ServiceArea`): istemcilerdeki kilit
+            // kolaylıktır, kural değildir. Eski bir uygulama sürümü ya da
+            // doğrudan API'ye atılan bir istek o kilidi görmez.
+            'address.district' => [
+                'required_if:delivery_type,delivery', 'nullable', 'string', 'max:96',
+                ServiceArea::districtRule(),
+            ],
+            'address.city' => [
+                'required_if:delivery_type,delivery', 'nullable', 'string', 'max:96',
+                ServiceArea::cityRule(),
+            ],
             'address.note' => ['sometimes', 'nullable', 'string', 'max:255'],
 
             // Kural yazılmazsa alan sessizce ELENİR: `validate()` yalnızca
@@ -57,6 +67,8 @@ class OrderController extends ApiController
             'payment_method' => ['required', Rule::in(['online', 'cash', 'account'])],
             'customer_note' => ['sometimes', 'nullable', 'string', 'max:500'],
         ]);
+
+        $this->assertPinInsideServiceArea($data['address'] ?? null);
 
         $location = Location::where('location_id', $data['location_id'])
             ->where('location_status', true)
@@ -166,5 +178,35 @@ class OrderController extends ApiController
     private function normalizeDeliveryType(string $value): string
     {
         return $value === Order::DELIVERY ? Order::DELIVERY : Order::COLLECTION;
+    }
+
+    /**
+     * Harita iğnesi hizmet alanının dışındaysa siparişi reddeder.
+     *
+     * İğne İSTEĞE BAĞLIDIR: gelmediyse sipariş geçerlidir. Ama geldiyse
+     * teslimat yaptığımız kutunun içinde olmalı — yoksa mutfağa düşen fişteki
+     * QR kuryeyi başka şehre gönderir. Yalnızca çift tam olduğunda
+     * denetlenir; yarım çifti `OrderFactory` zaten yok sayıyor.
+     *
+     * @param array<string, mixed>|null $address
+     */
+    private function assertPinInsideServiceArea(?array $address): void
+    {
+        if ($address === null) {
+            return;
+        }
+
+        $lat = $address['latitude'] ?? null;
+        $lng = $address['longitude'] ?? null;
+
+        if ($lat === null || $lng === null) {
+            return;
+        }
+
+        if (!ServiceArea::containsPoint((float) $lat, (float) $lng)) {
+            throw ApiException::validationFailed('Seçilen konum hizmet alanımızın dışında.', [
+                'address.latitude' => 'Haritadan seçilen nokta teslimat bölgemizin dışında.',
+            ]);
+        }
     }
 }

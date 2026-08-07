@@ -268,6 +268,18 @@ abstract class AppLocalizations {
   /// **'Şifre'**
   String get loginPassword;
 
+  /// No description provided for @loginRemember.
+  ///
+  /// In tr, this message translates to:
+  /// **'Beni hatırla'**
+  String get loginRemember;
+
+  /// No description provided for @loginRememberHelp.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kapalıysa uygulamayı kapattığınızda oturumunuz sonlanır.'**
+  String get loginRememberHelp;
+
   /// No description provided for @loginSubmit.
   ///
   /// In tr, this message translates to:
@@ -670,11 +682,23 @@ abstract class AppLocalizations {
   /// **'İlçe'**
   String get addressDistrict;
 
+  /// No description provided for @addressDistrictRequired.
+  ///
+  /// In tr, this message translates to:
+  /// **'Teslimat yapılan bir ilçe seçin.'**
+  String get addressDistrictRequired;
+
   /// No description provided for @addressCity.
   ///
   /// In tr, this message translates to:
   /// **'İl'**
   String get addressCity;
+
+  /// No description provided for @addressServiceAreaHelp.
+  ///
+  /// In tr, this message translates to:
+  /// **'Şu an yalnızca Konya Selçuklu ve Karatay\'a teslimat yapıyoruz.'**
+  String get addressServiceAreaHelp;
 
   /// No description provided for @addressNote.
   ///
@@ -1161,6 +1185,12 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'Haritayı kaydırarak iğneyi teslimat noktasına getirin.'**
   String get mapPickerHint;
+
+  /// Haritanın neden hizmet alanıyla sınırlı olduğunu anlatan açıklama
+  ///
+  /// In tr, this message translates to:
+  /// **'Şu an yalnızca Konya\'nın Selçuklu ve Karatay ilçelerine teslimat yapıyoruz; harita bu alanla sınırlıdır.'**
+  String get mapPickerServiceArea;
 
   /// Seçilen noktayı onaylayan düğme
   ///

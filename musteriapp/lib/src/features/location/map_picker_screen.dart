@@ -16,8 +16,17 @@
 /// Ekran "iptal" ile kapanabilir ve iğne hiç seçilmeyebilir. Konum izni
 /// vermeyen ya da haritayı kullanmak istemeyen müşteri adresi elle yazıp
 /// sipariş verebilmeli — harita bir kolaylık, kapı değil.
+///
+/// ## Harita HİZMET ALANINA hapsedilmiştir
+///
+/// Kamera [ServiceArea] kutusunun dışına çıkamaz (`CameraConstraint.contain`).
+/// Uyarı göstermek yerine hareketi engellemeyi seçtik: teslimat yapmadığımız
+/// bir noktayı işaretleyip "neden olmuyor?" diye düşünmek, oraya hiç
+/// gidememekten daha kötü bir deneyim. İğne ekranın ortasında olduğu için
+/// kutunun içinde kalan kamera, kutunun içinde kalan bir iğne demektir.
 library;
 
+import 'package:bld_core/bld_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -54,13 +63,22 @@ class MapPickerScreen extends StatefulWidget {
 }
 
 class _MapPickerScreenState extends State<MapPickerScreen> {
-  /// Bursa merkez — firmanın hizmet verdiği il.
+  /// Konya merkez — hizmet alanının ortası.
   ///
   /// İğnesiz açılışta bir yerden başlamak gerekiyor ve o yer boş okyanus
   /// (0,0) olmamalı: kullanıcı haritayı kıtalar boyunca kaydırmak zorunda
   /// kalırdı. Konum izni Faz 2'de eklendiğinde burası cihazın konumuyla
   /// değişir (`docs/11-yol-haritasi.md`).
-  static const LatLng _fallback = LatLng(40.1885, 29.0610);
+  static const LatLng _fallback = LatLng(
+    ServiceArea.centerLatitude,
+    ServiceArea.centerLongitude,
+  );
+
+  /// Haritanın çıkamayacağı kutu.
+  static final LatLngBounds _bounds = LatLngBounds(
+    const LatLng(ServiceArea.south, ServiceArea.west),
+    const LatLng(ServiceArea.north, ServiceArea.east),
+  );
 
   /// Şehir ölçeğinde açılır: sokaklar okunur, ama kullanıcı hangi mahallede
   /// olduğunu da görür. İğne varsa daha yakından bakılır.
@@ -71,7 +89,15 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   late final MapController _controller = MapController();
 
   /// Haritanın o anki merkezi — iğne burada duruyor.
-  late LatLng _center = widget.initial ?? _fallback;
+  ///
+  /// Hizmet alanı daraldığında kutunun dışında kalmış eski bir iğne olabilir;
+  /// öyle bir noktadan açmak haritayı ilk karede sıçratırdı. Dışarıdaysa
+  /// merkeze düşülür.
+  late LatLng _center = _insideArea(widget.initial) ? widget.initial! : _fallback;
+
+  static bool _insideArea(LatLng? point) =>
+      point != null &&
+      ServiceArea.containsPoint(point.latitude, point.longitude);
 
   @override
   void dispose() {
@@ -113,7 +139,18 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
             mapController: _controller,
             options: MapOptions(
               initialCenter: _center,
-              initialZoom: widget.initial != null ? _pinZoom : _cityZoom,
+              initialZoom: _insideArea(widget.initial) ? _pinZoom : _cityZoom,
+
+              // Kamera kutunun dışına çıkamaz. `containCenter` yerine
+              // `contain`: yalnızca merkez kısıtlansaydı kullanıcı hizmet
+              // vermediğimiz mahalleleri ekranın yarısında görür, iğneyi
+              // oraya taşıyamadığı için haritayı bozuk sanardı.
+              cameraConstraint: CameraConstraint.contain(bounds: _bounds),
+
+              // Kutudan geniş bir alan ekrana sığdığı anda "kutunun içinde
+              // kal" kısıtı sağlanamaz ve harita hareketi tamamen reddeder.
+              minZoom: ServiceArea.minZoom,
+              maxZoom: ServiceArea.maxZoom,
               onMapEvent: _onMapEvent,
               // Döndürme kapalı: kuzeyi kaybeden kullanıcı haritada
               // yönünü bulamıyor ve iki parmakla yanlışlıkla döndürmek çok
@@ -189,6 +226,15 @@ class _Panel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(l10n.mapPickerHint, style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(height: BldSpacing.xs),
+
+              // Harita zaten kutuya hapsedilmiş durumda; bu satır kullanıcıya
+              // haritanın "takıldığını" değil, alanın bilerek sınırlı
+              // olduğunu söyler.
+              Text(
+                l10n.mapPickerServiceArea,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
               const SizedBox(height: BldSpacing.xs),
 
               // Kaynak gösterimi OSM lisansının GEREĞİ, süs değil.

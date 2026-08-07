@@ -133,5 +133,56 @@ void main() {
 
       expect(await store.read(), isNull);
     });
+
+    test('varsayılan hatırlamaktır', () async {
+      // Güncelleyen kullanıcı oturumundan düşmemeli: kayıt yokken de
+      // uygulamanın bugüne kadarki davranışı geçerli olmalı.
+      expect(SharedPreferencesTokenStore(prefs).remember, isTrue);
+    });
+
+    test('hatırlanmayan oturumun token\'ı diske yazılmaz', () async {
+      final store = SharedPreferencesTokenStore(prefs);
+      await store.setRemember(value: false);
+      await store.write('tok_gecici');
+
+      // Aynı örnek okuyabilmeli — uygulama açık kaldığı sürece oturum sürer.
+      expect(await store.read(), 'tok_gecici');
+      // Ama diskte iz kalmamalı: yeni bir örnek (= uygulama yeniden açıldı)
+      // oturumu görmemeli.
+      expect(await SharedPreferencesTokenStore(prefs).read(), isNull);
+    });
+
+    test('hatırlamaya geçilince açık oturum diske taşınır', () async {
+      final store = SharedPreferencesTokenStore(prefs);
+      await store.setRemember(value: false);
+      await store.write('tok_gecici');
+
+      await store.setRemember(value: true);
+
+      expect(await SharedPreferencesTokenStore(prefs).read(), 'tok_gecici');
+    });
+
+    test('hatırlamayı kapatmak diskteki token\'ı siler', () async {
+      final store = SharedPreferencesTokenStore(prefs);
+      await store.write('tok_kalici');
+
+      await store.setRemember(value: false);
+
+      // Oturum bu örnekte sürüyor ama disk temiz.
+      expect(await store.read(), 'tok_kalici');
+      expect(await SharedPreferencesTokenStore(prefs).read(), isNull);
+    });
+
+    test('hatırlanmayan giriş önceki oturumun token\'ını siler', () async {
+      // Eski token diskte kalsaydı, "beni hatırlama" diyen kullanıcının
+      // uygulaması yeniden açıldığında ÖNCEKİ hesapla oturum açardı.
+      final store = SharedPreferencesTokenStore(prefs);
+      await store.write('tok_eski');
+
+      await store.setRemember(value: false);
+      await store.write('tok_yeni');
+
+      expect(prefs.getString('bld.auth.token'), isNull);
+    });
   });
 }

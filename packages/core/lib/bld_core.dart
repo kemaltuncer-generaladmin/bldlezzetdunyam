@@ -10,4 +10,5 @@ library;
 export 'src/delivery_type.dart';
 export 'src/money.dart';
 export 'src/order_status.dart';
+export 'src/service_area.dart';
 export 'src/turkish_time.dart';

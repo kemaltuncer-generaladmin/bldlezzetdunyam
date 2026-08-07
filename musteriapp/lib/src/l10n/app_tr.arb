@@ -43,6 +43,8 @@
   "loginSubtitle": "Sipariş vermek için hesabınıza girin.",
   "loginEmail": "E-posta",
   "loginPassword": "Şifre",
+  "loginRemember": "Beni hatırla",
+  "loginRememberHelp": "Kapalıysa uygulamayı kapattığınızda oturumunuz sonlanır.",
   "loginSubmit": "Giriş yap",
   "loginToRegister": "Hesabınız yok mu? Kayıt olun",
   "loginBrowseMenu": "Menüye göz at",
@@ -201,7 +203,9 @@
   "checkoutAddressSection": "Teslimat adresi",
   "addressLine1": "Adres",
   "addressDistrict": "İlçe",
+  "addressDistrictRequired": "Teslimat yapılan bir ilçe seçin.",
   "addressCity": "İl",
+  "addressServiceAreaHelp": "Şu an yalnızca Konya Selçuklu ve Karatay'a teslimat yapıyoruz.",
   "addressNote": "Adres tarifi (isteğe bağlı)",
   "checkoutRequestedAt": "İstenen teslim zamanı",
   "checkoutRequestedAtAsap": "En kısa sürede",
@@ -397,6 +401,10 @@
   "mapPickerHint": "Haritayı kaydırarak iğneyi teslimat noktasına getirin.",
   "@mapPickerHint": {
     "description": "Harita ekranında ne yapılacağını anlatan yönerge"
+  },
+  "mapPickerServiceArea": "Şu an yalnızca Konya'nın Selçuklu ve Karatay ilçelerine teslimat yapıyoruz; harita bu alanla sınırlıdır.",
+  "@mapPickerServiceArea": {
+    "description": "Haritanın neden hizmet alanıyla sınırlı olduğunu anlatan açıklama"
   },
   "mapPickerConfirm": "Bu konumu kullan",
   "@mapPickerConfirm": {

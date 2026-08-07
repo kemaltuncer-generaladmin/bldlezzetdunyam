@@ -128,7 +128,7 @@ class ReceiptAddress {
       '${latitude!.toStringAsFixed(7)},${longitude!.toStringAsFixed(7)}';
 }
 
-/// Mutfak fişi verisi — fiyat, adres ve telefon içermez.
+/// Mutfak fişi verisi — fiyat ve adres içermez, müşteri telefonu içerir.
 class KitchenReceiptData {
   const KitchenReceiptData({
     required this.orderNumber,
@@ -136,6 +136,7 @@ class KitchenReceiptData {
     required this.lines,
     required this.printedAt,
     this.requestedAt,
+    this.customerPhone,
     this.customerNote,
   });
 
@@ -152,6 +153,12 @@ class KitchenReceiptData {
 
   /// İstenen teslim zamanı (UTC). Varsa başlıkta `Teslim:` satırı basılır.
   final DateTime? requestedAt;
+
+  /// Müşterinin telefonu. Varsa başlıkta `Tel:` satırı basılır.
+  ///
+  /// Fiş, mutfak kapsamının müşteri telefonunu gördüğü tek yerdir; KDS
+  /// kartlarında telefon yoktur (`docs/05-mutfakapp.md` §5.3).
+  final String? customerPhone;
 
   /// Sipariş notu. Varsa fişin sonunda `NOT:` bloğu basılır — asla gizlenmez.
   final String? customerNote;

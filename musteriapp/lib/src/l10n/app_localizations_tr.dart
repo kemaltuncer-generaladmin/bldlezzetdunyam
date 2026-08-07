@@ -109,6 +109,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get loginPassword => 'Şifre';
 
   @override
+  String get loginRemember => 'Beni hatırla';
+
+  @override
+  String get loginRememberHelp =>
+      'Kapalıysa uygulamayı kapattığınızda oturumunuz sonlanır.';
+
+  @override
   String get loginSubmit => 'Giriş yap';
 
   @override
@@ -340,7 +347,14 @@ class AppLocalizationsTr extends AppLocalizations {
   String get addressDistrict => 'İlçe';
 
   @override
+  String get addressDistrictRequired => 'Teslimat yapılan bir ilçe seçin.';
+
+  @override
   String get addressCity => 'İl';
+
+  @override
+  String get addressServiceAreaHelp =>
+      'Şu an yalnızca Konya Selçuklu ve Karatay\'a teslimat yapıyoruz.';
 
   @override
   String get addressNote => 'Adres tarifi (isteğe bağlı)';
@@ -601,6 +615,10 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get mapPickerHint =>
       'Haritayı kaydırarak iğneyi teslimat noktasına getirin.';
+
+  @override
+  String get mapPickerServiceArea =>
+      'Şu an yalnızca Konya\'nın Selçuklu ve Karatay ilçelerine teslimat yapıyoruz; harita bu alanla sınırlıdır.';
 
   @override
   String get mapPickerConfirm => 'Bu konumu kullan';

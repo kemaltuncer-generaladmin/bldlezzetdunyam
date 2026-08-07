@@ -1836,6 +1836,16 @@ components:
           type: array
           minItems: 1
           items: { $ref: '#/components/schemas/ReceiptLine' }
+        customer_phone:
+          type: [string, 'null']
+          description: |
+            Müşterinin telefonu. Fişte basılır; kurye kapıda kaldığında ya da
+            adres tarifi yetmediğinde arayacak numara elinde olsun diye.
+
+            KDS **kartında** (`KitchenOrder`) telefon yoktur ve eklenmeyecektir:
+            ekran mutfakta gün boyu açık durur, kartta telefon olması her
+            müşterinin numarasını salondan görünür kılardı. Fiş tek bir sipariş
+            için basılıp pakete/kuryeye gider.
         customer_note: { type: [string, 'null'] }
         printed_at: { type: [string, 'null'], format: date-time }
 

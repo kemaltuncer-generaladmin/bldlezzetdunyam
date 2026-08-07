@@ -21,6 +21,9 @@ KitchenReceiptData toKitchenReceiptData(
   deliveryType: receipt.deliveryType,
   printedAt: printedAt,
   requestedAt: receipt.requestedAt,
+  // Telefon taşınmazsa kurye kapıda kaldığında arayacak numarayı fişte
+  // bulamaz.
+  customerPhone: receipt.customerPhone,
   customerNote: receipt.customerNote,
   lines: [
     for (final line in receipt.lines)

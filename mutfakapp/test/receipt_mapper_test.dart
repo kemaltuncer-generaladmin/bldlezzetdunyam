@@ -17,6 +17,7 @@ void main() {
       orderNumber: 'S-5012',
       deliveryType: DeliveryType.delivery,
       requestedAt: DateTime.utc(2026, 8, 5, 6, 30),
+      customerPhone: '0555 123 45 67',
       customerNote: 'Fatura kurumsal',
       lines: const [
         ReceiptLine(
@@ -35,10 +36,21 @@ void main() {
       expect(data.deliveryType, DeliveryType.delivery);
       expect(data.printedAt, printedAt);
       expect(data.requestedAt, receipt.requestedAt);
+      expect(data.customerPhone, '0555 123 45 67');
       expect(data.customerNote, 'Fatura kurumsal');
       expect(data.lines.single.quantity, 2);
       expect(data.lines.single.options, ['Büyük']);
       expect(data.lines.single.note, 'Az acılı');
+    });
+
+    test('telefon fişe basılır', () {
+      // Sözleşmeden gelen numara taşınmazsa kurye kapıda arayacak numarayı
+      // bulamaz; dönüşümde unutulması en olası alan bu.
+      final bytes = buildKitchenReceipt(
+        toKitchenReceiptData(receipt, printedAt: printedAt),
+      );
+
+      expect(String.fromCharCodes(bytes), contains('Tel: 0555 123 45 67'));
     });
 
     test('üretilen fiş basılabilir ve Türkçe karakter taşır', () {

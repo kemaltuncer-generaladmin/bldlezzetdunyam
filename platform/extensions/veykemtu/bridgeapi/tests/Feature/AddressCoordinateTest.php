@@ -42,10 +42,10 @@ class AddressCoordinateTest extends TestCase
         'Accept' => 'application/json',
     ];
 
-    /** Bursa Nilüfer civarı — gerçekçi bir nokta, sıfır adası değil. */
-    private const float LAT = 40.2114567;
+    /** Konya Selçuklu civarı — hizmet alanının içinde gerçekçi bir nokta. */
+    private const float LAT = 37.8901234;
 
-    private const float LNG = 28.9876543;
+    private const float LNG = 32.4876543;
 
     /** Gerekçe `ContractTest::refreshTestDatabase` üzerinde. */
     protected function refreshTestDatabase(): void
@@ -161,6 +161,54 @@ class AddressCoordinateTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_hizmet_alani_disindaki_ilce_reddedilir(): void
+    {
+        // İstemcilerdeki kilit bir kolaylıktır; kuralı asıl uygulayan burası.
+        // Eski sürüm bir uygulama ya da doğrudan atılan istek o kilidi görmez.
+        $this->asCustomer()
+            ->postJson('/api/addresses', $this->payload([
+                'district' => 'Meram',
+            ]), self::HEADERS)
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_FAILED');
+    }
+
+    public function test_hizmet_alani_disindaki_il_reddedilir(): void
+    {
+        $this->asCustomer()
+            ->postJson('/api/addresses', $this->payload([
+                'district' => 'Selçuklu',
+                'city' => 'Ankara',
+            ]), self::HEADERS)
+            ->assertStatus(422);
+    }
+
+    public function test_ilce_buyuk_harfle_de_kabul_edilir(): void
+    {
+        // Eski kayıtlarda ve elle girişte ilçe adı büyük harfle geçebiliyor;
+        // aynı ilçeyi yazım yüzünden reddetmek kullanıcıya kural gibi değil
+        // kusur gibi görünür.
+        $this->asCustomer()
+            ->postJson('/api/addresses', $this->payload([
+                'district' => 'KARATAY',
+            ]), self::HEADERS)
+            ->assertStatus(201);
+    }
+
+    public function test_hizmet_alani_disindaki_igne_reddedilir(): void
+    {
+        // Aralık denetimi (`between`) yalnızca "dünya üzerinde bir yer mi"
+        // diye sorar. Ankara'daki bir nokta geçerli bir koordinattır ama
+        // oraya teslimat yapmıyoruz; fişteki QR kuryeyi başka şehre yollardı.
+        $this->asCustomer()
+            ->postJson('/api/addresses', $this->payload([
+                'latitude' => 39.9208,
+                'longitude' => 32.8541,
+            ]), self::HEADERS)
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_FAILED');
+    }
+
     public function test_siparis_adresi_koordinati_tasir(): void
     {
         // Sipariş adresi defterden KOPYALANIR. Koordinat kopyalanmazsa
@@ -193,6 +241,23 @@ class AddressCoordinateTest extends TestCase
         $this->assertSame(self::LNG, $detail->json('address.longitude'));
     }
 
+    public function test_siparis_hizmet_alani_disina_verilemez(): void
+    {
+        // Defter ucu kısıtlı ama sipariş ucu serbest kalsaydı, adres
+        // defterine hiç uğramayan bir istek kuralı tamamen atlardı.
+        $locationId = (int) $this->getJson('/api/locations', self::HEADERS)->json('data.0.id');
+
+        $this->asCustomer()->postJson('/api/orders', [
+            'location_id' => $locationId,
+            'items' => [['menu_id' => $this->firstMenuId($locationId), 'quantity' => 5]],
+            'delivery_type' => 'delivery',
+            'payment_method' => 'cash',
+            'address' => $this->payload(['district' => 'Meram']),
+        ], self::HEADERS)
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_FAILED');
+    }
+
     // ── Yardımcılar ───────────────────────────────────────────────────────
 
     /** @param array<string, mixed> $overrides */
@@ -200,8 +265,8 @@ class AddressCoordinateTest extends TestCase
     {
         return array_merge([
             'line1' => 'Atatürk Caddesi No:12',
-            'district' => 'Nilüfer',
-            'city' => 'Bursa',
+            'district' => 'Selçuklu',
+            'city' => 'Konya',
         ], $overrides);
     }
 

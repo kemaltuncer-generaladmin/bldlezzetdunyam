@@ -248,7 +248,26 @@ class OrderPresenter
     }
 
     /**
-     * Ad + soyad baş harfi. Telefon, adres, e-posta asla dönmez.
+     * Müşterinin telefonu — **yalnızca fişe** basılmak üzere.
+     *
+     * KDS kartında (`KitchenOrder`) telefon YOKTUR ve olmamalıdır: ekran
+     * mutfakta gün boyu açık duruyor, kartlarda telefon olması her müşterinin
+     * numarasını salondan görülebilir hâle getirirdi. Fiş ise tek bir sipariş
+     * için basılıp kuryeye/paketin üstüne gidiyor.
+     *
+     * NEDEN GEREKLİ: adres tarifi yetmediğinde ya da kapı açılmadığında
+     * kuryenin elinde arayacak numara olmuyor; sipariş kasadan telefonla
+     * aranana kadar bekliyordu.
+     */
+    public function customerPhone(Order $order): ?string
+    {
+        $phone = trim((string) ($order->telephone ?? ''));
+
+        return $phone === '' ? null : $phone;
+    }
+
+    /**
+     * Ad + soyad baş harfi. Adres ve e-posta asla dönmez.
      */
     public function customerLabel(Order $order): ?string
     {

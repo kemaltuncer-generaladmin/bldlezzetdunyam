@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api_error_text.dart';
 import '../../core/validators.dart';
 import '../../l10n/app_localizations.dart';
+import '../../providers/infra_providers.dart';
 import '../../providers/session_provider.dart';
 import '../../router/app_router.dart';
 import '../../widgets/status_views.dart';
@@ -32,6 +33,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _submitting = false;
   String? _failure;
 
+  /// Oturum cihazda kalsın mı? Kullanıcının son tercihiyle açılır.
+  late bool _remember = ref.read(tokenStoreProvider).remember;
+
   @override
   void dispose() {
     _email.dispose();
@@ -49,6 +53,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
+      // Tercih girişten ÖNCE yazılıyor: token'ın diske mi belleğe mi
+      // yazılacağına karar veren şey bu bayrak. Sonradan ayarlansaydı token
+      // çoktan diske düşmüş olurdu.
+      await ref.read(tokenStoreProvider).setRemember(value: _remember);
       await ref
           .read(sessionProvider.notifier)
           .login(email: _email.text.trim(), password: _password.text);
@@ -98,6 +106,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   decoration: InputDecoration(labelText: l10n.loginPassword),
                   validator: (value) => validatePassword(value, l10n),
                   onFieldSubmitted: (_) => _submitting ? null : _submit(),
+                ),
+                const SizedBox(height: BldSpacing.xs),
+                CheckboxListTile(
+                  value: _remember,
+                  onChanged: _submitting
+                      ? null
+                      : (value) => setState(() => _remember = value ?? false),
+                  title: Text(l10n.loginRemember),
+                  subtitle: Text(l10n.loginRememberHelp),
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
                 ),
                 if (_failure != null) ...[
                   const SizedBox(height: BldSpacing.md),

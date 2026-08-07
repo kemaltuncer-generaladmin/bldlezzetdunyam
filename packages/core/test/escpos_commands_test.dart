@@ -88,4 +88,39 @@ void main() {
       expect(builder.build(), [0x41, 0x42]);
     });
   });
+
+  group('Raster görsel', () {
+    test('başlık genişliği BAYT, yüksekliği satır sayar', () {
+      // 16 nokta = 2 bayt; 3 satır. Genişliği piksel olarak yazmak en sık
+      // yapılan hata: yazıcı 16 baytlık satır bekler ve görsel dağılır.
+      final builder = EscPosBuilder()
+        ..bitImage(List<bool>.filled(16 * 3, false), width: 16);
+
+      expect(builder.build().sublist(0, 8), [
+        0x1D, 0x76, 0x30, 0x00, //
+        2, 0, // xL xH — bayt sayısı
+        3, 0, // yL yH — satır sayısı
+      ]);
+    });
+
+    test('en anlamlı bit soldaki noktadır', () {
+      final row = List<bool>.filled(8, false);
+      row[0] = true;
+
+      final builder = EscPosBuilder()..bitImage(row, width: 8);
+
+      expect(builder.build().last, 0x80);
+    });
+
+    test('genişlik 8in katı değilse satır sonu beyazla tamamlanır', () {
+      // Dolgu yapılmazsa sonraki satırın bitleri kayar ve tüm görsel
+      // çapraz bir çizgiye döner.
+      final builder = EscPosBuilder()
+        ..bitImage(List<bool>.filled(9 * 2, true), width: 9);
+
+      final bytes = builder.build();
+      expect(bytes.sublist(4, 6), [2, 0], reason: '9 nokta = 2 bayt');
+      expect(bytes.sublist(8), [0xFF, 0x80, 0xFF, 0x80]);
+    });
+  });
 }

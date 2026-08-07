@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { coversCity, coversDistrict } from '@/lib/service-area';
+
 /**
  * Ödeme formu doğrulaması. `pickup` seçildiğinde adres alanları **istenmez**
  * (`docs/06` §3, `docs/openapi.yaml` `OrderCreateRequest.address`).
@@ -29,11 +31,23 @@ export const checkoutSchema = z
           message: 'Teslimat adresini girin.',
         });
       }
-      if (values.address_district.length === 0) {
-        ctx.addIssue({ code: 'custom', path: ['address_district'], message: 'İlçeyi girin.' });
+      // Boşluk değil, HİZMET ALANI denetimi: form ilçeyi listeden verdiği
+      // için buraya ancak elle kurcalanmış bir gönderim başka değerle gelir.
+      // Sunucu da aynı denetimi yapar; buradaki kopya yalnızca kullanıcıya
+      // anlaşılır bir hata göstermek için.
+      if (!coversDistrict(values.address_district)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['address_district'],
+          message: 'Teslimat yapılan bir ilçe seçin.',
+        });
       }
-      if (values.address_city.length === 0) {
-        ctx.addIssue({ code: 'custom', path: ['address_city'], message: 'İli girin.' });
+      if (!coversCity(values.address_city)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['address_city'],
+          message: 'Şu an yalnızca Konya’ya teslimat yapıyoruz.',
+        });
       }
     }
 

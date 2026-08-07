@@ -6,6 +6,7 @@
 library;
 
 import 'package:bld_api_client/bld_api_client.dart';
+import 'package:bld_core/bld_core.dart';
 import 'package:bld_design_system/bld_design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +18,7 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/address_providers.dart';
 import '../../widgets/status_views.dart';
 import '../location/pin_field.dart';
+import '../location/service_area_fields.dart';
 
 class AddressBookScreen extends ConsumerWidget {
   const AddressBookScreen({super.key});
@@ -204,9 +206,11 @@ class _AddressFormState extends ConsumerState<_AddressForm> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _label;
   late final TextEditingController _line1;
-  late final TextEditingController _district;
-  late final TextEditingController _city;
   late final TextEditingController _note;
+
+  /// İl ve ilçe serbest metin değil: il sabit, ilçe listeden
+  /// (`ServiceAreaFields`).
+  String? _district;
   late bool _isDefault;
 
   /// Haritadan seçilen nokta. `null` = iğne yok.
@@ -221,9 +225,8 @@ class _AddressFormState extends ConsumerState<_AddressForm> {
     final existing = widget.existing;
     _label = TextEditingController(text: existing?.label ?? '');
     _line1 = TextEditingController(text: existing?.line1 ?? '');
-    _district = TextEditingController(text: existing?.district ?? '');
-    _city = TextEditingController(text: existing?.city ?? '');
     _note = TextEditingController(text: existing?.note ?? '');
+    _district = ServiceAreaFields.sanitize(existing?.district);
     // İlk adres sunucuda zaten varsayılan olur; kutuyu işaretli göstermek
     // kullanıcıya olmayan bir seçim yaptığını düşündürürdü.
     _isDefault = existing?.isDefault ?? false;
@@ -236,8 +239,6 @@ class _AddressFormState extends ConsumerState<_AddressForm> {
   void dispose() {
     _label.dispose();
     _line1.dispose();
-    _district.dispose();
-    _city.dispose();
     _note.dispose();
     super.dispose();
   }
@@ -258,8 +259,9 @@ class _AddressFormState extends ConsumerState<_AddressForm> {
     final input = SavedAddressInput(
       label: _emptyOrNull(_label),
       line1: _line1.text.trim(),
-      district: _district.text.trim(),
-      city: _city.text.trim(),
+      // Doğrulama geçtiyse ilçe seçilidir; il her zaman sabit.
+      district: _district!,
+      city: ServiceArea.city,
       note: _emptyOrNull(_note),
       isDefault: _isDefault,
 
@@ -326,18 +328,10 @@ class _AddressFormState extends ConsumerState<_AddressForm> {
                 validator: (value) => validateRequired(value, l10n),
               ),
               const SizedBox(height: BldSpacing.sm),
-              TextFormField(
-                controller: _district,
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(labelText: l10n.addressDistrict),
-                validator: (value) => validateRequired(value, l10n),
-              ),
-              const SizedBox(height: BldSpacing.sm),
-              TextFormField(
-                controller: _city,
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(labelText: l10n.addressCity),
-                validator: (value) => validateRequired(value, l10n),
+              ServiceAreaFields(
+                district: _district,
+                onDistrictChanged: (value) =>
+                    setState(() => _district = value),
               ),
               const SizedBox(height: BldSpacing.sm),
               TextFormField(

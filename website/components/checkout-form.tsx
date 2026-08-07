@@ -8,6 +8,7 @@ import { IDLE_CHECKOUT_STATE } from '@/lib/action-state';
 import { EtaOptionNote } from '@/components/delivery-eta';
 import { FormField, inputClass } from '@/components/form-field';
 import { paymentMethodHint, paymentMethodLabel } from '@/lib/labels';
+import { SERVICE_AREA_CITY, SERVICE_AREA_DISTRICTS } from '@/lib/service-area';
 import { checkoutSchema, type CheckoutValues } from '@/lib/validation/checkout';
 import { cn } from '@/lib/cn';
 import type { LocationEta, PaymentMethod } from '@/lib/api/types';
@@ -41,7 +42,9 @@ export function CheckoutForm({ paymentMethods, minRequestedAt, orderCutoff, eta 
       requested_at_local: '',
       address_line1: '',
       address_district: '',
-      address_city: '',
+      // Tek il olduğu için varsayılan doğrudan dolu gelir; kullanıcı
+      // değiştiremez.
+      address_city: SERVICE_AREA_CITY,
       address_note: '',
       customer_note: '',
     },
@@ -112,31 +115,54 @@ export function CheckoutForm({ paymentMethods, minRequestedAt, orderCutoff, eta 
             )}
           </FormField>
 
+          {/*
+           * İl ve ilçe serbest metin DEĞİL: şu an yalnızca Konya'nın Selçuklu
+           * ve Karatay ilçelerine teslimat yapıyoruz. Serbest yazıldığında
+           * hizmet vermediğimiz yere sipariş giriliyor, mutfağa düşüyor ve
+           * kurye yola çıkarken iptal ediliyordu.
+           */}
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField id="address_district" label="İlçe" error={fieldError('address_district')}>
+            <FormField
+              id="address_district"
+              label="İlçe"
+              hint="Şu an yalnızca Selçuklu ve Karatay'a teslimat yapıyoruz."
+              error={fieldError('address_district')}
+            >
               {({ id, describedBy, invalid }) => (
-                <input
+                <select
                   {...register('address_district')}
                   id={id}
-                  type="text"
                   autoComplete="address-level2"
                   aria-invalid={invalid}
                   aria-describedby={describedBy}
                   className={inputClass(invalid)}
-                />
+                >
+                  <option value="">Seçin</option>
+                  {SERVICE_AREA_DISTRICTS.map((district) => (
+                    <option key={district} value={district}>
+                      {district}
+                    </option>
+                  ))}
+                </select>
               )}
             </FormField>
 
+            {/*
+             * İl değiştirilemez ama `readOnly` bir GİRDİ olarak duruyor,
+             * salt metin olarak değil: `disabled` yapılsaydı değer forma
+             * dahil olmaz, sunucuya boş il giderdi.
+             */}
             <FormField id="address_city" label="İl" error={fieldError('address_city')}>
               {({ id, describedBy, invalid }) => (
                 <input
                   {...register('address_city')}
                   id={id}
                   type="text"
+                  readOnly
                   autoComplete="address-level1"
                   aria-invalid={invalid}
                   aria-describedby={describedBy}
-                  className={inputClass(invalid)}
+                  className={cn(inputClass(invalid), 'bg-neutral-50 text-neutral-700')}
                 />
               )}
             </FormField>

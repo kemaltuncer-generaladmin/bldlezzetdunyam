@@ -23,7 +23,7 @@ class ReceiptBuilder
     public function __construct(private readonly OrderPresenter $presenter) {}
 
     /**
-     * Mutfak fişi — fiyat **yoktur**.
+     * Mutfak fişi — fiyat **yoktur**, müşteri telefonu vardır.
      *
      * @return array<string, mixed>
      */
@@ -45,6 +45,10 @@ class ReceiptBuilder
             'delivery_type' => $this->presenter->deliveryType($order),
             'requested_at' => $this->presenter->requestedAt($order),
             'lines' => $lines,
+
+            // Fiyat hâlâ yok ama TELEFON var: kurye kapıda kaldığında
+            // arayacak numarayı fişte bulmalı (`OrderPresenter::customerPhone`).
+            'customer_phone' => $this->presenter->customerPhone($order),
             'customer_note' => $order->comment !== null ? (string) $order->comment : null,
             'printed_at' => $this->printedAt($order, PrintJob::TYPE_KITCHEN),
         ];

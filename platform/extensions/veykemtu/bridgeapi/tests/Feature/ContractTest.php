@@ -1045,6 +1045,27 @@ class ContractTest extends TestCase
         $this->assertSame($order['total'], $musteri['total']);
     }
 
+    public function test_mutfak_fisi_musteri_telefonunu_tasir(): void
+    {
+        // Kurye kapıda kaldığında arayacağı numara fişte olmalı. KDS
+        // KARTINDA telefon yok ve olmayacak (ekran gün boyu açık duruyor);
+        // fiş tek bir sipariş için basılıp pakete gidiyor.
+        $order = $this->placeOrder();
+
+        $mutfak = $this->asKitchen()
+            ->getJson('/api/kitchen/orders/'.$order['id'].'/receipt?type=mutfak', self::HEADERS)
+            ->assertOk()->json();
+
+        $this->assertArrayHasKey('customer_phone', $mutfak);
+        $this->assertSame('5551234567', $mutfak['customer_phone']);
+
+        $kart = $this->asKitchen()
+            ->getJson('/api/kitchen/orders', self::HEADERS)
+            ->assertOk()->json('data.0');
+
+        $this->assertArrayNotHasKey('customer_phone', $kart);
+    }
+
     public function test_teslim_fisi_tipi_kaldirildi(): void
     {
         $order = $this->placeOrder();
@@ -1185,8 +1206,8 @@ class ContractTest extends TestCase
         return array_merge([
             'label' => 'Ofis',
             'line1' => 'Örnek Mah. 12. Sk No:3',
-            'district' => 'Çankaya',
-            'city' => 'Ankara',
+            'district' => 'Selçuklu',
+            'city' => 'Konya',
             'note' => 'Zili çalmayın',
         ], $overrides);
     }
@@ -1212,8 +1233,8 @@ class ContractTest extends TestCase
         if ($deliveryType === 'delivery') {
             $payload['address'] = [
                 'line1' => 'Örnek Mah. 12. Sk No:3',
-                'district' => 'Çankaya',
-                'city' => 'Ankara',
+                'district' => 'Selçuklu',
+                'city' => 'Konya',
             ];
         }
 

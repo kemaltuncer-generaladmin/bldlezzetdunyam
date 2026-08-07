@@ -132,6 +132,7 @@ _KitchenReceipt _$KitchenReceiptFromJson(Map<String, dynamic> json) =>
       requestedAt: json['requested_at'] == null
           ? null
           : DateTime.parse(json['requested_at'] as String),
+      customerPhone: json['customer_phone'] as String?,
       customerNote: json['customer_note'] as String?,
       printedAt: json['printed_at'] == null
           ? null
@@ -146,6 +147,7 @@ Map<String, dynamic> _$KitchenReceiptToJson(
   'lines': instance.lines.map((e) => e.toJson()).toList(),
   'type': instance.type,
   'requested_at': ?instance.requestedAt?.toIso8601String(),
+  'customer_phone': ?instance.customerPhone,
   'customer_note': ?instance.customerNote,
   'printed_at': ?instance.printedAt?.toIso8601String(),
 };

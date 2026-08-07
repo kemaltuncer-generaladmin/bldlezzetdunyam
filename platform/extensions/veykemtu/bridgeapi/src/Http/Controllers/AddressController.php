@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
+use Veykemtu\BridgeApi\Services\ServiceArea;
 
 /**
  * Müşterinin adres defteri — `docs/openapi.yaml` §Adresler.
@@ -110,11 +111,15 @@ class AddressController extends ApiController
     /** @return array<string, mixed> */
     private function validated(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'label' => ['sometimes', 'nullable', 'string', 'max:64'],
             'line1' => ['required', 'string', 'max:255'],
-            'district' => ['required', 'string', 'max:96'],
-            'city' => ['required', 'string', 'max:96'],
+
+            // Hizmet alanı denetimi sipariş ucundakiyle aynı (`ServiceArea`).
+            // Defter gevşek bırakılsaydı müşteri teslimat yapmadığımız bir
+            // adresi kaydeder, ödeme ekranında seçer ve reddedilirdi.
+            'district' => ['required', 'string', 'max:96', ServiceArea::districtRule()],
+            'city' => ['required', 'string', 'max:96', ServiceArea::cityRule()],
             'note' => ['sometimes', 'nullable', 'string', 'max:255'],
             'is_default' => ['sometimes', 'boolean'],
 
@@ -125,6 +130,21 @@ class AddressController extends ApiController
             'latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
         ]);
+
+        // Çift tamsa kutunun içinde olmalı. Aralık denetimi (`between`)
+        // yalnızca "dünya üzerinde bir yer mi" diye sorar; hizmet alanı
+        // denetimi "bizim gittiğimiz yer mi" diye sorar.
+        $lat = $data['latitude'] ?? null;
+        $lng = $data['longitude'] ?? null;
+
+        if ($lat !== null && $lng !== null
+            && !ServiceArea::containsPoint((float) $lat, (float) $lng)) {
+            throw ApiException::validationFailed('Seçilen konum hizmet alanımızın dışında.', [
+                'latitude' => 'Haritadan seçilen nokta teslimat bölgemizin dışında.',
+            ]);
+        }
+
+        return $data;
     }
 
     /** @param array<string, mixed> $data */

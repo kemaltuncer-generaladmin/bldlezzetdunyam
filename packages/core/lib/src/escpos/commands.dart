@@ -120,6 +120,28 @@ abstract final class EscPosCommands {
   static const List<int> qrPrint = [
     0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30,
   ];
+
+  // ── Raster görsel (`GS v 0`) ──────────────────────────────────────────
+  //
+  // NEDEN VAR: yerleşik QR komutu (`GS ( k`) isteğe bağlı bir ESC/POS
+  // eklentisidir ve ucuz klonların bir bölümü onu sessizce yutar — hiçbir
+  // hata vermez, kağıda hiçbir şey basmaz. Raster görsel ise logo basımı
+  // için kullanıldığından pratikte her yazıcıda vardır. Yerleşik QR'ın
+  // çalışmadığı yazıcıda QR'ı nokta nokta çizip buradan basmak tek yoldur.
+
+  /// `GS v 0 m xL xH yL yH` başlığı.
+  ///
+  /// [widthBytes] satır başına **bayt** sayısıdır (piksel değil): her bayt
+  /// soldan sağa 8 piksel taşır, en anlamlı bit en soldaki noktadır.
+  static List<int> rasterHeader({
+    required int widthBytes,
+    required int height,
+    int mode = 0,
+  }) => [
+    0x1D, 0x76, 0x30, mode,
+    widthBytes & 0xFF, (widthBytes >> 8) & 0xFF,
+    height & 0xFF, (height >> 8) & 0xFF,
+  ];
 }
 
 /// ESC/POS bayt dizisi oluşturucu.
@@ -205,6 +227,38 @@ class EscPosBuilder {
       ..add(EscPosCommands.qrErrorCorrection(errorCorrection))
       ..add(EscPosCommands.qrStore(data.codeUnits))
       ..add(EscPosCommands.qrPrint);
+  }
+
+  /// Tek renkli bir nokta ızgarasını raster görsel olarak basar.
+  ///
+  /// [pixels] satır satır dizilmiş, `true` = siyah nokta olan bir ızgaradır;
+  /// genişliği [width] belirler. Genişlik 8'in katı değilse satırın sonu
+  /// beyazla tamamlanır — yazıcı eksik bit kabul etmez, satır kayarsa
+  /// görselin tamamı çapraz çizgiye döner.
+  void bitImage(List<bool> pixels, {required int width}) {
+    assert(width > 0, 'Görsel genişliği pozitif olmalı');
+    assert(
+      pixels.length % width == 0,
+      'Nokta sayısı satır genişliğinin katı olmalı',
+    );
+
+    final widthBytes = (width + 7) ~/ 8;
+    final height = pixels.length ~/ width;
+    final data = Uint8List(widthBytes * height);
+
+    for (var y = 0; y < height; y++) {
+      for (var x = 0; x < width; x++) {
+        if (!pixels[y * width + x]) continue;
+        // En anlamlı bit soldaki nokta: `7 - (x % 8)`.
+        data[y * widthBytes + (x >> 3)] |= 0x80 >> (x & 7);
+      }
+    }
+
+    _buffer
+      ..add(
+        EscPosCommands.rasterHeader(widthBytes: widthBytes, height: height),
+      )
+      ..add(data);
   }
 
   /// Gerekçesi [EscPosCommands.qrModuleSize] üzerinde.
