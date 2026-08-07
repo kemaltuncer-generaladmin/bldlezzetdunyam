@@ -23,6 +23,7 @@ import '../l10n/app_localizations.dart';
 import 'board.dart';
 import 'new_order_highlights.dart';
 import 'widgets/kds_alert_banner.dart';
+import 'widgets/kds_subscription_banner.dart';
 import 'widgets/kds_header_bar.dart';
 import 'widgets/health_panel_dialog.dart';
 import 'widgets/kds_status_bar.dart';
@@ -51,6 +52,7 @@ class KdsScreen extends ConsumerWidget {
                 ProductionStrip(totals: ref.watch(productionTotalsProvider)),
                 const KdsHeaderBar(),
                 const KdsAlertBanner(),
+                const KdsSubscriptionBanner(),
                 const Expanded(child: _Board()),
                 const KdsStatusBar(),
               ],

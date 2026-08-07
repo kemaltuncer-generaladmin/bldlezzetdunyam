@@ -51,6 +51,10 @@ dependencies:
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
 
+  # Cihaz konumu — haritada "konumum" düğmesi. İzin reddedilirse harita elle
+  # kaydırılarak kullanılmaya devam eder (konum bir kolaylık, kapı değil).
+  geolocator: ^13.0.1
+
 # `packages/*` pub workspace üyesidir ve birbirine `^0.1.0` (hosted) diye
 # bakar. musteriapp workspace'e katılmadığı için o referanslar path'e
 # çevrilmelidir; aksi halde pub yayınlanmamış paketi pub.dev'de arar.

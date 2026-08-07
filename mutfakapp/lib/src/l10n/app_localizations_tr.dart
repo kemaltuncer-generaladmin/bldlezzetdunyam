@@ -638,4 +638,21 @@ class AppL10nTr extends AppL10n {
   String statusToday(int count) {
     return 'Bugün: $count';
   }
+
+  @override
+  String get cardSubscriptionBadge => 'ABONE';
+
+  @override
+  String get subscriptionBannerTitle => 'Bugün abonelik var';
+
+  @override
+  String subscriptionBannerCount(int count) {
+    return '$count abonelik siparişi · ayrıntı için dokunun';
+  }
+
+  @override
+  String get subscriptionDialogTitle => 'Bugünün abonelik siparişleri';
+
+  @override
+  String get subscriptionDialogClose => 'Kapat';
 }

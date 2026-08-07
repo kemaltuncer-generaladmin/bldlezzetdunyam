@@ -20,6 +20,26 @@ class HomeShell extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final offline = ref.watch(connectivityProvider);
 
+    // Android geri tuşu: alt sekmelerdeyken uygulamadan çıkmak yerine önce
+    // Ana Sayfa sekmesine döner; yalnızca Ana Sayfa kökündeyken çıkışa izin
+    // verir (beklenen Android davranışı). Push edilen ekranlar zaten kendi
+    // Navigator'ında normal pop olur, buraya hiç gelmez.
+    return PopScope(
+      canPop: navigationShell.currentIndex == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && navigationShell.currentIndex != 0) {
+          navigationShell.goBranch(0);
+        }
+      },
+      child: _buildScaffold(context, l10n, offline),
+    );
+  }
+
+  Widget _buildScaffold(
+    BuildContext context,
+    AppLocalizations l10n,
+    bool offline,
+  ) {
     return Scaffold(
       body: Column(
         children: [

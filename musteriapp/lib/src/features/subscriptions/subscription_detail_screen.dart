@@ -147,12 +147,16 @@ class _Body extends StatelessWidget {
                 children: [
                   BldPill(label: label, variant: variant),
                   const Spacer(),
-                  Text(
-                    l10n.subscriptionQuantityLabel(
-                      subscription.defaultQuantity,
-                    ),
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: bldColor(BldColors.neutral600),
+                  Flexible(
+                    child: Text(
+                      l10n.subscriptionQuantityLabel(
+                        subscription.defaultQuantity,
+                      ),
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: bldColor(BldColors.neutral600),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],

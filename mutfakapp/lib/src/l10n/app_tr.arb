@@ -665,5 +665,23 @@
   "@statusToday": {
     "description": "Durum çubuğundaki günlük sipariş sayacı",
     "placeholders": { "count": { "type": "int" } }
-  }
+  },
+
+  "cardSubscriptionBadge": "ABONE",
+  "@cardSubscriptionBadge": { "description": "Abonelikten üretilmiş sipariş kartındaki rozet" },
+
+  "subscriptionBannerTitle": "Bugün abonelik var",
+  "@subscriptionBannerTitle": { "description": "Abonelik bildirim şeridi başlığı" },
+
+  "subscriptionBannerCount": "{count} abonelik siparişi · ayrıntı için dokunun",
+  "@subscriptionBannerCount": {
+    "description": "Abonelik şeridinde sayı ve dokunma ipucu",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "subscriptionDialogTitle": "Bugünün abonelik siparişleri",
+  "@subscriptionDialogTitle": { "description": "Abonelik döküm penceresi başlığı" },
+
+  "subscriptionDialogClose": "Kapat",
+  "@subscriptionDialogClose": { "description": "Abonelik döküm penceresini kapatan düğme" }
 }

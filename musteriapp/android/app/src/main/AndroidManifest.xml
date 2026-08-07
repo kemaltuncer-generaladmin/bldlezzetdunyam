@@ -2,6 +2,10 @@
     <!-- Sipariş vermek internet gerektirir (docs/07-musteriapp.md §5). İzin
          yalnızca debug manifestinde kalırsa release derlemesi ağa çıkamaz. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Haritada "konumum" düğmesi için. Konum bir kolaylık; reddedilirse
+         harita elle kaydırılarak kullanılmaya devam eder. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
     <application
         android:label="Benim Lezzet Dünyam"

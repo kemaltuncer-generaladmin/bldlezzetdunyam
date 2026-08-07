@@ -1,8 +1,9 @@
 /// Abonelik talebi oluşturma.
 ///
-/// Bu bir TALEP'tir: fiyat ekibimizce belirlenir (`status = pending`). Bu yüzden
-/// form yalnız kuralın çekirdeğini toplar — günler, günlük adet, başlangıç,
-/// teslimat tipi, not. Fiyat/tutar alanı yoktur; istemci fiyat hesaplamaz.
+/// Bu bir TALEP'tir: fiyat ekibimizce belirlenir (`status = pending`). Müşteri
+/// ürünleri (menü kalemleri), günleri, teslimatı ve başlangıcı seçer; bu
+/// ürünler aboneliğin SATIRLARI olur ve her servis günü sipariş üretir. Fiyat
+/// alanı yoktur — istemci fiyat hesaplamaz.
 library;
 
 import 'package:bld_api_client/bld_api_client.dart';
@@ -20,9 +21,18 @@ import '../../providers/infra_providers.dart';
 import '../../providers/subscription_providers.dart';
 import '../../theme/bld_theme.dart';
 import '../../widgets/bld_card.dart';
+import '../../widgets/network_food_image.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/status_views.dart';
 import 'subscriptions_screen.dart';
+
+/// Talebe eklenmiş bir ürün ve günlük adedi.
+class _PickedProduct {
+  _PickedProduct(this.item, this.quantity);
+
+  final MenuItem item;
+  int quantity;
+}
 
 class SubscriptionCreateScreen extends ConsumerStatefulWidget {
   const SubscriptionCreateScreen({super.key});
@@ -38,7 +48,10 @@ class _SubscriptionCreateScreenState
 
   /// ISO hafta günleri (1..5 varsayılan — kurumsal öğle hafta içi).
   final Set<int> _days = {1, 2, 3, 4, 5};
-  int _quantity = 10;
+
+  /// Eklenen ürünler (menuId → ürün + adet).
+  final Map<int, _PickedProduct> _picked = {};
+
   DeliveryType _deliveryType = DeliveryType.delivery;
   late DateTime _startDate;
 
@@ -63,6 +76,9 @@ class _SubscriptionCreateScreenState
     super.dispose();
   }
 
+  int get _totalPortions =>
+      _picked.values.fold(0, (sum, p) => sum + p.quantity);
+
   Future<void> _pickStartDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -74,8 +90,30 @@ class _SubscriptionCreateScreenState
     if (picked != null) setState(() => _startDate = picked);
   }
 
+  Future<void> _addProduct(List<MenuItem> items) async {
+    final selected = await showModalBottomSheet<MenuItem>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => _ProductPickerSheet(items: items),
+    );
+    if (selected == null) return;
+    setState(() {
+      final existing = _picked[selected.id];
+      if (existing != null) {
+        existing.quantity++;
+      } else {
+        _picked[selected.id] = _PickedProduct(selected, 1);
+      }
+    });
+  }
+
   Future<void> _submit() async {
     final l10n = AppLocalizations.of(context);
+    if (_picked.isEmpty) {
+      setState(() => _error = l10n.subscriptionCreatePickProduct);
+      return;
+    }
     if (_days.isEmpty) {
       setState(() => _error = l10n.subscriptionCreatePickDay);
       return;
@@ -96,6 +134,14 @@ class _SubscriptionCreateScreenState
     final router = GoRouter.of(context);
     final note = _noteController.text.trim();
     final sortedDays = _days.toList()..sort();
+    final lines = [
+      for (final p in _picked.values)
+        SubscriptionCreateItem(
+          menuId: p.item.id,
+          quantity: p.quantity,
+          label: p.item.name,
+        ),
+    ];
 
     try {
       await ref
@@ -107,7 +153,8 @@ class _SubscriptionCreateScreenState
               deliveryType: _deliveryType,
               startDate: _isoDate(_startDate),
               serviceDays: sortedDays,
-              defaultQuantity: _quantity,
+              defaultQuantity: _totalPortions < 1 ? 1 : _totalPortions,
+              lines: lines,
               customerNote: note.isEmpty ? null : note,
             ),
           );
@@ -128,6 +175,14 @@ class _SubscriptionCreateScreenState
     final l10n = AppLocalizations.of(context);
     final textTheme = Theme.of(context).textTheme;
 
+    final location = ref.watch(locationProvider).valueOrNull;
+    final menuItems = location == null
+        ? const <MenuItem>[]
+        : (ref.watch(menuProvider(location.location.id)).valueOrNull?.allItems ??
+                  const <MenuItem>[])
+              .where((i) => i.isAvailable)
+              .toList();
+
     return Scaffold(
       appBar: AppBar(title: Text(l10n.subscriptionCreateTitle)),
       body: ListView(
@@ -140,6 +195,49 @@ class _SubscriptionCreateScreenState
             ),
           ),
           const SizedBox(height: BldSpacing.md),
+
+          // Ürünler — aboneliğin satırları.
+          SectionHeader(
+            title: l10n.subscriptionCreateProducts,
+            padding: const EdgeInsets.only(
+              left: BldSpacing.xs,
+              bottom: BldSpacing.sm,
+            ),
+          ),
+          if (_picked.isEmpty)
+            BldCard(
+              child: Text(
+                l10n.subscriptionCreateNoProducts,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: bldColor(BldColors.neutral600),
+                ),
+              ),
+            )
+          else
+            for (final entry in _picked.entries)
+              Padding(
+                padding: const EdgeInsets.only(bottom: BldSpacing.sm),
+                child: _PickedRow(
+                  product: entry.value,
+                  onIncrement: () =>
+                      setState(() => entry.value.quantity++),
+                  onDecrement: () => setState(() {
+                    if (entry.value.quantity > 1) {
+                      entry.value.quantity--;
+                    } else {
+                      _picked.remove(entry.key);
+                    }
+                  }),
+                  onRemove: () => setState(() => _picked.remove(entry.key)),
+                ),
+              ),
+          const SizedBox(height: BldSpacing.sm),
+          OutlinedButton.icon(
+            onPressed: menuItems.isEmpty ? null : () => _addProduct(menuItems),
+            icon: const Icon(Icons.add),
+            label: Text(l10n.subscriptionCreateAddProduct),
+          ),
+          const SizedBox(height: BldSpacing.lg),
 
           // Teslimat günleri.
           SectionHeader(
@@ -166,38 +264,6 @@ class _SubscriptionCreateScreenState
                   }),
                 ),
             ],
-          ),
-          const SizedBox(height: BldSpacing.lg),
-
-          // Günlük porsiyon.
-          SectionHeader(
-            title: l10n.subscriptionCreateQuantity,
-            padding: const EdgeInsets.only(
-              left: BldSpacing.xs,
-              bottom: BldSpacing.sm,
-            ),
-          ),
-          BldCard(
-            child: Row(
-              children: [
-                Text(
-                  l10n.subscriptionQuantityLabel(_quantity),
-                  style: textTheme.titleMedium,
-                ),
-                const Spacer(),
-                IconButton.outlined(
-                  onPressed: _quantity > 1
-                      ? () => setState(() => _quantity--)
-                      : null,
-                  icon: const Icon(Icons.remove),
-                ),
-                const SizedBox(width: BldSpacing.sm),
-                IconButton.filled(
-                  onPressed: () => setState(() => _quantity++),
-                  icon: const Icon(Icons.add),
-                ),
-              ],
-            ),
           ),
           const SizedBox(height: BldSpacing.lg),
 
@@ -312,4 +378,143 @@ class _SubscriptionCreateScreenState
 
   static String _humanDate(DateTime d) =>
       '${d.day} ${_months[d.month - 1]} ${d.year}';
+}
+
+/// Eklenmiş ürün satırı — ad + adet ayarı + kaldır.
+class _PickedRow extends StatelessWidget {
+  const _PickedRow({
+    required this.product,
+    required this.onIncrement,
+    required this.onDecrement,
+    required this.onRemove,
+  });
+
+  final _PickedProduct product;
+  final VoidCallback onIncrement;
+  final VoidCallback onDecrement;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return BldCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: BldSpacing.sm,
+        vertical: BldSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          NetworkFoodImage(
+            url: product.item.imageUrl,
+            width: 44,
+            height: 44,
+            radius: BldRadius.sm,
+          ),
+          const SizedBox(width: BldSpacing.sm),
+          Expanded(
+            child: Text(
+              product.item.name,
+              style: textTheme.bodyLarge,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            onPressed: onDecrement,
+            icon: const Icon(Icons.remove_circle_outline),
+          ),
+          Text('${product.quantity}', style: textTheme.titleMedium),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            onPressed: onIncrement,
+            icon: const Icon(Icons.add_circle_outline),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Menüden ürün seçme alt sayfası. Seçilen [MenuItem]'ı geri döndürür.
+class _ProductPickerSheet extends StatelessWidget {
+  const _ProductPickerSheet({required this.items});
+
+  final List<MenuItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final textTheme = Theme.of(context).textTheme;
+
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.7,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                BldSpacing.md,
+                0,
+                BldSpacing.md,
+                BldSpacing.sm,
+              ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  l10n.subscriptionCreatePickerTitle,
+                  style: textTheme.titleLarge,
+                ),
+              ),
+            ),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: BldSpacing.md,
+                ),
+                itemCount: items.length,
+                separatorBuilder: (_, _) =>
+                    const SizedBox(height: BldSpacing.sm),
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  return BldCard(
+                    padding: const EdgeInsets.all(BldSpacing.sm),
+                    onTap: () => Navigator.of(context).pop(item),
+                    child: Row(
+                      children: [
+                        NetworkFoodImage(
+                          url: item.imageUrl,
+                          width: 48,
+                          height: 48,
+                          radius: BldRadius.sm,
+                        ),
+                        const SizedBox(width: BldSpacing.md),
+                        Expanded(
+                          child: Text(
+                            item.name,
+                            style: textTheme.bodyLarge,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Icon(
+                          Icons.add_circle,
+                          color: bldColor(BldColors.brand600),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: BldSpacing.md),
+          ],
+        ),
+      ),
+    );
+  }
 }

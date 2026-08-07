@@ -29,6 +29,7 @@ library;
 import 'package:bld_core/bld_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'package:bld_design_system/bld_design_system.dart';
@@ -98,6 +99,56 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   static bool _insideArea(LatLng? point) =>
       point != null &&
       ServiceArea.containsPoint(point.latitude, point.longitude);
+
+  /// "Konumum" düğmesi çalışıyor mu (üst üste basılmasın, dönen gösterge).
+  bool _locating = false;
+
+  /// Cihaz konumunu alır, hizmet alanı içindeyse haritayı oraya taşır.
+  ///
+  /// Konum bir KOLAYLIK, kapı değil: izin yok/kapalı/alan dışı durumlarında
+  /// yalnızca bilgilendirilir, harita elle kullanılmaya devam eder.
+  Future<void> _goToMyLocation() async {
+    if (_locating) return;
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _locating = true);
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.mapPickerLocationOff)),
+        );
+        return;
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.mapPickerLocationDenied)),
+        );
+        return;
+      }
+      final position = await Geolocator.getCurrentPosition();
+      if (!mounted) return;
+      if (!ServiceArea.containsPoint(position.latitude, position.longitude)) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.mapPickerLocationOutside)),
+        );
+        return;
+      }
+      final point = LatLng(position.latitude, position.longitude);
+      _controller.move(point, _pinZoom);
+      setState(() => _center = point);
+    } catch (_) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.mapPickerLocationError)),
+      );
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -189,6 +240,26 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                   ],
                 ),
               ),
+            ),
+          ),
+
+          // "Konumum" — üstte, alt paneli kapatmaz.
+          Positioned(
+            top: BldSpacing.md,
+            right: BldSpacing.md,
+            child: FloatingActionButton.small(
+              heroTag: 'map_my_location',
+              onPressed: _locating ? null : _goToMyLocation,
+              backgroundColor: bldColor(BldColors.neutral0),
+              foregroundColor: bldColor(BldColors.brand600),
+              tooltip: l10n.mapPickerMyLocation,
+              child: _locating
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.my_location),
             ),
           ),
 

@@ -1240,6 +1240,36 @@ abstract class AppLocalizations {
   /// **'© OpenStreetMap katkıcıları'**
   String get mapPickerAttribution;
 
+  /// No description provided for @mapPickerMyLocation.
+  ///
+  /// In tr, this message translates to:
+  /// **'Konumum'**
+  String get mapPickerMyLocation;
+
+  /// No description provided for @mapPickerLocationOff.
+  ///
+  /// In tr, this message translates to:
+  /// **'Konum servisi kapalı. Ayarlardan açabilirsiniz.'**
+  String get mapPickerLocationOff;
+
+  /// No description provided for @mapPickerLocationDenied.
+  ///
+  /// In tr, this message translates to:
+  /// **'Konum izni verilmedi. Haritayı elle kaydırabilirsiniz.'**
+  String get mapPickerLocationDenied;
+
+  /// No description provided for @mapPickerLocationOutside.
+  ///
+  /// In tr, this message translates to:
+  /// **'Konumunuz hizmet alanının dışında.'**
+  String get mapPickerLocationOutside;
+
+  /// No description provided for @mapPickerLocationError.
+  ///
+  /// In tr, this message translates to:
+  /// **'Konum alınamadı. Haritayı elle kaydırabilirsiniz.'**
+  String get mapPickerLocationError;
+
   /// Alt gezinme çubuğundaki keşif sekmesi
   ///
   /// In tr, this message translates to:
@@ -1561,7 +1591,7 @@ abstract class AppLocalizations {
   /// No description provided for @subscriptionCreateIntro.
   ///
   /// In tr, this message translates to:
-  /// **'Günleri ve günlük adedi seçin; ekibimiz fiyatlandırıp onaylayacak.'**
+  /// **'Ürünleri, günleri ve teslimatı seçin; ekibimiz fiyatlandırıp onaylayacak.'**
   String get subscriptionCreateIntro;
 
   /// No description provided for @subscriptionCreateDays.
@@ -1599,6 +1629,36 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'En az bir gün seçin.'**
   String get subscriptionCreatePickDay;
+
+  /// No description provided for @subscriptionCreateProducts.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ürünler'**
+  String get subscriptionCreateProducts;
+
+  /// No description provided for @subscriptionCreateAddProduct.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ürün ekle'**
+  String get subscriptionCreateAddProduct;
+
+  /// No description provided for @subscriptionCreateNoProducts.
+  ///
+  /// In tr, this message translates to:
+  /// **'Henüz ürün eklenmedi. Menüden ürün ekleyin.'**
+  String get subscriptionCreateNoProducts;
+
+  /// No description provided for @subscriptionCreatePickProduct.
+  ///
+  /// In tr, this message translates to:
+  /// **'En az bir ürün ekleyin.'**
+  String get subscriptionCreatePickProduct;
+
+  /// No description provided for @subscriptionCreatePickerTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ürün seç'**
+  String get subscriptionCreatePickerTitle;
 
   /// No description provided for @subscriptionRequestSent.
   ///

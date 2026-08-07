@@ -1184,6 +1184,36 @@ abstract class AppL10n {
   /// In tr, this message translates to:
   /// **'Bugün: {count}'**
   String statusToday(int count);
+
+  /// Abonelikten üretilmiş sipariş kartındaki rozet
+  ///
+  /// In tr, this message translates to:
+  /// **'ABONE'**
+  String get cardSubscriptionBadge;
+
+  /// Abonelik bildirim şeridi başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Bugün abonelik var'**
+  String get subscriptionBannerTitle;
+
+  /// Abonelik şeridinde sayı ve dokunma ipucu
+  ///
+  /// In tr, this message translates to:
+  /// **'{count} abonelik siparişi · ayrıntı için dokunun'**
+  String subscriptionBannerCount(int count);
+
+  /// Abonelik döküm penceresi başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Bugünün abonelik siparişleri'**
+  String get subscriptionDialogTitle;
+
+  /// Abonelik döküm penceresini kapatan düğme
+  ///
+  /// In tr, this message translates to:
+  /// **'Kapat'**
+  String get subscriptionDialogClose;
 }
 
 class _AppL10nDelegate extends LocalizationsDelegate<AppL10n> {

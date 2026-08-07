@@ -377,6 +377,33 @@ class _CardHeader extends StatelessWidget {
           ),
           const SizedBox(width: BldSpacing.sm),
         ],
+        // Abonelik kuralından üretilmiş sipariş — mutfak bunu bir bakışta
+        // ayırt etsin (yinelenen kurumsal öğle yemeği).
+        if (order.isSubscription) ...[
+          _Pill(
+            color: const Color(BldColors.brand500),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.event_repeat,
+                  size: 18,
+                  color: KdsAccents.onAccent(const Color(BldColors.brand500)),
+                ),
+                const SizedBox(width: BldSpacing.xs),
+                Text(
+                  l10n.cardSubscriptionBadge,
+                  style: TextStyle(
+                    fontSize: KdsTextScale.statusBar,
+                    fontWeight: FontWeight.bold,
+                    color: KdsAccents.onAccent(const Color(BldColors.brand500)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: BldSpacing.sm),
+        ],
         _ElapsedBadge(age: age),
         const SizedBox(width: BldSpacing.sm),
         _Pill(

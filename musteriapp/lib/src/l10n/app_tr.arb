@@ -438,6 +438,11 @@
   "@mapPickerAttribution": {
     "description": "OpenStreetMap lisansının gerektirdiği kaynak gösterimi"
   },
+  "mapPickerMyLocation": "Konumum",
+  "mapPickerLocationOff": "Konum servisi kapalı. Ayarlardan açabilirsiniz.",
+  "mapPickerLocationDenied": "Konum izni verilmedi. Haritayı elle kaydırabilirsiniz.",
+  "mapPickerLocationOutside": "Konumunuz hizmet alanının dışında.",
+  "mapPickerLocationError": "Konum alınamadı. Haritayı elle kaydırabilirsiniz.",
   "navHome": "Ana Sayfa",
   "@navHome": {
     "description": "Alt gezinme çubuğundaki keşif sekmesi"
@@ -542,13 +547,18 @@
   "subscriptionNoProducts": "Ürün ekibimizce eklenecek.",
 
   "subscriptionCreateTitle": "Abonelik talebi",
-  "subscriptionCreateIntro": "Günleri ve günlük adedi seçin; ekibimiz fiyatlandırıp onaylayacak.",
+  "subscriptionCreateIntro": "Ürünleri, günleri ve teslimatı seçin; ekibimiz fiyatlandırıp onaylayacak.",
   "subscriptionCreateDays": "Teslimat günleri",
   "subscriptionCreateQuantity": "Günlük porsiyon",
   "subscriptionCreateStart": "Başlangıç tarihi",
   "subscriptionCreateSubmit": "Talep gönder",
   "subscriptionCreateNote": "Not (opsiyonel)",
   "subscriptionCreatePickDay": "En az bir gün seçin.",
+  "subscriptionCreateProducts": "Ürünler",
+  "subscriptionCreateAddProduct": "Ürün ekle",
+  "subscriptionCreateNoProducts": "Henüz ürün eklenmedi. Menüden ürün ekleyin.",
+  "subscriptionCreatePickProduct": "En az bir ürün ekleyin.",
+  "subscriptionCreatePickerTitle": "Ürün seç",
   "subscriptionRequestSent": "Talebiniz alındı; fiyatlandırma sonrası aktifleşecek.",
 
   "dayMon": "Pzt",

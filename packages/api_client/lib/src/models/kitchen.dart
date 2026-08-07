@@ -67,6 +67,11 @@ abstract class KitchenOrder with _$KitchenOrder {
     /// Yalnızca ad + soyad baş harfi. Telefon/adres/e-posta gönderilmez.
     String? customerLabel,
     String? customerNote,
+
+    /// Bu sipariş bir abonelik kuralından mı üretildi? (`docs/openapi.yaml`
+    /// `is_subscription`.) KDS bunu rozet + "bugün abonelik var" paneliyle
+    /// gösterir. Eski sunucu göndermezse `false`.
+    @Default(false) bool isSubscription,
   }) = _KitchenOrder;
 
   const KitchenOrder._();

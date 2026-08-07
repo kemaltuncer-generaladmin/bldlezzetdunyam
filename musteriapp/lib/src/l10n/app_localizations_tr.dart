@@ -646,6 +646,24 @@ class AppLocalizationsTr extends AppLocalizations {
   String get mapPickerAttribution => '© OpenStreetMap katkıcıları';
 
   @override
+  String get mapPickerMyLocation => 'Konumum';
+
+  @override
+  String get mapPickerLocationOff =>
+      'Konum servisi kapalı. Ayarlardan açabilirsiniz.';
+
+  @override
+  String get mapPickerLocationDenied =>
+      'Konum izni verilmedi. Haritayı elle kaydırabilirsiniz.';
+
+  @override
+  String get mapPickerLocationOutside => 'Konumunuz hizmet alanının dışında.';
+
+  @override
+  String get mapPickerLocationError =>
+      'Konum alınamadı. Haritayı elle kaydırabilirsiniz.';
+
+  @override
   String get navHome => 'Ana Sayfa';
 
   @override
@@ -817,7 +835,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get subscriptionCreateIntro =>
-      'Günleri ve günlük adedi seçin; ekibimiz fiyatlandırıp onaylayacak.';
+      'Ürünleri, günleri ve teslimatı seçin; ekibimiz fiyatlandırıp onaylayacak.';
 
   @override
   String get subscriptionCreateDays => 'Teslimat günleri';
@@ -836,6 +854,22 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get subscriptionCreatePickDay => 'En az bir gün seçin.';
+
+  @override
+  String get subscriptionCreateProducts => 'Ürünler';
+
+  @override
+  String get subscriptionCreateAddProduct => 'Ürün ekle';
+
+  @override
+  String get subscriptionCreateNoProducts =>
+      'Henüz ürün eklenmedi. Menüden ürün ekleyin.';
+
+  @override
+  String get subscriptionCreatePickProduct => 'En az bir ürün ekleyin.';
+
+  @override
+  String get subscriptionCreatePickerTitle => 'Ürün seç';
 
   @override
   String get subscriptionRequestSent =>

@@ -69,6 +69,7 @@ _KitchenOrder _$KitchenOrderFromJson(Map<String, dynamic> json) =>
           : DateTime.parse(json['requested_at'] as String),
       customerLabel: json['customer_label'] as String?,
       customerNote: json['customer_note'] as String?,
+      isSubscription: json['is_subscription'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$KitchenOrderToJson(
@@ -84,6 +85,7 @@ Map<String, dynamic> _$KitchenOrderToJson(
   'requested_at': ?instance.requestedAt?.toIso8601String(),
   'customer_label': ?instance.customerLabel,
   'customer_note': ?instance.customerNote,
+  'is_subscription': instance.isSubscription,
 };
 
 _KitchenOrderPage _$KitchenOrderPageFromJson(Map<String, dynamic> json) =>

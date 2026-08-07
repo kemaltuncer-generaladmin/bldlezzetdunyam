@@ -140,11 +140,15 @@ class _SubscriptionTile extends StatelessWidget {
                   children: [
                     BldPill(label: label, variant: variant),
                     const SizedBox(width: BldSpacing.sm),
-                    Text(
-                      l10n.subscriptionQuantityLabel(
-                        subscription.defaultQuantity,
+                    Flexible(
+                      child: Text(
+                        l10n.subscriptionQuantityLabel(
+                          subscription.defaultQuantity,
+                        ),
+                        style: textTheme.bodySmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      style: textTheme.bodySmall,
                     ),
                   ],
                 ),
