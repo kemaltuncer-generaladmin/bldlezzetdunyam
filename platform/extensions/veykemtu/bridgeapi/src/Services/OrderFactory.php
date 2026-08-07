@@ -273,6 +273,20 @@ class OrderFactory
         $model->address_2 = $address['note'] ?? null;
         $model->city = (string) ($address['city'] ?? '');
         $model->state = (string) ($address['district'] ?? '');
+
+        // Koordinat siparişin ANLIK GÖRÜNTÜSÜNE yazılıyor, adres defterine
+        // bakılarak değil. Müşteri sipariş verdikten sonra kayıtlı adresinin
+        // iğnesini taşırsa, mutfaktaki fiş ve kuryenin gideceği nokta
+        // değişmemeli; sipariş verildiği andaki yer neredeyse orası kalır.
+        //
+        // Çift olarak yazılıyor: yarısı dolu bir kayıt haritada gösterilemez.
+        $lat = $address['latitude'] ?? null;
+        $lng = $address['longitude'] ?? null;
+        if ($lat !== null && $lng !== null) {
+            $model->bld_latitude = $lat;
+            $model->bld_longitude = $lng;
+        }
+
         $model->save();
 
         return (int) $model->address_id;

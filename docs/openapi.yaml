@@ -1527,6 +1527,13 @@ components:
             Ödeme ekranında önceden seçili gelen adres. Aynı anda **en
             fazla bir** adres varsayılandır; yeni bir adres varsayılan
             yapıldığında eskisi kendiliğinden bırakır.
+        latitude:
+          type: [number, 'null']
+          format: double
+          description: |
+            Haritadan seçilen nokta. `longitude` ile birlikte anlamlıdır;
+            yalnızca biri doluysa yanıtta ikisi de `null` döner.
+        longitude: { type: [number, 'null'], format: double }
 
     SavedAddressInput:
       type: object
@@ -1538,6 +1545,17 @@ components:
         city: { type: string, maxLength: 96 }
         note: { type: [string, 'null'], maxLength: 255 }
         is_default: { type: boolean }
+        latitude:
+          type: [number, 'null']
+          format: double
+          minimum: -90
+          maximum: 90
+          description: |
+            İsteğe bağlı. Güncellemede **`null` göndermek koordinatı siler** —
+            alanı hiç göndermemek ise mevcut koordinatı korur. İğnesini
+            kaldıran müşterinin eski noktası kayıtta kalmasın diye bu ikisi
+            ayrı davranışlardır.
+        longitude: { type: [number, 'null'], format: double, minimum: -180, maximum: 180 }
 
     MenuCategory:
       type: object
@@ -1609,6 +1627,24 @@ components:
         district: { type: string, minLength: 1 }
         city: { type: string, minLength: 1 }
         note: { type: [string, 'null'] }
+        latitude:
+          type: [number, 'null']
+          format: double
+          minimum: -90
+          maximum: 90
+          description: |
+            Haritadan seçilen teslimat noktası. **İsteğe bağlı** — konum izni
+            vermeyen ya da adresi elle yazan müşteri de sipariş verebilir.
+
+            `longitude` ile birlikte anlamlıdır: yalnızca biri gönderilirse
+            ikisi de yok sayılır, yanıtta ikisi de `null` döner. Yarısı dolu
+            bir koordinat haritada gösterilemez.
+        longitude:
+          type: [number, 'null']
+          format: double
+          minimum: -180
+          maximum: 180
+          description: '`latitude` ile birlikte anlamlıdır.'
 
     OrderCreateRequest:
       type: object

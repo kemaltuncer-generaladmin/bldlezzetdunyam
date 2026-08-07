@@ -181,6 +181,15 @@ class OrderPresenter
             'note' => $row->address_2 !== null && $row->address_2 !== ''
                 ? (string) $row->address_2
                 : null,
+
+            // Çift olarak veriliyor: yarısı dolu bir koordinat haritada
+            // gösterilemez ama istemci "var" sanıp iğneyi yanlış yere koyar.
+            'latitude' => $row->bld_latitude !== null && $row->bld_longitude !== null
+                ? (float) $row->bld_latitude
+                : null,
+            'longitude' => $row->bld_latitude !== null && $row->bld_longitude !== null
+                ? (float) $row->bld_longitude
+                : null,
         ];
     }
 

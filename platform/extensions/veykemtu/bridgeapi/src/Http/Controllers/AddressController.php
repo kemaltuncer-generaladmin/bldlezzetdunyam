@@ -117,6 +117,13 @@ class AddressController extends ApiController
             'city' => ['required', 'string', 'max:96'],
             'note' => ['sometimes', 'nullable', 'string', 'max:255'],
             'is_default' => ['sometimes', 'boolean'],
+
+            // Koordinat isteğe bağlı: haritayı kullanmayan müşteri adresi
+            // elle yazıp sipariş verebilmeli. Ama GELDİYSE aralık dışı
+            // olamaz — sınır denetimi yoksa istemcinin ters çevirdiği
+            // enlem/boylam sessizce kaydedilir ve kurye okyanusa gönderilir.
+            'latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
         ]);
     }
 
@@ -132,6 +139,28 @@ class AddressController extends ApiController
         $address->state = (string) $data['district'];
         $address->city = (string) $data['city'];
         $address->address_2 = $data['note'] ?? null;
+
+        // `array_key_exists`, `??` DEĞİL: `null` göndermek "koordinatı sil"
+        // demek ve saygı görmeli. `??` ile yazılsaydı iğnesini kaldıran
+        // müşterinin eski koordinatı kayıtta kalırdı.
+        $touchesLat = array_key_exists('latitude', $data);
+        $touchesLng = array_key_exists('longitude', $data);
+
+        if (!$touchesLat && !$touchesLng) {
+            return;
+        }
+
+        // Yarım çift SAKLANMAZ. Koruma yalnızca okumada olsaydı veritabanında
+        // "enlem var, boylam yok" satırları birikirdi: API doğru şekilde
+        // null gösterir ama panelden bakan yönetici ya da ileride yazılacak
+        // bir rapor bunu geçerli bir nokta sanar. Tutarsızlığı kaynağında
+        // kesiyoruz.
+        $lat = $touchesLat ? $data['latitude'] : $address->bld_latitude;
+        $lng = $touchesLng ? $data['longitude'] : $address->bld_longitude;
+
+        $complete = $lat !== null && $lng !== null;
+        $address->bld_latitude = $complete ? $lat : null;
+        $address->bld_longitude = $complete ? $lng : null;
     }
 
     /** @return array<string, mixed> */
@@ -149,7 +178,29 @@ class AddressController extends ApiController
                 ? (string) $address->address_2
                 : null,
             'is_default' => (bool) $address->bld_is_default,
+
+            // Koordinat ÇİFT olarak anlamlı. Yarısı dolu bir kayıt haritada
+            // gösterilemez ama istemci "koordinat var" sanıp iğneyi
+            // ekvatora koyar. Eksikse ikisi de null döner.
+            ...self::coordinates($address),
         ];
+    }
+
+    /**
+     * Enlem/boylam çifti — yalnızca ikisi de doluysa.
+     *
+     * @return array{latitude: float|null, longitude: float|null}
+     */
+    private static function coordinates(Address $address): array
+    {
+        $lat = $address->bld_latitude;
+        $lng = $address->bld_longitude;
+
+        if ($lat === null || $lng === null) {
+            return ['latitude' => null, 'longitude' => null];
+        }
+
+        return ['latitude' => (float) $lat, 'longitude' => (float) $lng];
     }
 
     /**

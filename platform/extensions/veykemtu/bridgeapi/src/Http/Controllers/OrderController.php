@@ -46,6 +46,13 @@ class OrderController extends ApiController
             'address.district' => ['required_if:delivery_type,delivery', 'nullable', 'string', 'max:96'],
             'address.city' => ['required_if:delivery_type,delivery', 'nullable', 'string', 'max:96'],
             'address.note' => ['sometimes', 'nullable', 'string', 'max:255'],
+
+            // Kural yazılmazsa alan sessizce ELENİR: `validate()` yalnızca
+            // tanımlı anahtarları döndürür. İstemci iğneyi gönderir, 201
+            // alır, koordinat hiç kaydedilmez — sipariş başarılı göründüğü
+            // için kimse fark etmez.
+            'address.latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
+            'address.longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
             'requested_at' => ['sometimes', 'nullable', 'date'],
             'payment_method' => ['required', Rule::in(['online', 'cash', 'account'])],
             'customer_note' => ['sometimes', 'nullable', 'string', 'max:500'],
