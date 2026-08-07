@@ -5,6 +5,24 @@
 # FastCGI konuşamadığı için php-fpm'in önünde bir HTTP sunucusu şart.
 :80 {
 	root * /var/www/platform/public
+
+	# Medya dosyaları köken kısıtı olmadan sunulur — `Caddyfile.dev` ile
+	# aynı kural, aynı gerekçe.
+	#
+	# NEDEN: `/storage/media/...` altındaki ürün fotoğrafları zaten herkese
+	# açık statik içerik; API `image_url` ile bu adresi mutlak döndürüyor.
+	# Tarayıcıda çalışan istemci (Flutter web) görseli `<img>` ile değil
+	# fetch ile alıyor ve CORS başlığı yoksa menü fotoğrafsız açılıyor.
+	#
+	# Kural geliştirmede vardı, ÜRETİMDE YOKTU: iki dosya ayrışmıştı ve fark
+	# yalnızca tarayıcıdan bakınca görünüyordu. Android/iOS CORS uygulamadığı
+	# için mobil uygulamada hiçbir belirti yok; site de görselleri sunucu
+	# tarafında çektiği için etkilenmiyor.
+	#
+	# Kimlik gerektiren hiçbir şey bu yolun altında değil.
+	@medya path /storage/*
+	header @medya Access-Control-Allow-Origin "*"
+
 	php_fastcgi app:9000
 	file_server
 	encode gzip
