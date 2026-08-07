@@ -1,9 +1,9 @@
 import type { ApiErrorBody, ErrorCode } from './types';
 
 /** `X-App-Id` sözleşmede kapalı enum; site her zaman `website` gönderir. */
-const APP_ID = 'website';
+export const APP_ID = 'website';
 /** `X-App-Version` SemVer olmalı (`^\d+\.\d+\.\d+$`). package.json ile aynı tutulur. */
-const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.0.0';
 
 export const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4010/api'

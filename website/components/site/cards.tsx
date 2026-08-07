@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -7,10 +8,57 @@ import { cn } from '@/lib/utils';
 /**
  * Kart ailesi.
  *
- * Hepsi aynı beyaz kutu değil: hizmet kartı ikon başlıklı ve tıklanabilir,
- * sektör kartı iki bölümlü (ihtiyaç/karşılık), süreç adımı numaralı ve
- * bağlantılı, ilke kartı çerçevesiz. Sayfada ritim bu farklardan doğuyor.
+ * Hepsi aynı beyaz kutu değil: hizmet kartı fotoğraf başlıklı ve tıklanabilir,
+ * sektör kartı fotoğraf + iki paragraf, süreç adımı numaralı, ilke kartı
+ * çerçevesiz. Sayfada ritim bu farklardan doğuyor.
+ *
+ * ## Fotoğraf zorunlu değil
+ *
+ * `image` verilmezse kart ikonlu, fotoğrafsız düzene döner. Bunun sebebi
+ * panelin yeni bir hizmet/sektör ekleyebilmesi: o kaydın fotoğrafı olmayacak
+ * (bkz. `lib/site-images.ts`) ve kırık görsel yerine sade bir kart çıkmalı.
  */
+
+/** Fotoğraflı kart başlığı. `priority` yalnızca ilk ekranda görünenler için. */
+function CardPhoto({
+  src,
+  ratio,
+  priority = false,
+  overlay = false,
+}: {
+  src: string;
+  ratio: 'video' | '4/3';
+  priority?: boolean;
+  overlay?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        'relative overflow-hidden bg-muted',
+        ratio === 'video' ? 'aspect-video' : 'aspect-4/3',
+      )}
+    >
+      <Image
+        // Fotoğraf dekoratif: başlık ve özet aynı bilgiyi zaten metin olarak
+        // veriyor, alt metni doldurmak ekran okuyucuda tekrara yol açardı.
+        alt=""
+        src={src}
+        fill
+        priority={priority}
+        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
+        className="object-cover transition-transform duration-500 motion-safe:group-hover:scale-105"
+      />
+      {overlay && (
+        // Krem başlık fotoğrafın üstünde duruyor; `/85` başlangıç değeri
+        // aydınlık karelerde bile AA eşiğini geçmesi için ölçülerek seçildi.
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-linear-to-t from-charcoal/85 via-charcoal/35 to-transparent"
+        />
+      )}
+    </div>
+  );
+}
 
 /** Tıklanabilir hizmet kartı. Tüm yüzey link — dokunma hedefi kartın kendisi. */
 export function ServiceCard({
@@ -18,87 +66,100 @@ export function ServiceCard({
   icon: Icon,
   title,
   summary,
+  image,
+  priority = false,
 }: {
   href: string;
   icon: LucideIcon;
   title: string;
   summary: string;
+  image?: string | null;
+  priority?: boolean;
 }) {
   return (
     <Link
       href={href}
       className={cn(
-        'group relative flex flex-col rounded-2xl border bg-card p-6 text-card-foreground transition-all',
-        'hover:border-primary/40 hover:shadow-md motion-safe:hover:-translate-y-0.5',
+        'group relative flex h-full flex-col overflow-hidden rounded-2xl border bg-card text-card-foreground transition-all',
+        'hover:border-primary/40 hover:shadow-lg motion-safe:hover:-translate-y-0.5',
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
       )}
     >
-      <span
-        aria-hidden="true"
-        className="grid size-12 place-items-center rounded-xl bg-accent text-accent-foreground"
-      >
-        <Icon className="size-6" />
-      </span>
-
-      <h3 className="mt-5 font-display text-lg font-semibold tracking-tight">{title}</h3>
-      <p className="mt-2 flex-1 text-sm/6 text-muted-foreground">{summary}</p>
-
-      <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
-        Detaylara bak
-        <ArrowRight
+      {image ? (
+        <CardPhoto src={image} ratio="video" priority={priority} />
+      ) : (
+        <span
           aria-hidden="true"
-          className="size-4 transition-transform motion-safe:group-hover:translate-x-1"
-        />
-      </span>
+          className="grid aspect-video place-items-center bg-accent text-accent-foreground"
+        >
+          <Icon className="size-10" />
+        </span>
+      )}
+
+      <div className="flex flex-1 flex-col p-6">
+        <h3 className="font-display text-lg font-semibold tracking-tight">{title}</h3>
+        <p className="mt-2 flex-1 text-sm/6 text-muted-foreground">{summary}</p>
+
+        <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
+          Detaylara bak
+          <ArrowRight
+            aria-hidden="true"
+            className="size-4 transition-transform motion-safe:group-hover:translate-x-1"
+          />
+        </span>
+      </div>
     </Link>
   );
 }
 
-/** Sektör kartı — "ihtiyaç" ve "bizim karşılığımız" ayrı okunacak biçimde. */
+/**
+ * Sektör kartı.
+ *
+ * Önceki sürümde "İHTİYAÇ" ve "KARŞILIĞIMIZ" diye iki büyük harf etiket vardı;
+ * yedi kart yan yana gelince sayfa forma benziyordu. Etiketler kalktı, iki
+ * paragraf tipografiyle ayrılıyor: ihtiyaç koyu, karşılık normal.
+ */
 export function SectorCard({
   icon: Icon,
   title,
   need,
   answer,
   href,
+  image,
 }: {
   icon: LucideIcon;
   title: string;
   need: string;
   answer: string;
   href: string;
+  image?: string | null;
 }) {
   return (
-    <article className="flex flex-col overflow-hidden rounded-2xl border bg-card text-card-foreground">
-      <div className="flex items-center gap-3 border-b px-6 py-5">
-        <span aria-hidden="true" className="text-primary">
-          <Icon className="size-5" />
-        </span>
-        <h3 className="font-display text-lg font-semibold tracking-tight">{title}</h3>
-      </div>
-
-      <div className="flex-1 space-y-4 px-6 py-5">
-        <div>
-          <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-            İhtiyaç
-          </p>
-          <p className="mt-1.5 text-sm/6">{need}</p>
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl border bg-card text-card-foreground transition-shadow hover:shadow-lg">
+      {image ? (
+        <div className="relative">
+          <CardPhoto src={image} ratio="4/3" overlay />
+          <h3 className="absolute inset-x-5 bottom-4 font-display text-xl font-semibold tracking-tight text-cream">
+            {title}
+          </h3>
         </div>
-        <div>
-          <p className="text-xs font-semibold tracking-wider text-primary uppercase">
-            Karşılığımız
-          </p>
-          <p className="mt-1.5 text-sm/6">{answer}</p>
+      ) : (
+        <div className="flex items-center gap-3 border-b px-6 py-5">
+          <Icon aria-hidden="true" className="size-5 text-primary" />
+          <h3 className="font-display text-lg font-semibold tracking-tight">{title}</h3>
         </div>
-      </div>
+      )}
 
-      <div className="px-6 pb-5">
+      <div className="flex flex-1 flex-col gap-3 px-6 py-5">
+        <p className="text-sm/6 font-medium">{need}</p>
+        <p className="flex-1 text-sm/6 text-muted-foreground">{answer}</p>
+
         <Link
           href={href}
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary underline-offset-4 hover:underline"
+          className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-primary underline-offset-4 after:absolute after:inset-0 hover:underline"
         >
-          İlgili hizmet
-          <ArrowRight aria-hidden="true" className="size-4" />
+          <span className="relative">İlgili hizmet</span>
+          <ArrowRight aria-hidden="true" className="relative size-4" />
         </Link>
       </div>
     </article>
@@ -182,19 +243,25 @@ export function MenuSolutionCard({
   title,
   summary,
   audience,
+  image,
   children,
 }: {
   title: string;
   summary: string;
   audience: string;
+  image?: string | null;
   children: ReactNode;
 }) {
   return (
-    <article className="flex flex-col rounded-2xl border bg-card p-6 text-card-foreground">
-      <h3 className="font-display text-xl font-semibold tracking-tight">{title}</h3>
-      <p className="mt-2 text-sm/6 text-muted-foreground">{summary}</p>
-      <p className="mt-3 text-xs font-semibold text-primary">{audience}</p>
-      <div className="mt-5 flex-1 border-t pt-5">{children}</div>
+    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border bg-card text-card-foreground">
+      {image && <CardPhoto src={image} ratio="4/3" />}
+
+      <div className="flex flex-1 flex-col p-6">
+        <h3 className="font-display text-xl font-semibold tracking-tight">{title}</h3>
+        <p className="mt-2 text-sm/6 text-muted-foreground">{summary}</p>
+        <p className="mt-3 text-xs font-semibold text-primary">{audience}</p>
+        <div className="mt-5 flex-1 border-t pt-5">{children}</div>
+      </div>
     </article>
   );
 }
@@ -207,6 +274,7 @@ export function PostCard({
   description,
   publishedAt,
   readingMinutes,
+  image,
 }: {
   href: string;
   category: string;
@@ -214,33 +282,38 @@ export function PostCard({
   description: string;
   publishedAt: string;
   readingMinutes: number;
+  image?: string | null;
 }) {
   return (
     // `relative`: başlıktaki yayılan bağlantının (`after:inset-0`) sınırı bu kart.
-    <article className="group relative flex flex-col rounded-2xl border bg-card p-6 text-card-foreground transition-all hover:shadow-md motion-safe:hover:-translate-y-0.5">
-      <p className="text-xs font-semibold tracking-wider text-primary uppercase">{category}</p>
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl border bg-card text-card-foreground transition-all hover:shadow-lg motion-safe:hover:-translate-y-0.5">
+      {image && <CardPhoto src={image} ratio="video" />}
 
-      <h3 className="mt-3 font-display text-lg font-semibold tracking-tight">
-        {/* Kartın tamamı tıklanabilir olsun diye yayılan bağlantı; odak halkası
-            başlıkta kalır, böylece klavye kullanıcısı nerede olduğunu görür. */}
-        <Link href={href} className="after:absolute after:inset-0">
-          <span className="relative">{title}</span>
-        </Link>
-      </h3>
+      <div className="flex flex-1 flex-col p-6">
+        <p className="text-xs font-semibold tracking-wider text-primary uppercase">{category}</p>
 
-      <p className="mt-2 flex-1 text-sm/6 text-muted-foreground">{description}</p>
+        <h3 className="mt-3 font-display text-lg font-semibold tracking-tight">
+          {/* Kartın tamamı tıklanabilir olsun diye yayılan bağlantı; odak halkası
+              başlıkta kalır, böylece klavye kullanıcısı nerede olduğunu görür. */}
+          <Link href={href} className="after:absolute after:inset-0">
+            <span className="relative">{title}</span>
+          </Link>
+        </h3>
 
-      <p className="mt-5 text-xs text-muted-foreground">
-        <time dateTime={publishedAt}>
-          {new Date(publishedAt).toLocaleDateString('tr-TR', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          })}
-        </time>
-        <span aria-hidden="true"> · </span>
-        {readingMinutes} dakika okuma
-      </p>
+        <p className="mt-2 flex-1 text-sm/6 text-muted-foreground">{description}</p>
+
+        <p className="mt-5 text-xs text-muted-foreground">
+          <time dateTime={publishedAt}>
+            {new Date(publishedAt).toLocaleDateString('tr-TR', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            })}
+          </time>
+          <span aria-hidden="true"> · </span>
+          {readingMinutes} dakika okuma
+        </p>
+      </div>
     </article>
   );
 }

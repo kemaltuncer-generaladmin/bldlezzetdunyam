@@ -20,6 +20,7 @@ use Veykemtu\BridgeApi\Admin\NavigationTrimmer;
 use Veykemtu\BridgeApi\Console\AdminUserCommand;
 use Veykemtu\BridgeApi\Console\DemoMenuCommand;
 use Veykemtu\BridgeApi\Console\KitchenDeviceCommand;
+use Veykemtu\BridgeApi\Console\MenuImageCommand;
 use Veykemtu\BridgeApi\Console\PurgeOrdersCommand;
 use Veykemtu\BridgeApi\Console\SetupCommand;
 use Veykemtu\BridgeApi\Console\SiteContentImportCommand;
@@ -71,6 +72,7 @@ class Extension extends BaseExtension
         $this->registerConsoleCommand('veykemtu.admin', AdminUserCommand::class);
         $this->registerConsoleCommand('veykemtu.kds', KitchenDeviceCommand::class);
         $this->registerConsoleCommand('veykemtu.demoMenu', DemoMenuCommand::class);
+        $this->registerConsoleCommand('veykemtu.menuGorselleri', MenuImageCommand::class);
         $this->registerConsoleCommand('veykemtu.siparisTemizle', PurgeOrdersCommand::class);
         $this->registerConsoleCommand('veykemtu.ceviriDenetle', TranslationAuditCommand::class);
         $this->registerConsoleCommand('veykemtu.siteIceriginiAktar', SiteContentImportCommand::class);
@@ -166,7 +168,7 @@ class Extension extends BaseExtension
     }
 
     /**
-     * Oran sınırları — `docs/03-api-sozlesmesi.md` §8.
+     * Oran sınırları — `docs/03-api-sozlesmesi.md` §10.
      *
      * Mutfak sınırı cihaz başınadır, IP başına değil: kasa ve yönetici
      * çoğu zaman aynı ağdan çıkar ve IP sınırı ikisini birbirine kırdırırdı.
@@ -181,6 +183,21 @@ class Extension extends BaseExtension
 
         RateLimiter::for('bld-kitchen', static fn(Request $request): Limit => Limit::perHour(1200)
             ->by((string) ($request->user()?->getKey() ?? $request->ip())));
+
+        /*
+         * Teklif formu — SAATLİK pencere, dakikalık değil.
+         *
+         * `bld-auth` (10/dakika) yeniden kullanılmadı: o sınır kaba kuvvet
+         * denemesini yavaşlatmak için var ve saatte 600 gönderime izin
+         * veriyor. Teklif formunda 600 gönderim spam'dir ve hepsi panele
+         * düşerdi; gerçek talepler o yığının içinde kaybolurdu.
+         *
+         * 10/saat, aynı ofisten (tek NAT arkasından) birkaç kişinin ayrı
+         * ayrı teklif istemesine yer bırakırken otomatik doldurmayı
+         * anlamsız kılar. Sınır IP başına: talebi gönderende hesap yok.
+         */
+        RateLimiter::for('bld-quote', static fn(Request $request): Limit => Limit::perHour(10)
+            ->by($request->ip() ?? 'bilinmeyen'));
     }
 
     /**

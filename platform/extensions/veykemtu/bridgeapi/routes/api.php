@@ -19,6 +19,7 @@ use Veykemtu\BridgeApi\Http\Controllers\CatalogController;
 use Veykemtu\BridgeApi\Http\Controllers\HealthController;
 use Veykemtu\BridgeApi\Http\Controllers\KitchenController;
 use Veykemtu\BridgeApi\Http\Controllers\OrderController;
+use Veykemtu\BridgeApi\Http\Controllers\QuoteRequestController;
 use Veykemtu\BridgeApi\Http\Controllers\SiteContentController;
 
 Route::prefix('api')
@@ -41,6 +42,12 @@ Route::prefix('api')
         // açık yayınlanıyor; token istemek statik üretimi zorlaştırıp hiçbir
         // şeyi korumazdı.
         Route::get('site-content', [SiteContentController::class, 'show']);
+
+        // Teklif talebi. Kimlik gerektirmez — formu dolduran kişi henüz
+        // müşteri değil; hesap açmaya zorlamak formun terk edilme sebebidir.
+        // Koruma oran sınırında: `bld-quote`, saatlik pencere.
+        Route::post('quote-requests', [QuoteRequestController::class, 'store'])
+            ->middleware('throttle:bld-quote');
 
         // Eşleme kodu tek kullanımlık ve 10 dk ömürlü; kaba kuvvete karşı
         // ayrıca oran sınırı uygulanır.

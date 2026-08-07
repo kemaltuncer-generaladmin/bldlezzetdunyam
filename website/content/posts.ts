@@ -33,23 +33,23 @@ export const POSTS: readonly Post[] = [
     slug: 'toplu-yemek-firmasi-secerken',
     title: 'Toplu yemek firması seçerken nelere bakmalı?',
     description:
-      'Fiyat teklifi karşılaştırmak yetmiyor. Catering firması seçerken sorulması gereken sorular ve sözleşmeden önce netleştirilmesi gereken başlıklar.',
+      'İki teklifin arasındaki fark çoğu zaman yemekte değil, kapsamda. İmzadan önce sormanız gereken sorular.',
     category: 'Karar rehberi',
     publishedAt: '2026-03-04',
     readingMinutes: 6,
     body: [
       {
         kind: 'paragraph',
-        text: 'Toplu yemek hizmeti, kurumun çalışanıyla her gün temas eden az sayıdaki hizmetten biri. Yanlış seçim, kısa sürede memnuniyetsizlik olarak geri dönüyor. Buna rağmen karar çoğu zaman yalnızca birim fiyat karşılaştırmasıyla veriliyor.',
+        text: 'Yemek, çalışanınızın sizinle her gün temas ettiği birkaç şeyden biri. Yanlış firma seçilirse bunu üç hafta içinde koridorda duyarsınız. Buna rağmen karar çoğu zaman tek bir rakama bakılarak veriliyor.',
       },
       {
         kind: 'paragraph',
-        text: 'Aşağıdaki başlıklar, teklif almadan önce netleştirildiğinde hem karşılaştırmayı anlamlı kılıyor hem de sonradan çıkan sürprizleri azaltıyor.',
+        text: 'Aşağıdakileri teklif istemeden önce netleştirin. Hem teklifleri yan yana koyabilirsiniz hem de üçüncü ay sürprizi çıkmaz.',
       },
       { kind: 'heading', text: 'Fiyatın neyi kapsadığını sorun' },
       {
         kind: 'paragraph',
-        text: 'İki teklif arasındaki fark çoğu zaman yemeğin kendisinden değil, kapsamdan geliyor. Aynı rakam bir firmada yalnızca öğünü, diğerinde servis personelini, ekipmanı ve tek kullanımlık malzemeyi de içeriyor olabilir.',
+        text: 'Aynı rakam bir yerde sadece yemeği, başka bir yerde servis elemanını, ekipmanı ve tabak çatalı da kapsıyor olabilir. Farkı yaratan çoğu zaman tencere değil, listenin altındaki satırlar.',
       },
       {
         kind: 'list',
@@ -64,35 +64,35 @@ export const POSTS: readonly Post[] = [
       { kind: 'heading', text: 'Menü planının nasıl kurulduğunu öğrenin' },
       {
         kind: 'paragraph',
-        text: 'İyi bir menü planı tesadüf değildir. Haftalık tekrar dengesi, et-tavuk-baklagil dağılımı ve mevsim uyumu gözetilerek kurulur. Menüyü kimin hazırladığını, ne kadar önceden paylaşıldığını ve değişiklik talep edip edemeyeceğinizi sorun.',
+        text: 'İyi menü tesadüfen çıkmaz. Et, tavuk ve baklagil güne dağılır; mevsim gözetilir; aynı yemek üst üste gelmez. Kim hazırlıyor, kaç gün önce elinize geçiyor, üstünde değişiklik isteyebiliyor musunuz — bunları sorun.',
       },
       {
         kind: 'callout',
-        text: 'Menüsünü sabahında bildiren bir firmayla planlama yapamazsınız. Menünün en az bir hafta önceden paylaşılması, hem sizin hem çalışanınız için öngörülebilirlik demektir.',
+        text: 'Menüyü sabahında bildiren bir firmayla plan yapamazsınız. En az bir hafta önceden elinizde olmalı.',
       },
       { kind: 'heading', text: 'Değişken kişi sayısını nasıl yönettiğini sorun' },
       {
         kind: 'paragraph',
-        text: 'Çoğu iş yerinde günlük personel sayısı sabit değil. İzin, vardiya ve saha görevleri sayıyı değiştiriyor. Firmanın bu değişimi nasıl karşıladığı — günlük bildirim mi alıyor, sabit sayı üzerinden mi faturalıyor — hem maliyeti hem israfı doğrudan etkiliyor.',
+        text: 'Hiçbir iş yerinde her gün aynı sayıda insan yoktur. İzin var, vardiya var, sahaya giden var. Firma sabah bildirim mi alıyor yoksa sabit sayıdan mı faturalıyor? Cevap hem faturanızı hem çöpe giden yemeği değiştiriyor.',
       },
       { kind: 'heading', text: 'Hijyen yaklaşımını somut sorularla test edin' },
       {
         kind: 'paragraph',
-        text: 'Herkes hijyene önem verdiğini söyler. Ayırt edici olan, sürecin nasıl işlediğidir. Sıcaklık kontrolünün nerede yapıldığı, çiğ ve pişmiş ürünün ayrı alanlarda hazırlanıp hazırlanmadığı, teslim kayıtlarının tutulup tutulmadığı gibi sorular somut cevap gerektirir.',
+        text: 'Hijyene önem verdiğini söylemeyen firma yok. Somut sorun: sıcaklık nerede ölçülüyor, çiğ tavuğun tezgâhı ayrı mı, teslim kaydı tutuluyor mu? Bunların cevabı ya vardır ya yoktur.',
       },
       {
         kind: 'paragraph',
-        text: 'Sertifika iddiası duyduğunuzda belgeyi görmek isteyin. Belge göstermekten çekinen bir firma, muhtemelen belgeye sahip değildir.',
+        text: 'Belge iddiası duyduğunuzda belgeyi isteyin. Göstermekten kaçınan firmada o belge büyük ihtimalle yoktur.',
       },
       { kind: 'heading', text: 'Sorun çıktığında kime ulaşacağınızı netleştirin' },
       {
         kind: 'paragraph',
-        text: 'Teslimat geciktiğinde, öğün sayısı eksik geldiğinde veya bir çalışanınız yemekten şikâyet ettiğinde kimi arayacaksınız? Tek bir muhatabınızın olması, çağrı merkezine bağlanmaktan çok daha hızlı sonuç veriyor.',
+        text: 'Yemek geç kaldığında, on porsiyon eksik geldiğinde ya da biri şikâyet ettiğinde kimi arayacaksınız? Bir isim ve bir numara, çağrı merkezinden çok daha hızlı iş görüyor.',
       },
       { kind: 'heading', text: 'Deneme servisi isteyin' },
       {
         kind: 'paragraph',
-        text: 'Tadım, menünün kâğıt üzerindeki hâliyle tabaktaki hâli arasındaki farkı gösteren en pratik yöntem. Mümkünse tadımı yalnızca yöneticilerle değil, gerçekten yemek yiyecek ekiple birlikte yapın.',
+        text: 'Kâğıttaki menüyle tabaktaki yemek arasındaki farkı tadım gösterir. Tadıma yöneticileri değil, o yemeği her gün yiyecek insanları götürün.',
       },
     ],
   },
@@ -100,24 +100,24 @@ export const POSTS: readonly Post[] = [
     slug: 'kurumsal-catering-nedir',
     title: 'Kurumsal catering nedir, restorandan farkı ne?',
     description:
-      'Catering ile restoran işletmeciliği aynı iş değil. Kurumsal catering hizmetinin nasıl işlediği, hangi ihtiyaçlara cevap verdiği ve neyi kapsadığı.',
+      'İkisi de yemek yapar ama mutfakları zıt kurulur. Kurumsal catering nasıl işler, neyi kapsar?',
     category: 'Temel bilgiler',
     publishedAt: '2026-02-18',
     readingMinutes: 5,
     body: [
       {
         kind: 'paragraph',
-        text: 'Catering ve restoran, dışarıdan bakınca aynı işi yapıyor görünür: ikisi de yemek üretir. Operasyon açısından ise neredeyse zıt iki modeldir.',
+        text: 'Dışarıdan bakınca ikisi de yemek yapıyor. Mutfağa girince iki ayrı iş olduğu anlaşılıyor.',
       },
       { kind: 'heading', text: 'Restoran talebi bekler, catering talebi bilir' },
       {
         kind: 'paragraph',
-        text: 'Restoranda kaç kişinin geleceği ve ne söyleyeceği bilinmez; mutfak belirsizliğe göre kurulur. Kurumsal cateringde ise kişi sayısı ve menü önceden bellidir. Bu, üretimin planlanabilmesi demektir: malzeme tam miktarda alınır, pişirme servis saatine göre zamanlanır, israf azalır.',
+        text: 'Restoranda kaç kişi gelecek, ne söyleyecek belli değildir; mutfak her ihtimale hazır durur. Cateringde sayı da menü de önceden bellidir. Bu yüzden malzeme tam alınır, ocak servis saatine göre yanar, çöpe giden azalır.',
       },
       { kind: 'heading', text: 'Süreklilik farkı' },
       {
         kind: 'paragraph',
-        text: 'Restorana ayda bir gidersiniz, menü tekrarı sorun olmaz. Kurumsal yemekte aynı kişiler her gün yiyor. Bu yüzden catering menüsünün en kritik özelliği çeşitlilik ve tekrar dengesidir — aynı yemeğin haftada iki kez çıkması fark edilir.',
+        text: 'Restorana ayda bir gidersiniz; aynı yemeği yemeniz sorun olmaz. Burada aynı insanlar her gün yiyor. Salı çıkan yemek perşembe yine çıkarsa herkes fark eder.',
       },
       { kind: 'heading', text: 'Kurumsal catering neleri kapsar?' },
       {
@@ -134,41 +134,40 @@ export const POSTS: readonly Post[] = [
       { kind: 'heading', text: 'Taşıma yemek mi, yerinde üretim mi?' },
       {
         kind: 'paragraph',
-        text: 'İki temel model var. Taşıma yemekte üretim merkez mutfakta yapılır, öğün servise hazır gelir; mutfak altyapısı olmayan kurumlar için uygundur. Yerinde üretimde ise yemek kurumun kendi mutfağında pişer; taşıma süresi ortadan kalkar, menü esnekliği artar, ancak mutfak alanı ve ekipman gerekir.',
+        text: 'İki yol var. Taşıma yemekte yemek bizim mutfakta pişer, servise hazır gelir — mutfağı olmayan yerler için. Yerinde üretimde yemek sizin mutfağınızda pişer; yol yoktur, menü esner, ama alan ve ekipman ister.',
       },
       {
         kind: 'callout',
-        text: 'Seçim genellikle mutfak altyapınızın olup olmadığıyla belirlenir. Mutfağınız varsa ama işletmek istemiyorsanız, yerinde üretim modeli hem tazelik hem esneklik açısından avantajlıdır.',
+        text: 'Kararı çoğunlukla mutfağınızın olup olmaması veriyor. Mutfak var ama uğraşmak istemiyorsanız yerinde üretim en tazesini verir.',
       },
       { kind: 'heading', text: 'Fiyat neden liste hâlinde verilmiyor?' },
       {
         kind: 'paragraph',
-        text: 'Catering fiyatı kişi sayısı, öğün sayısı, hizmet sıklığı, menü kapsamı ve teslimat konumuna göre değişir. Aynı menü 50 kişiye ve 500 kişiye farklı birim maliyetle üretilir. Sabit liste vermek bu yüzden çoğu zaman yanıltıcı olur.',
+        text: 'Aynı menü elli kişiye başka, beş yüz kişiye başka maliyete çıkıyor. Buna sıklık ve mesafe de eklenince tek bir liste yazmak yanıltmak oluyor.',
       },
     ],
   },
   {
     slug: 'is-yerleri-icin-menu-planlamasi',
     title: 'İş yerleri için menü planlaması nasıl yapılır?',
-    description:
-      'Haftalık menü kurarken tekrar dengesi, besin çeşitliliği ve çalışan profilinin nasıl gözetildiği; işe yarayan bir menü planının kuralları.',
+    description: 'Haftalık menü nasıl kurulur: kim yiyecek, ne sıklıkla dönecek, mevsim ne diyor?',
     category: 'Menü',
     publishedAt: '2026-01-27',
     readingMinutes: 7,
     body: [
       {
         kind: 'paragraph',
-        text: 'Menü planlaması, "bu hafta ne çıkaralım" sorusuna verilen günlük cevaplardan ibaret değil. İyi kurulmuş bir plan, çalışanın memnuniyetini artırırken israfı ve maliyeti aynı anda düşürür.',
+        text: '"Bu hafta ne çıkaralım?" sorusuna her pazartesi yeniden cevap aranıyorsa ortada plan yok demektir. Doğru kurulmuş bir liste hem tabakları boşaltır hem çöpü azaltır.',
       },
       { kind: 'heading', text: 'Önce çalışan profilini tanımlayın' },
       {
         kind: 'paragraph',
-        text: 'Ağır iş kolunda çalışan bir ekiple ofis çalışanının öğün ihtiyacı aynı değil. Fiziksel yükü yüksek işlerde kalori ve porsiyon öne çıkar; masa başı çalışmada ise ağır öğün öğleden sonra verimi düşürür.',
+        text: 'Sekiz saat beton döken adamla bilgisayar başındaki insan aynı tabağı istemez. Birinde porsiyon ve kalori konuşulur, diğerinde ağır yemek öğleden sonrayı yatırır.',
       },
       { kind: 'heading', text: 'Tekrar dengesini haftalık kurun' },
       {
         kind: 'paragraph',
-        text: 'Pratik bir çerçeve: haftada iki kırmızı et, iki tavuk, bir baklagil ana yemeği. Yardımcı yemekte pilav ve makarna aynı hafta içinde dönüşümlü verilir. Aynı ana yemek iki hafta üst üste tekrar etmez.',
+        text: 'İşe yarayan basit bir ölçü: haftada iki kırmızı et, iki tavuk, bir baklagil. Pilavla makarna dönüşümlü gider. Aynı ana yemek iki hafta üst üste çıkmaz.',
       },
       {
         kind: 'list',
@@ -182,54 +181,53 @@ export const POSTS: readonly Post[] = [
       { kind: 'heading', text: 'Mevsimi gözetin' },
       {
         kind: 'paragraph',
-        text: 'Mevsiminde sebze hem daha lezzetli hem daha uygun maliyetlidir. Kışın çorba çeşidini artırmak, yazın soğuk başlangıç ve ayran tüketimini öne almak hem tüketimi hem memnuniyeti yükseltir.',
+        text: 'Mevsiminde sebze hem daha lezzetli hem daha ucuz. Kışın çorba çeşidini artırın, yazın soğuk başlangıç ve ayrana yer açın.',
       },
       { kind: 'heading', text: 'Alternatif öğünü baştan planlayın' },
       {
         kind: 'paragraph',
-        text: 'Vejetaryen çalışan veya alerjisi olan kişiler için alternatif, menü kurulurken düşünülmeli — servis anında bulunacak bir çözüm değil. Alternatif öğün ayrı hazırlanır, etiketlenir ve mümkünse ayrı kapta taşınır.',
+        text: 'Vejetaryen ya da alerjisi olan biri varsa onun tabağı menü kurulurken düşünülür. Servis saatinde akla gelirse iş işten geçmiştir. Ayrı pişer, etiketlenir, mümkünse ayrı kapta gelir.',
       },
       { kind: 'heading', text: 'Tüketimi ölçün, menüyü ona göre düzeltin' },
       {
         kind: 'paragraph',
-        text: 'Hangi yemeğin bittiğini, hangisinin arttığını takip etmek en değerli geri bildirimdir. Sürekli artan bir yemek menüden çıkar; hızla biten yemek daha sık planlanır. Bu döngü olmadan menü planı zamanla gerçeklikten kopar.',
+        text: 'En doğru geri bildirim tencerenin dibinde. Sürekli artan yemek listeden çıkar, çabuk biten daha sık gelir. Bunu yapmayan menü zamanla kâğıt üstünde kalır.',
       },
       {
         kind: 'callout',
-        text: 'Anket yapmadan önce artan yemeği ölçün. İnsanlar ne yediklerini anlatmakta değil, tabakta bırakmakta çok daha dürüsttür.',
+        text: 'Anket yapmadan önce artanı tartın. İnsanlar anket doldururken kibar, tabak bırakırken dürüst oluyor.',
       },
     ],
   },
   {
     slug: 'catering-hizmetinde-hijyen',
     title: 'Catering hizmetinde hijyen: zincir nerede kırılır?',
-    description:
-      'Toplu yemekte hijyen tek bir aşamanın değil, hammaddeden teslimata uzanan bir zincirin işi. Zincirin en kırılgan halkaları ve alınması gereken önlemler.',
+    description: 'Sorun genelde kirli mutfaktan çıkmaz. Depoda, soğutmada ve yolda çıkar.',
     category: 'Kalite',
     publishedAt: '2026-01-09',
     readingMinutes: 6,
     body: [
       {
         kind: 'paragraph',
-        text: 'Toplu yemekte hijyen sorunu genellikle mutfağın kirli olmasından çıkmaz. Zincirin görece gözden kaçan halkalarında — depolamada, soğutmada ve taşımada — ortaya çıkar.',
+        text: 'Toplu yemekte hijyen sorunu neredeyse hiç pis bir tezgâhtan çıkmaz. Depoda, soğutmada ve yolda çıkar — yani kimsenin bakmadığı yerlerde.',
       },
       { kind: 'heading', text: 'Tehlikeli sıcaklık aralığı' },
       {
         kind: 'paragraph',
-        text: 'Gıda güvenliğinde en kritik kavram, bakterinin hızla çoğaldığı sıcaklık aralığıdır. Yemek bu aralıkta ne kadar uzun kalırsa risk o kadar artar. Bu yüzden sıcak yemek sıcak, soğuk ürün soğuk tutulur; ikisinin arasında geçirilen süre mümkün olduğunca kısaltılır.',
+        text: 'Bakterinin en hızlı ürediği bir sıcaklık aralığı var. Yemek orada ne kadar kalırsa risk o kadar büyüyor. Bu yüzden sıcak sıcakta, soğuk soğukta durur; arada geçen süre elden geldiğince kısaltılır.',
       },
       {
         kind: 'callout',
-        text: 'Erken pişirilip uzun süre bekletilen yemek, geç pişirilip hemen servis edilen yemekten her zaman daha risklidir. Üretim planı bu yüzden servis saatine göre kurulur.',
+        text: 'Sabah pişip öğlene kadar bekleyen yemek, on birde pişip on ikide servis edilenden her zaman daha risklidir. Ocağın saatini servis saati belirler.',
       },
       { kind: 'heading', text: 'Çapraz bulaşma' },
       {
         kind: 'paragraph',
-        text: 'Çiğ tavuğun hazırlandığı tezgâhta salata doğranması klasik örnektir. Önlemi basit ama disiplin ister: çiğ ve pişmiş ürün için ayrı hazırlık alanı, ayrı kesme tahtası ve ayrı ekipman.',
+        text: 'Çiğ tavuğun doğrandığı tahtada salata doğramak, kitaptaki ilk örnektir. Çözümü kolay, sürdürmesi disiplin ister: ayrı tezgâh, ayrı tahta, ayrı bıçak.',
       },
       {
         kind: 'paragraph',
-        text: 'Aynı ilke alerjen yönetimi için de geçerlidir. Glutensiz bir öğün, glutenli ürünle aynı yüzeyde hazırlandığında artık glutensiz değildir.',
+        text: 'Alerjende de aynı kural. Glutensiz yemek, unlu tezgâhta hazırlandıysa artık glutensiz değildir.',
       },
       { kind: 'heading', text: 'Depolama sırası' },
       {
@@ -244,12 +242,12 @@ export const POSTS: readonly Post[] = [
       { kind: 'heading', text: 'Taşıma: en çok gözden kaçan halka' },
       {
         kind: 'paragraph',
-        text: 'Mutfakta her şey doğru yapılmış olsa bile, yalıtımsız bir kapla yapılan uzun teslimat zinciri kırar. Isı yalıtımlı kapalı kaplar, teslim öncesi ve sonrası sıcaklık kontrolü ve teslim kaydı bu yüzden hizmetin ayrılmaz parçasıdır.',
+        text: 'Mutfakta her şey kitabına uygun gitse bile, yalıtımsız bir kapla çıkılan uzun yol zinciri kırar. Isı tutan kapalı kap, çıkışta ve varışta sıcaklık ölçümü, teslim kaydı — üçü de işin parçası.',
       },
       { kind: 'heading', text: 'İzlenebilirlik neden önemli?' },
       {
         kind: 'paragraph',
-        text: 'Bir sorun yaşandığında "hangi gün, hangi menü, hangi tedarikçi, nereye teslim" sorularının cevabı kayıtlarda yoksa, sorunun kaynağı bulunamaz. İzlenebilirlik, sorun çıkmasını engellemez ama tekrarlanmasını engeller.',
+        text: 'Bir sorun çıktığında hangi gün, hangi menü, hangi tedarikçi ve nereye — dördünün cevabı kayıtta yoksa kaynağı bulamazsınız. Kayıt sorunu önlemez; tekrarını önler.',
       },
     ],
   },
@@ -257,19 +255,19 @@ export const POSTS: readonly Post[] = [
     slug: 'organizasyon-menusu-nasil-secilir',
     title: 'Organizasyon menüsü nasıl seçilir?',
     description:
-      'Düğün, açılış ve kurumsal davetlerde menü seçimini belirleyen faktörler: etkinlik saati, servis biçimi, davetli profili ve mekân koşulları.',
+      'Menüyü katalogdan değil, günün akışından seçersiniz: saat kaç, kaç kişi, mekân ne veriyor?',
     category: 'Organizasyon',
     publishedAt: '2025-12-12',
     readingMinutes: 5,
     body: [
       {
         kind: 'paragraph',
-        text: 'Organizasyon menüsü, katalogdan seçilen bir liste değil; etkinliğin akışına göre kurulan bir plandır. Aynı menü öğle açılışında doğru, akşam düğününde eksik kalabilir.',
+        text: 'Organizasyon menüsü katalogdan seçilmez, günün akışına göre kurulur. Öğle açılışında tam yerinde olan bir liste, akşam düğününde cılız kalır.',
       },
       { kind: 'heading', text: 'Etkinliğin saati menüyü belirler' },
       {
         kind: 'paragraph',
-        text: 'Öğle saatindeki bir açılışta davetliler genellikle kısa süre kalır; elde tüketilebilen, servis gerektirmeyen seçenekler öne çıkar. Akşam davetinde ise oturmalı servis ve daha kapsamlı bir menü beklenir.',
+        text: 'Öğle açılışında insanlar yarım saat durur; elde yenen şeyler işe yarar. Akşam davetinde oturulur, sofra uzun kurulur.',
       },
       { kind: 'heading', text: 'Servis biçimini erken kararlaştırın' },
       {
@@ -282,21 +280,21 @@ export const POSTS: readonly Post[] = [
       },
       {
         kind: 'paragraph',
-        text: 'Servis biçimi yalnızca estetik bir tercih değil; mekânın alanı, davetli sayısı ve etkinliğin süresiyle doğrudan bağlantılıdır.',
+        text: 'Servis biçimi görüntüyle ilgili bir tercih gibi görünür ama asıl belirleyeni mekânın metrekaresi, davetli sayısı ve programın uzunluğudur.',
       },
       { kind: 'heading', text: 'Mekânın imkânlarını baştan öğrenin' },
       {
         kind: 'paragraph',
-        text: 'Mekânda mutfak var mı, elektrik ve su erişimi yeterli mi, servis alanı ile davetli alanı arasındaki mesafe ne kadar? Bu sorular menüyü doğrudan etkiler: yerinde son hazırlık gerektiren yemekler ancak uygun altyapıda planlanabilir.',
+        text: 'Mutfak var mı, priz nerede, su nereden geliyor, servis alanıyla masalar arası kaç adım? Bunlar menüyü doğrudan değiştirir — son hazırlığı yerinde yapılan yemekler ancak altyapı varsa listeye girer.',
       },
       { kind: 'heading', text: 'Davetli profilini gözetin' },
       {
         kind: 'paragraph',
-        text: 'Yaş dağılımı, çocuklu davetli sayısı ve özel beslenme ihtiyaçları menüyü şekillendirir. Vejetaryen ve alerjen alternatifleri davetli listesine göre önceden planlanmalı; etkinlik günü çözülecek bir konu değildir.',
+        text: 'Kaç çocuk var, yaş ortalaması ne, özel beslenen kaç kişi? Vejetaryen ve alerjen alternatifi davetli listesiyle birlikte planlanır. O gün akla gelirse çözülmez.',
       },
       {
         kind: 'callout',
-        text: 'Davetli sayısına küçük bir pay eklemek neredeyse her zaman doğru karardır. Son dakika katılımları organizasyonların istisnası değil, kuralıdır.',
+        text: 'Davetli sayısına biraz pay bırakın. Son dakika gelen misafir her davette çıkıyor.',
       },
     ],
   },
@@ -304,24 +302,24 @@ export const POSTS: readonly Post[] = [
     slug: 'kalabalik-etkinliklerde-yemek-planlamasi',
     title: 'Kalabalık etkinliklerde yemek planlaması',
     description:
-      'Yüksek katılımlı etkinliklerde servis kuyruğunu kısaltmak, sıcaklığı korumak ve zamanlamayı tutturmak için kullanılan planlama yöntemleri.',
+      'Uzun kuyruk ve soğumuş yemek menüden değil, servis düzeninden çıkar. Kalabalıkta işleyen yöntemler.',
     category: 'Organizasyon',
     publishedAt: '2025-11-20',
     readingMinutes: 6,
     body: [
       {
         kind: 'paragraph',
-        text: 'Katılımcı sayısı arttıkça yemeğin lezzeti kadar servisin akışı da belirleyici hâle gelir. Uzun kuyruk, soğumuş yemek ve programın sarkması genellikle menüden değil planlamadan kaynaklanır.',
+        text: 'Kalabalıkta yemeğin tadı kadar sıranın hızı da konuşuluyor. Uzayan kuyruk, soğumuş tabak ve sarkan program genelde menüden değil, servis düzeninden çıkıyor.',
       },
       { kind: 'heading', text: 'Kuyruğu paralelleştirin' },
       {
         kind: 'paragraph',
-        text: 'Tek bir büfe hattı, katılımcı sayısı arttığında dar boğaza dönüşür. Aynı menüyü sunan birden fazla hat kurmak, kuyruk süresini doğrudan böler. Hatların iki yönlü kullanılabilmesi kapasiteyi bir kat daha artırır.',
+        text: 'Tek büfe hattı kalabalıkta tıkanır. Aynı menüyü veren ikinci hat, sırayı ikiye böler. Hattın iki tarafından da alınabiliyorsa kapasite bir kat daha artar.',
       },
       { kind: 'heading', text: 'Sıcaklığı dalgalar hâlinde koruyun' },
       {
         kind: 'paragraph',
-        text: 'Tüm yemeği en başta ortaya çıkarmak, son katılımcının soğumuş yemek almasına yol açar. Bunun yerine servis, tazeleme dalgaları hâlinde planlanır: büfe belirli aralıklarla yenilenir.',
+        text: 'Bütün yemeği başta ortaya çıkarırsanız sıranın sonundaki soğuk yemek alır. Onun yerine büfe belirli aralıklarla tazelenir; yemek dalga dalga çıkar.',
       },
       { kind: 'heading', text: 'Programla senkron çalışın' },
       {
@@ -336,11 +334,11 @@ export const POSTS: readonly Post[] = [
       { kind: 'heading', text: 'Menüyü servis hızına göre seçin' },
       {
         kind: 'paragraph',
-        text: 'Porsiyonlanması zaman alan yemekler kalabalıkta kuyruğu uzatır. Önceden porsiyonlanabilen, servis kaşığıyla hızlı alınabilen seçenekler tercih edilir. Görsel olarak etkileyici ama servis hızını düşüren kaplar, ana hat yerine ayrı bir istasyona alınabilir.',
+        text: 'Tabağa koyması uzun süren yemek sırayı uzatır. Önceden porsiyonlanan ya da tek kaşıkta alınan şeyler tercih edilir. Gösterişli ama yavaş kaplar ana hattan çıkarılıp ayrı bir istasyona alınabilir.',
       },
       {
         kind: 'callout',
-        text: 'Kalabalık etkinliklerde en sık yapılan hata, menüyü küçük bir davet gibi kurup servis düzenini sonradan çözmeye çalışmak. Sıralama tersi olmalı: önce servis akışı, sonra ona uyan menü.',
+        text: 'En sık yapılan hata, menüyü küçük bir davet gibi kurup servisi sonra düşünmek. Sıra tersine dönmeli: önce insanlar nasıl akacak, sonra o akışa uyan menü.',
       },
     ],
   },

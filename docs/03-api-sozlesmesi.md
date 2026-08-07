@@ -489,7 +489,87 @@ süre dolmasını beklemeden görür.
 
 ---
 
-## 7. Sürüm ucu
+## 7. Teklif talebi ucu (kimlik gerektirmez)
+
+Kurumsal sitedeki "Teklif Al" formunun gönderim ucu. Talepler panelde
+**İçerikler → Teklif Talepleri** ekranına düşer; ayrı bir yetki ister
+(`Veykemtu.QuoteRequests`).
+
+### POST /api/quote-requests
+
+```json
+{
+  "full_name": "Ayşe Yılmaz",
+  "organization": "Örnek Sanayi A.Ş.",
+  "telephone": "5551234567",
+  "email": "ayse@ornek.com",
+  "service_type": "kurumsal-toplu-yemek",
+  "headcount": 250,
+  "frequency": "haftaici",
+  "start_date": "2026-09-01",
+  "location": "İstanbul / Tuzla",
+  "menu_preference": "dort-kap",
+  "kitchen_note": null,
+  "message": "Öğle servisi, iki vardiya.",
+  "kvkk_accepted": true,
+  "submitted_at": "2026-08-07T09:15:00.000Z"
+}
+```
+
+**Yanıt 201**
+```json
+{ "status": "yeni", "received_at": "2026-08-07T06:15:12Z" }
+```
+
+**Kimlik gerektirmez.** Formu dolduran kişi henüz müşteri değil, olması da
+beklenmiyor; teklif isteyebilmek için önce hesap açtırmak, formun terk
+edilmesinin en yaygın sebebidir. Koruma kimlikte değil oran sınırındadır:
+**10 istek / saat / IP**. `/api/auth/*`'ın dakikalık sınırı burada yeniden
+kullanılmadı — o sınır saatte 600 gönderime izin verir ve 600 sahte talep
+panele düşseydi gerçek talepler o yığının içinde kaybolurdu.
+
+**Doğrulama bilinçli olarak GEVŞEKTİR.** Bu ucun başarısızlığı "hatalı istek"
+değil, **kaybedilmiş iştir**: ziyaretçi formu bir kez doldurur ve 422
+gördüğünde çoğu zaman tekrar denemez, rakibe gider. Bu yüzden:
+
+| Durum | Davranış |
+|---|---|
+| Şemada olmayan alan (`utm_source`, `nested` …) | Sessizce yok sayılır, talep kaydedilir |
+| Bilinmeyen `service_type` / `frequency` / `menu_preference` | Metin olarak saklanır |
+| Çözümlenemeyen `start_date` ("yazın") | `null` kaydedilir, talep durur |
+| Rakam olmayan `headcount` ("bin kişi") | `null` kaydedilir, talep durur |
+| Sütun sınırını aşan metin | Kesilir, reddedilmez |
+
+**`service_type` bir enum DEĞİLDİR.** Değerler `website/content/services.ts`
+slug'larından gelir ve yeni bir hizmet önce orada doğar; enum kısıtı, sitenin
+sözleşmeden bir sürüm önde gittiği her anda gelen talebi çöpe atardı.
+
+**Reddedilen iki durum vardır ve ikisi de bilinçli kayıptır:**
+
+1. **KVKK onayı yok** (`kvkk_accepted` `true` değil) → `422`. Onaysız kişisel
+   veri saklamak hukuki sorundur. Onay anı **sunucuda** damgalanır; istemcinin
+   bildirdiği bir zaman denetimde delil sayılmaz.
+2. **Ulaşılacak kanal yok** (`telephone` ve `email` birlikte boş) → `422`.
+   Firma teklifi kimseye gönderemez; kayıt yalnızca kişisel veri biriktirir.
+
+**Yanıt kaydın kendisini ve `id`'sini DÖNMEZ.** Uç herkese açık; artan bir
+kimlik döndürmek, formu iki kez dolduran herkese firmanın aldığı talep
+sayısını sızdırırdı. Site zaten yanıt gövdesini kullanmıyor.
+
+**`status` ve `admin_note` gövdeden ATANAMAZ.** Alanlar beyaz listeyle tek tek
+okunuyor; okunmasaydı ziyaretçi kendi talebini "cevaplandı" işaretleyip
+listenin dibine gönderebilirdi. Yeni kayıt her zaman `yeni` doğar.
+
+**Tekilleştirme yapılmaz.** Aynı kişinin ikinci gönderimi ikinci bir kayıttır:
+aynı firma iki farklı etkinlik için teklif isteyebilir ve ikincisini "kopya"
+sayıp yutmak gerçek bir işi sessizce kaybetmek olurdu.
+
+**Takip durumları:** `yeni` → `okundu` → `cevaplandi` → `kapandi`. Panelden
+serbestçe değiştirilir, sitede hiç görünmez.
+
+---
+
+## 8. Sürüm ucu
 
 ### GET /api/app-version?app_id=mutfakapp
 ```json
@@ -505,7 +585,7 @@ süre dolmasını beklemeden görür.
 
 ---
 
-## 8. WebSocket (Faz 1.5)
+## 9. WebSocket (Faz 1.5)
 
 Laravel Reverb. Bağlantı: `wss://api.benimlezzetdunyam.com.tr/app/<key>`
 
@@ -529,13 +609,14 @@ Laravel Reverb. Bağlantı: `wss://api.benimlezzetdunyam.com.tr/app/<key>`
 
 ---
 
-## 9. Oran sınırları
+## 10. Oran sınırları
 
 | Uç grubu | Sınır |
 |---|---|
 | `/api/auth/*` | 10 istek / dakika / IP |
 | `/api/orders` (POST) | 20 istek / saat / hesap |
 | `/api/kitchen/*` | **1200 istek / saat / cihaz** |
+| `/api/quote-requests` (POST) | 10 istek / saat / IP |
 | Diğer | 120 istek / dakika / IP |
 
 **Mutfak sınırı neden 1200:** doküman önce 600 diyordu ve gerekçesi "5 sn
@@ -549,7 +630,7 @@ arıza türü.
 payla karşılar. Sınır **cihaz başınadır**, IP başına değil: kasa ve yönetici
 çoğu zaman aynı ağdan çıkar ve IP sınırı ikisini birbirine kırdırırdı.
 
-## 10. OpenAPI
+## 11. OpenAPI
 
 Makine tarafından okunabilir sözleşme: **`docs/openapi.yaml`** (OpenAPI 3.1). Bu markdown insan için açıklama, `openapi.yaml` ise **normatif** biçimdir; ikisi çelişirse `openapi.yaml` kazanır.
 

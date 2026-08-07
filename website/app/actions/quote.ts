@@ -1,5 +1,6 @@
 'use server';
 
+import { APP_ID, APP_VERSION } from '@/lib/api/client';
 import { quoteSchema } from '@/lib/validation/quote';
 import type { QuoteState } from '@/lib/action-state';
 
@@ -8,13 +9,12 @@ import type { QuoteState } from '@/lib/action-state';
  *
  * ## Alıcı uç neden env değişkeni?
  *
- * `docs/openapi.yaml` sözleşmesinde teklif talebi diye bir uç YOK ve platform
- * tarafında da böyle bir tablo yok. Sözleşmeye kendi başımıza uç eklemek
- * AGENTS.md §2.3'e aykırı olurdu.
- *
- * Bu yüzden gönderim, dışarıdan tanımlanan bir HTTP hedefine yapılıyor:
- * `QUOTE_WEBHOOK_URL`. Bu bir e-posta servisi, bir form toplayıcı veya
- * ileride yazılacak kendi uç noktamız olabilir — form kodu değişmeden.
+ * Gönderim, dışarıdan tanımlanan bir HTTP hedefine yapılıyor:
+ * `QUOTE_WEBHOOK_URL`. Varsayılan hedef artık kendi ucumuz —
+ * `POST /api/quote-requests` (sözleşme §7) — ve talepler admin panelde
+ * "İçerikler → Teklif Talepleri" ekranında görünüyor. Değişken yine de dışarı
+ * açık: firma isterse bir form servisine veya e-posta kancasına çevirebilir,
+ * form kodu değişmeden.
  *
  * ## Tanımlı değilse ne oluyor?
  *
@@ -84,7 +84,19 @@ export async function submitQuote(_previous: QuoteState, formData: FormData): Pr
   try {
     const response = await fetch(WEBHOOK_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        /*
+         * Platformun `bld.headers` ara katmanı bu iki başlığı ZORUNLU tutuyor
+         * (sözleşme §1.1); eksik gönderilirse uç talebi almadan 422 döner ve
+         * müşterinin işi kaybolur. Kendi API'mize gönderdiğimiz için buradalar.
+         *
+         * Hedef bizim ucumuz değil de bir form servisiyse fazladan iki başlık
+         * zararsız — servisler tanımadıkları başlıkları yok sayıyor.
+         */
+        'X-App-Id': APP_ID,
+        'X-App-Version': APP_VERSION,
+      },
       body: JSON.stringify({ ...payload, submitted_at: new Date().toISOString() }),
       // Teklif talebi önbelleğe alınacak bir istek değil.
       cache: 'no-store',

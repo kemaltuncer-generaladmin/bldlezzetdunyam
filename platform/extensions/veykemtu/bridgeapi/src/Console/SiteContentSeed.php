@@ -61,22 +61,10 @@ final class SiteContentSeed
         return [
             'name' => 'Benim Lezzet Dünyam',
             'short_name' => 'BLD',
-            // Şirket ailesi bağı: site bir eğitim şirketi gibi görünmemeli,
-            // bu yüzden yalnızca Kurumsal sayfasında ve altbilgide geçer.
             'parent_group' => 'Benim Başarı Dünyam',
-            'tagline' => 'Kalabalık sofralar için planlı, hijyenik ve lezzetli catering çözümleri.',
-            'description' => 'Kurumlara, okullara, sağlık kuruluşlarına ve organizasyonlara toplu yemek ve catering hizmeti.',
-            /*
-             * Kurumsal logo dosyası repoda YOK. Elimizdeki tek görsel uygulama
-             * simgesi olarak üretilmiş genel bir servis kapağı. Logoyu yeniden
-             * çizmek marka kimliğini uydurmak olurdu; site alan boşken "BLD"
-             * harf işaretine düşer. Yönetici dosyayı panelden yükler.
-             */
+            'tagline' => 'Kurumlara günlük yemek, davetlere catering. Sıcak gelir, saatinde gelir.',
+            'description' => 'Ofislere, fabrikalara, okullara ve davetlere yemek hazırlıyoruz. Menüyü birlikte kuruyoruz, yemeği kendi mutfağımızda pişiriyoruz, teslim saatini siz söylüyorsunuz.',
             'logo_url' => null,
-            // Sitenin bugün kullandığı birincil renk
-            // (`website/app/globals.css` → `--color-brand-700`). Uydurulmuş
-            // değil, yayındaki değerin kendisi; beyaz yazıyla 5,18:1 veriyor
-            // ve `BrandGuard` eşiğini (4,5:1) geçiyor.
             'primary_color' => '#C2410C',
         ];
     }
@@ -107,78 +95,71 @@ final class SiteContentSeed
     private static function company(): array
     {
         return [
-            // "Nasıl çalışıyoruz" — ilk temastan düzenli hizmete kadar.
             'process_steps' => [
                 [
-                    'title' => 'İhtiyacı dinliyoruz',
-                    'body' => 'Kişi sayısı, öğün saatleri, hizmet konumu ve varsa mevcut mutfak altyapınızı konuşuyoruz.',
-                    'icon' => 'MessageSquare',
+                    'title' => 'Konuşuyoruz',
+                    'body' => 'Kaç kişisiniz, saat kaçta yemek yiyorsunuz, mutfağınız var mı? Çoğu zaman yarım saatlik bir telefon yetiyor.',
+                    'icon' => 'Phone',
                 ],
                 [
-                    'title' => 'Menü ve teklif hazırlıyoruz',
-                    'body' => 'İhtiyacınıza uygun menü kurgusu ve fiyatlandırma çıkarılıyor; gerekirse tadım planlanıyor.',
+                    'title' => 'Menüyü çıkarıyoruz',
+                    'body' => 'Size göre bir menü ve fiyat hazırlıyoruz. İsterseniz gelip tadıyorsunuz, sonra karar veriyorsunuz.',
                     'icon' => 'ClipboardList',
                 ],
                 [
-                    'title' => 'Planı sabitliyoruz',
-                    'body' => 'Teslimat saatleri, servis düzeni ve haftalık menü onayınızla kesinleşiyor.',
-                    'icon' => 'CalendarCheck',
-                ],
-                [
-                    'title' => 'Üretip teslim ediyoruz',
-                    'body' => 'Öğünler planlanan saatte hazırlanıp sıcaklık kontrollü biçimde teslim ediliyor.',
+                    'title' => 'Pişirip getiriyoruz',
+                    'body' => 'Yemek sabah mutfakta yapılır, kapalı kaplarda yola çıkar. Kapağı açtığınızda hâlâ sıcaktır.',
                     'icon' => 'Truck',
                 ],
                 [
-                    'title' => 'Takip edip düzeltiyoruz',
-                    'body' => 'Tüketim ve geri bildirim izleniyor; menü ve porsiyonlar buna göre güncelleniyor.',
-                    'icon' => 'Sparkles',
+                    'title' => 'Sonra soruyoruz',
+                    'body' => 'Ne bitti, ne arttı, kim ne beğenmedi? Bir sonraki haftanın menüsü bu cevaplara göre değişir.',
+                    'icon' => 'MessageSquare',
                 ],
             ],
-            // "Neden BLD?" — vaat değil, çalışma biçimi.
             'differentiators' => [
                 [
-                    'title' => 'Menü planı önceden belli',
-                    'body' => 'Haftalık menü önden paylaşılır. Ne çıkacağını sabahında öğrenmezsiniz; planlama yapabilirsiniz.',
-                    'icon' => 'ClipboardList',
+                    'title' => 'Menüyü önceden görürsünüz',
+                    'body' => 'Haftalık menü cuma günü elinizde olur. Salı ne çıkacağını salı sabahı öğrenmezsiniz.',
+                    'icon' => 'CalendarCheck',
                 ],
                 [
-                    'title' => 'Tek muhatap',
-                    'body' => 'Sipariş, teslimat, menü değişikliği ve faturalama tek kişiyle yürür. Sorun için sıraya girmezsiniz.',
-                    'icon' => 'HandshakeIcon',
+                    'title' => 'Tek numara, tek kişi',
+                    'body' => 'Sipariş, menü değişikliği, fatura — hepsi aynı kişide. Santralde sıra beklemiyorsunuz.',
+                    'icon' => 'Phone',
                 ],
                 [
-                    'title' => 'Değişken sayıya uyum',
-                    'body' => 'Personel sayısı gün gün değişen iş yerlerinde öğün adedi günlük olarak güncellenir.',
+                    'title' => 'Sayı her gün değişebilir',
+                    'body' => 'Bugün seksen, yarın yüz otuz. Sabah haber verirsiniz, o kadar pişer.',
                     'icon' => 'UsersRound',
                 ],
                 [
-                    'title' => 'Yemek yemek gibi',
-                    'body' => 'Toplu üretimde de tarif ve porsiyon disiplini korunur. Menü, insanların gerçekten yediği yemeklerden kurulur.',
+                    'title' => 'Tarif kalabalıkta bozulmaz',
+                    'body' => 'Bin porsiyon çıkarken de aynı tarif, aynı ölçü. Yemeğin tadı sayıyla düşmüyor.',
                     'icon' => 'Soup',
                 ],
             ],
-            'mission' => 'Kalabalık için yemek üretmenin, evdeki özenden ödün vermeyi gerektirmediğini göstermek. Her öğünü, servis edeceğimiz insanların masasına kendi masamıza koyar gibi hazırlamak.',
-            'vision' => 'Yerel bağını koruyan, ulusal ölçekte kurumlara hizmet verebilecek düzende çalışan; planlaması, hijyeni ve lezzetiyle tercih edilen bir catering markası olmak.',
+            'mission' => 'Kalabalığa yemek yapmak, özenden vazgeçmek anlamına gelmesin istiyoruz. Bininci tabak da ilkiyle aynı tada sahip olsun diye uğraşıyoruz.',
+            'vision' => 'Kendi bölgesinde adı iyi anılan, başka şehirlerde de aynı düzeni kurabilen bir catering mutfağı olmak.',
             'values' => [
                 [
-                    'title' => 'Söz verdiğimiz saatte',
-                    'body' => 'Yemeğin lezzeti kadar zamanında gelmesi de hizmetin parçasıdır. Teslim saati taahhüttür.',
+                    'title' => 'Saatinde',
+                    'body' => 'Soğumuş yemeğin lezzeti tartışılmaz. Teslim saati bizim için bir söz.',
                 ],
                 [
-                    'title' => 'Hijyen tartışma konusu değil',
-                    'body' => 'Temizlik, işler sıkıştığında esnetilen bir başlık değil; üretim akışının kendisidir.',
+                    'title' => 'Temiz mutfak',
+                    'body' => 'İşler sıkıştığında da aynı temizlik. Burada pazarlık yapmıyoruz.',
                 ],
                 [
-                    'title' => 'Abartmadan konuşmak',
-                    'body' => 'Yapabileceğimizi söyler, yapamayacağımıza hayır deriz. Beklentiyi baştan doğru kurmak sonradan özür dilemekten iyidir.',
+                    'title' => 'Ölçülü konuşmak',
+                    'body' => 'Yetişmeyecek işe baştan hayır diyoruz. Sonradan mazeret aramak kimsenin işine yaramıyor.',
                 ],
                 [
-                    'title' => 'İnsan önce gelir',
-                    'body' => 'Servis ettiğimiz kişi de, mutfakta çalışan ekip de aynı özeni hak eder.',
+                    'title' => 'Aynı sofra',
+                    'body' => 'Servis ettiğimiz insana ne yapıyorsak, mutfaktaki ekibe de aynısını yapıyoruz.',
                 ],
             ],
-            'group_relation' => 'Benim Lezzet Dünyam, Benim Başarı Dünyam şirket ailesinin yemek ve catering markasıdır. Aynı kurumsal disiplinle çalışır; kendi alanında bağımsız bir yapı olarak yönetilir.',
+            'group_relation' => 'Benim Lezzet Dünyam, Benim Başarı Dünyam şirket ailesinin mutfağıdır. Kurumsal düzenini oradan alır; menüsü, ocağı ve ekibi kendisine aittir.',
         ];
     }
 
@@ -187,36 +168,36 @@ final class SiteContentSeed
     {
         return [
             [
-                'question' => 'Minimum kaç kişilik hizmet veriyorsunuz?',
-                'answer' => 'Alt sınır hizmet türüne göre değişir. Düzenli kurumsal yemekte ve tek seferlik organizasyonlarda ölçek farklıdır; kişi sayınızı ilettiğinizde uygun olup olmadığını net biçimde söylüyoruz.',
+                'question' => 'En az kaç kişiye yemek yapıyorsunuz?',
+                'answer' => 'Düzenli hizmette ve tek günlük davette alt sınır aynı olmuyor. Kişi sayınızı söyleyin, yetişip yetişmeyeceğini o gün net söyleyelim.',
             ],
             [
-                'question' => 'Menüyü biz mi seçiyoruz, siz mi hazırlıyorsunuz?',
-                'answer' => 'İkisi de mümkün. Genellikle ihtiyacınıza göre bir menü planı hazırlayıp onayınıza sunuyoruz; üzerinde değişiklik yapabilir, kendi menünüzü de verebilirsiniz.',
+                'question' => 'Menüyü siz mi seçiyorsunuz, biz mi?',
+                'answer' => 'Genelde biz bir taslak çıkarıyoruz, siz üstünde oynuyorsunuz. Elinizde kendi menünüz varsa onu da uygularız.',
             ],
             [
-                'question' => 'Vejetaryen veya alerjisi olan çalışanlarımız için ne yapılıyor?',
-                'answer' => 'Ana menüye alternatif öğün planlanır, ayrı hazırlanır ve etiketlenir. Alerjen bilgisi kurumdan gelen listeye göre takip edilir; liste değiştiğinde menü planı da güncellenir.',
+                'question' => 'Vejetaryen ya da alerjisi olan çalışanlarımız var.',
+                'answer' => 'Onlara ayrı yemek pişiriyoruz, ayrı kaba koyup etiketliyoruz. Alerjen listesini siz veriyorsunuz; liste değişince menü de değişiyor.',
             ],
             [
-                'question' => 'Kişi sayımız her gün değişiyor, bu sorun olur mu?',
-                'answer' => 'Olmaz. Değişken sayıyla çalışan iş yerleri için günlük bildirim düzeni kuruyoruz; öğün adedi sabahtan gelen sayıya göre güncellenir.',
+                'question' => 'Kişi sayımız her gün değişiyor, sorun olur mu?',
+                'answer' => 'Olmaz. Sabah kaç kişi olduğunuzu bildiriyorsunuz, o kadar hazırlıyoruz. Değişken sayı bizim için olağan.',
             ],
             [
-                'question' => 'Yemek nasıl taşınıyor, sıcak geliyor mu?',
-                'answer' => 'Öğünler ısı yalıtımlı kapalı kaplarda taşınır ve teslimde sıcaklık kontrol edilir. Uzun bekleme gerektiren teslimatlarda menü, taşımaya uygun yemeklerden kurulur.',
+                'question' => 'Yemek sıcak geliyor mu?',
+                'answer' => 'Isı tutan kapalı kaplarda taşınıyor ve teslimde sıcaklığa bakılıyor. Yol uzunsa menüyü de ona göre kuruyoruz — yolda dağılacak yemeği o güne koymuyoruz.',
             ],
             [
-                'question' => 'Servis malzemesi ve personeli siz mi sağlıyorsunuz?',
-                'answer' => 'Hizmet türüne göre değişir. Taşıma yemekte servise hazır teslim yapılır; yerinde üretim ve organizasyon catering hizmetlerinde servis ekibi ve ekipman kurulumu dâhil planlanabilir.',
+                'question' => 'Tabak, çatal ve servis elemanı da veriyor musunuz?',
+                'answer' => 'Taşıma yemekte yemeği servise hazır bırakıyoruz. Davet ve organizasyonlarda kurulum, servis ekibi ve toplama işi de bize ait olabilir.',
             ],
             [
-                'question' => 'Fiyatları neden sitede göremiyorum?',
-                'answer' => 'Catering fiyatı kişi sayısı, öğün sayısı, hizmet sıklığı ve konuma göre değişiyor. Sabit bir liste vermek yanıltıcı olurdu; ihtiyacınızı ilettiğinizde size özel teklif hazırlıyoruz.',
+                'question' => 'Fiyatlar neden sitede yazmıyor?',
+                'answer' => 'Kişi sayısı, öğün sayısı, kaç gün ve nereye — dördü değişince fiyat da değişiyor. Sabit bir liste yazsak yanıltıcı olurdu. Bilgileri iletin, size özel çıkaralım.',
             ],
             [
-                'question' => 'Sözleşme süresi ne kadar olmak zorunda?',
-                'answer' => 'Zorunlu bir alt süre dayatmıyoruz. Düzenli hizmetlerde genellikle dönemsel bir çerçeve tercih ediliyor; tek seferlik organizasyonlar için sözleşme etkinliğe özel hazırlanıyor.',
+                'question' => 'Ne kadar süreyle sözleşme yapmamız gerekiyor?',
+                'answer' => 'Zorunlu bir alt süre koymuyoruz. Düzenli hizmette genelde dönemsel bir çerçeve tercih ediliyor; davetler için sözleşme etkinliğe özel yazılıyor.',
             ],
         ];
     }
@@ -237,56 +218,56 @@ final class SiteContentSeed
                 'slug' => 'sanayi',
                 'title' => 'Sanayi ve üretim',
                 'icon' => 'Factory',
-                'need' => 'Vardiya saatlerine dakikası dakikasına uyan, ağır işe yetecek öğünler.',
-                'answer' => 'Teslimat vardiya değişimine kilitlenir; menü kalori ihtiyacına göre kurulur ve personel sayısındaki dalgalanma günlük olarak güncellenir.',
+                'need' => 'Vardiya zilinde hazır olan, ağır işe yeten yemek.',
+                'answer' => 'Teslim saatini vardiya değişimine bağlıyoruz. Menü doyuruyor, sayı gün gün güncelleniyor.',
                 'service_slug' => 'kurumsal-toplu-yemek',
             ],
             [
                 'slug' => 'egitim',
-                'title' => 'Eğitim kurumları',
+                'title' => 'Okullar ve kreşler',
                 'icon' => 'GraduationCap',
-                'need' => 'Yaş grubuna uygun porsiyon, alerjen takibi ve velinin görebileceği menü.',
-                'answer' => 'Öğün planı yaş grubuna göre ayrılır, alerjisi olan öğrenciler için alternatif hazırlanır, aylık menü paylaşıma hazır biçimde verilir.',
+                'need' => 'Yaşa uygun porsiyon, alerji takibi ve veliye gösterilebilir bir menü.',
+                'answer' => 'Öğün planı yaşa göre ayrılıyor, alerjisi olana ayrı tabak çıkıyor, aylık liste paylaşıma hazır geliyor.',
                 'service_slug' => 'okul-yemek-hizmeti',
             ],
             [
                 'slug' => 'saglik',
                 'title' => 'Sağlık kuruluşları',
                 'icon' => 'HeartPulse',
-                'need' => 'Hasta diyetleriyle personel öğünlerinin birbirine karışmaması.',
-                'answer' => 'Diyet öğünleri ayrı akışta üretilir ve hasta bazlı etiketlenir; personel menüsü vardiyaya göre ayrı planlanır.',
+                'need' => 'Hasta diyetiyle personel yemeğinin birbirine karışmaması.',
+                'answer' => 'Diyet öğünleri ayrı pişiyor, hasta adına etiketleniyor. Personel menüsü vardiyaya göre ayrı planlanıyor.',
                 'service_slug' => 'saglik-kuruluslari',
             ],
             [
                 'slug' => 'kamu',
                 'title' => 'Kamu kurumları',
                 'icon' => 'Landmark',
-                'need' => 'Şartnameye uygun, belgelenebilir ve düzenli bir hizmet akışı.',
-                'answer' => 'Menü planı, teslimat kayıtları ve öğün sayıları raporlanabilir biçimde tutulur; hizmet şartname koşullarına göre kurgulanır.',
+                'need' => 'Şartnameye uyan ve belgelenebilen bir düzen.',
+                'answer' => 'Menü planı, teslim kayıtları ve öğün sayıları raporlanabilir tutuluyor; hizmet şartnameye göre kuruluyor.',
                 'service_slug' => 'tasima-yemek',
             ],
             [
                 'slug' => 'ofis',
-                'title' => 'Kurumsal ofisler',
+                'title' => 'Ofisler',
                 'icon' => 'Building',
-                'need' => 'Mutfak kurmadan, çalışanı memnun eden düzenli bir öğün çözümü.',
-                'answer' => 'Yemek merkez mutfakta hazırlanıp servise hazır teslim edilir; ofiste yalnızca servis alanı yeterlidir.',
+                'need' => 'Mutfak kurmadan, çalışanın memnun olacağı bir öğle yemeği.',
+                'answer' => 'Yemek bizde pişiyor, servise hazır geliyor. Ofiste bir masa yeterli.',
                 'service_slug' => 'tasima-yemek',
             ],
             [
                 'slug' => 'insaat',
                 'title' => 'İnşaat ve saha',
                 'icon' => 'TrafficCone',
-                'need' => 'Ulaşımı zor sahalara, değişken personel sayısıyla teslimat.',
-                'answer' => 'Saha koşullarına göre teslimat planlanır, günlük öğün adedi sahadan gelen sayıya göre güncellenir.',
+                'need' => 'Yolu zor sahaya, her gün değişen sayıyla teslimat.',
+                'answer' => 'Teslimi saha koşullarına göre planlıyoruz. Sabah kaç kişiyseniz, öğlen o kadar tabak.',
                 'service_slug' => 'santiye-yemek',
             ],
             [
                 'slug' => 'organizasyon',
-                'title' => 'Organizasyon ve etkinlik',
+                'title' => 'Davet ve etkinlik',
                 'icon' => 'PartyPopper',
-                'need' => 'Tek seferlik ama hatasız olması gereken bir servis düzeni.',
-                'answer' => 'Menü, kurulum, servis ekibi ve toplama tek pakette planlanır; davetli sayısındaki değişiklik için pay bırakılır.',
+                'need' => 'Bir kez olacak ve hatasız olması gereken bir gün.',
+                'answer' => 'Menü, kurulum, servis ve toplama tek pakette. Davetli sayısı artarsa diye pay bırakıyoruz.',
                 'service_slug' => 'davet-organizasyon',
             ],
         ];
@@ -313,86 +294,167 @@ final class SiteContentSeed
                 [
                     'slug' => 'kurumsal-dort-kap',
                     'title' => 'Kurumsal dört kap',
-                    'summary' => 'Çorba, ana yemek, yardımcı yemek ve tatlı/salata düzeniyle klasik öğle menüsü.',
+                    'summary' => 'Çorba, ana yemek, pilav ve yanına bir salata. Klasik öğle sofrası.',
                     'audience' => 'Ofis, fabrika ve kurumsal yemekhaneler',
                     'courses' => [
-                        ['label' => 'Çorba', 'examples' => 'Mercimek çorbası, Ezogelin, Yayla çorbası'],
-                        ['label' => 'Ana yemek', 'examples' => 'Etli kuru fasulye, Tavuk sote, Fırın tavuk but, Etli türlü'],
-                        ['label' => 'Yardımcı yemek', 'examples' => 'Pirinç pilavı, Bulgur pilavı, Makarna'],
-                        ['label' => 'Tamamlayıcı', 'examples' => 'Mevsim salata, Cacık, Ayran, Mevsim meyvesi'],
+                        [
+                            'label' => 'Çorba',
+                            'examples' => 'Mercimek çorbası, Ezogelin, Yayla çorbası',
+                        ],
+                        [
+                            'label' => 'Ana yemek',
+                            'examples' => 'Etli kuru fasulye, Tavuk sote, Fırın tavuk but, Etli türlü',
+                        ],
+                        [
+                            'label' => 'Yardımcı yemek',
+                            'examples' => 'Pirinç pilavı, Bulgur pilavı, Makarna',
+                        ],
+                        [
+                            'label' => 'Tamamlayıcı',
+                            'examples' => 'Mevsim salata, Cacık, Ayran, Mevsim meyvesi',
+                        ],
                     ],
-                    'principle' => 'Haftalık menüde aynı ana yemek tekrar etmez; et, tavuk ve baklagil öğünleri dengeli dağıtılır.',
+                    'principle' => 'Aynı ana yemek hafta içinde iki kez çıkmaz. Et, tavuk ve baklagil güne dağıtılır.',
                 ],
                 [
                     'slug' => 'personel-uc-kap',
                     'title' => 'Personel üç kap',
-                    'summary' => 'Daha kısa öğün molalarına uygun, hızlı servis edilebilen düzen.',
+                    'summary' => 'Molası kısa olan yerler için. Çabuk servis edilir, çabuk yenir.',
                     'audience' => 'Vardiyalı çalışan üretim tesisleri ve saha ekipleri',
                     'courses' => [
-                        ['label' => 'Çorba', 'examples' => 'Mercimek çorbası, Tarhana'],
-                        ['label' => 'Ana yemek', 'examples' => 'Etli nohut, Köfte, Tavuk haşlama'],
-                        ['label' => 'Tamamlayıcı', 'examples' => 'Pilav, Ekmek, Ayran'],
+                        [
+                            'label' => 'Çorba',
+                            'examples' => 'Mercimek çorbası, Tarhana',
+                        ],
+                        [
+                            'label' => 'Ana yemek',
+                            'examples' => 'Etli nohut, Köfte, Tavuk haşlama',
+                        ],
+                        [
+                            'label' => 'Tamamlayıcı',
+                            'examples' => 'Pilav, Ekmek, Ayran',
+                        ],
                     ],
-                    'principle' => 'Servis hızı önceliklidir: porsiyonlama kolay, sıcak kalma süresi uzun yemekler seçilir.',
+                    'principle' => 'Kepçeyle kolay dağılan, uzun süre sıcak kalan yemekleri seçiyoruz. Sıra hızlı akıyor.',
                 ],
                 [
                     'slug' => 'ogrenci-menusu',
                     'title' => 'Öğrenci menüsü',
-                    'summary' => 'Yaş grubuna göre porsiyonlanmış, alerjen bilgisi işaretlenmiş öğünler.',
+                    'summary' => 'Yaşa göre porsiyon, tabakta alerjen işareti.',
                     'audience' => 'Anaokulu, ilkokul, ortaokul ve liseler',
                     'courses' => [
-                        ['label' => 'Çorba veya başlangıç', 'examples' => 'Sebze çorbası, Şehriye çorbası'],
-                        ['label' => 'Ana yemek', 'examples' => 'Fırın makarna, Köfte, Sebzeli tavuk'],
-                        ['label' => 'Tamamlayıcı', 'examples' => 'Pilav, Yoğurt, Meyve'],
-                        ['label' => 'İkindi ikramı', 'examples' => 'Süt, Kek, Kuru meyve'],
+                        [
+                            'label' => 'Çorba veya başlangıç',
+                            'examples' => 'Sebze çorbası, Şehriye çorbası',
+                        ],
+                        [
+                            'label' => 'Ana yemek',
+                            'examples' => 'Fırın makarna, Köfte, Sebzeli tavuk',
+                        ],
+                        [
+                            'label' => 'Tamamlayıcı',
+                            'examples' => 'Pilav, Yoğurt, Meyve',
+                        ],
+                        [
+                            'label' => 'İkindi ikramı',
+                            'examples' => 'Süt, Kek, Kuru meyve',
+                        ],
                     ],
-                    'principle' => 'Çocukların gerçekten tükettiği biçimler tercih edilir; ağır baharat ve sos kullanılmaz.',
+                    'principle' => 'Çocuğun yediği biçimde veriyoruz. Ağır baharat ve yoğun sos yok.',
                 ],
                 [
                     'slug' => 'kahvalti-ikram',
                     'title' => 'Kahvaltı ve ikram paketleri',
-                    'summary' => 'Toplantı, eğitim ve etkinlikler için kurulumu hızlı ikram düzenleri.',
+                    'summary' => 'Toplantı ve eğitimlere, kurulumu on dakika süren ikram masaları.',
                     'audience' => 'Toplantı, seminer, eğitim ve lansmanlar',
                     'courses' => [
-                        ['label' => 'Açık büfe kahvaltı', 'examples' => 'Peynir çeşitleri, Zeytin, Yumurta, Reçel'],
-                        ['label' => 'Fırın ürünleri', 'examples' => 'Poğaça, Açma, Simit, Börek'],
-                        ['label' => 'Ara ikram', 'examples' => 'Kurabiye, Meyve tabağı, Kuruyemiş'],
-                        ['label' => 'İçecek', 'examples' => 'Çay, Filtre kahve, Meyve suyu'],
+                        [
+                            'label' => 'Açık büfe kahvaltı',
+                            'examples' => 'Peynir çeşitleri, Zeytin, Yumurta, Reçel',
+                        ],
+                        [
+                            'label' => 'Fırın ürünleri',
+                            'examples' => 'Poğaça, Açma, Simit, Börek',
+                        ],
+                        [
+                            'label' => 'Ara ikram',
+                            'examples' => 'Kurabiye, Meyve tabağı, Kuruyemiş',
+                        ],
+                        [
+                            'label' => 'İçecek',
+                            'examples' => 'Çay, Filtre kahve, Meyve suyu',
+                        ],
                     ],
-                    'principle' => 'Elde tüketilebilen, servis gerektirmeyen seçenekler öne alınır.',
+                    'principle' => 'Ayakta, elde yenen şeyler öne çıkıyor. Çatal aramak gerekmiyor.',
                 ],
                 [
                     'slug' => 'davet-menusu',
                     'title' => 'Davet menüsü',
-                    'summary' => 'Düğün, açılış ve kurumsal davetler için kapsamlı servis menüsü.',
+                    'summary' => 'Düğün, açılış ve kurumsal davetlere karşılamadan tatlıya kadar.',
                     'audience' => 'Düğün, nişan, açılış ve kurumsal davetler',
                     'courses' => [
-                        ['label' => 'Karşılama', 'examples' => 'Soğuk mezeler, Kanepe, Limonata'],
-                        ['label' => 'Başlangıç', 'examples' => 'Çorba, Soğuk başlangıç tabağı'],
-                        ['label' => 'Ana yemek', 'examples' => 'Fırın et, Tavuk şiş, Sebzeli et sote'],
-                        ['label' => 'Tamamlayıcı', 'examples' => 'Pilav, Salata, Sıcak börek'],
-                        ['label' => 'Tatlı', 'examples' => 'Sütlü tatlı, Şerbetli tatlı, Meyve'],
+                        [
+                            'label' => 'Karşılama',
+                            'examples' => 'Soğuk mezeler, Kanepe, Limonata',
+                        ],
+                        [
+                            'label' => 'Başlangıç',
+                            'examples' => 'Çorba, Soğuk başlangıç tabağı',
+                        ],
+                        [
+                            'label' => 'Ana yemek',
+                            'examples' => 'Fırın et, Tavuk şiş, Sebzeli et sote',
+                        ],
+                        [
+                            'label' => 'Tamamlayıcı',
+                            'examples' => 'Pilav, Salata, Sıcak börek',
+                        ],
+                        [
+                            'label' => 'Tatlı',
+                            'examples' => 'Sütlü tatlı, Şerbetli tatlı, Meyve',
+                        ],
                     ],
-                    'principle' => 'Menü etkinliğin saatine göre kurulur; öğle davetinde daha hafif, akşam davetinde daha kapsamlı bir akış tercih edilir.',
+                    'principle' => 'Menüyü saat belirliyor: öğle davetinde daha hafif, akşamda daha uzun bir sofra.',
                 ],
                 [
                     'slug' => 'ozel-beslenme',
                     'title' => 'Vejetaryen ve özel beslenme',
-                    'summary' => 'Ana menüye alternatif olarak planlanan özel ihtiyaç öğünleri.',
+                    'summary' => 'Ana menü uymayanlar için ayrı pişen, ayrı gelen tabak.',
                     'audience' => 'Vejetaryen, alerjisi olan veya özel diyet uygulayan katılımcılar',
                     'courses' => [
-                        ['label' => 'Ana yemek', 'examples' => 'Sebzeli güveç, Nohutlu bulgur pilavı, Mercimek köfte'],
-                        ['label' => 'Tamamlayıcı', 'examples' => 'Yeşil salata, Humus, Yoğurt (istenirse)'],
-                        ['label' => 'Alerjen yönetimi', 'examples' => 'Glutensiz seçenek, Laktozsuz seçenek'],
+                        [
+                            'label' => 'Ana yemek',
+                            'examples' => 'Sebzeli güveç, Nohutlu bulgur pilavı, Mercimek köfte',
+                        ],
+                        [
+                            'label' => 'Tamamlayıcı',
+                            'examples' => 'Yeşil salata, Humus, Yoğurt (istenirse)',
+                        ],
+                        [
+                            'label' => 'Alerjen yönetimi',
+                            'examples' => 'Glutensiz seçenek, Laktozsuz seçenek',
+                        ],
                     ],
-                    'principle' => 'Özel öğün ana menüden ayrı hazırlanır ve etiketlenir; çapraz bulaşma riskini azaltmak için ayrı kaplarda taşınır.',
+                    'principle' => 'Ayrı tezgâhta hazırlanıyor, üzerine adı yazılıyor, ayrı kapta yola çıkıyor.',
                 ],
             ],
             'seasonal' => [
-                ['season' => 'İlkbahar', 'note' => 'Taze sebze öğünleri ve yeşillik ağırlıklı salatalar öne alınır.'],
-                ['season' => 'Yaz', 'note' => 'Hafif öğünler, soğuk başlangıçlar ve ayran/limonata tüketimi artar.'],
-                ['season' => 'Sonbahar', 'note' => 'Baklagil ve kök sebze yemekleri menüde ağırlık kazanır.'],
-                ['season' => 'Kış', 'note' => 'Çorba çeşidi artırılır; doyurucu ve sıcak tutan öğünler öne çıkar.'],
+                [
+                    'season' => 'İlkbahar',
+                    'note' => 'Taze sebze ve yeşillik menüye giriyor; salata tabağı büyüyor.',
+                ],
+                [
+                    'season' => 'Yaz',
+                    'note' => 'Yemek hafifliyor, soğuk başlangıçlar ve ayran öne geçiyor.',
+                ],
+                [
+                    'season' => 'Sonbahar',
+                    'note' => 'Kuru fasulye, nohut ve kök sebzelerin sırası geliyor.',
+                ],
+                [
+                    'season' => 'Kış',
+                    'note' => 'Çorba çeşidi artıyor; sıcak tutan, doyuran yemekler öne çıkıyor.',
+                ],
             ],
         ];
     }
@@ -401,70 +463,62 @@ final class SiteContentSeed
     private static function quality(): array
     {
         return [
-            // Hammadde girişinden teslimata kadar zincir — sıralı okunacak.
             'chain' => [
                 [
-                    'title' => 'Hammadde seçimi',
-                    'body' => 'Malzeme, düzenli çalışılan tedarikçilerden alınır. Girişte görsel kontrol yapılır; uygun bulunmayan ürün kabul edilmez.',
+                    'title' => 'Mal girişi',
+                    'body' => 'Malzemeyi hep aynı yerlerden alıyoruz. Kapıda kasa kasa bakılır; beğenilmeyen geri gider.',
                     'icon' => 'Sprout',
                 ],
                 [
-                    'title' => 'Depolama koşulları',
-                    'body' => 'Kuru gıda, soğuk ve dondurulmuş ürünler ayrı alanlarda saklanır. Ürünler giriş tarihine göre sıraya konur; önce giren önce kullanılır.',
+                    'title' => 'Depo',
+                    'body' => 'Kuru gıda, soğuk ve dondurulmuş ayrı yerlerde durur. Rafta önce giren önce çıkar.',
                     'icon' => 'Refrigerator',
                 ],
                 [
-                    'title' => 'Mutfak hijyeni',
-                    'body' => 'Hazırlık yüzeyleri ve ekipman, kullanım öncesi ve sonrası temizlenir. Çiğ ve pişmiş ürün için ayrı hazırlık alanı ve ekipman kullanılır.',
+                    'title' => 'Tezgâh',
+                    'body' => 'Tezgâh ve ekipman iş öncesi ve sonrası temizlenir. Çiğ etin bıçağı salatanın bıçağı olmaz.',
                     'icon' => 'UtensilsCrossed',
                 ],
                 [
-                    'title' => 'Personel hijyeni',
-                    'body' => 'Mutfak ekibi bone, maske ve iş kıyafetiyle çalışır. El hijyeni kuralları üretim akışının bir parçası olarak uygulanır.',
+                    'title' => 'Ekip',
+                    'body' => 'Mutfakta bone, maske ve iş kıyafeti var. El yıkamak işin adımlarından biri.',
                     'icon' => 'ShieldCheck',
                 ],
                 [
-                    'title' => 'Üretim ve pişirme',
-                    'body' => 'Öğünler servis saatine göre planlanan zamanda pişirilir. Uzun süre bekleyecek biçimde erken üretim yapılmaz.',
+                    'title' => 'Ocak',
+                    'body' => 'Pişirme saati servis saatinden geri sayılarak belirlenir. Sabahtan pişip öğlene kadar bekleyen yemek yok.',
                     'icon' => 'ClipboardCheck',
                 ],
                 [
-                    'title' => 'Sıcaklık kontrolü',
-                    'body' => 'Sıcak yemek sıcak, soğuk ürün soğuk zincirde tutulur. Sıcaklık, sevkiyat öncesi ve teslimde kontrol edilir.',
+                    'title' => 'Sıcaklık',
+                    'body' => 'Sıcak sıcakta, soğuk soğukta durur. Termometre hem çıkışta hem teslimde giriyor.',
                     'icon' => 'ThermometerSnowflake',
                 ],
                 [
-                    'title' => 'Taşıma ve teslimat',
-                    'body' => 'Yemek, ısı yalıtımlı kapalı kaplarla taşınır. Teslim edilen öğün, sayı ve saat bilgisiyle kayda geçer.',
+                    'title' => 'Yol',
+                    'body' => 'Yemek ısı tutan kapalı kaplarla gider. Kaç kap, kaçta teslim edildi — hepsi yazılır.',
                     'icon' => 'Truck',
                 ],
                 [
-                    'title' => 'İzlenebilirlik',
-                    'body' => 'Hangi gün hangi menünün üretildiği ve nereye teslim edildiği kayıt altındadır. Geriye dönük inceleme gerektiğinde bu kayıtlar kullanılır.',
+                    'title' => 'Kayıt',
+                    'body' => 'Hangi gün ne pişti, nereye gitti — hepsi duruyor. Geriye dönüp bakmak gerekirse kayıt orada.',
                     'icon' => 'PackageCheck',
                 ],
             ],
-            /*
-             * Alerjen yönetimi ayrı bölüm: sorumluluk kurumla paylaşılıyor.
-             *
-             * Satırlar düz metin değil `{text: ...}`: paneldeki tekrarlayıcı
-             * her satırı `text` alanlı bir kayıt olarak yazıyor. Düz dizi
-             * seedlersek yönetici ilk kaydetmede maddelerin biçim değiştirdiğini
-             * görürdü.
-             */
             'allergen' => [
-                ['text' => 'Menüdeki öğünlerin içerdiği bilinen alerjenler kurumla paylaşılır.'],
-                ['text' => 'Alerjisi olan kişiler için alternatif öğün ayrı hazırlanır ve etiketlenir.'],
-                ['text' => 'Özel öğünler, çapraz bulaşma riskini azaltmak için ayrı kaplarda taşınır.'],
-                ['text' => 'Alerjen listesi kurumdan gelen bilgiye dayanır; liste güncellendiğinde menü planı da güncellenir.'],
+                [
+                    'text' => 'Menüdeki yemeklerin bilinen alerjenlerini önden yazılı veriyoruz.',
+                ],
+                [
+                    'text' => 'Alerjisi olana ayrı yemek pişiyor, kabın üzerine adı yazılıyor.',
+                ],
+                [
+                    'text' => 'O kaplar ayrı taşınıyor — yolda diğerlerine değmiyor.',
+                ],
+                [
+                    'text' => 'Listeyi siz veriyorsunuz. Yeni bir isim eklendiğinde menü planı da değişiyor.',
+                ],
             ],
-            /*
-             * BOŞ BIRAKILDI — repoda BLD adına düzenlenmiş ISO, HACCP, TSE veya
-             * gıda üretim izni belgesi yok. Sahip olunmayan bir belgeyi varmış
-             * gibi göstermek gıda sektöründe yaptırımı olan bir beyandır. Firma
-             * belge bilgisini verdiğinde panelden eklenir ve Kalite sayfasındaki
-             * sertifika bölümü kendiliğinden görünür.
-             */
             'certifications' => [],
         ];
     }
@@ -486,140 +540,140 @@ final class SiteContentSeed
             [
                 'slug' => 'kurumsal-toplu-yemek',
                 'title' => 'Kurumsal toplu yemek',
-                'summary' => 'Ofis, fabrika ve iş yerleri için her gün tekrarlayan öğün hizmeti.',
-                'intro' => 'Çalışanlarınızın öğle ve akşam öğünlerini, iş temponuzu aksatmayacak bir düzende planlıyoruz. Menü haftalık olarak önceden paylaşılır, üretim ve teslimat saatleri vardiyanıza göre belirlenir.',
+                'summary' => 'Ofis, fabrika ve iş yerlerine her gün tekrarlayan öğle ve akşam yemeği.',
+                'intro' => 'Her sabah aynı saatte pişer, aynı saatte gelir. Menüyü bir hafta önceden görürsünüz; teslim saatini vardiyanız belirler.',
                 'icon' => 'Building2',
                 'audience' => [
-                    'Beyaz ve mavi yaka çalışanı olan iş yerleri',
+                    'Ofisler ve iş merkezleri',
                     'Vardiyalı çalışan üretim tesisleri',
-                    'Yemekhanesi olan veya olmayan ofisler',
-                    'Personeline düzenli öğün sağlamak isteyen kurumlar',
+                    'Yemekhanesi olan da olmayan da',
+                    'Personeline her gün sıcak yemek veren kurumlar',
                 ],
                 'how_it_works' => [
                     [
-                        'title' => 'İhtiyaç görüşmesi',
-                        'body' => 'Günlük kişi sayısı, öğün saatleri, vardiya düzeni ve varsa mevcut yemekhane altyapınız konuşulur.',
+                        'title' => 'Sayıyı ve saati konuşuyoruz',
+                        'body' => 'Günde kaç kişi, hangi saatte, kaç vardiya. Yemekhaneniz varsa gelip bakıyoruz.',
                     ],
                     [
-                        'title' => 'Menü planı',
-                        'body' => 'Haftalık veya aylık menü hazırlanır. Mevsim, tekrar dengesi ve besin çeşitliliği gözetilir; onayınıza sunulur.',
+                        'title' => 'Haftalık menüyü çıkarıyoruz',
+                        'body' => 'Bir haftalık liste hazırlıyoruz. Aynı yemek üst üste gelmez; onaylayınca kesinleşir.',
                     ],
                     [
-                        'title' => 'Üretim ve teslimat',
-                        'body' => 'Öğünler merkez mutfakta hazırlanır, sıcaklık kontrollü kaplarda belirlenen saatte teslim edilir.',
+                        'title' => 'Pişiriyoruz, getiriyoruz',
+                        'body' => 'Yemek sabah mutfakta yapılır, ısı tutan kaplarda saatinde kapınızda olur.',
                     ],
                     [
-                        'title' => 'Servis ve geri bildirim',
-                        'body' => 'Servis düzeni kurulur, artan-eksilen takip edilir ve menü geri bildirime göre güncellenir.',
+                        'title' => 'Sayıyor, soruyoruz',
+                        'body' => 'Ne arttı, ne bitti bakıyoruz. Kimsenin yemediği yemek bir daha menüye girmiyor.',
                     ],
                 ],
                 'benefits' => [
-                    'Mutfak kurma ve personel istihdam etme yükü ortadan kalkar',
-                    'Öğün maliyeti öngörülebilir hâle gelir',
-                    'Menü tekrarı ve besin dengesi takip edilir',
-                    'Tek muhatapla çalışırsınız; sipariş, teslimat ve faturalama tek akışta ilerler',
+                    'Mutfak kurmak, aşçı tutmak, malzeme almak yok',
+                    'Öğün maliyetiniz baştan belli',
+                    'Menü tekrarını biz takip ediyoruz',
+                    'Sipariş de fatura da tek kişide',
                 ],
-                'menu_planning' => 'Menü, çalışan profilinize göre kurgulanır. Ağır iş kolunda kalori ihtiyacı yüksek öğünler, ofis ortamında daha hafif seçenekler öne alınır. Vejetaryen ve özel beslenme ihtiyaçları için alternatif kap eklenebilir.',
+                'menu_planning' => 'Menü kimin yediğine göre değişir. Ağır işte doyuran yemekler öne çıkar, ofiste daha hafif kaplar. Vejetaryen ya da alerjisi olan varsa onlara ayrı bir kap ekleriz.',
                 'quote_needs' => [
-                    'Günlük ortalama kişi sayısı',
-                    'Öğün türü ve saatleri (öğle, akşam, vardiya arası)',
-                    'Hizmet konumu',
-                    'Haftalık hizmet günü sayısı',
+                    'Günde ortalama kaç kişi',
+                    'Öğün ve saatleri (öğle, akşam, vardiya arası)',
+                    'Adres',
+                    'Haftada kaç gün',
                 ],
             ],
             [
                 'slug' => 'tasima-yemek',
                 'title' => 'Taşıma yemek',
-                'summary' => 'Merkez mutfakta üretim, sıcaklık kontrollü kaplarda yerinde teslim.',
-                'intro' => 'Kendi mutfağı bulunmayan veya mutfağını işletmek istemeyen kurumlar için yemek merkez mutfağımızda hazırlanır ve servise hazır biçimde adresinize ulaştırılır.',
+                'summary' => 'Yemek bizim mutfakta pişer, servise hazır hâlde adresinize gelir.',
+                'intro' => 'Mutfağınız yoksa ya da işletmek istemiyorsanız en pratik yol bu. Bizde pişer, kapalı kapta gelir, siz yalnızca servis edersiniz.',
                 'icon' => 'Truck',
                 'audience' => [
-                    'Mutfak altyapısı olmayan iş yerleri',
+                    'Mutfağı olmayan iş yerleri',
                     'Küçük ve orta ölçekli ofisler',
-                    'Geçici veya proje bazlı çalışma alanları',
+                    'Proje bazlı, geçici çalışma alanları',
                     'Yemekhanesi yalnızca servis alanı olan kurumlar',
                 ],
                 'how_it_works' => [
                     [
-                        'title' => 'Sipariş ve planlama',
-                        'body' => 'Günlük kişi sayısı ve teslim saati belirlenir; menü önceden paylaşılır.',
+                        'title' => 'Sayı ve saat',
+                        'body' => 'Kaç kişi ve saat kaçta. Menüyü önden paylaşıyoruz.',
                     ],
                     [
-                        'title' => 'Merkez mutfakta üretim',
-                        'body' => 'Öğünler teslim saatine göre planlanan üretim akışıyla hazırlanır.',
+                        'title' => 'Mutfakta üretim',
+                        'body' => 'Teslim saatinden geri sayarak pişiriyoruz — erken pişip bekleyen yemek yok.',
                     ],
                     [
-                        'title' => 'Sıcaklık kontrollü taşıma',
-                        'body' => 'Yemek, sıcak ve soğuk zinciri koruyan kaplarla taşınır; teslimde sıcaklık kontrol edilir.',
+                        'title' => 'Kapalı kapta yol',
+                        'body' => 'Sıcak sıcak, soğuk soğuk gider. Kapıda sıcaklığa bakılır.',
                     ],
                     [
                         'title' => 'Servise hazır teslim',
-                        'body' => 'Öğünler servis alanınıza kurulur veya kapalı kaplarda teslim edilir.',
+                        'body' => 'İsterseniz servis alanınıza kurarız, isterseniz kapalı kapta bırakırız.',
                     ],
                 ],
                 'benefits' => [
-                    'Mutfak yatırımı ve işletme gideri gerekmez',
-                    'Servis alanı dışında yer ayırmanız gerekmez',
-                    'Kişi sayısı değişken olduğunda hızlı uyarlanır',
-                    'Teslimat saati iş akışınıza göre sabitlenir',
+                    'Mutfak yatırımı ve işletme gideri yok',
+                    'Servis alanı dışında yer ayırmıyorsunuz',
+                    'Sayı değiştiğinde aynı gün uyarlanıyor',
+                    'Teslim saatini iş akışınız belirliyor',
                 ],
-                'menu_planning' => 'Taşımaya uygun yemekler öne alınır: uzun süre sıcak kalabilen, taşıma sırasında yapısı bozulmayan seçenekler. Kızartma gibi çabuk yumuşayan kaplar teslim saatine yakın planlanır.',
+                'menu_planning' => 'Yolu iyi götüren yemekleri seçiyoruz: uzun süre sıcak kalan, sarsıntıda dağılmayan kaplar. Kızartma gibi çabuk yumuşayan şeyleri teslim saatine yakın planlıyoruz.',
                 'quote_needs' => [
-                    'Günlük kişi sayısı',
-                    'Teslim adresi ve teslim saati',
-                    'Kap sayısı tercihi (üç kap, dört kap)',
-                    'Servis malzemesi ihtiyacınız olup olmadığı',
+                    'Günde kaç kişi',
+                    'Teslim adresi ve saati',
+                    'Kaç kap istiyorsunuz (üç kap, dört kap)',
+                    'Tabak-çatal ihtiyacınız var mı',
                 ],
             ],
             [
                 'slug' => 'yerinde-uretim',
                 'title' => 'Yerinde üretim',
-                'summary' => 'Kurumun kendi mutfağında, bizim ekibimizle günlük üretim.',
-                'intro' => 'Mutfak altyapısı bulunan kurumlarda üretimi yerinde yapıyoruz. Yemek servis edileceği yerde pişer; taşıma süresi ortadan kalkar, tazelik en üst düzeyde kalır.',
+                'summary' => 'Sizin mutfağınızda, bizim ekibimizle günlük pişirme.',
+                'intro' => 'Mutfağınız varsa yemek orada pişsin. Yol yok, bekleme yok; tencereden tabağa geçen süre birkaç dakika.',
                 'icon' => 'ChefHat',
                 'audience' => [
                     'Kendi mutfağı olan fabrika ve kampüsler',
-                    'Yemekhane işletmesini dışarıya vermek isteyen kurumlar',
-                    'Yüksek kişi sayısına düzenli hizmet veren tesisler',
-                    'Kahvaltı, öğle ve akşam öğünlerini aynı yerde veren kuruluşlar',
+                    'Yemekhanesini dışarıya vermek isteyen kurumlar',
+                    'Yüksek kişi sayılı tesisler',
+                    'Kahvaltı, öğle ve akşamı aynı yerde veren kuruluşlar',
                 ],
                 'how_it_works' => [
                     [
-                        'title' => 'Mutfak değerlendirmesi',
-                        'body' => 'Mevcut ekipman, depolama alanı, havalandırma ve personel ihtiyacı yerinde incelenir.',
+                        'title' => 'Mutfağa bakıyoruz',
+                        'body' => 'Ekipman, depo, havalandırma ve kaç kişilik ekip gerektiği yerinde çıkarılıyor.',
                     ],
                     [
-                        'title' => 'Ekip ve düzen kurulumu',
-                        'body' => 'Aşçı ve servis ekibi görevlendirilir, üretim akışı ve hijyen düzeni kurulur.',
+                        'title' => 'Ekibi kuruyoruz',
+                        'body' => 'Aşçı ve servis ekibi göreve başlıyor, mutfağın günlük düzeni oturuyor.',
                     ],
                     [
-                        'title' => 'Günlük üretim',
-                        'body' => 'Malzeme tedariği bize aittir; öğünler servis saatine göre yerinde hazırlanır.',
+                        'title' => 'Her gün taze',
+                        'body' => 'Malzemeyi biz alıyoruz, yemek servis saatine göre yerinde pişiyor.',
                     ],
                     [
-                        'title' => 'Servis ve raporlama',
-                        'body' => 'Servis yürütülür, tüketim ve stok takibi düzenli olarak paylaşılır.',
+                        'title' => 'Servis ve rapor',
+                        'body' => 'Servisi biz yürütüyoruz; ne kadar tüketildiği ve stok durumu düzenli olarak size geliyor.',
                     ],
                 ],
                 'benefits' => [
-                    'Yemek servis edildiği yerde pişer, taşıma kaybı olmaz',
-                    'Menü gün içinde ihtiyaca göre esnetilebilir',
-                    'Mutfak personeli yönetimi sizin üzerinizden kalkar',
-                    'Tedarik, hijyen ve servis tek elden yürütülür',
+                    'Yemek yendiği yerde pişiyor, yolda tat kaybı yok',
+                    'Gün içinde menüyü esnetmek mümkün',
+                    'Mutfak personeli derdi sizden çıkıyor',
+                    'Malzeme, hijyen ve servis tek elde',
                 ],
-                'menu_planning' => 'Yerinde üretimde menü esnekliği en yüksek seviyededir. Günlük taze pişirme, açık büfe düzeni ve talebe göre porsiyon ayarı mümkündür. Menü, mutfağın ekipman kapasitesine göre planlanır.',
+                'menu_planning' => 'Esnekliğin en yüksek olduğu düzen bu. Açık büfe kurulabilir, porsiyon gün içinde ayarlanabilir, ikinci parti pişirilebilir. Menüyü mutfağın ekipmanı belirler.',
                 'quote_needs' => [
-                    'Günlük kişi sayısı ve öğün sayısı',
-                    'Mutfak alanı ve mevcut ekipman bilgisi',
+                    'Günlük kişi ve öğün sayısı',
+                    'Mutfak alanı ve mevcut ekipman',
                     'Servis düzeni (tabldot, açık büfe)',
-                    'Sözleşme süresi beklentiniz',
+                    'Ne kadar süreli düşünüyorsunuz',
                 ],
             ],
             [
                 'slug' => 'okul-yemek-hizmeti',
                 'title' => 'Okul yemek hizmeti',
-                'summary' => 'Yaş grubuna göre planlanmış öğünler ve alerjen takibi.',
-                'intro' => 'Okul öncesinden liseye kadar farklı yaş gruplarının beslenme ihtiyacı aynı değildir. Menüleri porsiyon, besin dengesi ve çocukların gerçekten yediği yemekler gözetilerek planlıyoruz.',
+                'summary' => 'Yaşa göre porsiyon, alerjen takibi ve veliye gösterilebilir menü.',
+                'intro' => 'Anaokulundaki çocukla lise öğrencisi aynı tabağı yemiyor. Menüyü yaşa göre kuruyoruz ve çocukların gerçekten yediği yemekleri koyuyoruz.',
                 'icon' => 'GraduationCap',
                 'audience' => [
                     'Anaokulu ve kreşler',
@@ -629,85 +683,85 @@ final class SiteContentSeed
                 ],
                 'how_it_works' => [
                     [
-                        'title' => 'Yaş grubu ve öğün planı',
-                        'body' => 'Kahvaltı, öğle ve ikindi ikramı ihtiyacı yaş grubuna göre belirlenir.',
+                        'title' => 'Yaş grupları ve öğünler',
+                        'body' => 'Kahvaltı, öğle, ikindi — hangisi hangi yaşa, kaç kişilik.',
                     ],
                     [
-                        'title' => 'Alerjen ve özel durum kaydı',
-                        'body' => 'Alerjisi veya özel beslenme ihtiyacı olan öğrenciler listelenir; alternatif öğün planlanır.',
+                        'title' => 'Alerji listesi',
+                        'body' => 'Alerjisi ya da özel beslenmesi olan öğrenciler listeleniyor, onlara ayrı öğün planlanıyor.',
                     ],
                     [
-                        'title' => 'Üretim ve teslim',
-                        'body' => 'Öğünler ders saatlerine göre planlanan zamanda hazırlanır ve teslim edilir.',
+                        'title' => 'Ders saatine göre teslim',
+                        'body' => 'Yemek teneffüse yetişecek şekilde hazırlanıp getiriliyor.',
                     ],
                     [
-                        'title' => 'Veli bilgilendirme',
-                        'body' => 'Aylık menü, kurumun tercih ettiği kanaldan velilerle paylaşılabilecek biçimde hazırlanır.',
+                        'title' => 'Veliye gidecek menü',
+                        'body' => 'Aylık liste, okulun paylaştığı biçimde hazır geliyor.',
                     ],
                 ],
                 'benefits' => [
-                    'Menü yaş grubuna göre porsiyonlanır',
-                    'Alerjen bilgisi öğrenci bazında takip edilir',
-                    'Aylık menü velilerle paylaşılabilir biçimde hazırlanır',
-                    'Öğün saatleri ders programına göre sabitlenir',
+                    'Porsiyon yaş grubuna göre',
+                    'Alerjen bilgisi öğrenci bazında takip ediliyor',
+                    'Aylık menü veliyle paylaşılmaya hazır',
+                    'Öğün saatleri ders programına kilitli',
                 ],
-                'menu_planning' => 'Menüde sebze ve baklagil öğünleri, çocukların tükettiği biçimlerle sunulur. Aşırı baharat ve ağır soslardan kaçınılır. Aylık menü tekrar dengesi gözetilerek kurulur ve okul yönetiminin onayına sunulur.',
+                'menu_planning' => 'Sebzeyi ve baklagili çocukların yediği biçimde veriyoruz. Ağır baharat, yoğun sos yok. Aylık listede aynı yemek sık sık dönmüyor; son hâlini okul yönetimi onaylıyor.',
                 'quote_needs' => [
                     'Öğrenci sayısı ve yaş grupları',
-                    'Günlük öğün sayısı (kahvaltı, öğle, ikindi)',
+                    'Günde kaç öğün (kahvaltı, öğle, ikindi)',
                     'Alerjisi olan öğrenci sayısı',
-                    'Eğitim döneminde hizmet verilecek gün sayısı',
+                    'Dönemde kaç gün hizmet',
                 ],
             ],
             [
                 'slug' => 'saglik-kuruluslari',
-                'title' => 'Sağlık kuruluşlarına yemek hizmeti',
-                'summary' => 'Hasta, personel ve refakatçi öğünlerinin ayrı planlanması.',
-                'intro' => 'Sağlık kuruluşlarında tek bir menü yeterli olmaz: hasta diyetleri, personel öğünleri ve refakatçi yemekleri farklı planlanır. Üçünü ayrı akışlarda yürütecek biçimde çalışıyoruz.',
+                'title' => 'Sağlık kuruluşlarına yemek',
+                'summary' => 'Hasta diyeti, personel öğünü ve refakatçi yemeği ayrı ayrı.',
+                'intro' => 'Burada tek menü iş görmüyor. Diyet tabağı, nöbetçi hemşirenin tabağı ve refakatçinin tabağı ayrı hazırlanıyor, ayrı etiketleniyor.',
                 'icon' => 'Stethoscope',
                 'audience' => [
                     'Hastaneler ve tıp merkezleri',
                     'Diyaliz ve rehabilitasyon merkezleri',
                     'Huzurevleri ve bakım evleri',
-                    'Poliklinik ve sağlık kampüsleri',
+                    'Poliklinikler ve sağlık kampüsleri',
                 ],
                 'how_it_works' => [
                     [
-                        'title' => 'Diyet listelerinin alınması',
-                        'body' => 'Kurumun diyetisyeni tarafından belirlenen diyet tipleri ve öğün sayıları alınır.',
+                        'title' => 'Diyet listeleri geliyor',
+                        'body' => 'Kurumun diyetisyeni hangi diyetten kaç öğün gerektiğini bildiriyor.',
                     ],
                     [
-                        'title' => 'Ayrı üretim akışı',
-                        'body' => 'Diyet öğünleri, personel ve refakatçi öğünlerinden ayrı hazırlanır ve etiketlenir.',
+                        'title' => 'Ayrı akış, ayrı etiket',
+                        'body' => 'Diyet öğünleri personel ve refakatçi yemeğinden ayrı hazırlanıyor, üzerine kimin olduğu yazılıyor.',
                     ],
                     [
-                        'title' => 'Kat ve birim dağıtımı',
-                        'body' => 'Öğünler servis saatinde ilgili birime, hasta bazlı etiketiyle ulaştırılır.',
+                        'title' => 'Kata teslim',
+                        'body' => 'Öğünler servis saatinde ilgili birime, etiketleriyle çıkıyor.',
                     ],
                     [
-                        'title' => 'Takip ve düzeltme',
-                        'body' => 'Değişen diyet talimatları gün içinde güncellenebilecek şekilde işlenir.',
+                        'title' => 'Gün içi değişiklik',
+                        'body' => 'Diyet talimatı değiştiğinde o öğün için güncelleniyor.',
                     ],
                 ],
                 'benefits' => [
-                    'Hasta, personel ve refakatçi öğünleri karışmaz',
-                    'Diyet talimatları öğün bazında etiketlenir',
-                    'Servis saatleri vizit ve tedavi düzenine göre ayarlanır',
-                    'Gün içi değişikliklere uyarlanabilir bir akış kurulur',
+                    'Hasta, personel ve refakatçi tabakları karışmıyor',
+                    'Her diyet öğünü etiketli çıkıyor',
+                    'Servis saatleri vizit düzenine göre',
+                    'Gün içinde değişen talimata uyum',
                 ],
-                'menu_planning' => 'Diyet menüleri kurumun diyetisyeninin belirlediği listelere göre uygulanır; biz üretim ve teslimat tarafını yürütürüz. Personel menüsü ise vardiya saatlerine göre planlanır.',
+                'menu_planning' => 'Diyet menülerini kurumun diyetisyeni belirliyor; biz pişirip yetiştiriyoruz. Personel menüsü vardiya saatlerine göre ayrı planlanıyor.',
                 'quote_needs' => [
                     'Yatak kapasitesi ve ortalama doluluk',
                     'Diyet tipleri ve günlük öğün sayısı',
                     'Personel sayısı ve vardiya düzeni',
-                    'Birim/kat dağıtım gereksinimi',
+                    'Kat/birim dağıtımı gerekiyor mu',
                 ],
             ],
             [
                 'slug' => 'santiye-yemek',
                 'title' => 'Şantiye yemek hizmeti',
-                'summary' => 'Vardiyalı çalışmaya uygun, sahada teslim edilen doyurucu öğünler.',
-                'intro' => 'Şantiyede öğün saati sabit değildir ve iş ağırdır. Menüyü kalori ihtiyacına göre kuruyor, teslimatı vardiya değişimine göre planlıyoruz.',
+                'summary' => 'Sahaya kadar gelen, ağır işe yeten doyurucu öğünler.',
+                'intro' => 'Şantiyede iş ağır, mola kısa, saat sabit değil. Menüyü karnı doyuracak şekilde kuruyor, teslimi vardiya değişimine göre ayarlıyoruz.',
                 'icon' => 'HardHat',
                 'audience' => [
                     'İnşaat şantiyeleri',
@@ -717,121 +771,121 @@ final class SiteContentSeed
                 ],
                 'how_it_works' => [
                     [
-                        'title' => 'Saha ve vardiya bilgisi',
-                        'body' => 'Şantiye konumu, ulaşım koşulları ve vardiya saatleri belirlenir.',
+                        'title' => 'Saha ve vardiya',
+                        'body' => 'Şantiye nerede, yol nasıl, vardiyalar kaçta. Hepsi teslim planına giriyor.',
                     ],
                     [
-                        'title' => 'Kalori odaklı menü',
-                        'body' => 'Ağır işe uygun, doyurucu ve dengeli menü kurulur.',
+                        'title' => 'Doyuran menü',
+                        'body' => 'Et ve baklagil ağırlıklı, uzun süre tok tutan yemekler.',
                     ],
                     [
-                        'title' => 'Sahaya teslimat',
-                        'body' => 'Öğünler sıcaklık kontrollü kaplarla, vardiya değişimine yetişecek şekilde ulaştırılır.',
+                        'title' => 'Sahaya teslim',
+                        'body' => 'Isı tutan kaplarla, vardiya değişimine yetişecek saatte.',
                     ],
                     [
                         'title' => 'Sayı takibi',
-                        'body' => 'Değişken personel sayısına göre günlük öğün adedi güncellenir.',
+                        'body' => 'Sahada kaç kişi varsa o kadar. Sabah bildirim, öğlen yemek.',
                     ],
                 ],
                 'benefits' => [
-                    'Vardiya saatlerine göre teslimat',
-                    'Ağır iş koluna uygun kalori planlaması',
+                    'Teslim saati vardiyaya göre',
+                    'Ağır iş koluna göre porsiyon',
                     'Değişken personel sayısına hızlı uyum',
                     'Sahada servis düzeni kurulumu',
                 ],
-                'menu_planning' => 'Menüde et ve baklagil ağırlıklı, uzun süre tok tutan yemekler öne alınır. Yaz aylarında ayran ve soğuk yan ürünler, kış aylarında çorba öne çıkarılır.',
+                'menu_planning' => 'Kışın çorba çeşidi artıyor, sıcak tutan yemekler öne geçiyor. Yazın ayran ve soğuk yan ürünler devreye giriyor.',
                 'quote_needs' => [
-                    'Şantiye konumu ve ulaşım koşulları',
-                    'Vardiya sayısı ve saatleri',
-                    'Ortalama günlük personel sayısı',
-                    'Projenin tahmini süresi',
+                    'Şantiye konumu ve yol durumu',
+                    'Kaç vardiya, hangi saatlerde',
+                    'Günlük ortalama personel',
+                    'Proje ne kadar sürecek',
                 ],
             ],
             [
                 'slug' => 'davet-organizasyon',
-                'title' => 'Davet ve organizasyon catering',
-                'summary' => 'Düğün, açılış ve kurumsal etkinlikler için kurulumlu catering.',
-                'intro' => 'Davetlerde yemek kadar servis düzeni de önemlidir. Menü, sunum ve servis ekibini etkinliğin akışına göre planlıyoruz.',
+                'title' => 'Davet ve organizasyon',
+                'summary' => 'Düğün, açılış ve kurumsal davetlere kurulumuyla birlikte catering.',
+                'intro' => 'Davette yemek kadar servisin düzeni de konuşuluyor. Menüyü, sunumu ve ekibi günün akışına göre kuruyoruz; sonunda ortalığı da biz topluyoruz.',
                 'icon' => 'CalendarHeart',
                 'audience' => [
-                    'Düğün, nişan ve kına organizasyonları',
+                    'Düğün, nişan ve kına',
                     'Açılış ve tanıtım etkinlikleri',
                     'Kurumsal yemekler ve yıl sonu davetleri',
                     'Özel gün kutlamaları',
                 ],
                 'how_it_works' => [
                     [
-                        'title' => 'Etkinlik görüşmesi',
-                        'body' => 'Tarih, davetli sayısı, mekân ve servis biçimi (açık büfe, masaya servis) belirlenir.',
+                        'title' => 'Günü konuşuyoruz',
+                        'body' => 'Tarih, kaç davetli, mekân nerede, servis nasıl olsun — açık büfe mi, masaya mı.',
                     ],
                     [
-                        'title' => 'Menü seçimi',
-                        'body' => 'Etkinliğin saatine ve karakterine göre menü kurgulanır, tadım planlanabilir.',
+                        'title' => 'Menü ve tadım',
+                        'body' => 'Saatine göre menü çıkarıyoruz. İsterseniz önceden gelip tadıyorsunuz.',
                     ],
                     [
-                        'title' => 'Mekân kurulumu',
-                        'body' => 'Servis alanı, büfe düzeni ve ekipman etkinlikten önce kurulur.',
+                        'title' => 'Mekânı kuruyoruz',
+                        'body' => 'Büfe, servis alanı ve ekipman etkinlikten önce hazır oluyor.',
                     ],
                     [
                         'title' => 'Servis ve toplama',
-                        'body' => 'Servis ekibi etkinlik boyunca görev alır; sonrasında alan toplanır.',
+                        'body' => 'Ekip gün boyu sahada. Bitince masalar toplanıyor, alan teslim ediliyor.',
                     ],
                 ],
                 'benefits' => [
-                    'Menü ve servis biçimi etkinliğe göre kurgulanır',
-                    'Kurulum ve toplama dâhil tek paket',
-                    'Davetli sayısındaki son dakika değişiklikleri için pay bırakılır',
-                    'Servis ekibi etkinlik boyunca sahada kalır',
+                    'Menü ve servis biçimi güne göre',
+                    'Kurulum ve toplama dâhil',
+                    'Son dakika davetlisi için pay bırakılıyor',
+                    'Servis ekibi etkinlik boyunca yanınızda',
                 ],
-                'menu_planning' => 'Menü etkinliğin saatine göre değişir: öğle davetinde daha hafif, akşam davetinde daha kapsamlı bir kurgu tercih edilir. Vejetaryen ve alerjen alternatifleri davetli listesine göre eklenir.',
+                'menu_planning' => 'Öğle davetinde daha hafif, akşam davetinde daha kapsamlı bir akış kuruyoruz. Vejetaryen ve alerjen alternatifleri davetli listesine göre ekleniyor.',
                 'quote_needs' => [
-                    'Etkinlik tarihi ve saati',
+                    'Tarih ve saat',
                     'Davetli sayısı',
-                    'Mekân adresi ve mutfak/servis imkânları',
-                    'Servis biçimi tercihi',
+                    'Mekân adresi, mutfak ve servis imkânları',
+                    'Açık büfe mi, masaya servis mi',
                 ],
             ],
             [
                 'slug' => 'toplanti-ikram',
-                'title' => 'Toplantı ve etkinlik ikramları',
-                'summary' => 'Kahvaltı, coffee break ve seminer ikram paketleri.',
-                'intro' => 'Toplantı ve eğitimlerde ikram, programı bölmeden kurulup toplanmalıdır. Paketleri katılımcı sayısına ve program akışına göre hazırlıyoruz.',
+                'title' => 'Toplantı ikramları',
+                'summary' => 'Kahvaltı, ara ikramı ve seminer paketleri.',
+                'intro' => 'İkram, toplantıyı bölmeden kurulup toplanmalı. Paketi katılımcı sayısına ve program akışına göre hazırlıyoruz.',
                 'icon' => 'Coffee',
                 'audience' => [
                     'Kurumsal toplantı ve eğitimler',
                     'Seminer ve konferanslar',
-                    'Kurul ve yönetim toplantıları',
+                    'Yönetim kurulu toplantıları',
                     'Basın toplantıları ve lansmanlar',
                 ],
                 'how_it_works' => [
                     [
-                        'title' => 'Program akışı',
-                        'body' => 'Toplantı saatleri ve ara zamanları alınır; ikram noktaları belirlenir.',
+                        'title' => 'Programı alıyoruz',
+                        'body' => 'Toplantı kaçta başlıyor, aralar ne zaman, ikram nereye kurulacak.',
                     ],
                     [
-                        'title' => 'Paket seçimi',
-                        'body' => 'Kahvaltı, ara ikram veya öğle paketi arasından ihtiyaca uygun olan seçilir.',
+                        'title' => 'Paketi seçiyoruz',
+                        'body' => 'Kahvaltı, ara ikramı ya da öğle paketi. Sıcak ve soğuk bir arada.',
                     ],
                     [
                         'title' => 'Kurulum',
-                        'body' => 'İkram alanı program başlamadan önce hazırlanır.',
+                        'body' => 'İkram alanı program başlamadan hazır oluyor.',
                     ],
                     [
-                        'title' => 'Ara servisi',
-                        'body' => 'Aralarda tazeleme yapılır, program sonunda alan toplanır.',
+                        'title' => 'Aralarda tazeleme',
+                        'body' => 'Her arada masa yenileniyor, program bitince alan toplanıyor.',
                     ],
                 ],
                 'benefits' => [
-                    'İkram programı bölmeden kurulur ve toplanır',
-                    'Katılımcı sayısına göre paket ölçeklenir',
-                    'Sıcak ve soğuk seçenekler bir arada sunulur',
-                    'Aynı gün içinde birden fazla ara desteklenir',
+                    'Program bölünmüyor',
+                    'Paket katılımcı sayısına göre büyüyor',
+                    'Sıcak ve soğuk seçenekler bir arada',
+                    'Aynı gün birden fazla ara',
                 ],
-                'menu_planning' => 'Ara ikramlarda elde tüketilebilen, servis gerektirmeyen seçenekler öne alınır. Uzun programlarda ara menüsü tekrar etmeyecek biçimde çeşitlendirilir.',
+                'menu_planning' => 'Ara ikramında elde yenen, çatal gerektirmeyen şeyler öne çıkıyor. Gün boyu süren programlarda her arada başka bir şey çıkıyor.',
                 'quote_needs' => [
-                    'Etkinlik tarihi ve program saatleri',
+                    'Tarih ve program saatleri',
                     'Katılımcı sayısı',
-                    'Ara sayısı ve ikram türü',
+                    'Kaç ara, hangi tür ikram',
                     'Etkinlik adresi',
                 ],
             ],
@@ -854,169 +908,397 @@ final class SiteContentSeed
             [
                 'slug' => 'toplu-yemek-firmasi-secerken',
                 'title' => 'Toplu yemek firması seçerken nelere bakmalı?',
-                'description' => 'Fiyat teklifi karşılaştırmak yetmiyor. Catering firması seçerken sorulması gereken sorular ve sözleşmeden önce netleştirilmesi gereken başlıklar.',
+                'description' => 'İki teklifin arasındaki fark çoğu zaman yemekte değil, kapsamda. İmzadan önce sormanız gereken sorular.',
                 'category' => 'Karar rehberi',
                 'published_at' => '2026-03-04',
                 'reading_minutes' => 6,
                 'body' => [
-                    ['kind' => 'paragraph', 'text' => 'Toplu yemek hizmeti, kurumun çalışanıyla her gün temas eden az sayıdaki hizmetten biri. Yanlış seçim, kısa sürede memnuniyetsizlik olarak geri dönüyor. Buna rağmen karar çoğu zaman yalnızca birim fiyat karşılaştırmasıyla veriliyor.'],
-                    ['kind' => 'paragraph', 'text' => 'Aşağıdaki başlıklar, teklif almadan önce netleştirildiğinde hem karşılaştırmayı anlamlı kılıyor hem de sonradan çıkan sürprizleri azaltıyor.'],
-                    ['kind' => 'heading', 'text' => 'Fiyatın neyi kapsadığını sorun'],
-                    ['kind' => 'paragraph', 'text' => 'İki teklif arasındaki fark çoğu zaman yemeğin kendisinden değil, kapsamdan geliyor. Aynı rakam bir firmada yalnızca öğünü, diğerinde servis personelini, ekipmanı ve tek kullanımlık malzemeyi de içeriyor olabilir.'],
-                    ['kind' => 'list', 'items' => [
-                        'Kaç kap yemek dâhil?',
-                        'Ekmek, içecek ve salata fiyata dâhil mi?',
-                        'Servis personeli ve ekipman kimin sorumluluğunda?',
-                        'Tek kullanımlık malzeme (tabak, çatal, peçete) kimden?',
-                        'Teslimat ücreti ayrı mı hesaplanıyor?',
-                    ]],
-                    ['kind' => 'heading', 'text' => 'Menü planının nasıl kurulduğunu öğrenin'],
-                    ['kind' => 'paragraph', 'text' => 'İyi bir menü planı tesadüf değildir. Haftalık tekrar dengesi, et-tavuk-baklagil dağılımı ve mevsim uyumu gözetilerek kurulur. Menüyü kimin hazırladığını, ne kadar önceden paylaşıldığını ve değişiklik talep edip edemeyeceğinizi sorun.'],
-                    ['kind' => 'callout', 'text' => 'Menüsünü sabahında bildiren bir firmayla planlama yapamazsınız. Menünün en az bir hafta önceden paylaşılması, hem sizin hem çalışanınız için öngörülebilirlik demektir.'],
-                    ['kind' => 'heading', 'text' => 'Değişken kişi sayısını nasıl yönettiğini sorun'],
-                    ['kind' => 'paragraph', 'text' => 'Çoğu iş yerinde günlük personel sayısı sabit değil. İzin, vardiya ve saha görevleri sayıyı değiştiriyor. Firmanın bu değişimi nasıl karşıladığı — günlük bildirim mi alıyor, sabit sayı üzerinden mi faturalıyor — hem maliyeti hem israfı doğrudan etkiliyor.'],
-                    ['kind' => 'heading', 'text' => 'Hijyen yaklaşımını somut sorularla test edin'],
-                    ['kind' => 'paragraph', 'text' => 'Herkes hijyene önem verdiğini söyler. Ayırt edici olan, sürecin nasıl işlediğidir. Sıcaklık kontrolünün nerede yapıldığı, çiğ ve pişmiş ürünün ayrı alanlarda hazırlanıp hazırlanmadığı, teslim kayıtlarının tutulup tutulmadığı gibi sorular somut cevap gerektirir.'],
-                    ['kind' => 'paragraph', 'text' => 'Sertifika iddiası duyduğunuzda belgeyi görmek isteyin. Belge göstermekten çekinen bir firma, muhtemelen belgeye sahip değildir.'],
-                    ['kind' => 'heading', 'text' => 'Sorun çıktığında kime ulaşacağınızı netleştirin'],
-                    ['kind' => 'paragraph', 'text' => 'Teslimat geciktiğinde, öğün sayısı eksik geldiğinde veya bir çalışanınız yemekten şikâyet ettiğinde kimi arayacaksınız? Tek bir muhatabınızın olması, çağrı merkezine bağlanmaktan çok daha hızlı sonuç veriyor.'],
-                    ['kind' => 'heading', 'text' => 'Deneme servisi isteyin'],
-                    ['kind' => 'paragraph', 'text' => 'Tadım, menünün kâğıt üzerindeki hâliyle tabaktaki hâli arasındaki farkı gösteren en pratik yöntem. Mümkünse tadımı yalnızca yöneticilerle değil, gerçekten yemek yiyecek ekiple birlikte yapın.'],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Yemek, çalışanınızın sizinle her gün temas ettiği birkaç şeyden biri. Yanlış firma seçilirse bunu üç hafta içinde koridorda duyarsınız. Buna rağmen karar çoğu zaman tek bir rakama bakılarak veriliyor.',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Aşağıdakileri teklif istemeden önce netleştirin. Hem teklifleri yan yana koyabilirsiniz hem de üçüncü ay sürprizi çıkmaz.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Fiyatın neyi kapsadığını sorun',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Aynı rakam bir yerde sadece yemeği, başka bir yerde servis elemanını, ekipmanı ve tabak çatalı da kapsıyor olabilir. Farkı yaratan çoğu zaman tencere değil, listenin altındaki satırlar.',
+                    ],
+                    [
+                        'kind' => 'list',
+                        'items' => [
+                            'Kaç kap yemek dâhil?',
+                            'Ekmek, içecek ve salata fiyata dâhil mi?',
+                            'Servis personeli ve ekipman kimin sorumluluğunda?',
+                            'Tek kullanımlık malzeme (tabak, çatal, peçete) kimden?',
+                            'Teslimat ücreti ayrı mı hesaplanıyor?',
+                        ],
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Menü planının nasıl kurulduğunu öğrenin',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'İyi menü tesadüfen çıkmaz. Et, tavuk ve baklagil güne dağılır; mevsim gözetilir; aynı yemek üst üste gelmez. Kim hazırlıyor, kaç gün önce elinize geçiyor, üstünde değişiklik isteyebiliyor musunuz — bunları sorun.',
+                    ],
+                    [
+                        'kind' => 'callout',
+                        'text' => 'Menüyü sabahında bildiren bir firmayla plan yapamazsınız. En az bir hafta önceden elinizde olmalı.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Değişken kişi sayısını nasıl yönettiğini sorun',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Hiçbir iş yerinde her gün aynı sayıda insan yoktur. İzin var, vardiya var, sahaya giden var. Firma sabah bildirim mi alıyor yoksa sabit sayıdan mı faturalıyor? Cevap hem faturanızı hem çöpe giden yemeği değiştiriyor.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Hijyen yaklaşımını somut sorularla test edin',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Hijyene önem verdiğini söylemeyen firma yok. Somut sorun: sıcaklık nerede ölçülüyor, çiğ tavuğun tezgâhı ayrı mı, teslim kaydı tutuluyor mu? Bunların cevabı ya vardır ya yoktur.',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Belge iddiası duyduğunuzda belgeyi isteyin. Göstermekten kaçınan firmada o belge büyük ihtimalle yoktur.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Sorun çıktığında kime ulaşacağınızı netleştirin',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Yemek geç kaldığında, on porsiyon eksik geldiğinde ya da biri şikâyet ettiğinde kimi arayacaksınız? Bir isim ve bir numara, çağrı merkezinden çok daha hızlı iş görüyor.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Deneme servisi isteyin',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Kâğıttaki menüyle tabaktaki yemek arasındaki farkı tadım gösterir. Tadıma yöneticileri değil, o yemeği her gün yiyecek insanları götürün.',
+                    ],
                 ],
             ],
             [
                 'slug' => 'kurumsal-catering-nedir',
                 'title' => 'Kurumsal catering nedir, restorandan farkı ne?',
-                'description' => 'Catering ile restoran işletmeciliği aynı iş değil. Kurumsal catering hizmetinin nasıl işlediği, hangi ihtiyaçlara cevap verdiği ve neyi kapsadığı.',
+                'description' => 'İkisi de yemek yapar ama mutfakları zıt kurulur. Kurumsal catering nasıl işler, neyi kapsar?',
                 'category' => 'Temel bilgiler',
                 'published_at' => '2026-02-18',
                 'reading_minutes' => 5,
                 'body' => [
-                    ['kind' => 'paragraph', 'text' => 'Catering ve restoran, dışarıdan bakınca aynı işi yapıyor görünür: ikisi de yemek üretir. Operasyon açısından ise neredeyse zıt iki modeldir.'],
-                    ['kind' => 'heading', 'text' => 'Restoran talebi bekler, catering talebi bilir'],
-                    ['kind' => 'paragraph', 'text' => 'Restoranda kaç kişinin geleceği ve ne söyleyeceği bilinmez; mutfak belirsizliğe göre kurulur. Kurumsal cateringde ise kişi sayısı ve menü önceden bellidir. Bu, üretimin planlanabilmesi demektir: malzeme tam miktarda alınır, pişirme servis saatine göre zamanlanır, israf azalır.'],
-                    ['kind' => 'heading', 'text' => 'Süreklilik farkı'],
-                    ['kind' => 'paragraph', 'text' => 'Restorana ayda bir gidersiniz, menü tekrarı sorun olmaz. Kurumsal yemekte aynı kişiler her gün yiyor. Bu yüzden catering menüsünün en kritik özelliği çeşitlilik ve tekrar dengesidir — aynı yemeğin haftada iki kez çıkması fark edilir.'],
-                    ['kind' => 'heading', 'text' => 'Kurumsal catering neleri kapsar?'],
-                    ['kind' => 'list', 'items' => [
-                        'Menü planlaması ve kurum onayı',
-                        'Malzeme tedariği ve depolama',
-                        'Üretim (merkez mutfakta veya kurumun mutfağında)',
-                        'Sıcaklık kontrollü taşıma ve teslimat',
-                        'Servis düzeni ve gerektiğinde servis personeli',
-                        'Öğün sayısı takibi ve raporlama',
-                    ]],
-                    ['kind' => 'heading', 'text' => 'Taşıma yemek mi, yerinde üretim mi?'],
-                    ['kind' => 'paragraph', 'text' => 'İki temel model var. Taşıma yemekte üretim merkez mutfakta yapılır, öğün servise hazır gelir; mutfak altyapısı olmayan kurumlar için uygundur. Yerinde üretimde ise yemek kurumun kendi mutfağında pişer; taşıma süresi ortadan kalkar, menü esnekliği artar, ancak mutfak alanı ve ekipman gerekir.'],
-                    ['kind' => 'callout', 'text' => 'Seçim genellikle mutfak altyapınızın olup olmadığıyla belirlenir. Mutfağınız varsa ama işletmek istemiyorsanız, yerinde üretim modeli hem tazelik hem esneklik açısından avantajlıdır.'],
-                    ['kind' => 'heading', 'text' => 'Fiyat neden liste hâlinde verilmiyor?'],
-                    ['kind' => 'paragraph', 'text' => 'Catering fiyatı kişi sayısı, öğün sayısı, hizmet sıklığı, menü kapsamı ve teslimat konumuna göre değişir. Aynı menü 50 kişiye ve 500 kişiye farklı birim maliyetle üretilir. Sabit liste vermek bu yüzden çoğu zaman yanıltıcı olur.'],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Dışarıdan bakınca ikisi de yemek yapıyor. Mutfağa girince iki ayrı iş olduğu anlaşılıyor.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Restoran talebi bekler, catering talebi bilir',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Restoranda kaç kişi gelecek, ne söyleyecek belli değildir; mutfak her ihtimale hazır durur. Cateringde sayı da menü de önceden bellidir. Bu yüzden malzeme tam alınır, ocak servis saatine göre yanar, çöpe giden azalır.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Süreklilik farkı',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Restorana ayda bir gidersiniz; aynı yemeği yemeniz sorun olmaz. Burada aynı insanlar her gün yiyor. Salı çıkan yemek perşembe yine çıkarsa herkes fark eder.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Kurumsal catering neleri kapsar?',
+                    ],
+                    [
+                        'kind' => 'list',
+                        'items' => [
+                            'Menü planlaması ve kurum onayı',
+                            'Malzeme tedariği ve depolama',
+                            'Üretim (merkez mutfakta veya kurumun mutfağında)',
+                            'Sıcaklık kontrollü taşıma ve teslimat',
+                            'Servis düzeni ve gerektiğinde servis personeli',
+                            'Öğün sayısı takibi ve raporlama',
+                        ],
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Taşıma yemek mi, yerinde üretim mi?',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'İki yol var. Taşıma yemekte yemek bizim mutfakta pişer, servise hazır gelir — mutfağı olmayan yerler için. Yerinde üretimde yemek sizin mutfağınızda pişer; yol yoktur, menü esner, ama alan ve ekipman ister.',
+                    ],
+                    [
+                        'kind' => 'callout',
+                        'text' => 'Kararı çoğunlukla mutfağınızın olup olmaması veriyor. Mutfak var ama uğraşmak istemiyorsanız yerinde üretim en tazesini verir.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Fiyat neden liste hâlinde verilmiyor?',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Aynı menü elli kişiye başka, beş yüz kişiye başka maliyete çıkıyor. Buna sıklık ve mesafe de eklenince tek bir liste yazmak yanıltmak oluyor.',
+                    ],
                 ],
             ],
             [
                 'slug' => 'is-yerleri-icin-menu-planlamasi',
                 'title' => 'İş yerleri için menü planlaması nasıl yapılır?',
-                'description' => 'Haftalık menü kurarken tekrar dengesi, besin çeşitliliği ve çalışan profilinin nasıl gözetildiği; işe yarayan bir menü planının kuralları.',
+                'description' => 'Haftalık menü nasıl kurulur: kim yiyecek, ne sıklıkla dönecek, mevsim ne diyor?',
                 'category' => 'Menü',
                 'published_at' => '2026-01-27',
                 'reading_minutes' => 7,
                 'body' => [
-                    ['kind' => 'paragraph', 'text' => 'Menü planlaması, "bu hafta ne çıkaralım" sorusuna verilen günlük cevaplardan ibaret değil. İyi kurulmuş bir plan, çalışanın memnuniyetini artırırken israfı ve maliyeti aynı anda düşürür.'],
-                    ['kind' => 'heading', 'text' => 'Önce çalışan profilini tanımlayın'],
-                    ['kind' => 'paragraph', 'text' => 'Ağır iş kolunda çalışan bir ekiple ofis çalışanının öğün ihtiyacı aynı değil. Fiziksel yükü yüksek işlerde kalori ve porsiyon öne çıkar; masa başı çalışmada ise ağır öğün öğleden sonra verimi düşürür.'],
-                    ['kind' => 'heading', 'text' => 'Tekrar dengesini haftalık kurun'],
-                    ['kind' => 'paragraph', 'text' => 'Pratik bir çerçeve: haftada iki kırmızı et, iki tavuk, bir baklagil ana yemeği. Yardımcı yemekte pilav ve makarna aynı hafta içinde dönüşümlü verilir. Aynı ana yemek iki hafta üst üste tekrar etmez.'],
-                    ['kind' => 'list', 'items' => [
-                        'Aynı gün iki kuru baklagil öğünü koymayın (çorba + ana yemek).',
-                        'Ağır bir ana yemeğin yanına hafif bir tamamlayıcı seçin.',
-                        'Cuma günlerine daha çok tercih edilen yemekleri koymak katılımı artırır.',
-                        'Aynı pişirme yöntemini (fırın, kızartma) gün içinde tekrarlamayın.',
-                    ]],
-                    ['kind' => 'heading', 'text' => 'Mevsimi gözetin'],
-                    ['kind' => 'paragraph', 'text' => 'Mevsiminde sebze hem daha lezzetli hem daha uygun maliyetlidir. Kışın çorba çeşidini artırmak, yazın soğuk başlangıç ve ayran tüketimini öne almak hem tüketimi hem memnuniyeti yükseltir.'],
-                    ['kind' => 'heading', 'text' => 'Alternatif öğünü baştan planlayın'],
-                    ['kind' => 'paragraph', 'text' => 'Vejetaryen çalışan veya alerjisi olan kişiler için alternatif, menü kurulurken düşünülmeli — servis anında bulunacak bir çözüm değil. Alternatif öğün ayrı hazırlanır, etiketlenir ve mümkünse ayrı kapta taşınır.'],
-                    ['kind' => 'heading', 'text' => 'Tüketimi ölçün, menüyü ona göre düzeltin'],
-                    ['kind' => 'paragraph', 'text' => 'Hangi yemeğin bittiğini, hangisinin arttığını takip etmek en değerli geri bildirimdir. Sürekli artan bir yemek menüden çıkar; hızla biten yemek daha sık planlanır. Bu döngü olmadan menü planı zamanla gerçeklikten kopar.'],
-                    ['kind' => 'callout', 'text' => 'Anket yapmadan önce artan yemeği ölçün. İnsanlar ne yediklerini anlatmakta değil, tabakta bırakmakta çok daha dürüsttür.'],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => '"Bu hafta ne çıkaralım?" sorusuna her pazartesi yeniden cevap aranıyorsa ortada plan yok demektir. Doğru kurulmuş bir liste hem tabakları boşaltır hem çöpü azaltır.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Önce çalışan profilini tanımlayın',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Sekiz saat beton döken adamla bilgisayar başındaki insan aynı tabağı istemez. Birinde porsiyon ve kalori konuşulur, diğerinde ağır yemek öğleden sonrayı yatırır.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Tekrar dengesini haftalık kurun',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'İşe yarayan basit bir ölçü: haftada iki kırmızı et, iki tavuk, bir baklagil. Pilavla makarna dönüşümlü gider. Aynı ana yemek iki hafta üst üste çıkmaz.',
+                    ],
+                    [
+                        'kind' => 'list',
+                        'items' => [
+                            'Aynı gün iki kuru baklagil öğünü koymayın (çorba + ana yemek).',
+                            'Ağır bir ana yemeğin yanına hafif bir tamamlayıcı seçin.',
+                            'Cuma günlerine daha çok tercih edilen yemekleri koymak katılımı artırır.',
+                            'Aynı pişirme yöntemini (fırın, kızartma) gün içinde tekrarlamayın.',
+                        ],
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Mevsimi gözetin',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Mevsiminde sebze hem daha lezzetli hem daha ucuz. Kışın çorba çeşidini artırın, yazın soğuk başlangıç ve ayrana yer açın.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Alternatif öğünü baştan planlayın',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Vejetaryen ya da alerjisi olan biri varsa onun tabağı menü kurulurken düşünülür. Servis saatinde akla gelirse iş işten geçmiştir. Ayrı pişer, etiketlenir, mümkünse ayrı kapta gelir.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Tüketimi ölçün, menüyü ona göre düzeltin',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'En doğru geri bildirim tencerenin dibinde. Sürekli artan yemek listeden çıkar, çabuk biten daha sık gelir. Bunu yapmayan menü zamanla kâğıt üstünde kalır.',
+                    ],
+                    [
+                        'kind' => 'callout',
+                        'text' => 'Anket yapmadan önce artanı tartın. İnsanlar anket doldururken kibar, tabak bırakırken dürüst oluyor.',
+                    ],
                 ],
             ],
             [
                 'slug' => 'catering-hizmetinde-hijyen',
                 'title' => 'Catering hizmetinde hijyen: zincir nerede kırılır?',
-                'description' => 'Toplu yemekte hijyen tek bir aşamanın değil, hammaddeden teslimata uzanan bir zincirin işi. Zincirin en kırılgan halkaları ve alınması gereken önlemler.',
+                'description' => 'Sorun genelde kirli mutfaktan çıkmaz. Depoda, soğutmada ve yolda çıkar.',
                 'category' => 'Kalite',
                 'published_at' => '2026-01-09',
                 'reading_minutes' => 6,
                 'body' => [
-                    ['kind' => 'paragraph', 'text' => 'Toplu yemekte hijyen sorunu genellikle mutfağın kirli olmasından çıkmaz. Zincirin görece gözden kaçan halkalarında — depolamada, soğutmada ve taşımada — ortaya çıkar.'],
-                    ['kind' => 'heading', 'text' => 'Tehlikeli sıcaklık aralığı'],
-                    ['kind' => 'paragraph', 'text' => 'Gıda güvenliğinde en kritik kavram, bakterinin hızla çoğaldığı sıcaklık aralığıdır. Yemek bu aralıkta ne kadar uzun kalırsa risk o kadar artar. Bu yüzden sıcak yemek sıcak, soğuk ürün soğuk tutulur; ikisinin arasında geçirilen süre mümkün olduğunca kısaltılır.'],
-                    ['kind' => 'callout', 'text' => 'Erken pişirilip uzun süre bekletilen yemek, geç pişirilip hemen servis edilen yemekten her zaman daha risklidir. Üretim planı bu yüzden servis saatine göre kurulur.'],
-                    ['kind' => 'heading', 'text' => 'Çapraz bulaşma'],
-                    ['kind' => 'paragraph', 'text' => 'Çiğ tavuğun hazırlandığı tezgâhta salata doğranması klasik örnektir. Önlemi basit ama disiplin ister: çiğ ve pişmiş ürün için ayrı hazırlık alanı, ayrı kesme tahtası ve ayrı ekipman.'],
-                    ['kind' => 'paragraph', 'text' => 'Aynı ilke alerjen yönetimi için de geçerlidir. Glutensiz bir öğün, glutenli ürünle aynı yüzeyde hazırlandığında artık glutensiz değildir.'],
-                    ['kind' => 'heading', 'text' => 'Depolama sırası'],
-                    ['kind' => 'list', 'items' => [
-                        'Kuru gıda, soğuk ürün ve dondurulmuş ürün ayrı alanlarda saklanır.',
-                        'Önce giren ürün önce kullanılır; giriş tarihi ürün üzerinde görünür olmalıdır.',
-                        'Çiğ ürünler, pişmiş ürünlerin altındaki raflarda tutulur (damlama riski).',
-                        'Açılmış ürün kapatılır ve açılış tarihi işaretlenir.',
-                    ]],
-                    ['kind' => 'heading', 'text' => 'Taşıma: en çok gözden kaçan halka'],
-                    ['kind' => 'paragraph', 'text' => 'Mutfakta her şey doğru yapılmış olsa bile, yalıtımsız bir kapla yapılan uzun teslimat zinciri kırar. Isı yalıtımlı kapalı kaplar, teslim öncesi ve sonrası sıcaklık kontrolü ve teslim kaydı bu yüzden hizmetin ayrılmaz parçasıdır.'],
-                    ['kind' => 'heading', 'text' => 'İzlenebilirlik neden önemli?'],
-                    ['kind' => 'paragraph', 'text' => 'Bir sorun yaşandığında "hangi gün, hangi menü, hangi tedarikçi, nereye teslim" sorularının cevabı kayıtlarda yoksa, sorunun kaynağı bulunamaz. İzlenebilirlik, sorun çıkmasını engellemez ama tekrarlanmasını engeller.'],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Toplu yemekte hijyen sorunu neredeyse hiç pis bir tezgâhtan çıkmaz. Depoda, soğutmada ve yolda çıkar — yani kimsenin bakmadığı yerlerde.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Tehlikeli sıcaklık aralığı',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Bakterinin en hızlı ürediği bir sıcaklık aralığı var. Yemek orada ne kadar kalırsa risk o kadar büyüyor. Bu yüzden sıcak sıcakta, soğuk soğukta durur; arada geçen süre elden geldiğince kısaltılır.',
+                    ],
+                    [
+                        'kind' => 'callout',
+                        'text' => 'Sabah pişip öğlene kadar bekleyen yemek, on birde pişip on ikide servis edilenden her zaman daha risklidir. Ocağın saatini servis saati belirler.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Çapraz bulaşma',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Çiğ tavuğun doğrandığı tahtada salata doğramak, kitaptaki ilk örnektir. Çözümü kolay, sürdürmesi disiplin ister: ayrı tezgâh, ayrı tahta, ayrı bıçak.',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Alerjende de aynı kural. Glutensiz yemek, unlu tezgâhta hazırlandıysa artık glutensiz değildir.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Depolama sırası',
+                    ],
+                    [
+                        'kind' => 'list',
+                        'items' => [
+                            'Kuru gıda, soğuk ürün ve dondurulmuş ürün ayrı alanlarda saklanır.',
+                            'Önce giren ürün önce kullanılır; giriş tarihi ürün üzerinde görünür olmalıdır.',
+                            'Çiğ ürünler, pişmiş ürünlerin altındaki raflarda tutulur (damlama riski).',
+                            'Açılmış ürün kapatılır ve açılış tarihi işaretlenir.',
+                        ],
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Taşıma: en çok gözden kaçan halka',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Mutfakta her şey kitabına uygun gitse bile, yalıtımsız bir kapla çıkılan uzun yol zinciri kırar. Isı tutan kapalı kap, çıkışta ve varışta sıcaklık ölçümü, teslim kaydı — üçü de işin parçası.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'İzlenebilirlik neden önemli?',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Bir sorun çıktığında hangi gün, hangi menü, hangi tedarikçi ve nereye — dördünün cevabı kayıtta yoksa kaynağı bulamazsınız. Kayıt sorunu önlemez; tekrarını önler.',
+                    ],
                 ],
             ],
             [
                 'slug' => 'organizasyon-menusu-nasil-secilir',
                 'title' => 'Organizasyon menüsü nasıl seçilir?',
-                'description' => 'Düğün, açılış ve kurumsal davetlerde menü seçimini belirleyen faktörler: etkinlik saati, servis biçimi, davetli profili ve mekân koşulları.',
+                'description' => 'Menüyü katalogdan değil, günün akışından seçersiniz: saat kaç, kaç kişi, mekân ne veriyor?',
                 'category' => 'Organizasyon',
                 'published_at' => '2025-12-12',
                 'reading_minutes' => 5,
                 'body' => [
-                    ['kind' => 'paragraph', 'text' => 'Organizasyon menüsü, katalogdan seçilen bir liste değil; etkinliğin akışına göre kurulan bir plandır. Aynı menü öğle açılışında doğru, akşam düğününde eksik kalabilir.'],
-                    ['kind' => 'heading', 'text' => 'Etkinliğin saati menüyü belirler'],
-                    ['kind' => 'paragraph', 'text' => 'Öğle saatindeki bir açılışta davetliler genellikle kısa süre kalır; elde tüketilebilen, servis gerektirmeyen seçenekler öne çıkar. Akşam davetinde ise oturmalı servis ve daha kapsamlı bir menü beklenir.'],
-                    ['kind' => 'heading', 'text' => 'Servis biçimini erken kararlaştırın'],
-                    ['kind' => 'list', 'items' => [
-                        'Açık büfe: davetli sayısı yüksekken hızlıdır, alan gerektirir.',
-                        'Masaya servis: daha düzenli görünür, servis personeli ihtiyacını artırır.',
-                        'Kokteyl düzeni: ayakta dolaşımı destekler, ana yemek yerine küçük porsiyonlara dayanır.',
-                    ]],
-                    ['kind' => 'paragraph', 'text' => 'Servis biçimi yalnızca estetik bir tercih değil; mekânın alanı, davetli sayısı ve etkinliğin süresiyle doğrudan bağlantılıdır.'],
-                    ['kind' => 'heading', 'text' => 'Mekânın imkânlarını baştan öğrenin'],
-                    ['kind' => 'paragraph', 'text' => 'Mekânda mutfak var mı, elektrik ve su erişimi yeterli mi, servis alanı ile davetli alanı arasındaki mesafe ne kadar? Bu sorular menüyü doğrudan etkiler: yerinde son hazırlık gerektiren yemekler ancak uygun altyapıda planlanabilir.'],
-                    ['kind' => 'heading', 'text' => 'Davetli profilini gözetin'],
-                    ['kind' => 'paragraph', 'text' => 'Yaş dağılımı, çocuklu davetli sayısı ve özel beslenme ihtiyaçları menüyü şekillendirir. Vejetaryen ve alerjen alternatifleri davetli listesine göre önceden planlanmalı; etkinlik günü çözülecek bir konu değildir.'],
-                    ['kind' => 'callout', 'text' => 'Davetli sayısına küçük bir pay eklemek neredeyse her zaman doğru karardır. Son dakika katılımları organizasyonların istisnası değil, kuralıdır.'],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Organizasyon menüsü katalogdan seçilmez, günün akışına göre kurulur. Öğle açılışında tam yerinde olan bir liste, akşam düğününde cılız kalır.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Etkinliğin saati menüyü belirler',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Öğle açılışında insanlar yarım saat durur; elde yenen şeyler işe yarar. Akşam davetinde oturulur, sofra uzun kurulur.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Servis biçimini erken kararlaştırın',
+                    ],
+                    [
+                        'kind' => 'list',
+                        'items' => [
+                            'Açık büfe: davetli sayısı yüksekken hızlıdır, alan gerektirir.',
+                            'Masaya servis: daha düzenli görünür, servis personeli ihtiyacını artırır.',
+                            'Kokteyl düzeni: ayakta dolaşımı destekler, ana yemek yerine küçük porsiyonlara dayanır.',
+                        ],
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Servis biçimi görüntüyle ilgili bir tercih gibi görünür ama asıl belirleyeni mekânın metrekaresi, davetli sayısı ve programın uzunluğudur.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Mekânın imkânlarını baştan öğrenin',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Mutfak var mı, priz nerede, su nereden geliyor, servis alanıyla masalar arası kaç adım? Bunlar menüyü doğrudan değiştirir — son hazırlığı yerinde yapılan yemekler ancak altyapı varsa listeye girer.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Davetli profilini gözetin',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Kaç çocuk var, yaş ortalaması ne, özel beslenen kaç kişi? Vejetaryen ve alerjen alternatifi davetli listesiyle birlikte planlanır. O gün akla gelirse çözülmez.',
+                    ],
+                    [
+                        'kind' => 'callout',
+                        'text' => 'Davetli sayısına biraz pay bırakın. Son dakika gelen misafir her davette çıkıyor.',
+                    ],
                 ],
             ],
             [
                 'slug' => 'kalabalik-etkinliklerde-yemek-planlamasi',
                 'title' => 'Kalabalık etkinliklerde yemek planlaması',
-                'description' => 'Yüksek katılımlı etkinliklerde servis kuyruğunu kısaltmak, sıcaklığı korumak ve zamanlamayı tutturmak için kullanılan planlama yöntemleri.',
+                'description' => 'Uzun kuyruk ve soğumuş yemek menüden değil, servis düzeninden çıkar. Kalabalıkta işleyen yöntemler.',
                 'category' => 'Organizasyon',
                 'published_at' => '2025-11-20',
                 'reading_minutes' => 6,
                 'body' => [
-                    ['kind' => 'paragraph', 'text' => 'Katılımcı sayısı arttıkça yemeğin lezzeti kadar servisin akışı da belirleyici hâle gelir. Uzun kuyruk, soğumuş yemek ve programın sarkması genellikle menüden değil planlamadan kaynaklanır.'],
-                    ['kind' => 'heading', 'text' => 'Kuyruğu paralelleştirin'],
-                    ['kind' => 'paragraph', 'text' => 'Tek bir büfe hattı, katılımcı sayısı arttığında dar boğaza dönüşür. Aynı menüyü sunan birden fazla hat kurmak, kuyruk süresini doğrudan böler. Hatların iki yönlü kullanılabilmesi kapasiteyi bir kat daha artırır.'],
-                    ['kind' => 'heading', 'text' => 'Sıcaklığı dalgalar hâlinde koruyun'],
-                    ['kind' => 'paragraph', 'text' => 'Tüm yemeği en başta ortaya çıkarmak, son katılımcının soğumuş yemek almasına yol açar. Bunun yerine servis, tazeleme dalgaları hâlinde planlanır: büfe belirli aralıklarla yenilenir.'],
-                    ['kind' => 'heading', 'text' => 'Programla senkron çalışın'],
-                    ['kind' => 'list', 'items' => [
-                        'Konuşma ve sunum saatlerini önceden alın; servisi araya değil, aranın başına kurun.',
-                        'Ara süresini gerçekçi belirleyin: 200 kişilik bir grup 15 dakikada yemek yiyemez.',
-                        'İçecek noktalarını yemek hattından ayırın; kuyruk hızını en çok bu düşürür.',
-                        'Toplama işlemini program devam ederken sessizce yürütecek şekilde planlayın.',
-                    ]],
-                    ['kind' => 'heading', 'text' => 'Menüyü servis hızına göre seçin'],
-                    ['kind' => 'paragraph', 'text' => 'Porsiyonlanması zaman alan yemekler kalabalıkta kuyruğu uzatır. Önceden porsiyonlanabilen, servis kaşığıyla hızlı alınabilen seçenekler tercih edilir. Görsel olarak etkileyici ama servis hızını düşüren kaplar, ana hat yerine ayrı bir istasyona alınabilir.'],
-                    ['kind' => 'callout', 'text' => 'Kalabalık etkinliklerde en sık yapılan hata, menüyü küçük bir davet gibi kurup servis düzenini sonradan çözmeye çalışmak. Sıralama tersi olmalı: önce servis akışı, sonra ona uyan menü.'],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Kalabalıkta yemeğin tadı kadar sıranın hızı da konuşuluyor. Uzayan kuyruk, soğumuş tabak ve sarkan program genelde menüden değil, servis düzeninden çıkıyor.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Kuyruğu paralelleştirin',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Tek büfe hattı kalabalıkta tıkanır. Aynı menüyü veren ikinci hat, sırayı ikiye böler. Hattın iki tarafından da alınabiliyorsa kapasite bir kat daha artar.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Sıcaklığı dalgalar hâlinde koruyun',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Bütün yemeği başta ortaya çıkarırsanız sıranın sonundaki soğuk yemek alır. Onun yerine büfe belirli aralıklarla tazelenir; yemek dalga dalga çıkar.',
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Programla senkron çalışın',
+                    ],
+                    [
+                        'kind' => 'list',
+                        'items' => [
+                            'Konuşma ve sunum saatlerini önceden alın; servisi araya değil, aranın başına kurun.',
+                            'Ara süresini gerçekçi belirleyin: 200 kişilik bir grup 15 dakikada yemek yiyemez.',
+                            'İçecek noktalarını yemek hattından ayırın; kuyruk hızını en çok bu düşürür.',
+                            'Toplama işlemini program devam ederken sessizce yürütecek şekilde planlayın.',
+                        ],
+                    ],
+                    [
+                        'kind' => 'heading',
+                        'text' => 'Menüyü servis hızına göre seçin',
+                    ],
+                    [
+                        'kind' => 'paragraph',
+                        'text' => 'Tabağa koyması uzun süren yemek sırayı uzatır. Önceden porsiyonlanan ya da tek kaşıkta alınan şeyler tercih edilir. Gösterişli ama yavaş kaplar ana hattan çıkarılıp ayrı bir istasyona alınabilir.',
+                    ],
+                    [
+                        'kind' => 'callout',
+                        'text' => 'En sık yapılan hata, menüyü küçük bir davet gibi kurup servisi sonra düşünmek. Sıra tersine dönmeli: önce insanlar nasıl akacak, sonra o akışa uyan menü.',
+                    ],
                 ],
             ],
         ];

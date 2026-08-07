@@ -6,9 +6,18 @@
  * serbest bir `body_html` gövdesi taşıyabilir — yedekte böyle bir alan yok,
  * çünkü buradaki metinler zaten yapılandırılmış alanlara bölünmüş durumda.
  *
- * Metinler bilinçli olarak **yeteneği** anlatır, **iddiayı** değil: "şu kadar
- * kişiye hizmet veriyoruz" gibi doğrulanmamış rakamlar yok, çünkü repoda böyle
- * bir veri yok (bkz. `content/site.ts`).
+ * Metinler **yapabildiğimizi** anlatır: "şu kadar kişiye hizmet veriyoruz"
+ * gibi doğrulanmamış rakam yok (bkz. `content/site.ts`).
+ *
+ * Ton kuralları `content/company.ts` başlığında. Özetle: mutfaktan konuş,
+ * cümleyi kısa tut, "X değil Y" karşıtlığından ve soyut isim yığınından kaç.
+ *
+ * ## Görsel
+ *
+ * Her hizmetin fotoğrafı `public/gorseller/hizmet-<slug>.webp` yolundadır;
+ * eşleşme `lib/site-images.ts` içinde slug üzerinden kurulur, burada görsel
+ * alanı YOKTUR. Böylece API sözleşmesine alan eklemeden fotoğraf gösterebiliyor
+ * ve dosyayı değiştirmek koda dokunmayı gerektirmiyor.
  */
 
 import type { LucideIcon } from 'lucide-react';
@@ -47,147 +56,147 @@ export const SERVICES: readonly Service[] = [
   {
     slug: 'kurumsal-toplu-yemek',
     title: 'Kurumsal toplu yemek',
-    summary: 'Ofis, fabrika ve iş yerleri için her gün tekrarlayan öğün hizmeti.',
+    summary: 'Ofis, fabrika ve iş yerlerine her gün tekrarlayan öğle ve akşam yemeği.',
     intro:
-      'Çalışanlarınızın öğle ve akşam öğünlerini, iş temponuzu aksatmayacak bir düzende planlıyoruz. Menü haftalık olarak önceden paylaşılır, üretim ve teslimat saatleri vardiyanıza göre belirlenir.',
+      'Her sabah aynı saatte pişer, aynı saatte gelir. Menüyü bir hafta önceden görürsünüz; teslim saatini vardiyanız belirler.',
     icon: Building2,
     audience: [
-      'Beyaz ve mavi yaka çalışanı olan iş yerleri',
+      'Ofisler ve iş merkezleri',
       'Vardiyalı çalışan üretim tesisleri',
-      'Yemekhanesi olan veya olmayan ofisler',
-      'Personeline düzenli öğün sağlamak isteyen kurumlar',
+      'Yemekhanesi olan da olmayan da',
+      'Personeline her gün sıcak yemek veren kurumlar',
     ],
     howItWorks: [
       {
-        title: 'İhtiyaç görüşmesi',
-        body: 'Günlük kişi sayısı, öğün saatleri, vardiya düzeni ve varsa mevcut yemekhane altyapınız konuşulur.',
+        title: 'Sayıyı ve saati konuşuyoruz',
+        body: 'Günde kaç kişi, hangi saatte, kaç vardiya. Yemekhaneniz varsa gelip bakıyoruz.',
       },
       {
-        title: 'Menü planı',
-        body: 'Haftalık veya aylık menü hazırlanır. Mevsim, tekrar dengesi ve besin çeşitliliği gözetilir; onayınıza sunulur.',
+        title: 'Haftalık menüyü çıkarıyoruz',
+        body: 'Bir haftalık liste hazırlıyoruz. Aynı yemek üst üste gelmez; onaylayınca kesinleşir.',
       },
       {
-        title: 'Üretim ve teslimat',
-        body: 'Öğünler merkez mutfakta hazırlanır, sıcaklık kontrollü kaplarda belirlenen saatte teslim edilir.',
+        title: 'Pişiriyoruz, getiriyoruz',
+        body: 'Yemek sabah mutfakta yapılır, ısı tutan kaplarda saatinde kapınızda olur.',
       },
       {
-        title: 'Servis ve geri bildirim',
-        body: 'Servis düzeni kurulur, artan-eksilen takip edilir ve menü geri bildirime göre güncellenir.',
+        title: 'Sayıyor, soruyoruz',
+        body: 'Ne arttı, ne bitti bakıyoruz. Kimsenin yemediği yemek bir daha menüye girmiyor.',
       },
     ],
     benefits: [
-      'Mutfak kurma ve personel istihdam etme yükü ortadan kalkar',
-      'Öğün maliyeti öngörülebilir hâle gelir',
-      'Menü tekrarı ve besin dengesi takip edilir',
-      'Tek muhatapla çalışırsınız; sipariş, teslimat ve faturalama tek akışta ilerler',
+      'Mutfak kurmak, aşçı tutmak, malzeme almak yok',
+      'Öğün maliyetiniz baştan belli',
+      'Menü tekrarını biz takip ediyoruz',
+      'Sipariş de fatura da tek kişide',
     ],
     menuPlanning:
-      'Menü, çalışan profilinize göre kurgulanır. Ağır iş kolunda kalori ihtiyacı yüksek öğünler, ofis ortamında daha hafif seçenekler öne alınır. Vejetaryen ve özel beslenme ihtiyaçları için alternatif kap eklenebilir.',
+      'Menü kimin yediğine göre değişir. Ağır işte doyuran yemekler öne çıkar, ofiste daha hafif kaplar. Vejetaryen ya da alerjisi olan varsa onlara ayrı bir kap ekleriz.',
     quoteNeeds: [
-      'Günlük ortalama kişi sayısı',
-      'Öğün türü ve saatleri (öğle, akşam, vardiya arası)',
-      'Hizmet konumu',
-      'Haftalık hizmet günü sayısı',
+      'Günde ortalama kaç kişi',
+      'Öğün ve saatleri (öğle, akşam, vardiya arası)',
+      'Adres',
+      'Haftada kaç gün',
     ],
   },
   {
     slug: 'tasima-yemek',
     title: 'Taşıma yemek',
-    summary: 'Merkez mutfakta üretim, sıcaklık kontrollü kaplarda yerinde teslim.',
+    summary: 'Yemek bizim mutfakta pişer, servise hazır hâlde adresinize gelir.',
     intro:
-      'Kendi mutfağı bulunmayan veya mutfağını işletmek istemeyen kurumlar için yemek merkez mutfağımızda hazırlanır ve servise hazır biçimde adresinize ulaştırılır.',
+      'Mutfağınız yoksa ya da işletmek istemiyorsanız en pratik yol bu. Bizde pişer, kapalı kapta gelir, siz yalnızca servis edersiniz.',
     icon: Truck,
     audience: [
-      'Mutfak altyapısı olmayan iş yerleri',
+      'Mutfağı olmayan iş yerleri',
       'Küçük ve orta ölçekli ofisler',
-      'Geçici veya proje bazlı çalışma alanları',
+      'Proje bazlı, geçici çalışma alanları',
       'Yemekhanesi yalnızca servis alanı olan kurumlar',
     ],
     howItWorks: [
       {
-        title: 'Sipariş ve planlama',
-        body: 'Günlük kişi sayısı ve teslim saati belirlenir; menü önceden paylaşılır.',
+        title: 'Sayı ve saat',
+        body: 'Kaç kişi ve saat kaçta. Menüyü önden paylaşıyoruz.',
       },
       {
-        title: 'Merkez mutfakta üretim',
-        body: 'Öğünler teslim saatine göre planlanan üretim akışıyla hazırlanır.',
+        title: 'Mutfakta üretim',
+        body: 'Teslim saatinden geri sayarak pişiriyoruz — erken pişip bekleyen yemek yok.',
       },
       {
-        title: 'Sıcaklık kontrollü taşıma',
-        body: 'Yemek, sıcak ve soğuk zinciri koruyan kaplarla taşınır; teslimde sıcaklık kontrol edilir.',
+        title: 'Kapalı kapta yol',
+        body: 'Sıcak sıcak, soğuk soğuk gider. Kapıda sıcaklığa bakılır.',
       },
       {
         title: 'Servise hazır teslim',
-        body: 'Öğünler servis alanınıza kurulur veya kapalı kaplarda teslim edilir.',
+        body: 'İsterseniz servis alanınıza kurarız, isterseniz kapalı kapta bırakırız.',
       },
     ],
     benefits: [
-      'Mutfak yatırımı ve işletme gideri gerekmez',
-      'Servis alanı dışında yer ayırmanız gerekmez',
-      'Kişi sayısı değişken olduğunda hızlı uyarlanır',
-      'Teslimat saati iş akışınıza göre sabitlenir',
+      'Mutfak yatırımı ve işletme gideri yok',
+      'Servis alanı dışında yer ayırmıyorsunuz',
+      'Sayı değiştiğinde aynı gün uyarlanıyor',
+      'Teslim saatini iş akışınız belirliyor',
     ],
     menuPlanning:
-      'Taşımaya uygun yemekler öne alınır: uzun süre sıcak kalabilen, taşıma sırasında yapısı bozulmayan seçenekler. Kızartma gibi çabuk yumuşayan kaplar teslim saatine yakın planlanır.',
+      'Yolu iyi götüren yemekleri seçiyoruz: uzun süre sıcak kalan, sarsıntıda dağılmayan kaplar. Kızartma gibi çabuk yumuşayan şeyleri teslim saatine yakın planlıyoruz.',
     quoteNeeds: [
-      'Günlük kişi sayısı',
-      'Teslim adresi ve teslim saati',
-      'Kap sayısı tercihi (üç kap, dört kap)',
-      'Servis malzemesi ihtiyacınız olup olmadığı',
+      'Günde kaç kişi',
+      'Teslim adresi ve saati',
+      'Kaç kap istiyorsunuz (üç kap, dört kap)',
+      'Tabak-çatal ihtiyacınız var mı',
     ],
   },
   {
     slug: 'yerinde-uretim',
     title: 'Yerinde üretim',
-    summary: 'Kurumun kendi mutfağında, bizim ekibimizle günlük üretim.',
+    summary: 'Sizin mutfağınızda, bizim ekibimizle günlük pişirme.',
     intro:
-      'Mutfak altyapısı bulunan kurumlarda üretimi yerinde yapıyoruz. Yemek servis edileceği yerde pişer; taşıma süresi ortadan kalkar, tazelik en üst düzeyde kalır.',
+      'Mutfağınız varsa yemek orada pişsin. Yol yok, bekleme yok; tencereden tabağa geçen süre birkaç dakika.',
     icon: ChefHat,
     audience: [
       'Kendi mutfağı olan fabrika ve kampüsler',
-      'Yemekhane işletmesini dışarıya vermek isteyen kurumlar',
-      'Yüksek kişi sayısına düzenli hizmet veren tesisler',
-      'Kahvaltı, öğle ve akşam öğünlerini aynı yerde veren kuruluşlar',
+      'Yemekhanesini dışarıya vermek isteyen kurumlar',
+      'Yüksek kişi sayılı tesisler',
+      'Kahvaltı, öğle ve akşamı aynı yerde veren kuruluşlar',
     ],
     howItWorks: [
       {
-        title: 'Mutfak değerlendirmesi',
-        body: 'Mevcut ekipman, depolama alanı, havalandırma ve personel ihtiyacı yerinde incelenir.',
+        title: 'Mutfağa bakıyoruz',
+        body: 'Ekipman, depo, havalandırma ve kaç kişilik ekip gerektiği yerinde çıkarılıyor.',
       },
       {
-        title: 'Ekip ve düzen kurulumu',
-        body: 'Aşçı ve servis ekibi görevlendirilir, üretim akışı ve hijyen düzeni kurulur.',
+        title: 'Ekibi kuruyoruz',
+        body: 'Aşçı ve servis ekibi göreve başlıyor, mutfağın günlük düzeni oturuyor.',
       },
       {
-        title: 'Günlük üretim',
-        body: 'Malzeme tedariği bize aittir; öğünler servis saatine göre yerinde hazırlanır.',
+        title: 'Her gün taze',
+        body: 'Malzemeyi biz alıyoruz, yemek servis saatine göre yerinde pişiyor.',
       },
       {
-        title: 'Servis ve raporlama',
-        body: 'Servis yürütülür, tüketim ve stok takibi düzenli olarak paylaşılır.',
+        title: 'Servis ve rapor',
+        body: 'Servisi biz yürütüyoruz; ne kadar tüketildiği ve stok durumu düzenli olarak size geliyor.',
       },
     ],
     benefits: [
-      'Yemek servis edildiği yerde pişer, taşıma kaybı olmaz',
-      'Menü gün içinde ihtiyaca göre esnetilebilir',
-      'Mutfak personeli yönetimi sizin üzerinizden kalkar',
-      'Tedarik, hijyen ve servis tek elden yürütülür',
+      'Yemek yendiği yerde pişiyor, yolda tat kaybı yok',
+      'Gün içinde menüyü esnetmek mümkün',
+      'Mutfak personeli derdi sizden çıkıyor',
+      'Malzeme, hijyen ve servis tek elde',
     ],
     menuPlanning:
-      'Yerinde üretimde menü esnekliği en yüksek seviyededir. Günlük taze pişirme, açık büfe düzeni ve talebe göre porsiyon ayarı mümkündür. Menü, mutfağın ekipman kapasitesine göre planlanır.',
+      'Esnekliğin en yüksek olduğu düzen bu. Açık büfe kurulabilir, porsiyon gün içinde ayarlanabilir, ikinci parti pişirilebilir. Menüyü mutfağın ekipmanı belirler.',
     quoteNeeds: [
-      'Günlük kişi sayısı ve öğün sayısı',
-      'Mutfak alanı ve mevcut ekipman bilgisi',
+      'Günlük kişi ve öğün sayısı',
+      'Mutfak alanı ve mevcut ekipman',
       'Servis düzeni (tabldot, açık büfe)',
-      'Sözleşme süresi beklentiniz',
+      'Ne kadar süreli düşünüyorsunuz',
     ],
   },
   {
     slug: 'okul-yemek-hizmeti',
     title: 'Okul yemek hizmeti',
-    summary: 'Yaş grubuna göre planlanmış öğünler ve alerjen takibi.',
+    summary: 'Yaşa göre porsiyon, alerjen takibi ve veliye gösterilebilir menü.',
     intro:
-      'Okul öncesinden liseye kadar farklı yaş gruplarının beslenme ihtiyacı aynı değildir. Menüleri porsiyon, besin dengesi ve çocukların gerçekten yediği yemekler gözetilerek planlıyoruz.',
+      'Anaokulundaki çocukla lise öğrencisi aynı tabağı yemiyor. Menüyü yaşa göre kuruyoruz ve çocukların gerçekten yediği yemekleri koyuyoruz.',
     icon: GraduationCap,
     audience: [
       'Anaokulu ve kreşler',
@@ -197,89 +206,89 @@ export const SERVICES: readonly Service[] = [
     ],
     howItWorks: [
       {
-        title: 'Yaş grubu ve öğün planı',
-        body: 'Kahvaltı, öğle ve ikindi ikramı ihtiyacı yaş grubuna göre belirlenir.',
+        title: 'Yaş grupları ve öğünler',
+        body: 'Kahvaltı, öğle, ikindi — hangisi hangi yaşa, kaç kişilik.',
       },
       {
-        title: 'Alerjen ve özel durum kaydı',
-        body: 'Alerjisi veya özel beslenme ihtiyacı olan öğrenciler listelenir; alternatif öğün planlanır.',
+        title: 'Alerji listesi',
+        body: 'Alerjisi ya da özel beslenmesi olan öğrenciler listeleniyor, onlara ayrı öğün planlanıyor.',
       },
       {
-        title: 'Üretim ve teslim',
-        body: 'Öğünler ders saatlerine göre planlanan zamanda hazırlanır ve teslim edilir.',
+        title: 'Ders saatine göre teslim',
+        body: 'Yemek teneffüse yetişecek şekilde hazırlanıp getiriliyor.',
       },
       {
-        title: 'Veli bilgilendirme',
-        body: 'Aylık menü, kurumun tercih ettiği kanaldan velilerle paylaşılabilecek biçimde hazırlanır.',
+        title: 'Veliye gidecek menü',
+        body: 'Aylık liste, okulun paylaştığı biçimde hazır geliyor.',
       },
     ],
     benefits: [
-      'Menü yaş grubuna göre porsiyonlanır',
-      'Alerjen bilgisi öğrenci bazında takip edilir',
-      'Aylık menü velilerle paylaşılabilir biçimde hazırlanır',
-      'Öğün saatleri ders programına göre sabitlenir',
+      'Porsiyon yaş grubuna göre',
+      'Alerjen bilgisi öğrenci bazında takip ediliyor',
+      'Aylık menü veliyle paylaşılmaya hazır',
+      'Öğün saatleri ders programına kilitli',
     ],
     menuPlanning:
-      'Menüde sebze ve baklagil öğünleri, çocukların tükettiği biçimlerle sunulur. Aşırı baharat ve ağır soslardan kaçınılır. Aylık menü tekrar dengesi gözetilerek kurulur ve okul yönetiminin onayına sunulur.',
+      'Sebzeyi ve baklagili çocukların yediği biçimde veriyoruz. Ağır baharat, yoğun sos yok. Aylık listede aynı yemek sık sık dönmüyor; son hâlini okul yönetimi onaylıyor.',
     quoteNeeds: [
       'Öğrenci sayısı ve yaş grupları',
-      'Günlük öğün sayısı (kahvaltı, öğle, ikindi)',
+      'Günde kaç öğün (kahvaltı, öğle, ikindi)',
       'Alerjisi olan öğrenci sayısı',
-      'Eğitim döneminde hizmet verilecek gün sayısı',
+      'Dönemde kaç gün hizmet',
     ],
   },
   {
     slug: 'saglik-kuruluslari',
-    title: 'Sağlık kuruluşlarına yemek hizmeti',
-    summary: 'Hasta, personel ve refakatçi öğünlerinin ayrı planlanması.',
+    title: 'Sağlık kuruluşlarına yemek',
+    summary: 'Hasta diyeti, personel öğünü ve refakatçi yemeği ayrı ayrı.',
     intro:
-      'Sağlık kuruluşlarında tek bir menü yeterli olmaz: hasta diyetleri, personel öğünleri ve refakatçi yemekleri farklı planlanır. Üçünü ayrı akışlarda yürütecek biçimde çalışıyoruz.',
+      'Burada tek menü iş görmüyor. Diyet tabağı, nöbetçi hemşirenin tabağı ve refakatçinin tabağı ayrı hazırlanıyor, ayrı etiketleniyor.',
     icon: Stethoscope,
     audience: [
       'Hastaneler ve tıp merkezleri',
       'Diyaliz ve rehabilitasyon merkezleri',
       'Huzurevleri ve bakım evleri',
-      'Poliklinik ve sağlık kampüsleri',
+      'Poliklinikler ve sağlık kampüsleri',
     ],
     howItWorks: [
       {
-        title: 'Diyet listelerinin alınması',
-        body: 'Kurumun diyetisyeni tarafından belirlenen diyet tipleri ve öğün sayıları alınır.',
+        title: 'Diyet listeleri geliyor',
+        body: 'Kurumun diyetisyeni hangi diyetten kaç öğün gerektiğini bildiriyor.',
       },
       {
-        title: 'Ayrı üretim akışı',
-        body: 'Diyet öğünleri, personel ve refakatçi öğünlerinden ayrı hazırlanır ve etiketlenir.',
+        title: 'Ayrı akış, ayrı etiket',
+        body: 'Diyet öğünleri personel ve refakatçi yemeğinden ayrı hazırlanıyor, üzerine kimin olduğu yazılıyor.',
       },
       {
-        title: 'Kat ve birim dağıtımı',
-        body: 'Öğünler servis saatinde ilgili birime, hasta bazlı etiketiyle ulaştırılır.',
+        title: 'Kata teslim',
+        body: 'Öğünler servis saatinde ilgili birime, etiketleriyle çıkıyor.',
       },
       {
-        title: 'Takip ve düzeltme',
-        body: 'Değişen diyet talimatları gün içinde güncellenebilecek şekilde işlenir.',
+        title: 'Gün içi değişiklik',
+        body: 'Diyet talimatı değiştiğinde o öğün için güncelleniyor.',
       },
     ],
     benefits: [
-      'Hasta, personel ve refakatçi öğünleri karışmaz',
-      'Diyet talimatları öğün bazında etiketlenir',
-      'Servis saatleri vizit ve tedavi düzenine göre ayarlanır',
-      'Gün içi değişikliklere uyarlanabilir bir akış kurulur',
+      'Hasta, personel ve refakatçi tabakları karışmıyor',
+      'Her diyet öğünü etiketli çıkıyor',
+      'Servis saatleri vizit düzenine göre',
+      'Gün içinde değişen talimata uyum',
     ],
     menuPlanning:
-      'Diyet menüleri kurumun diyetisyeninin belirlediği listelere göre uygulanır; biz üretim ve teslimat tarafını yürütürüz. Personel menüsü ise vardiya saatlerine göre planlanır.',
+      'Diyet menülerini kurumun diyetisyeni belirliyor; biz pişirip yetiştiriyoruz. Personel menüsü vardiya saatlerine göre ayrı planlanıyor.',
     quoteNeeds: [
       'Yatak kapasitesi ve ortalama doluluk',
       'Diyet tipleri ve günlük öğün sayısı',
       'Personel sayısı ve vardiya düzeni',
-      'Birim/kat dağıtım gereksinimi',
+      'Kat/birim dağıtımı gerekiyor mu',
     ],
   },
   {
     slug: 'santiye-yemek',
     title: 'Şantiye yemek hizmeti',
-    summary: 'Vardiyalı çalışmaya uygun, sahada teslim edilen doyurucu öğünler.',
+    summary: 'Sahaya kadar gelen, ağır işe yeten doyurucu öğünler.',
     intro:
-      'Şantiyede öğün saati sabit değildir ve iş ağırdır. Menüyü kalori ihtiyacına göre kuruyor, teslimatı vardiya değişimine göre planlıyoruz.',
+      'Şantiyede iş ağır, mola kısa, saat sabit değil. Menüyü karnı doyuracak şekilde kuruyor, teslimi vardiya değişimine göre ayarlıyoruz.',
     icon: HardHat,
     audience: [
       'İnşaat şantiyeleri',
@@ -289,126 +298,126 @@ export const SERVICES: readonly Service[] = [
     ],
     howItWorks: [
       {
-        title: 'Saha ve vardiya bilgisi',
-        body: 'Şantiye konumu, ulaşım koşulları ve vardiya saatleri belirlenir.',
+        title: 'Saha ve vardiya',
+        body: 'Şantiye nerede, yol nasıl, vardiyalar kaçta. Hepsi teslim planına giriyor.',
       },
       {
-        title: 'Kalori odaklı menü',
-        body: 'Ağır işe uygun, doyurucu ve dengeli menü kurulur.',
+        title: 'Doyuran menü',
+        body: 'Et ve baklagil ağırlıklı, uzun süre tok tutan yemekler.',
       },
       {
-        title: 'Sahaya teslimat',
-        body: 'Öğünler sıcaklık kontrollü kaplarla, vardiya değişimine yetişecek şekilde ulaştırılır.',
+        title: 'Sahaya teslim',
+        body: 'Isı tutan kaplarla, vardiya değişimine yetişecek saatte.',
       },
       {
         title: 'Sayı takibi',
-        body: 'Değişken personel sayısına göre günlük öğün adedi güncellenir.',
+        body: 'Sahada kaç kişi varsa o kadar. Sabah bildirim, öğlen yemek.',
       },
     ],
     benefits: [
-      'Vardiya saatlerine göre teslimat',
-      'Ağır iş koluna uygun kalori planlaması',
+      'Teslim saati vardiyaya göre',
+      'Ağır iş koluna göre porsiyon',
       'Değişken personel sayısına hızlı uyum',
       'Sahada servis düzeni kurulumu',
     ],
     menuPlanning:
-      'Menüde et ve baklagil ağırlıklı, uzun süre tok tutan yemekler öne alınır. Yaz aylarında ayran ve soğuk yan ürünler, kış aylarında çorba öne çıkarılır.',
+      'Kışın çorba çeşidi artıyor, sıcak tutan yemekler öne geçiyor. Yazın ayran ve soğuk yan ürünler devreye giriyor.',
     quoteNeeds: [
-      'Şantiye konumu ve ulaşım koşulları',
-      'Vardiya sayısı ve saatleri',
-      'Ortalama günlük personel sayısı',
-      'Projenin tahmini süresi',
+      'Şantiye konumu ve yol durumu',
+      'Kaç vardiya, hangi saatlerde',
+      'Günlük ortalama personel',
+      'Proje ne kadar sürecek',
     ],
   },
   {
     slug: 'davet-organizasyon',
-    title: 'Davet ve organizasyon catering',
-    summary: 'Düğün, açılış ve kurumsal etkinlikler için kurulumlu catering.',
+    title: 'Davet ve organizasyon',
+    summary: 'Düğün, açılış ve kurumsal davetlere kurulumuyla birlikte catering.',
     intro:
-      'Davetlerde yemek kadar servis düzeni de önemlidir. Menü, sunum ve servis ekibini etkinliğin akışına göre planlıyoruz.',
+      'Davette yemek kadar servisin düzeni de konuşuluyor. Menüyü, sunumu ve ekibi günün akışına göre kuruyoruz; sonunda ortalığı da biz topluyoruz.',
     icon: CalendarHeart,
     audience: [
-      'Düğün, nişan ve kına organizasyonları',
+      'Düğün, nişan ve kına',
       'Açılış ve tanıtım etkinlikleri',
       'Kurumsal yemekler ve yıl sonu davetleri',
       'Özel gün kutlamaları',
     ],
     howItWorks: [
       {
-        title: 'Etkinlik görüşmesi',
-        body: 'Tarih, davetli sayısı, mekân ve servis biçimi (açık büfe, masaya servis) belirlenir.',
+        title: 'Günü konuşuyoruz',
+        body: 'Tarih, kaç davetli, mekân nerede, servis nasıl olsun — açık büfe mi, masaya mı.',
       },
       {
-        title: 'Menü seçimi',
-        body: 'Etkinliğin saatine ve karakterine göre menü kurgulanır, tadım planlanabilir.',
+        title: 'Menü ve tadım',
+        body: 'Saatine göre menü çıkarıyoruz. İsterseniz önceden gelip tadıyorsunuz.',
       },
       {
-        title: 'Mekân kurulumu',
-        body: 'Servis alanı, büfe düzeni ve ekipman etkinlikten önce kurulur.',
+        title: 'Mekânı kuruyoruz',
+        body: 'Büfe, servis alanı ve ekipman etkinlikten önce hazır oluyor.',
       },
       {
         title: 'Servis ve toplama',
-        body: 'Servis ekibi etkinlik boyunca görev alır; sonrasında alan toplanır.',
+        body: 'Ekip gün boyu sahada. Bitince masalar toplanıyor, alan teslim ediliyor.',
       },
     ],
     benefits: [
-      'Menü ve servis biçimi etkinliğe göre kurgulanır',
-      'Kurulum ve toplama dâhil tek paket',
-      'Davetli sayısındaki son dakika değişiklikleri için pay bırakılır',
-      'Servis ekibi etkinlik boyunca sahada kalır',
+      'Menü ve servis biçimi güne göre',
+      'Kurulum ve toplama dâhil',
+      'Son dakika davetlisi için pay bırakılıyor',
+      'Servis ekibi etkinlik boyunca yanınızda',
     ],
     menuPlanning:
-      'Menü etkinliğin saatine göre değişir: öğle davetinde daha hafif, akşam davetinde daha kapsamlı bir kurgu tercih edilir. Vejetaryen ve alerjen alternatifleri davetli listesine göre eklenir.',
+      'Öğle davetinde daha hafif, akşam davetinde daha kapsamlı bir akış kuruyoruz. Vejetaryen ve alerjen alternatifleri davetli listesine göre ekleniyor.',
     quoteNeeds: [
-      'Etkinlik tarihi ve saati',
+      'Tarih ve saat',
       'Davetli sayısı',
-      'Mekân adresi ve mutfak/servis imkânları',
-      'Servis biçimi tercihi',
+      'Mekân adresi, mutfak ve servis imkânları',
+      'Açık büfe mi, masaya servis mi',
     ],
   },
   {
     slug: 'toplanti-ikram',
-    title: 'Toplantı ve etkinlik ikramları',
-    summary: 'Kahvaltı, coffee break ve seminer ikram paketleri.',
+    title: 'Toplantı ikramları',
+    summary: 'Kahvaltı, ara ikramı ve seminer paketleri.',
     intro:
-      'Toplantı ve eğitimlerde ikram, programı bölmeden kurulup toplanmalıdır. Paketleri katılımcı sayısına ve program akışına göre hazırlıyoruz.',
+      'İkram, toplantıyı bölmeden kurulup toplanmalı. Paketi katılımcı sayısına ve program akışına göre hazırlıyoruz.',
     icon: Coffee,
     audience: [
       'Kurumsal toplantı ve eğitimler',
       'Seminer ve konferanslar',
-      'Kurul ve yönetim toplantıları',
+      'Yönetim kurulu toplantıları',
       'Basın toplantıları ve lansmanlar',
     ],
     howItWorks: [
       {
-        title: 'Program akışı',
-        body: 'Toplantı saatleri ve ara zamanları alınır; ikram noktaları belirlenir.',
+        title: 'Programı alıyoruz',
+        body: 'Toplantı kaçta başlıyor, aralar ne zaman, ikram nereye kurulacak.',
       },
       {
-        title: 'Paket seçimi',
-        body: 'Kahvaltı, ara ikram veya öğle paketi arasından ihtiyaca uygun olan seçilir.',
+        title: 'Paketi seçiyoruz',
+        body: 'Kahvaltı, ara ikramı ya da öğle paketi. Sıcak ve soğuk bir arada.',
       },
       {
         title: 'Kurulum',
-        body: 'İkram alanı program başlamadan önce hazırlanır.',
+        body: 'İkram alanı program başlamadan hazır oluyor.',
       },
       {
-        title: 'Ara servisi',
-        body: 'Aralarda tazeleme yapılır, program sonunda alan toplanır.',
+        title: 'Aralarda tazeleme',
+        body: 'Her arada masa yenileniyor, program bitince alan toplanıyor.',
       },
     ],
     benefits: [
-      'İkram programı bölmeden kurulur ve toplanır',
-      'Katılımcı sayısına göre paket ölçeklenir',
-      'Sıcak ve soğuk seçenekler bir arada sunulur',
-      'Aynı gün içinde birden fazla ara desteklenir',
+      'Program bölünmüyor',
+      'Paket katılımcı sayısına göre büyüyor',
+      'Sıcak ve soğuk seçenekler bir arada',
+      'Aynı gün birden fazla ara',
     ],
     menuPlanning:
-      'Ara ikramlarda elde tüketilebilen, servis gerektirmeyen seçenekler öne alınır. Uzun programlarda ara menüsü tekrar etmeyecek biçimde çeşitlendirilir.',
+      'Ara ikramında elde yenen, çatal gerektirmeyen şeyler öne çıkıyor. Gün boyu süren programlarda her arada başka bir şey çıkıyor.',
     quoteNeeds: [
-      'Etkinlik tarihi ve program saatleri',
+      'Tarih ve program saatleri',
       'Katılımcı sayısı',
-      'Ara sayısı ve ikram türü',
+      'Kaç ara, hangi tür ikram',
       'Etkinlik adresi',
     ],
   },

@@ -7,18 +7,27 @@
  * Burada yapılan düzenleme yayındaki siteyi değiştirmez.
  *
  * Kuruluş yılı, çalışan sayısı, günlük üretim kapasitesi gibi rakamlar
- * bilinçli olarak yok — repoda doğrulanmış bir kaynağı yok. Güven, rakam
- * iddiasıyla değil, işin nasıl yürüdüğünü anlatarak kuruluyor.
+ * bilinçli olarak yok — repoda doğrulanmış bir kaynağı yok.
+ *
+ * ## Ton
+ *
+ * Metinler mutfaktan konuşur: kısa cümle, somut isim (tencere, tepsi, kapak,
+ * servis saati), gündelik Türkçe. Kaçınılan kalıplar —
+ *
+ * - "X değil, Y'dir" karşıtlığı (bir sayfada üç kez geçince şablon oluyor),
+ * - "çözüm, süreç, yaklaşım, altyapı, kurgu, disiplin" gibi soyut isim yığını,
+ * - her maddenin aynı uzunlukta olması.
+ *
+ * Bir cümle kısaysa kısa kalsın. Fiyat, kapasite ve belge iddiası yok.
  */
 
 import type { LucideIcon } from 'lucide-react';
 import {
   CalendarCheck,
   ClipboardList,
-  HandshakeIcon,
   MessageSquare,
+  Phone,
   Soup,
-  Sparkles,
   Truck,
   UsersRound,
 } from 'lucide-react';
@@ -29,32 +38,27 @@ export interface ProcessStep {
   readonly icon: LucideIcon;
 }
 
-/** "Nasıl çalışıyoruz" — ilk temastan düzenli hizmete kadar. */
+/** İlk telefondan düzenli servise kadar dört adım. */
 export const PROCESS_STEPS: readonly ProcessStep[] = [
   {
-    title: 'İhtiyacı dinliyoruz',
-    body: 'Kişi sayısı, öğün saatleri, hizmet konumu ve varsa mevcut mutfak altyapınızı konuşuyoruz.',
-    icon: MessageSquare,
+    title: 'Konuşuyoruz',
+    body: 'Kaç kişisiniz, saat kaçta yemek yiyorsunuz, mutfağınız var mı? Çoğu zaman yarım saatlik bir telefon yetiyor.',
+    icon: Phone,
   },
   {
-    title: 'Menü ve teklif hazırlıyoruz',
-    body: 'İhtiyacınıza uygun menü kurgusu ve fiyatlandırma çıkarılıyor; gerekirse tadım planlanıyor.',
+    title: 'Menüyü çıkarıyoruz',
+    body: 'Size göre bir menü ve fiyat hazırlıyoruz. İsterseniz gelip tadıyorsunuz, sonra karar veriyorsunuz.',
     icon: ClipboardList,
   },
   {
-    title: 'Planı sabitliyoruz',
-    body: 'Teslimat saatleri, servis düzeni ve haftalık menü onayınızla kesinleşiyor.',
-    icon: CalendarCheck,
-  },
-  {
-    title: 'Üretip teslim ediyoruz',
-    body: 'Öğünler planlanan saatte hazırlanıp sıcaklık kontrollü biçimde teslim ediliyor.',
+    title: 'Pişirip getiriyoruz',
+    body: 'Yemek sabah mutfakta yapılır, kapalı kaplarda yola çıkar. Kapağı açtığınızda hâlâ sıcaktır.',
     icon: Truck,
   },
   {
-    title: 'Takip edip düzeltiyoruz',
-    body: 'Tüketim ve geri bildirim izleniyor; menü ve porsiyonlar buna göre güncelleniyor.',
-    icon: Sparkles,
+    title: 'Sonra soruyoruz',
+    body: 'Ne bitti, ne arttı, kim ne beğenmedi? Bir sonraki haftanın menüsü bu cevaplara göre değişir.',
+    icon: MessageSquare,
   },
 ];
 
@@ -64,35 +68,35 @@ export interface Differentiator {
   readonly icon: LucideIcon;
 }
 
-/** "Neden BLD?" — vaat değil, çalışma biçimi. */
+/** "Neden BLD?" — reklam cümlesi yerine günlük işleyişten dört başlık. */
 export const DIFFERENTIATORS: readonly Differentiator[] = [
   {
-    title: 'Menü planı önceden belli',
-    body: 'Haftalık menü önden paylaşılır. Ne çıkacağını sabahında öğrenmezsiniz; planlama yapabilirsiniz.',
-    icon: ClipboardList,
+    title: 'Menüyü önceden görürsünüz',
+    body: 'Haftalık menü cuma günü elinizde olur. Salı ne çıkacağını salı sabahı öğrenmezsiniz.',
+    icon: CalendarCheck,
   },
   {
-    title: 'Tek muhatap',
-    body: 'Sipariş, teslimat, menü değişikliği ve faturalama tek kişiyle yürür. Sorun için sıraya girmezsiniz.',
-    icon: HandshakeIcon,
+    title: 'Tek numara, tek kişi',
+    body: 'Sipariş, menü değişikliği, fatura — hepsi aynı kişide. Santralde sıra beklemiyorsunuz.',
+    icon: Phone,
   },
   {
-    title: 'Değişken sayıya uyum',
-    body: 'Personel sayısı gün gün değişen iş yerlerinde öğün adedi günlük olarak güncellenir.',
+    title: 'Sayı her gün değişebilir',
+    body: 'Bugün seksen, yarın yüz otuz. Sabah haber verirsiniz, o kadar pişer.',
     icon: UsersRound,
   },
   {
-    title: 'Yemek yemek gibi',
-    body: 'Toplu üretimde de tarif ve porsiyon disiplini korunur. Menü, insanların gerçekten yediği yemeklerden kurulur.',
+    title: 'Tarif kalabalıkta bozulmaz',
+    body: 'Bin porsiyon çıkarken de aynı tarif, aynı ölçü. Yemeğin tadı sayıyla düşmüyor.',
     icon: Soup,
   },
 ];
 
 export const MISSION =
-  'Kalabalık için yemek üretmenin, evdeki özenden ödün vermeyi gerektirmediğini göstermek. Her öğünü, servis edeceğimiz insanların masasına kendi masamıza koyar gibi hazırlamak.';
+  'Kalabalığa yemek yapmak, özenden vazgeçmek anlamına gelmesin istiyoruz. Bininci tabak da ilkiyle aynı tada sahip olsun diye uğraşıyoruz.';
 
 export const VISION =
-  'Yerel bağını koruyan, ulusal ölçekte kurumlara hizmet verebilecek düzende çalışan; planlaması, hijyeni ve lezzetiyle tercih edilen bir catering markası olmak.';
+  'Kendi bölgesinde adı iyi anılan, başka şehirlerde de aynı düzeni kurabilen bir catering mutfağı olmak.';
 
 export interface Value {
   readonly title: string;
@@ -101,26 +105,26 @@ export interface Value {
 
 export const VALUES: readonly Value[] = [
   {
-    title: 'Söz verdiğimiz saatte',
-    body: 'Yemeğin lezzeti kadar zamanında gelmesi de hizmetin parçasıdır. Teslim saati taahhüttür.',
+    title: 'Saatinde',
+    body: 'Soğumuş yemeğin lezzeti tartışılmaz. Teslim saati bizim için bir söz.',
   },
   {
-    title: 'Hijyen tartışma konusu değil',
-    body: 'Temizlik, işler sıkıştığında esnetilen bir başlık değil; üretim akışının kendisidir.',
+    title: 'Temiz mutfak',
+    body: 'İşler sıkıştığında da aynı temizlik. Burada pazarlık yapmıyoruz.',
   },
   {
-    title: 'Abartmadan konuşmak',
-    body: 'Yapabileceğimizi söyler, yapamayacağımıza hayır deriz. Beklentiyi baştan doğru kurmak sonradan özür dilemekten iyidir.',
+    title: 'Ölçülü konuşmak',
+    body: 'Yetişmeyecek işe baştan hayır diyoruz. Sonradan mazeret aramak kimsenin işine yaramıyor.',
   },
   {
-    title: 'İnsan önce gelir',
-    body: 'Servis ettiğimiz kişi de, mutfakta çalışan ekip de aynı özeni hak eder.',
+    title: 'Aynı sofra',
+    body: 'Servis ettiğimiz insana ne yapıyorsak, mutfaktaki ekibe de aynısını yapıyoruz.',
   },
 ];
 
 /** Şirket ailesi bağı — Kurumsal sayfasında tek paragraf olarak geçer. */
 export const GROUP_RELATION =
-  'Benim Lezzet Dünyam, Benim Başarı Dünyam şirket ailesinin yemek ve catering markasıdır. Aynı kurumsal disiplinle çalışır; kendi alanında bağımsız bir yapı olarak yönetilir.';
+  'Benim Lezzet Dünyam, Benim Başarı Dünyam şirket ailesinin mutfağıdır. Kurumsal düzenini oradan alır; menüsü, ocağı ve ekibi kendisine aittir.';
 
 export interface FaqItem {
   readonly question: string;
@@ -129,43 +133,43 @@ export interface FaqItem {
 
 export const FAQ: readonly FaqItem[] = [
   {
-    question: 'Minimum kaç kişilik hizmet veriyorsunuz?',
+    question: 'En az kaç kişiye yemek yapıyorsunuz?',
     answer:
-      'Alt sınır hizmet türüne göre değişir. Düzenli kurumsal yemekte ve tek seferlik organizasyonlarda ölçek farklıdır; kişi sayınızı ilettiğinizde uygun olup olmadığını net biçimde söylüyoruz.',
+      'Düzenli hizmette ve tek günlük davette alt sınır aynı olmuyor. Kişi sayınızı söyleyin, yetişip yetişmeyeceğini o gün net söyleyelim.',
   },
   {
-    question: 'Menüyü biz mi seçiyoruz, siz mi hazırlıyorsunuz?',
+    question: 'Menüyü siz mi seçiyorsunuz, biz mi?',
     answer:
-      'İkisi de mümkün. Genellikle ihtiyacınıza göre bir menü planı hazırlayıp onayınıza sunuyoruz; üzerinde değişiklik yapabilir, kendi menünüzü de verebilirsiniz.',
+      'Genelde biz bir taslak çıkarıyoruz, siz üstünde oynuyorsunuz. Elinizde kendi menünüz varsa onu da uygularız.',
   },
   {
-    question: 'Vejetaryen veya alerjisi olan çalışanlarımız için ne yapılıyor?',
+    question: 'Vejetaryen ya da alerjisi olan çalışanlarımız var.',
     answer:
-      'Ana menüye alternatif öğün planlanır, ayrı hazırlanır ve etiketlenir. Alerjen bilgisi kurumdan gelen listeye göre takip edilir; liste değiştiğinde menü planı da güncellenir.',
+      'Onlara ayrı yemek pişiriyoruz, ayrı kaba koyup etiketliyoruz. Alerjen listesini siz veriyorsunuz; liste değişince menü de değişiyor.',
   },
   {
-    question: 'Kişi sayımız her gün değişiyor, bu sorun olur mu?',
+    question: 'Kişi sayımız her gün değişiyor, sorun olur mu?',
     answer:
-      'Olmaz. Değişken sayıyla çalışan iş yerleri için günlük bildirim düzeni kuruyoruz; öğün adedi sabahtan gelen sayıya göre güncellenir.',
+      'Olmaz. Sabah kaç kişi olduğunuzu bildiriyorsunuz, o kadar hazırlıyoruz. Değişken sayı bizim için olağan.',
   },
   {
-    question: 'Yemek nasıl taşınıyor, sıcak geliyor mu?',
+    question: 'Yemek sıcak geliyor mu?',
     answer:
-      'Öğünler ısı yalıtımlı kapalı kaplarda taşınır ve teslimde sıcaklık kontrol edilir. Uzun bekleme gerektiren teslimatlarda menü, taşımaya uygun yemeklerden kurulur.',
+      'Isı tutan kapalı kaplarda taşınıyor ve teslimde sıcaklığa bakılıyor. Yol uzunsa menüyü de ona göre kuruyoruz — yolda dağılacak yemeği o güne koymuyoruz.',
   },
   {
-    question: 'Servis malzemesi ve personeli siz mi sağlıyorsunuz?',
+    question: 'Tabak, çatal ve servis elemanı da veriyor musunuz?',
     answer:
-      'Hizmet türüne göre değişir. Taşıma yemekte servise hazır teslim yapılır; yerinde üretim ve organizasyon catering hizmetlerinde servis ekibi ve ekipman kurulumu dâhil planlanabilir.',
+      'Taşıma yemekte yemeği servise hazır bırakıyoruz. Davet ve organizasyonlarda kurulum, servis ekibi ve toplama işi de bize ait olabilir.',
   },
   {
-    question: 'Fiyatları neden sitede göremiyorum?',
+    question: 'Fiyatlar neden sitede yazmıyor?',
     answer:
-      'Catering fiyatı kişi sayısı, öğün sayısı, hizmet sıklığı ve konuma göre değişiyor. Sabit bir liste vermek yanıltıcı olurdu; ihtiyacınızı ilettiğinizde size özel teklif hazırlıyoruz.',
+      'Kişi sayısı, öğün sayısı, kaç gün ve nereye — dördü değişince fiyat da değişiyor. Sabit bir liste yazsak yanıltıcı olurdu. Bilgileri iletin, size özel çıkaralım.',
   },
   {
-    question: 'Sözleşme süresi ne kadar olmak zorunda?',
+    question: 'Ne kadar süreyle sözleşme yapmamız gerekiyor?',
     answer:
-      'Zorunlu bir alt süre dayatmıyoruz. Düzenli hizmetlerde genellikle dönemsel bir çerçeve tercih ediliyor; tek seferlik organizasyonlar için sözleşme etkinliğe özel hazırlanıyor.',
+      'Zorunlu bir alt süre koymuyoruz. Düzenli hizmette genelde dönemsel bir çerçeve tercih ediliyor; davetler için sözleşme etkinliğe özel yazılıyor.',
   },
 ];

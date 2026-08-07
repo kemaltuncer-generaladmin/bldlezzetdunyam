@@ -8,6 +8,9 @@
  * Bu liste **sektörleri** anlatır, referans firma değil. Repoda doğrulanmış
  * müşteri bilgisi yok; sahte logo veya firma adı üretmek yerine hangi alanlarda
  * çalışıldığını ve o alanın neye ihtiyaç duyduğunu anlatıyoruz.
+ *
+ * Görseller `public/gorseller/sektor-<slug>.webp` yolundadır; eşleşme
+ * `lib/site-images.ts` içinde slug üzerinden kurulur.
  */
 
 import type { LucideIcon } from 'lucide-react';
@@ -38,63 +41,61 @@ export const SECTORS: readonly Sector[] = [
     slug: 'sanayi',
     title: 'Sanayi ve üretim',
     icon: Factory,
-    need: 'Vardiya saatlerine dakikası dakikasına uyan, ağır işe yetecek öğünler.',
+    need: 'Vardiya zilinde hazır olan, ağır işe yeten yemek.',
     answer:
-      'Teslimat vardiya değişimine kilitlenir; menü kalori ihtiyacına göre kurulur ve personel sayısındaki dalgalanma günlük olarak güncellenir.',
+      'Teslim saatini vardiya değişimine bağlıyoruz. Menü doyuruyor, sayı gün gün güncelleniyor.',
     serviceSlug: 'kurumsal-toplu-yemek',
   },
   {
     slug: 'egitim',
-    title: 'Eğitim kurumları',
+    title: 'Okullar ve kreşler',
     icon: GraduationCap,
-    need: 'Yaş grubuna uygun porsiyon, alerjen takibi ve velinin görebileceği menü.',
+    need: 'Yaşa uygun porsiyon, alerji takibi ve veliye gösterilebilir bir menü.',
     answer:
-      'Öğün planı yaş grubuna göre ayrılır, alerjisi olan öğrenciler için alternatif hazırlanır, aylık menü paylaşıma hazır biçimde verilir.',
+      'Öğün planı yaşa göre ayrılıyor, alerjisi olana ayrı tabak çıkıyor, aylık liste paylaşıma hazır geliyor.',
     serviceSlug: 'okul-yemek-hizmeti',
   },
   {
     slug: 'saglik',
     title: 'Sağlık kuruluşları',
     icon: HeartPulse,
-    need: 'Hasta diyetleriyle personel öğünlerinin birbirine karışmaması.',
+    need: 'Hasta diyetiyle personel yemeğinin birbirine karışmaması.',
     answer:
-      'Diyet öğünleri ayrı akışta üretilir ve hasta bazlı etiketlenir; personel menüsü vardiyaya göre ayrı planlanır.',
+      'Diyet öğünleri ayrı pişiyor, hasta adına etiketleniyor. Personel menüsü vardiyaya göre ayrı planlanıyor.',
     serviceSlug: 'saglik-kuruluslari',
   },
   {
     slug: 'kamu',
     title: 'Kamu kurumları',
     icon: Landmark,
-    need: 'Şartnameye uygun, belgelenebilir ve düzenli bir hizmet akışı.',
+    need: 'Şartnameye uyan ve belgelenebilen bir düzen.',
     answer:
-      'Menü planı, teslimat kayıtları ve öğün sayıları raporlanabilir biçimde tutulur; hizmet şartname koşullarına göre kurgulanır.',
+      'Menü planı, teslim kayıtları ve öğün sayıları raporlanabilir tutuluyor; hizmet şartnameye göre kuruluyor.',
     serviceSlug: 'tasima-yemek',
   },
   {
     slug: 'ofis',
-    title: 'Kurumsal ofisler',
+    title: 'Ofisler',
     icon: Building,
-    need: 'Mutfak kurmadan, çalışanı memnun eden düzenli bir öğün çözümü.',
-    answer:
-      'Yemek merkez mutfakta hazırlanıp servise hazır teslim edilir; ofiste yalnızca servis alanı yeterlidir.',
+    need: 'Mutfak kurmadan, çalışanın memnun olacağı bir öğle yemeği.',
+    answer: 'Yemek bizde pişiyor, servise hazır geliyor. Ofiste bir masa yeterli.',
     serviceSlug: 'tasima-yemek',
   },
   {
     slug: 'insaat',
     title: 'İnşaat ve saha',
     icon: TrafficCone,
-    need: 'Ulaşımı zor sahalara, değişken personel sayısıyla teslimat.',
-    answer:
-      'Saha koşullarına göre teslimat planlanır, günlük öğün adedi sahadan gelen sayıya göre güncellenir.',
+    need: 'Yolu zor sahaya, her gün değişen sayıyla teslimat.',
+    answer: 'Teslimi saha koşullarına göre planlıyoruz. Sabah kaç kişiyseniz, öğlen o kadar tabak.',
     serviceSlug: 'santiye-yemek',
   },
   {
     slug: 'organizasyon',
-    title: 'Organizasyon ve etkinlik',
+    title: 'Davet ve etkinlik',
     icon: PartyPopper,
-    need: 'Tek seferlik ama hatasız olması gereken bir servis düzeni.',
+    need: 'Bir kez olacak ve hatasız olması gereken bir gün.',
     answer:
-      'Menü, kurulum, servis ekibi ve toplama tek pakette planlanır; davetli sayısındaki değişiklik için pay bırakılır.',
+      'Menü, kurulum, servis ve toplama tek pakette. Davetli sayısı artarsa diye pay bırakıyoruz.',
     serviceSlug: 'davet-organizasyon',
   },
 ];

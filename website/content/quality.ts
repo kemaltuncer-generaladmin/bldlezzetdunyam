@@ -39,53 +39,53 @@ export interface QualityPrinciple {
 /** Hammadde girişinden teslimata kadar zincir — sıralı okunacak biçimde. */
 export const QUALITY_CHAIN: readonly QualityPrinciple[] = [
   {
-    title: 'Hammadde seçimi',
-    body: 'Malzeme, düzenli çalışılan tedarikçilerden alınır. Girişte görsel kontrol yapılır; uygun bulunmayan ürün kabul edilmez.',
+    title: 'Mal girişi',
+    body: 'Malzemeyi hep aynı yerlerden alıyoruz. Kapıda kasa kasa bakılır; beğenilmeyen geri gider.',
     icon: Sprout,
   },
   {
-    title: 'Depolama koşulları',
-    body: 'Kuru gıda, soğuk ve dondurulmuş ürünler ayrı alanlarda saklanır. Ürünler giriş tarihine göre sıraya konur; önce giren önce kullanılır.',
+    title: 'Depo',
+    body: 'Kuru gıda, soğuk ve dondurulmuş ayrı yerlerde durur. Rafta önce giren önce çıkar.',
     icon: Refrigerator,
   },
   {
-    title: 'Mutfak hijyeni',
-    body: 'Hazırlık yüzeyleri ve ekipman, kullanım öncesi ve sonrası temizlenir. Çiğ ve pişmiş ürün için ayrı hazırlık alanı ve ekipman kullanılır.',
+    title: 'Tezgâh',
+    body: 'Tezgâh ve ekipman iş öncesi ve sonrası temizlenir. Çiğ etin bıçağı salatanın bıçağı olmaz.',
     icon: UtensilsCrossed,
   },
   {
-    title: 'Personel hijyeni',
-    body: 'Mutfak ekibi bone, maske ve iş kıyafetiyle çalışır. El hijyeni kuralları üretim akışının bir parçası olarak uygulanır.',
+    title: 'Ekip',
+    body: 'Mutfakta bone, maske ve iş kıyafeti var. El yıkamak işin adımlarından biri.',
     icon: ShieldCheck,
   },
   {
-    title: 'Üretim ve pişirme',
-    body: 'Öğünler servis saatine göre planlanan zamanda pişirilir. Uzun süre bekleyecek biçimde erken üretim yapılmaz.',
+    title: 'Ocak',
+    body: 'Pişirme saati servis saatinden geri sayılarak belirlenir. Sabahtan pişip öğlene kadar bekleyen yemek yok.',
     icon: ClipboardCheck,
   },
   {
-    title: 'Sıcaklık kontrolü',
-    body: 'Sıcak yemek sıcak, soğuk ürün soğuk zincirde tutulur. Sıcaklık, sevkiyat öncesi ve teslimde kontrol edilir.',
+    title: 'Sıcaklık',
+    body: 'Sıcak sıcakta, soğuk soğukta durur. Termometre hem çıkışta hem teslimde giriyor.',
     icon: ThermometerSnowflake,
   },
   {
-    title: 'Taşıma ve teslimat',
-    body: 'Yemek, ısı yalıtımlı kapalı kaplarla taşınır. Teslim edilen öğün, sayı ve saat bilgisiyle kayda geçer.',
+    title: 'Yol',
+    body: 'Yemek ısı tutan kapalı kaplarla gider. Kaç kap, kaçta teslim edildi — hepsi yazılır.',
     icon: Truck,
   },
   {
-    title: 'İzlenebilirlik',
-    body: 'Hangi gün hangi menünün üretildiği ve nereye teslim edildiği kayıt altındadır. Geriye dönük inceleme gerektiğinde bu kayıtlar kullanılır.',
+    title: 'Kayıt',
+    body: 'Hangi gün ne pişti, nereye gitti — hepsi duruyor. Geriye dönüp bakmak gerekirse kayıt orada.',
     icon: PackageCheck,
   },
 ];
 
 /** Alerjen yönetimi — ayrı bölüm, çünkü sorumluluk paylaşımı gerektiriyor. */
 export const ALLERGEN_APPROACH: readonly string[] = [
-  'Menüdeki öğünlerin içerdiği bilinen alerjenler kurumla paylaşılır.',
-  'Alerjisi olan kişiler için alternatif öğün ayrı hazırlanır ve etiketlenir.',
-  'Özel öğünler, çapraz bulaşma riskini azaltmak için ayrı kaplarda taşınır.',
-  'Alerjen listesi kurumdan gelen bilgiye dayanır; liste güncellendiğinde menü planı da güncellenir.',
+  'Menüdeki yemeklerin bilinen alerjenlerini önden yazılı veriyoruz.',
+  'Alerjisi olana ayrı yemek pişiyor, kabın üzerine adı yazılıyor.',
+  'O kaplar ayrı taşınıyor — yolda diğerlerine değmiyor.',
+  'Listeyi siz veriyorsunuz. Yeni bir isim eklendiğinde menü planı da değişiyor.',
 ];
 
 /**

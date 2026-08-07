@@ -58,6 +58,11 @@ tags:
       Kurumsal web sitesinin içeriği. Kimlik gerektirmez — içeriğin tamamı
       zaten sitede herkese açık yayınlanıyor; token istemek statik üretimi
       zorlaştırıp hiçbir şeyi korumazdı.
+  - name: Teklif
+    description: |
+      Kurumsal sitedeki "Teklif Al" formu. Kimlik gerektirmez — formu dolduran
+      kişi henüz müşteri değil. Talepler panelde **İçerikler → Teklif
+      Talepleri** ekranına düşer.
   - name: Sürüm
     description: İstemci sürüm kontrolü ve zorunlu güncelleme eşiği.
 
@@ -969,6 +974,71 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/SiteContent' }
+
+  # ─────────────────────────────── Teklif ───────────────────────────────
+
+  /quote-requests:
+    parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
+    post:
+      tags: [Teklif]
+      summary: Teklif talebi gönder
+      description: |
+        Kurumsal sitedeki "Teklif Al" formunun gönderim ucu. Kimlik
+        gerektirmez: teklif isteyebilmek için önce hesap açtırmak, formun
+        terk edilmesinin en yaygın sebebidir. Koruma oran sınırındadır
+        (10 istek / saat / IP).
+
+        **DOĞRULAMA BİLİNÇLİ OLARAK GEVŞEKTİR.** Bu ucun başarısızlığı
+        "hatalı istek" değil, kaybedilmiş iştir; ziyaretçi formu bir kez
+        doldurur ve 422 gördüğünde çoğu zaman tekrar denemez. Bu yüzden:
+
+        - **Bilinmeyen alanlar sessizce yok sayılır.** Şemada olmayan bir
+          alan (`utm_source` gibi) isteği reddettirmez. Site sözleşmeden bir
+          sürüm önde gidebilmelidir.
+        - **`service_type`, `frequency` ve `menu_preference` enum DEĞİLDİR.**
+          Değerler `website/content/services.ts` slug'larından gelir ve yeni
+          bir hizmet önce orada doğar; enum kısıtı o aradaki her talebi çöpe
+          atardı. Aşağıdaki `examples` listeleri bilgi amaçlıdır, kısıt değil.
+        - **Çözümlenemeyen tarih ve rakam olmayan kişi sayısı boş bırakılır**,
+          talep yine kaydedilir.
+        - **Sütun sınırını aşan metin kesilir**, reddedilmez.
+
+        Reddedilen yalnızca iki durum vardır ve ikisi de bilinçli kayıptır:
+        KVKK onayının olmaması ve kişiye ulaşmanın hiçbir yolunun olmaması.
+
+        **Tekilleştirme yapılmaz.** Aynı kişinin ikinci gönderimi ikinci bir
+        kayıttır: aynı firma iki farklı etkinlik için teklif isteyebilir.
+      operationId: createQuoteRequest
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/QuoteRequestInput' }
+      responses:
+        '201':
+          description: |
+            Talep kaydedildi.
+
+            **Yanıt kaydın kendisini ve `id`'sini DÖNMEZ.** Uç herkese açık;
+            artan bir kimlik döndürmek, formu iki kez dolduran herkese
+            firmanın aldığı talep sayısını sızdırırdı.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, received_at]
+                properties:
+                  status: { $ref: '#/components/schemas/QuoteStatus' }
+                  received_at: { type: string, format: date-time }
+        '422':
+          description: |
+            KVKK onayı yok (`kvkk_accepted` `true` değil), ad boş, ya da
+            telefon ve e-postanın ikisi birden boş.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /app-version:
     parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
@@ -2002,3 +2072,105 @@ components:
           description: |
             Üç içerik tablosunun en son değişme zamanı. İstemci bunu yeniden
             çizim gerekip gerekmediğine karar vermek için kullanır.
+
+    # ── Teklif talebi ───────────────────────────────────────────────────
+
+    QuoteStatus:
+      type: string
+      enum: [yeni, okundu, cevaplandi, kapandi]
+      description: |
+        Talebin panel içindeki takip durumu. **Ziyaretçi bunu görmez ve
+        gönderirken belirleyemez** — gövdede `status` alanı gelse bile yok
+        sayılır, yeni kayıt her zaman `yeni` doğar.
+
+        Dört kademe var çünkü üçü yetmiyordu: `cevaplandi` (teklif gönderildi,
+        cevap bekleniyor) ile `kapandi` (iş alındı veya kaybedildi)
+        ayrılmasaydı liste zamanla takip edilemeyecek kadar şişerdi.
+
+    QuoteRequestInput:
+      type: object
+      required: [full_name, kvkk_accepted]
+      description: |
+        Sitedeki teklif formunun gövdesi (`website/lib/validation/quote.ts`).
+
+        **Şemada olmayan alanlar hata değildir, sessizce yok sayılır** — uç
+        gerekçesi `POST /quote-requests` açıklamasındadır. `status` ve
+        `admin_note` gibi panele ait alanlar gövdeden ATANAMAZ.
+      properties:
+        full_name:
+          type: string
+          maxLength: 120
+          description: Zorunlu. 120 karakteri aşan değer kesilir, reddedilmez.
+        organization: { type: [string, 'null'], maxLength: 160 }
+        telephone:
+          type: [string, 'null']
+          maxLength: 32
+          description: |
+            Site başında sıfır olmadan 10 hane gönderir, ama uç ham metni de
+            kabul eder (dahili no, uluslararası numara). **`telephone` ve
+            `email`'den en az biri dolu olmalıdır**; ikisi de boşsa firma
+            teklifi kimseye gönderemez ve kayıt yalnızca kişisel veri
+            biriktirir.
+        email: { type: [string, 'null'], maxLength: 160 }
+        service_type:
+          type: [string, 'null']
+          maxLength: 64
+          description: |
+            `website/content/services.ts` slug'ı. **Enum DEĞİL** — aşağıdaki
+            liste bilgi amaçlıdır.
+          examples:
+            - kurumsal-toplu-yemek
+            - tasima-yemek
+            - yerinde-uretim
+            - okul-yemek-hizmeti
+            - saglik-kuruluslari
+            - santiye-yemek
+            - davet-organizasyon
+            - toplanti-ikram
+        headcount:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 1000000
+          description: |
+            Rakam olmayan değer `null` olarak kaydedilir, talebi düşürmez.
+            Tavanı aşan değer tavana çekilir; gerçek sayı zaten `message`
+            alanına yazılır.
+        frequency:
+          type: [string, 'null']
+          maxLength: 32
+          description: |
+            Tek seferlik hizmetlerde (davet, toplantı ikramı) sorulmaz.
+            **Enum değil.**
+          examples: [gunluk, haftaici, haftalik-birkac, donemsel]
+        start_date:
+          type: [string, 'null']
+          description: |
+            Tek seferlik hizmetlerde etkinlik tarihi, sürekli hizmetlerde
+            başlangıç tercihi. `YYYY-MM-DD` beklenir; **çözümlenemeyen değer
+            `null` olarak kaydedilir**, talep yine durur.
+          examples: ['2026-09-01']
+        location: { type: [string, 'null'], maxLength: 160 }
+        menu_preference:
+          type: [string, 'null']
+          maxLength: 32
+          description: '**Enum değil**, örnek değerler.'
+          examples: [siz-onerin, dort-kap, uc-kap, kahvalti-ikram, ozel-beslenme]
+        kitchen_note:
+          type: [string, 'null']
+          maxLength: 2000
+          description: Yalnızca yerinde üretim hizmetinde sorulan mutfak altyapısı notu.
+        message: { type: [string, 'null'], maxLength: 5000 }
+        kvkk_accepted:
+          type: boolean
+          const: true
+          description: |
+            **`true` DEĞİLSE TALEP KAYDEDİLMEZ ve `422` döner.** Onaysız
+            kişisel veri saklamak hukuki sorundur; bu, ucun kaybı göze aldığı
+            iki durumdan biridir. Onay anı sunucuda damgalanır — istemcinin
+            bildirdiği bir zaman hukuki kayıt için delil değildir.
+        submitted_at:
+          type: [string, 'null']
+          format: date-time
+          description: |
+            Sitenin bildirdiği gönderim anı. `created_at` ile aynı olmak
+            zorunda değil: site kuyruğa alıp gecikmeli iletebilir.

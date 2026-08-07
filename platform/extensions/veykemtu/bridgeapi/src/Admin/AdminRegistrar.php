@@ -41,6 +41,25 @@ final class AdminRegistrar
      */
     public const string PERMISSION_CONTENT = 'Veykemtu.SiteContent';
 
+    /**
+     * Teklif talepleri ekranına erişim yetkisi — DÖRDÜNCÜ kutu.
+     *
+     * `PERMISSION_CONTENT` yeniden kullanılmadı ve gerekçesi tek kelime:
+     * KİŞİSEL VERİ. İçerik yetkisi, herkese açık pazarlama metinlerini
+     * yazma yetkisidir — o metinlerin tamamı zaten sitede yayında, yani
+     * yetkiyi vermek hiçbir mahremiyet kararı içermez. Teklif talepleri ise
+     * ad, telefon ve e-posta taşıyor: sistemdeki tek "müşteri olmayan kişi"
+     * havuzu. İki ekranı aynı kutuya koymak, blog yazısı girmesi için panele
+     * alınan serbest çalışan bir metin yazarına firmanın bütün satış
+     * adaylarının iletişim listesini açmak olurdu; KVKK'nın "erişim en dar
+     * çevreyle sınırlanır" ilkesi bunun tersini söylüyor.
+     *
+     * Menüde yine de İçerikler grubunun altında duruyor: kaynağı sitedir ve
+     * yöneticinin onu arayacağı yer orasıdır. Menü YERİ ile erişim KUTUSU
+     * ayrı sorular.
+     */
+    public const string PERMISSION_QUOTES = 'Veykemtu.QuoteRequests';
+
     /** Mutfak kasaları ekranının admin paneldeki adresi. */
     public const string DEVICES_URI = 'veykemtu/bridgeapi/kitchen_devices';
 
@@ -49,6 +68,9 @@ final class AdminRegistrar
 
     /** Bilgi merkezi yazıları ekranının admin paneldeki adresi. */
     public const string POSTS_URI = 'veykemtu/bridgeapi/site_posts';
+
+    /** Teklif talepleri ekranının admin paneldeki adresi. */
+    public const string QUOTES_URI = 'veykemtu/bridgeapi/quote_requests';
 
     /** İçerik ekranlarının ortak üst menü grubu kodu. */
     public const string CONTENT_MENU = 'bld_content';
@@ -181,6 +203,19 @@ final class AdminRegistrar
                         'title' => lang('veykemtu.bridgeapi::default.side_menu.posts'),
                         'permission' => self::PERMISSION_CONTENT,
                     ],
+                    /*
+                     * EN ALTTA VE AYRI YETKİYLE. Üstündeki üç girdi içerik
+                     * ÜRETİR, bu girdi içeriğin GETİRDİĞİNİ toplar; yönü
+                     * ters olduğu için listenin sonunda duruyor. Yetkisi de
+                     * ayrı: gerekçe `PERMISSION_QUOTES` üzerinde.
+                     */
+                    'bld_quote_requests' => [
+                        'priority' => 30,
+                        'class' => 'bld_quote_requests',
+                        'href' => admin_url(self::QUOTES_URI),
+                        'title' => lang('veykemtu.bridgeapi::quoterequest.side_menu'),
+                        'permission' => self::PERMISSION_QUOTES,
+                    ],
                 ],
             ],
         ];
@@ -205,6 +240,10 @@ final class AdminRegistrar
             ],
             self::PERMISSION_CONTENT => [
                 'label' => 'lang:veykemtu.bridgeapi::default.permission_content',
+                'group' => 'igniter::admin.permissions.name',
+            ],
+            self::PERMISSION_QUOTES => [
+                'label' => 'lang:veykemtu.bridgeapi::quoterequest.permission',
                 'group' => 'igniter::admin.permissions.name',
             ],
         ];

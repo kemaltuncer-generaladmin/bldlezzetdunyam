@@ -56,9 +56,9 @@ export const BRAND = {
    * bağ yalnızca Kurumsal sayfasında ve footer'da bir cümleyle geçiyor.
    */
   parentGroup: 'Benim Başarı Dünyam',
-  tagline: 'Kalabalık sofralar için planlı, hijyenik ve lezzetli catering çözümleri.',
+  tagline: 'Kurumlara günlük yemek, davetlere catering. Sıcak gelir, saatinde gelir.',
   description:
-    'Kurumlara, okullara, sağlık kuruluşlarına ve organizasyonlara toplu yemek ve catering hizmeti.',
+    'Ofislere, fabrikalara, okullara ve davetlere yemek hazırlıyoruz. Menüyü birlikte kuruyoruz, yemeği kendi mutfağımızda pişiriyoruz, teslim saatini siz söylüyorsunuz.',
 } as const;
 
 /**
