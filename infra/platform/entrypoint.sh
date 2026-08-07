@@ -143,6 +143,20 @@ if [ "${BLD_SKIP_MIGRATIONS:-}" != "1" ]; then
   # Üzerine yazmak isteyen elle `--force` ile koşar.
   su -s /bin/sh -c "php /var/www/platform/artisan veykemtu:siteIceriginiAktar --no-interaction" www-data \
     || echo "[giris] UYARI: site içeriği aktarılamadı"
+
+  # Menü görsellerini ürünlere bağlar.
+  #
+  # NEDEN BURADA: görsel dosyaları depoda ve imajda hazır, ama ürüne BAĞLI
+  # değil — bağlantı veritabanında durur ve göçle gelmez. Canlıda bu atlandığı
+  # için menü on iki görselsiz satır olarak açıldı; yereldeyse komut elle
+  # koşulduğundan fotoğraflı görünüyordu. İki ortam arasındaki bu fark
+  # dağıtımın tekrarlanabilir olmadığının işaretiydi.
+  #
+  # `siteIceriginiAktar` ile aynı sözleşme: idempotent, görseli olan ürüne
+  # dokunmaz. Yöneticinin panelden yüklediği gerçek fotoğraf bir sonraki
+  # dağıtımda stok görselle EZİLMEZ.
+  su -s /bin/sh -c "php /var/www/platform/artisan veykemtu:menuGorselleri --no-interaction" www-data \
+    || echo "[giris] UYARI: menü görselleri bağlanamadı"
 fi
 
 exec "$@"
