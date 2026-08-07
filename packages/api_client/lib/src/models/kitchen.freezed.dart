@@ -1408,6 +1408,287 @@ as int,
 
 
 /// @nodoc
+mixin _$KitchenSubscriptionOrders {
+
+ List<KitchenOrder> get today; List<KitchenOrder> get tomorrow; DateTime get serverTime;
+/// Create a copy of KitchenSubscriptionOrders
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$KitchenSubscriptionOrdersCopyWith<KitchenSubscriptionOrders> get copyWith => _$KitchenSubscriptionOrdersCopyWithImpl<KitchenSubscriptionOrders>(this as KitchenSubscriptionOrders, _$identity);
+
+  /// Serializes this KitchenSubscriptionOrders to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is KitchenSubscriptionOrders&&const DeepCollectionEquality().equals(other.today, today)&&const DeepCollectionEquality().equals(other.tomorrow, tomorrow)&&(identical(other.serverTime, serverTime) || other.serverTime == serverTime));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(today),const DeepCollectionEquality().hash(tomorrow),serverTime);
+
+@override
+String toString() {
+  return 'KitchenSubscriptionOrders(today: $today, tomorrow: $tomorrow, serverTime: $serverTime)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $KitchenSubscriptionOrdersCopyWith<$Res>  {
+  factory $KitchenSubscriptionOrdersCopyWith(KitchenSubscriptionOrders value, $Res Function(KitchenSubscriptionOrders) _then) = _$KitchenSubscriptionOrdersCopyWithImpl;
+@useResult
+$Res call({
+ List<KitchenOrder> today, List<KitchenOrder> tomorrow, DateTime serverTime
+});
+
+
+
+
+}
+/// @nodoc
+class _$KitchenSubscriptionOrdersCopyWithImpl<$Res>
+    implements $KitchenSubscriptionOrdersCopyWith<$Res> {
+  _$KitchenSubscriptionOrdersCopyWithImpl(this._self, this._then);
+
+  final KitchenSubscriptionOrders _self;
+  final $Res Function(KitchenSubscriptionOrders) _then;
+
+/// Create a copy of KitchenSubscriptionOrders
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? today = null,Object? tomorrow = null,Object? serverTime = null,}) {
+  return _then(_self.copyWith(
+today: null == today ? _self.today : today // ignore: cast_nullable_to_non_nullable
+as List<KitchenOrder>,tomorrow: null == tomorrow ? _self.tomorrow : tomorrow // ignore: cast_nullable_to_non_nullable
+as List<KitchenOrder>,serverTime: null == serverTime ? _self.serverTime : serverTime // ignore: cast_nullable_to_non_nullable
+as DateTime,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [KitchenSubscriptionOrders].
+extension KitchenSubscriptionOrdersPatterns on KitchenSubscriptionOrders {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _KitchenSubscriptionOrders value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _KitchenSubscriptionOrders() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _KitchenSubscriptionOrders value)  $default,){
+final _that = this;
+switch (_that) {
+case _KitchenSubscriptionOrders():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _KitchenSubscriptionOrders value)?  $default,){
+final _that = this;
+switch (_that) {
+case _KitchenSubscriptionOrders() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<KitchenOrder> today,  List<KitchenOrder> tomorrow,  DateTime serverTime)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _KitchenSubscriptionOrders() when $default != null:
+return $default(_that.today,_that.tomorrow,_that.serverTime);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<KitchenOrder> today,  List<KitchenOrder> tomorrow,  DateTime serverTime)  $default,) {final _that = this;
+switch (_that) {
+case _KitchenSubscriptionOrders():
+return $default(_that.today,_that.tomorrow,_that.serverTime);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<KitchenOrder> today,  List<KitchenOrder> tomorrow,  DateTime serverTime)?  $default,) {final _that = this;
+switch (_that) {
+case _KitchenSubscriptionOrders() when $default != null:
+return $default(_that.today,_that.tomorrow,_that.serverTime);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _KitchenSubscriptionOrders implements KitchenSubscriptionOrders {
+  const _KitchenSubscriptionOrders({final  List<KitchenOrder> today = const <KitchenOrder>[], final  List<KitchenOrder> tomorrow = const <KitchenOrder>[], required this.serverTime}): _today = today,_tomorrow = tomorrow;
+  factory _KitchenSubscriptionOrders.fromJson(Map<String, dynamic> json) => _$KitchenSubscriptionOrdersFromJson(json);
+
+ final  List<KitchenOrder> _today;
+@override@JsonKey() List<KitchenOrder> get today {
+  if (_today is EqualUnmodifiableListView) return _today;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_today);
+}
+
+ final  List<KitchenOrder> _tomorrow;
+@override@JsonKey() List<KitchenOrder> get tomorrow {
+  if (_tomorrow is EqualUnmodifiableListView) return _tomorrow;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_tomorrow);
+}
+
+@override final  DateTime serverTime;
+
+/// Create a copy of KitchenSubscriptionOrders
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$KitchenSubscriptionOrdersCopyWith<_KitchenSubscriptionOrders> get copyWith => __$KitchenSubscriptionOrdersCopyWithImpl<_KitchenSubscriptionOrders>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$KitchenSubscriptionOrdersToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _KitchenSubscriptionOrders&&const DeepCollectionEquality().equals(other._today, _today)&&const DeepCollectionEquality().equals(other._tomorrow, _tomorrow)&&(identical(other.serverTime, serverTime) || other.serverTime == serverTime));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_today),const DeepCollectionEquality().hash(_tomorrow),serverTime);
+
+@override
+String toString() {
+  return 'KitchenSubscriptionOrders(today: $today, tomorrow: $tomorrow, serverTime: $serverTime)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$KitchenSubscriptionOrdersCopyWith<$Res> implements $KitchenSubscriptionOrdersCopyWith<$Res> {
+  factory _$KitchenSubscriptionOrdersCopyWith(_KitchenSubscriptionOrders value, $Res Function(_KitchenSubscriptionOrders) _then) = __$KitchenSubscriptionOrdersCopyWithImpl;
+@override @useResult
+$Res call({
+ List<KitchenOrder> today, List<KitchenOrder> tomorrow, DateTime serverTime
+});
+
+
+
+
+}
+/// @nodoc
+class __$KitchenSubscriptionOrdersCopyWithImpl<$Res>
+    implements _$KitchenSubscriptionOrdersCopyWith<$Res> {
+  __$KitchenSubscriptionOrdersCopyWithImpl(this._self, this._then);
+
+  final _KitchenSubscriptionOrders _self;
+  final $Res Function(_KitchenSubscriptionOrders) _then;
+
+/// Create a copy of KitchenSubscriptionOrders
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? today = null,Object? tomorrow = null,Object? serverTime = null,}) {
+  return _then(_KitchenSubscriptionOrders(
+today: null == today ? _self._today : today // ignore: cast_nullable_to_non_nullable
+as List<KitchenOrder>,tomorrow: null == tomorrow ? _self._tomorrow : tomorrow // ignore: cast_nullable_to_non_nullable
+as List<KitchenOrder>,serverTime: null == serverTime ? _self.serverTime : serverTime // ignore: cast_nullable_to_non_nullable
+as DateTime,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
 mixin _$ReceiptLine {
 
  int get quantity; String get name; List<String> get options; String? get note;

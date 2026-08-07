@@ -1,9 +1,10 @@
-/// "Bugün abonelik var" bildirim şeridi.
+/// "Bugün abonelik var" bildirim şeridi + bugün/yarın dökümü.
 ///
-/// Abonelik siparişleri panoda normal kartlar olarak da görünür (her birinde
-/// ABONE rozeti), ama mutfak günün başında "bugün kaç abonelik var, kimler"
-/// sorusunun cevabını tek bakışta istiyor. Bu şerit onu üstte toplar;
-/// dokununca bugünün abonelik siparişlerinin dökümü açılır.
+/// Ana pano yalnız bugünü gösterir; abonelik yemekleri önceden hazırlandığı
+/// için mutfak yarını da görmek ister (`/kitchen/subscription-orders`). Şerit
+/// bugün+yarının abonelik sipariş sayısını üstte toplar; dokununca gün gün
+/// döküm açılır: hazırlanacak TOPLAM adetler (yemek kuyruğunu buna göre kurar)
+/// ve tek tek siparişler.
 library;
 
 import 'package:bld_api_client/bld_api_client.dart';
@@ -22,12 +23,12 @@ class KdsSubscriptionBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppL10n.of(context);
-    final subscriptions = ref
-        .watch(activeOrdersProvider)
-        .where((o) => o.isSubscription)
-        .toList();
+    final data = ref.watch(subscriptionOrdersProvider).value;
+    if (data == null) return const SizedBox.shrink();
 
-    if (subscriptions.isEmpty) return const SizedBox.shrink();
+    final today = data.today;
+    final tomorrow = data.tomorrow;
+    if (today.isEmpty && tomorrow.isEmpty) return const SizedBox.shrink();
 
     const background = Color(BldColors.brand500);
     final foreground = KdsAccents.onAccent(background);
@@ -44,7 +45,7 @@ class KdsSubscriptionBanner extends ConsumerWidget {
         borderRadius: BorderRadius.circular(BldRadius.sm),
         child: InkWell(
           borderRadius: BorderRadius.circular(BldRadius.sm),
-          onTap: () => _showDetail(context, subscriptions),
+          onTap: () => _showDetail(context, today, tomorrow),
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: BldSpacing.md,
@@ -65,7 +66,10 @@ class KdsSubscriptionBanner extends ConsumerWidget {
                 const SizedBox(width: BldSpacing.md),
                 Expanded(
                   child: Text(
-                    l10n.subscriptionBannerCount(subscriptions.length),
+                    l10n.subscriptionBannerBreakdown(
+                      today.length,
+                      tomorrow.length,
+                    ),
                     style: TextStyle(
                       fontSize: KdsTextScale.statusBar,
                       color: foreground,
@@ -83,7 +87,8 @@ class KdsSubscriptionBanner extends ConsumerWidget {
 
   Future<void> _showDetail(
     BuildContext context,
-    List<KitchenOrder> orders,
+    List<KitchenOrder> today,
+    List<KitchenOrder> tomorrow,
   ) {
     final l10n = AppL10n.of(context);
     return showDialog<void>(
@@ -98,15 +103,20 @@ class KdsSubscriptionBanner extends ConsumerWidget {
           ),
         ),
         content: SizedBox(
-          width: 560,
-          child: ListView.separated(
-            shrinkWrap: true,
-            itemCount: orders.length,
-            separatorBuilder: (_, _) => const Divider(
-              height: BldSpacing.md,
-              color: Color(KdsColors.surfaceRaised),
+          width: 640,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _DaySection(title: l10n.subscriptionDayToday, orders: today),
+                const SizedBox(height: BldSpacing.lg),
+                _DaySection(
+                  title: l10n.subscriptionDayTomorrow,
+                  orders: tomorrow,
+                ),
+              ],
             ),
-            itemBuilder: (context, index) => _DetailRow(order: orders[index]),
           ),
         ),
         actions: [
@@ -123,16 +133,127 @@ class KdsSubscriptionBanner extends ConsumerWidget {
   }
 }
 
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({required this.order});
+/// Tek gün: başlık + hazırlanacak toplamlar + tek tek siparişler.
+class _DaySection extends StatelessWidget {
+  const _DaySection({required this.title, required this.orders});
+
+  final String title;
+  final List<KitchenOrder> orders;
+
+  /// Ürün adı → toplam adet (yemek kuyruğu buna göre kurulur).
+  Map<String, int> get _totals {
+    final totals = <String, int>{};
+    for (final order in orders) {
+      for (final item in order.items) {
+        totals[item.name] = (totals[item.name] ?? 0) + item.quantity;
+      }
+    }
+    return totals;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: KdsTextScale.columnHeader,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: BldSpacing.sm),
+            Text(
+              l10n.subscriptionOrderCount(orders.length),
+              style: const TextStyle(
+                fontSize: KdsTextScale.statusBar,
+                color: Color(KdsColors.onSurfaceMuted),
+              ),
+            ),
+          ],
+        ),
+        if (orders.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: BldSpacing.xs),
+            child: Text(
+              '—',
+              style: TextStyle(
+                fontSize: KdsTextScale.statusBar,
+                color: Color(KdsColors.onSurfaceMuted),
+              ),
+            ),
+          )
+        else ...[
+          const SizedBox(height: BldSpacing.sm),
+          // Hazırlanacak toplamlar — asıl işe yarayan bilgi.
+          Text(
+            l10n.subscriptionTotalsLabel,
+            style: const TextStyle(
+              fontSize: KdsTextScale.statusBar,
+              fontWeight: FontWeight.bold,
+              color: Color(BldColors.brand400),
+            ),
+          ),
+          const SizedBox(height: BldSpacing.xs),
+          Wrap(
+            spacing: BldSpacing.sm,
+            runSpacing: BldSpacing.sm,
+            children: [
+              for (final entry in _totals.entries)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: BldSpacing.sm,
+                    vertical: BldSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(KdsColors.surfaceRaised),
+                    borderRadius: BorderRadius.circular(BldRadius.sm),
+                  ),
+                  child: Text(
+                    '${entry.value}× ${entry.key}',
+                    style: const TextStyle(
+                      fontSize: KdsTextScale.statusBar,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: BldSpacing.sm),
+            child: Divider(height: 1, color: Color(KdsColors.surfaceRaised)),
+          ),
+          // Tek tek siparişler.
+          for (final order in orders)
+            Padding(
+              padding: const EdgeInsets.only(bottom: BldSpacing.sm),
+              child: _OrderRow(order: order),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+class _OrderRow extends StatelessWidget {
+  const _OrderRow({required this.order});
 
   final KitchenOrder order;
 
   @override
   Widget build(BuildContext context) {
-    final items = order.items
-        .map((i) => '${i.quantity}× ${i.name}')
-        .join(', ');
+    final items = order.items.map((i) => '${i.quantity}× ${i.name}').join(', ');
+    final badgeColor = Color(
+      order.deliveryType == DeliveryType.delivery
+          ? KdsColors.badgeDelivery
+          : KdsColors.badgePickup,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -147,12 +268,22 @@ class _DetailRow extends StatelessWidget {
                 ),
               ),
             ),
-            _Pill(
-              text: order.deliveryBadge,
-              color: Color(
-                order.deliveryType == DeliveryType.delivery
-                    ? KdsColors.badgeDelivery
-                    : KdsColors.badgePickup,
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: BldSpacing.sm,
+                vertical: BldSpacing.xs,
+              ),
+              decoration: BoxDecoration(
+                color: badgeColor,
+                borderRadius: BorderRadius.circular(BldRadius.sm),
+              ),
+              child: Text(
+                order.deliveryBadge,
+                style: TextStyle(
+                  fontSize: KdsTextScale.statusBar,
+                  fontWeight: FontWeight.bold,
+                  color: KdsAccents.onAccent(badgeColor),
+                ),
               ),
             ),
           ],
@@ -173,31 +304,4 @@ class _DetailRow extends StatelessWidget {
       ],
     );
   }
-}
-
-class _Pill extends StatelessWidget {
-  const _Pill({required this.text, required this.color});
-
-  final String text;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(
-      horizontal: BldSpacing.sm,
-      vertical: BldSpacing.xs,
-    ),
-    decoration: BoxDecoration(
-      color: color,
-      borderRadius: BorderRadius.circular(BldRadius.sm),
-    ),
-    child: Text(
-      text,
-      style: TextStyle(
-        fontSize: KdsTextScale.statusBar,
-        fontWeight: FontWeight.bold,
-        color: KdsAccents.onAccent(color),
-      ),
-    ),
-  );
 }

@@ -646,12 +646,26 @@ class AppL10nTr extends AppL10n {
   String get subscriptionBannerTitle => 'Bugün abonelik var';
 
   @override
-  String subscriptionBannerCount(int count) {
-    return '$count abonelik siparişi · ayrıntı için dokunun';
+  String subscriptionBannerBreakdown(int today, int tomorrow) {
+    return 'Bugün $today · Yarın $tomorrow — ayrıntı için dokunun';
   }
 
   @override
-  String get subscriptionDialogTitle => 'Bugünün abonelik siparişleri';
+  String get subscriptionDayToday => 'Bugün';
+
+  @override
+  String get subscriptionDayTomorrow => 'Yarın';
+
+  @override
+  String subscriptionOrderCount(int count) {
+    return '$count sipariş';
+  }
+
+  @override
+  String get subscriptionTotalsLabel => 'Hazırlanacak toplam';
+
+  @override
+  String get subscriptionDialogTitle => 'Abonelik siparişleri (bugün + yarın)';
 
   @override
   String get subscriptionDialogClose => 'Kapat';

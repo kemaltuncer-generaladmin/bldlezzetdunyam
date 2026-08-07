@@ -136,6 +136,35 @@ class KitchenController extends ApiController
         ]);
     }
 
+    /**
+     * Bugün ve yarının abonelik siparişleri.
+     *
+     * Ana pano ([orders]) yalnız bugünü gösterir; abonelik yemekleri önceden
+     * hazırlandığı için mutfak yarını da görmek ister. Bu uç salt bilgidir —
+     * durum ilerletme (onayla/hazır) yine ana panoda, servis günü geldiğinde
+     * yapılır. Yalnız `bld_subscription_id` dolu, terminal olmayan siparişler.
+     */
+    public function subscriptionOrders(Request $request): JsonResponse
+    {
+        $terminal = $this->terminalStatusIds();
+
+        $fetch = fn(string $date): array => Order::query()
+            ->whereNotNull('bld_subscription_id')
+            ->whereNotIn('status_id', $terminal)
+            ->whereDate('order_date', $date)
+            ->orderBy('order_time')
+            ->orderBy('order_id')
+            ->get()
+            ->map(fn(Order $order): array => $this->presenter->kitchen($order))
+            ->all();
+
+        return $this->json([
+            'today' => $fetch(BusinessTime::now()->toDateString()),
+            'tomorrow' => $fetch(BusinessTime::now()->addDay()->toDateString()),
+            'server_time' => Carbon::now()->utc()->toIso8601ZuluString(),
+        ]);
+    }
+
     public function setStatus(Request $request, int $order): JsonResponse
     {
         $data = $request->validate([

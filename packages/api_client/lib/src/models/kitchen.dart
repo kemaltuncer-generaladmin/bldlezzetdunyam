@@ -108,6 +108,20 @@ abstract class KitchenOrderPage with _$KitchenOrderPage {
       _$KitchenOrderPageFromJson(json);
 }
 
+/// `GET /kitchen/subscription-orders` — bugün + yarının abonelik siparişleri,
+/// gün gün gruplu. Mutfak yemek kuyruğunu önceden planlar.
+@freezed
+abstract class KitchenSubscriptionOrders with _$KitchenSubscriptionOrders {
+  const factory KitchenSubscriptionOrders({
+    @Default(<KitchenOrder>[]) List<KitchenOrder> today,
+    @Default(<KitchenOrder>[]) List<KitchenOrder> tomorrow,
+    required DateTime serverTime,
+  }) = _KitchenSubscriptionOrders;
+
+  factory KitchenSubscriptionOrders.fromJson(Map<String, dynamic> json) =>
+      _$KitchenSubscriptionOrdersFromJson(json);
+}
+
 @freezed
 abstract class ReceiptLine with _$ReceiptLine {
   const factory ReceiptLine({

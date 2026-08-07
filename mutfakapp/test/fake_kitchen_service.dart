@@ -130,6 +130,10 @@ class FakeKitchenService implements KitchenService {
   @override
   Future<ProductionList> productionList() =>
       throw UnsupportedError('Bu testte kullanılmıyor');
+
+  @override
+  Future<KitchenSubscriptionOrders> subscriptionOrders() async =>
+      KitchenSubscriptionOrders(serverTime: DateTime.utc(2026, 8, 4, 12));
 }
 
 /// Test verisi üreticisi.

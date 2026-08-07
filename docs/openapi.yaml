@@ -865,6 +865,28 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/ForbiddenOrRevoked' }
 
+  /kitchen/subscription-orders:
+    parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
+    get:
+      tags: [Mutfak]
+      summary: Bugün ve yarının abonelik siparişleri
+      description: |
+        Ana pano (`/kitchen/orders`) yalnız bugünü gösterir. Abonelik yemekleri
+        önceden hazırlandığı için mutfak yarını da görmek ister. Bu uç yalnız
+        `is_subscription` siparişleri, terminal olmayanları döner; salt bilgidir
+        (durum ilerletme ana panoda). `today`/`tomorrow` ayrı gruplanır.
+      operationId: listKitchenSubscriptionOrders
+      security:
+        - KitchenToken: []
+      responses:
+        '200':
+          description: Bugün ve yarının abonelik siparişleri
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KitchenSubscriptionOrders' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenOrRevoked' }
+
   /kitchen/orders/{id}/status:
     parameters:
       - $ref: '#/components/parameters/AppId'
@@ -2223,6 +2245,21 @@ components:
         is_subscription:
           type: boolean
           description: Abonelikten üretilen sipariş — KDS kartında rozet.
+
+    KitchenSubscriptionOrders:
+      type: object
+      required: [today, tomorrow, server_time]
+      description: |
+        Bugün ve yarının abonelik siparişleri, gün gün gruplu. Mutfağın yemek
+        kuyruğunu önceden planlaması için — durum ilerletme ana panoda kalır.
+      properties:
+        today:
+          type: array
+          items: { $ref: '#/components/schemas/KitchenOrder' }
+        tomorrow:
+          type: array
+          items: { $ref: '#/components/schemas/KitchenOrder' }
+        server_time: { type: string, format: date-time }
 
     ReceiptLine:
       type: object

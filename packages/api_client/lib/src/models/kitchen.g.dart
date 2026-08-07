@@ -104,6 +104,30 @@ Map<String, dynamic> _$KitchenOrderPageToJson(_KitchenOrderPage instance) =>
       'max_id': instance.maxId,
     };
 
+_KitchenSubscriptionOrders _$KitchenSubscriptionOrdersFromJson(
+  Map<String, dynamic> json,
+) => _KitchenSubscriptionOrders(
+  today:
+      (json['today'] as List<dynamic>?)
+          ?.map((e) => KitchenOrder.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const <KitchenOrder>[],
+  tomorrow:
+      (json['tomorrow'] as List<dynamic>?)
+          ?.map((e) => KitchenOrder.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const <KitchenOrder>[],
+  serverTime: DateTime.parse(json['server_time'] as String),
+);
+
+Map<String, dynamic> _$KitchenSubscriptionOrdersToJson(
+  _KitchenSubscriptionOrders instance,
+) => <String, dynamic>{
+  'today': instance.today.map((e) => e.toJson()).toList(),
+  'tomorrow': instance.tomorrow.map((e) => e.toJson()).toList(),
+  'server_time': instance.serverTime.toIso8601String(),
+};
+
 _ReceiptLine _$ReceiptLineFromJson(Map<String, dynamic> json) => _ReceiptLine(
   quantity: (json['quantity'] as num).toInt(),
   name: json['name'] as String,

@@ -374,6 +374,13 @@ class _KitchenService implements KitchenService {
   );
 
   @override
+  Future<KitchenSubscriptionOrders> subscriptionOrders() => _api._send(
+    'GET',
+    '/kitchen/subscription-orders',
+    parse: (data) => KitchenSubscriptionOrders.fromJson(BldApi._asMap(data)),
+  );
+
+  @override
   Future<KitchenReceipt> kitchenReceipt(int orderId) => _api._send(
     'GET',
     '/kitchen/orders/$orderId/receipt',

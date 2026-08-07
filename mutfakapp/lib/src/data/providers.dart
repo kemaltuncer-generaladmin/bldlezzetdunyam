@@ -459,6 +459,20 @@ final kitchenServiceProvider = Provider<KitchenService>(
   (ref) => ref.watch(bldApiProvider).kitchen,
 );
 
+/// Bugün + yarının abonelik siparişleri (banner + döküm).
+///
+/// Ayrı bir zamanlayıcı KURMAZ (aksi halde widget testlerinde pumpAndSettle
+/// asılı kalır): ana pano yoklaması [kitchenOrdersProvider] her tazelendiğinde
+/// bu da yeniden çekilir. Böylece yeni üretilmiş/durum değiştirmiş abonelik
+/// siparişleri panoyla aynı ritimde güncellenir, fazladan timer olmaz.
+final subscriptionOrdersProvider =
+    FutureProvider.autoDispose<KitchenSubscriptionOrders>((ref) {
+      // Pano akışı değiştikçe (yoklama) yeniden çalışır — tetikleyici olarak
+      // izlenir, değeri kullanılmaz.
+      ref.watch(kitchenOrdersProvider);
+      return ref.watch(kitchenServiceProvider).subscriptionOrders();
+    });
+
 final orderSourceProvider = Provider<OrderSource>((ref) {
   final source = PollingOrderSource(
     kitchen: ref.watch(kitchenServiceProvider),

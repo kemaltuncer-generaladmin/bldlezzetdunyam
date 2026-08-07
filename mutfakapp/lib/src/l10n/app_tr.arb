@@ -673,13 +673,24 @@
   "subscriptionBannerTitle": "Bugün abonelik var",
   "@subscriptionBannerTitle": { "description": "Abonelik bildirim şeridi başlığı" },
 
-  "subscriptionBannerCount": "{count} abonelik siparişi · ayrıntı için dokunun",
-  "@subscriptionBannerCount": {
-    "description": "Abonelik şeridinde sayı ve dokunma ipucu",
+  "subscriptionBannerBreakdown": "Bugün {today} · Yarın {tomorrow} — ayrıntı için dokunun",
+  "@subscriptionBannerBreakdown": {
+    "description": "Abonelik şeridinde bugün/yarın sayıları ve dokunma ipucu",
+    "placeholders": { "today": { "type": "int" }, "tomorrow": { "type": "int" } }
+  },
+  "subscriptionDayToday": "Bugün",
+  "@subscriptionDayToday": { "description": "Abonelik dökümünde bugün başlığı" },
+  "subscriptionDayTomorrow": "Yarın",
+  "@subscriptionDayTomorrow": { "description": "Abonelik dökümünde yarın başlığı" },
+  "subscriptionOrderCount": "{count} sipariş",
+  "@subscriptionOrderCount": {
+    "description": "Gün başlığındaki sipariş sayısı",
     "placeholders": { "count": { "type": "int" } }
   },
+  "subscriptionTotalsLabel": "Hazırlanacak toplam",
+  "@subscriptionTotalsLabel": { "description": "Gün içinde hazırlanacak toplam adetlerin başlığı" },
 
-  "subscriptionDialogTitle": "Bugünün abonelik siparişleri",
+  "subscriptionDialogTitle": "Abonelik siparişleri (bugün + yarın)",
   "@subscriptionDialogTitle": { "description": "Abonelik döküm penceresi başlığı" },
 
   "subscriptionDialogClose": "Kapat",

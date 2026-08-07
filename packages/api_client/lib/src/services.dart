@@ -84,6 +84,9 @@ abstract interface class KitchenService {
 
   Future<KitchenOrder> setStatus(int orderId, OrderStatus status);
 
+  /// Bugün + yarının abonelik siparişleri (salt bilgi; mutfak planlaması).
+  Future<KitchenSubscriptionOrders> subscriptionOrders();
+
   /// Mutfak fişi verisi (fiyatsız).
   Future<KitchenReceipt> kitchenReceipt(int orderId);
 

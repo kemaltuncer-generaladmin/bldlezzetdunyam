@@ -1197,16 +1197,40 @@ abstract class AppL10n {
   /// **'Bugün abonelik var'**
   String get subscriptionBannerTitle;
 
-  /// Abonelik şeridinde sayı ve dokunma ipucu
+  /// Abonelik şeridinde bugün/yarın sayıları ve dokunma ipucu
   ///
   /// In tr, this message translates to:
-  /// **'{count} abonelik siparişi · ayrıntı için dokunun'**
-  String subscriptionBannerCount(int count);
+  /// **'Bugün {today} · Yarın {tomorrow} — ayrıntı için dokunun'**
+  String subscriptionBannerBreakdown(int today, int tomorrow);
+
+  /// Abonelik dökümünde bugün başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Bugün'**
+  String get subscriptionDayToday;
+
+  /// Abonelik dökümünde yarın başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Yarın'**
+  String get subscriptionDayTomorrow;
+
+  /// Gün başlığındaki sipariş sayısı
+  ///
+  /// In tr, this message translates to:
+  /// **'{count} sipariş'**
+  String subscriptionOrderCount(int count);
+
+  /// Gün içinde hazırlanacak toplam adetlerin başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Hazırlanacak toplam'**
+  String get subscriptionTotalsLabel;
 
   /// Abonelik döküm penceresi başlığı
   ///
   /// In tr, this message translates to:
-  /// **'Bugünün abonelik siparişleri'**
+  /// **'Abonelik siparişleri (bugün + yarın)'**
   String get subscriptionDialogTitle;
 
   /// Abonelik döküm penceresini kapatan düğme

@@ -103,6 +103,7 @@ Route::prefix('api')
             ->middleware(['bld.auth', 'bld.scope:kitchen', 'throttle:bld-kitchen'])
             ->group(function (): void {
                 Route::get('orders', [KitchenController::class, 'orders']);
+                Route::get('subscription-orders', [KitchenController::class, 'subscriptionOrders']);
                 Route::post('orders/{order}/status', [KitchenController::class, 'setStatus']);
                 Route::get('orders/{order}/receipt', [KitchenController::class, 'receipt']);
                 Route::post('print-jobs/{order}/ack', [KitchenController::class, 'ackPrint']);
