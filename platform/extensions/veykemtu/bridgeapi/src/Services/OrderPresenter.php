@@ -47,6 +47,9 @@ class OrderPresenter
             'currency' => 'TRY',
             'item_count' => (int) $order->total_items,
             'created_at' => $this->ts($order->created_at),
+            'subscription_id' => $order->bld_subscription_id !== null
+                ? (int) $order->bld_subscription_id
+                : null,
         ];
     }
 
@@ -72,6 +75,9 @@ class OrderPresenter
             'payment' => $this->payment($order),
             'status_history' => $this->statusHistory($order),
             'created_at' => $this->ts($order->created_at),
+            'subscription_id' => $order->bld_subscription_id !== null
+                ? (int) $order->bld_subscription_id
+                : null,
         ];
     }
 
@@ -93,6 +99,9 @@ class OrderPresenter
             'customer_note' => $order->comment !== null ? (string) $order->comment : null,
             'created_at' => $this->ts($order->created_at),
             'updated_at' => $this->ts($order->updated_at),
+            // Abonelikten üretilen sipariş — KDS kartında "abonelik" rozeti.
+            // Yeni kolon yok; çekirdek `orders.bld_subscription_id`'den türer.
+            'is_subscription' => $order->bld_subscription_id !== null,
         ];
     }
 

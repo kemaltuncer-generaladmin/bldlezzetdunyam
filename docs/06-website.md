@@ -113,3 +113,16 @@ sunucu kuralı yeniden uygular. Gerekçe ve kutu kenarları:
 
 Web sitesinde harita ile nokta seçimi **yoktur** (mobil uygulamaya özgüdür);
 bu yüzden web siparişlerinin fişinde konum QR'ı basılmaz.
+
+## B2B (kurumsal) geçiş
+
+Sistem tamamen kurumsala döndü: yalnız `can_order = true` (kurumsal onaylı)
+hesaplar sipariş verebilir. Menü/keşif herkese açık kalır; kapı sepet ve
+ödemeye konur (`docs/03` §12.1). Sunucu bayrağı esastır — iş kuralı istemciye
+gömülmez.
+
+Kayıt akışı additive kurumsal alanlar toplar (`company_name`, `contact_person`
+ve opsiyonel vergi bilgileri; `docs/03` §12.1). Website'in mevcut kayıt formu
+kırılmadı: bu alanlar sunucuda opsiyonel, kapsamlı kurumsal doğrulama mobil
+kayıtta zorunlu. Abonelik ve cari hesap self-servisi **mobil uygulamaya**
+özgüdür; web bu turda yalnız sipariş + takip sunar.

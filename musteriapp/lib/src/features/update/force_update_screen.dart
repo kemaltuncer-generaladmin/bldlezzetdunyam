@@ -33,10 +33,18 @@ class ForceUpdateScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.system_update,
-                    size: 64,
-                    color: bldColor(BldColors.brand500),
+                  Container(
+                    width: 96,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      color: bldColor(BldColors.brand50),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.system_update,
+                      size: 44,
+                      color: bldColor(BldColors.brand500),
+                    ),
                   ),
                   const SizedBox(height: BldSpacing.lg),
                   Text(

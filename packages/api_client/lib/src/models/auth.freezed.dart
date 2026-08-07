@@ -17,7 +17,9 @@ mixin _$RegisterRequest {
 
  String get firstName; String get lastName; String get email;/// Başında 0 veya +90 olmadan 10 hane.
  String get telephone; String get password;/// `false` ise sunucu `422 VALIDATION_FAILED` döner.
- bool get kvkkAccepted;
+ bool get kvkkAccepted;/// Kurumsal (B2B) alanları — kayıt formunda toplanır. Sunucu her yeni
+/// kaydı `corporate` işaretler; bireysel self-servis kayıt yoktur.
+ String? get companyName; String? get contactPerson; String? get taxOffice; String? get taxNumber; String? get companyPhone;
 /// Create a copy of RegisterRequest
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -30,16 +32,16 @@ $RegisterRequestCopyWith<RegisterRequest> get copyWith => _$RegisterRequestCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is RegisterRequest&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.email, email) || other.email == email)&&(identical(other.telephone, telephone) || other.telephone == telephone)&&(identical(other.password, password) || other.password == password)&&(identical(other.kvkkAccepted, kvkkAccepted) || other.kvkkAccepted == kvkkAccepted));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RegisterRequest&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.email, email) || other.email == email)&&(identical(other.telephone, telephone) || other.telephone == telephone)&&(identical(other.password, password) || other.password == password)&&(identical(other.kvkkAccepted, kvkkAccepted) || other.kvkkAccepted == kvkkAccepted)&&(identical(other.companyName, companyName) || other.companyName == companyName)&&(identical(other.contactPerson, contactPerson) || other.contactPerson == contactPerson)&&(identical(other.taxOffice, taxOffice) || other.taxOffice == taxOffice)&&(identical(other.taxNumber, taxNumber) || other.taxNumber == taxNumber)&&(identical(other.companyPhone, companyPhone) || other.companyPhone == companyPhone));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,firstName,lastName,email,telephone,password,kvkkAccepted);
+int get hashCode => Object.hash(runtimeType,firstName,lastName,email,telephone,password,kvkkAccepted,companyName,contactPerson,taxOffice,taxNumber,companyPhone);
 
 @override
 String toString() {
-  return 'RegisterRequest(firstName: $firstName, lastName: $lastName, email: $email, telephone: $telephone, password: $password, kvkkAccepted: $kvkkAccepted)';
+  return 'RegisterRequest(firstName: $firstName, lastName: $lastName, email: $email, telephone: $telephone, password: $password, kvkkAccepted: $kvkkAccepted, companyName: $companyName, contactPerson: $contactPerson, taxOffice: $taxOffice, taxNumber: $taxNumber, companyPhone: $companyPhone)';
 }
 
 
@@ -50,7 +52,7 @@ abstract mixin class $RegisterRequestCopyWith<$Res>  {
   factory $RegisterRequestCopyWith(RegisterRequest value, $Res Function(RegisterRequest) _then) = _$RegisterRequestCopyWithImpl;
 @useResult
 $Res call({
- String firstName, String lastName, String email, String telephone, String password, bool kvkkAccepted
+ String firstName, String lastName, String email, String telephone, String password, bool kvkkAccepted, String? companyName, String? contactPerson, String? taxOffice, String? taxNumber, String? companyPhone
 });
 
 
@@ -67,7 +69,7 @@ class _$RegisterRequestCopyWithImpl<$Res>
 
 /// Create a copy of RegisterRequest
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? firstName = null,Object? lastName = null,Object? email = null,Object? telephone = null,Object? password = null,Object? kvkkAccepted = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? firstName = null,Object? lastName = null,Object? email = null,Object? telephone = null,Object? password = null,Object? kvkkAccepted = null,Object? companyName = freezed,Object? contactPerson = freezed,Object? taxOffice = freezed,Object? taxNumber = freezed,Object? companyPhone = freezed,}) {
   return _then(_self.copyWith(
 firstName: null == firstName ? _self.firstName : firstName // ignore: cast_nullable_to_non_nullable
 as String,lastName: null == lastName ? _self.lastName : lastName // ignore: cast_nullable_to_non_nullable
@@ -75,7 +77,12 @@ as String,email: null == email ? _self.email : email // ignore: cast_nullable_to
 as String,telephone: null == telephone ? _self.telephone : telephone // ignore: cast_nullable_to_non_nullable
 as String,password: null == password ? _self.password : password // ignore: cast_nullable_to_non_nullable
 as String,kvkkAccepted: null == kvkkAccepted ? _self.kvkkAccepted : kvkkAccepted // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,companyName: freezed == companyName ? _self.companyName : companyName // ignore: cast_nullable_to_non_nullable
+as String?,contactPerson: freezed == contactPerson ? _self.contactPerson : contactPerson // ignore: cast_nullable_to_non_nullable
+as String?,taxOffice: freezed == taxOffice ? _self.taxOffice : taxOffice // ignore: cast_nullable_to_non_nullable
+as String?,taxNumber: freezed == taxNumber ? _self.taxNumber : taxNumber // ignore: cast_nullable_to_non_nullable
+as String?,companyPhone: freezed == companyPhone ? _self.companyPhone : companyPhone // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -160,10 +167,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String firstName,  String lastName,  String email,  String telephone,  String password,  bool kvkkAccepted)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String firstName,  String lastName,  String email,  String telephone,  String password,  bool kvkkAccepted,  String? companyName,  String? contactPerson,  String? taxOffice,  String? taxNumber,  String? companyPhone)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _RegisterRequest() when $default != null:
-return $default(_that.firstName,_that.lastName,_that.email,_that.telephone,_that.password,_that.kvkkAccepted);case _:
+return $default(_that.firstName,_that.lastName,_that.email,_that.telephone,_that.password,_that.kvkkAccepted,_that.companyName,_that.contactPerson,_that.taxOffice,_that.taxNumber,_that.companyPhone);case _:
   return orElse();
 
 }
@@ -181,10 +188,10 @@ return $default(_that.firstName,_that.lastName,_that.email,_that.telephone,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String firstName,  String lastName,  String email,  String telephone,  String password,  bool kvkkAccepted)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String firstName,  String lastName,  String email,  String telephone,  String password,  bool kvkkAccepted,  String? companyName,  String? contactPerson,  String? taxOffice,  String? taxNumber,  String? companyPhone)  $default,) {final _that = this;
 switch (_that) {
 case _RegisterRequest():
-return $default(_that.firstName,_that.lastName,_that.email,_that.telephone,_that.password,_that.kvkkAccepted);case _:
+return $default(_that.firstName,_that.lastName,_that.email,_that.telephone,_that.password,_that.kvkkAccepted,_that.companyName,_that.contactPerson,_that.taxOffice,_that.taxNumber,_that.companyPhone);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -201,10 +208,10 @@ return $default(_that.firstName,_that.lastName,_that.email,_that.telephone,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String firstName,  String lastName,  String email,  String telephone,  String password,  bool kvkkAccepted)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String firstName,  String lastName,  String email,  String telephone,  String password,  bool kvkkAccepted,  String? companyName,  String? contactPerson,  String? taxOffice,  String? taxNumber,  String? companyPhone)?  $default,) {final _that = this;
 switch (_that) {
 case _RegisterRequest() when $default != null:
-return $default(_that.firstName,_that.lastName,_that.email,_that.telephone,_that.password,_that.kvkkAccepted);case _:
+return $default(_that.firstName,_that.lastName,_that.email,_that.telephone,_that.password,_that.kvkkAccepted,_that.companyName,_that.contactPerson,_that.taxOffice,_that.taxNumber,_that.companyPhone);case _:
   return null;
 
 }
@@ -216,7 +223,7 @@ return $default(_that.firstName,_that.lastName,_that.email,_that.telephone,_that
 @JsonSerializable()
 
 class _RegisterRequest implements RegisterRequest {
-  const _RegisterRequest({required this.firstName, required this.lastName, required this.email, required this.telephone, required this.password, required this.kvkkAccepted});
+  const _RegisterRequest({required this.firstName, required this.lastName, required this.email, required this.telephone, required this.password, required this.kvkkAccepted, this.companyName, this.contactPerson, this.taxOffice, this.taxNumber, this.companyPhone});
   factory _RegisterRequest.fromJson(Map<String, dynamic> json) => _$RegisterRequestFromJson(json);
 
 @override final  String firstName;
@@ -227,6 +234,13 @@ class _RegisterRequest implements RegisterRequest {
 @override final  String password;
 /// `false` ise sunucu `422 VALIDATION_FAILED` döner.
 @override final  bool kvkkAccepted;
+/// Kurumsal (B2B) alanları — kayıt formunda toplanır. Sunucu her yeni
+/// kaydı `corporate` işaretler; bireysel self-servis kayıt yoktur.
+@override final  String? companyName;
+@override final  String? contactPerson;
+@override final  String? taxOffice;
+@override final  String? taxNumber;
+@override final  String? companyPhone;
 
 /// Create a copy of RegisterRequest
 /// with the given fields replaced by the non-null parameter values.
@@ -241,16 +255,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RegisterRequest&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.email, email) || other.email == email)&&(identical(other.telephone, telephone) || other.telephone == telephone)&&(identical(other.password, password) || other.password == password)&&(identical(other.kvkkAccepted, kvkkAccepted) || other.kvkkAccepted == kvkkAccepted));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RegisterRequest&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.email, email) || other.email == email)&&(identical(other.telephone, telephone) || other.telephone == telephone)&&(identical(other.password, password) || other.password == password)&&(identical(other.kvkkAccepted, kvkkAccepted) || other.kvkkAccepted == kvkkAccepted)&&(identical(other.companyName, companyName) || other.companyName == companyName)&&(identical(other.contactPerson, contactPerson) || other.contactPerson == contactPerson)&&(identical(other.taxOffice, taxOffice) || other.taxOffice == taxOffice)&&(identical(other.taxNumber, taxNumber) || other.taxNumber == taxNumber)&&(identical(other.companyPhone, companyPhone) || other.companyPhone == companyPhone));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,firstName,lastName,email,telephone,password,kvkkAccepted);
+int get hashCode => Object.hash(runtimeType,firstName,lastName,email,telephone,password,kvkkAccepted,companyName,contactPerson,taxOffice,taxNumber,companyPhone);
 
 @override
 String toString() {
-  return 'RegisterRequest(firstName: $firstName, lastName: $lastName, email: $email, telephone: $telephone, password: $password, kvkkAccepted: $kvkkAccepted)';
+  return 'RegisterRequest(firstName: $firstName, lastName: $lastName, email: $email, telephone: $telephone, password: $password, kvkkAccepted: $kvkkAccepted, companyName: $companyName, contactPerson: $contactPerson, taxOffice: $taxOffice, taxNumber: $taxNumber, companyPhone: $companyPhone)';
 }
 
 
@@ -261,7 +275,7 @@ abstract mixin class _$RegisterRequestCopyWith<$Res> implements $RegisterRequest
   factory _$RegisterRequestCopyWith(_RegisterRequest value, $Res Function(_RegisterRequest) _then) = __$RegisterRequestCopyWithImpl;
 @override @useResult
 $Res call({
- String firstName, String lastName, String email, String telephone, String password, bool kvkkAccepted
+ String firstName, String lastName, String email, String telephone, String password, bool kvkkAccepted, String? companyName, String? contactPerson, String? taxOffice, String? taxNumber, String? companyPhone
 });
 
 
@@ -278,7 +292,7 @@ class __$RegisterRequestCopyWithImpl<$Res>
 
 /// Create a copy of RegisterRequest
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? firstName = null,Object? lastName = null,Object? email = null,Object? telephone = null,Object? password = null,Object? kvkkAccepted = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? firstName = null,Object? lastName = null,Object? email = null,Object? telephone = null,Object? password = null,Object? kvkkAccepted = null,Object? companyName = freezed,Object? contactPerson = freezed,Object? taxOffice = freezed,Object? taxNumber = freezed,Object? companyPhone = freezed,}) {
   return _then(_RegisterRequest(
 firstName: null == firstName ? _self.firstName : firstName // ignore: cast_nullable_to_non_nullable
 as String,lastName: null == lastName ? _self.lastName : lastName // ignore: cast_nullable_to_non_nullable
@@ -286,7 +300,12 @@ as String,email: null == email ? _self.email : email // ignore: cast_nullable_to
 as String,telephone: null == telephone ? _self.telephone : telephone // ignore: cast_nullable_to_non_nullable
 as String,password: null == password ? _self.password : password // ignore: cast_nullable_to_non_nullable
 as String,kvkkAccepted: null == kvkkAccepted ? _self.kvkkAccepted : kvkkAccepted // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,companyName: freezed == companyName ? _self.companyName : companyName // ignore: cast_nullable_to_non_nullable
+as String?,contactPerson: freezed == contactPerson ? _self.contactPerson : contactPerson // ignore: cast_nullable_to_non_nullable
+as String?,taxOffice: freezed == taxOffice ? _self.taxOffice : taxOffice // ignore: cast_nullable_to_non_nullable
+as String?,taxNumber: freezed == taxNumber ? _self.taxNumber : taxNumber // ignore: cast_nullable_to_non_nullable
+as String?,companyPhone: freezed == companyPhone ? _self.companyPhone : companyPhone // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -1113,7 +1132,10 @@ as String,
 /// @nodoc
 mixin _$Customer {
 
- int get id; String get firstName; String get lastName; String get email; String get telephone; int? get defaultLocationId;
+ int get id; String get firstName; String get lastName; String get email; String get telephone; int? get defaultLocationId;/// `corporate` | `individual`. Eski yanıtlarda gelmeyebilir (`null`).
+ String? get accountType;/// Sipariş verebilir mi? Sunucu belirler; istemci sipariş yolunu buna
+/// göre açar. Eski yanıtta alan yoksa `true` (grandfather güvencesi).
+ bool get canOrder; String? get companyName; String? get contactPerson;
 /// Create a copy of Customer
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1126,16 +1148,16 @@ $CustomerCopyWith<Customer> get copyWith => _$CustomerCopyWithImpl<Customer>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Customer&&(identical(other.id, id) || other.id == id)&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.email, email) || other.email == email)&&(identical(other.telephone, telephone) || other.telephone == telephone)&&(identical(other.defaultLocationId, defaultLocationId) || other.defaultLocationId == defaultLocationId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Customer&&(identical(other.id, id) || other.id == id)&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.email, email) || other.email == email)&&(identical(other.telephone, telephone) || other.telephone == telephone)&&(identical(other.defaultLocationId, defaultLocationId) || other.defaultLocationId == defaultLocationId)&&(identical(other.accountType, accountType) || other.accountType == accountType)&&(identical(other.canOrder, canOrder) || other.canOrder == canOrder)&&(identical(other.companyName, companyName) || other.companyName == companyName)&&(identical(other.contactPerson, contactPerson) || other.contactPerson == contactPerson));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,firstName,lastName,email,telephone,defaultLocationId);
+int get hashCode => Object.hash(runtimeType,id,firstName,lastName,email,telephone,defaultLocationId,accountType,canOrder,companyName,contactPerson);
 
 @override
 String toString() {
-  return 'Customer(id: $id, firstName: $firstName, lastName: $lastName, email: $email, telephone: $telephone, defaultLocationId: $defaultLocationId)';
+  return 'Customer(id: $id, firstName: $firstName, lastName: $lastName, email: $email, telephone: $telephone, defaultLocationId: $defaultLocationId, accountType: $accountType, canOrder: $canOrder, companyName: $companyName, contactPerson: $contactPerson)';
 }
 
 
@@ -1146,7 +1168,7 @@ abstract mixin class $CustomerCopyWith<$Res>  {
   factory $CustomerCopyWith(Customer value, $Res Function(Customer) _then) = _$CustomerCopyWithImpl;
 @useResult
 $Res call({
- int id, String firstName, String lastName, String email, String telephone, int? defaultLocationId
+ int id, String firstName, String lastName, String email, String telephone, int? defaultLocationId, String? accountType, bool canOrder, String? companyName, String? contactPerson
 });
 
 
@@ -1163,7 +1185,7 @@ class _$CustomerCopyWithImpl<$Res>
 
 /// Create a copy of Customer
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? firstName = null,Object? lastName = null,Object? email = null,Object? telephone = null,Object? defaultLocationId = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? firstName = null,Object? lastName = null,Object? email = null,Object? telephone = null,Object? defaultLocationId = freezed,Object? accountType = freezed,Object? canOrder = null,Object? companyName = freezed,Object? contactPerson = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,firstName: null == firstName ? _self.firstName : firstName // ignore: cast_nullable_to_non_nullable
@@ -1171,7 +1193,11 @@ as String,lastName: null == lastName ? _self.lastName : lastName // ignore: cast
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
 as String,telephone: null == telephone ? _self.telephone : telephone // ignore: cast_nullable_to_non_nullable
 as String,defaultLocationId: freezed == defaultLocationId ? _self.defaultLocationId : defaultLocationId // ignore: cast_nullable_to_non_nullable
-as int?,
+as int?,accountType: freezed == accountType ? _self.accountType : accountType // ignore: cast_nullable_to_non_nullable
+as String?,canOrder: null == canOrder ? _self.canOrder : canOrder // ignore: cast_nullable_to_non_nullable
+as bool,companyName: freezed == companyName ? _self.companyName : companyName // ignore: cast_nullable_to_non_nullable
+as String?,contactPerson: freezed == contactPerson ? _self.contactPerson : contactPerson // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -1256,10 +1282,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String firstName,  String lastName,  String email,  String telephone,  int? defaultLocationId)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String firstName,  String lastName,  String email,  String telephone,  int? defaultLocationId,  String? accountType,  bool canOrder,  String? companyName,  String? contactPerson)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Customer() when $default != null:
-return $default(_that.id,_that.firstName,_that.lastName,_that.email,_that.telephone,_that.defaultLocationId);case _:
+return $default(_that.id,_that.firstName,_that.lastName,_that.email,_that.telephone,_that.defaultLocationId,_that.accountType,_that.canOrder,_that.companyName,_that.contactPerson);case _:
   return orElse();
 
 }
@@ -1277,10 +1303,10 @@ return $default(_that.id,_that.firstName,_that.lastName,_that.email,_that.teleph
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String firstName,  String lastName,  String email,  String telephone,  int? defaultLocationId)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String firstName,  String lastName,  String email,  String telephone,  int? defaultLocationId,  String? accountType,  bool canOrder,  String? companyName,  String? contactPerson)  $default,) {final _that = this;
 switch (_that) {
 case _Customer():
-return $default(_that.id,_that.firstName,_that.lastName,_that.email,_that.telephone,_that.defaultLocationId);case _:
+return $default(_that.id,_that.firstName,_that.lastName,_that.email,_that.telephone,_that.defaultLocationId,_that.accountType,_that.canOrder,_that.companyName,_that.contactPerson);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1297,10 +1323,10 @@ return $default(_that.id,_that.firstName,_that.lastName,_that.email,_that.teleph
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String firstName,  String lastName,  String email,  String telephone,  int? defaultLocationId)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String firstName,  String lastName,  String email,  String telephone,  int? defaultLocationId,  String? accountType,  bool canOrder,  String? companyName,  String? contactPerson)?  $default,) {final _that = this;
 switch (_that) {
 case _Customer() when $default != null:
-return $default(_that.id,_that.firstName,_that.lastName,_that.email,_that.telephone,_that.defaultLocationId);case _:
+return $default(_that.id,_that.firstName,_that.lastName,_that.email,_that.telephone,_that.defaultLocationId,_that.accountType,_that.canOrder,_that.companyName,_that.contactPerson);case _:
   return null;
 
 }
@@ -1312,7 +1338,7 @@ return $default(_that.id,_that.firstName,_that.lastName,_that.email,_that.teleph
 @JsonSerializable()
 
 class _Customer extends Customer {
-  const _Customer({required this.id, required this.firstName, required this.lastName, required this.email, required this.telephone, this.defaultLocationId}): super._();
+  const _Customer({required this.id, required this.firstName, required this.lastName, required this.email, required this.telephone, this.defaultLocationId, this.accountType, this.canOrder = true, this.companyName, this.contactPerson}): super._();
   factory _Customer.fromJson(Map<String, dynamic> json) => _$CustomerFromJson(json);
 
 @override final  int id;
@@ -1321,6 +1347,13 @@ class _Customer extends Customer {
 @override final  String email;
 @override final  String telephone;
 @override final  int? defaultLocationId;
+/// `corporate` | `individual`. Eski yanıtlarda gelmeyebilir (`null`).
+@override final  String? accountType;
+/// Sipariş verebilir mi? Sunucu belirler; istemci sipariş yolunu buna
+/// göre açar. Eski yanıtta alan yoksa `true` (grandfather güvencesi).
+@override@JsonKey() final  bool canOrder;
+@override final  String? companyName;
+@override final  String? contactPerson;
 
 /// Create a copy of Customer
 /// with the given fields replaced by the non-null parameter values.
@@ -1335,16 +1368,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Customer&&(identical(other.id, id) || other.id == id)&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.email, email) || other.email == email)&&(identical(other.telephone, telephone) || other.telephone == telephone)&&(identical(other.defaultLocationId, defaultLocationId) || other.defaultLocationId == defaultLocationId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Customer&&(identical(other.id, id) || other.id == id)&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.email, email) || other.email == email)&&(identical(other.telephone, telephone) || other.telephone == telephone)&&(identical(other.defaultLocationId, defaultLocationId) || other.defaultLocationId == defaultLocationId)&&(identical(other.accountType, accountType) || other.accountType == accountType)&&(identical(other.canOrder, canOrder) || other.canOrder == canOrder)&&(identical(other.companyName, companyName) || other.companyName == companyName)&&(identical(other.contactPerson, contactPerson) || other.contactPerson == contactPerson));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,firstName,lastName,email,telephone,defaultLocationId);
+int get hashCode => Object.hash(runtimeType,id,firstName,lastName,email,telephone,defaultLocationId,accountType,canOrder,companyName,contactPerson);
 
 @override
 String toString() {
-  return 'Customer(id: $id, firstName: $firstName, lastName: $lastName, email: $email, telephone: $telephone, defaultLocationId: $defaultLocationId)';
+  return 'Customer(id: $id, firstName: $firstName, lastName: $lastName, email: $email, telephone: $telephone, defaultLocationId: $defaultLocationId, accountType: $accountType, canOrder: $canOrder, companyName: $companyName, contactPerson: $contactPerson)';
 }
 
 
@@ -1355,7 +1388,7 @@ abstract mixin class _$CustomerCopyWith<$Res> implements $CustomerCopyWith<$Res>
   factory _$CustomerCopyWith(_Customer value, $Res Function(_Customer) _then) = __$CustomerCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String firstName, String lastName, String email, String telephone, int? defaultLocationId
+ int id, String firstName, String lastName, String email, String telephone, int? defaultLocationId, String? accountType, bool canOrder, String? companyName, String? contactPerson
 });
 
 
@@ -1372,7 +1405,7 @@ class __$CustomerCopyWithImpl<$Res>
 
 /// Create a copy of Customer
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? firstName = null,Object? lastName = null,Object? email = null,Object? telephone = null,Object? defaultLocationId = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? firstName = null,Object? lastName = null,Object? email = null,Object? telephone = null,Object? defaultLocationId = freezed,Object? accountType = freezed,Object? canOrder = null,Object? companyName = freezed,Object? contactPerson = freezed,}) {
   return _then(_Customer(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,firstName: null == firstName ? _self.firstName : firstName // ignore: cast_nullable_to_non_nullable
@@ -1380,7 +1413,11 @@ as String,lastName: null == lastName ? _self.lastName : lastName // ignore: cast
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
 as String,telephone: null == telephone ? _self.telephone : telephone // ignore: cast_nullable_to_non_nullable
 as String,defaultLocationId: freezed == defaultLocationId ? _self.defaultLocationId : defaultLocationId // ignore: cast_nullable_to_non_nullable
-as int?,
+as int?,accountType: freezed == accountType ? _self.accountType : accountType // ignore: cast_nullable_to_non_nullable
+as String?,canOrder: null == canOrder ? _self.canOrder : canOrder // ignore: cast_nullable_to_non_nullable
+as bool,companyName: freezed == companyName ? _self.companyName : companyName // ignore: cast_nullable_to_non_nullable
+as String?,contactPerson: freezed == contactPerson ? _self.contactPerson : contactPerson // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

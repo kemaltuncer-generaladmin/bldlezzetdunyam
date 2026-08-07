@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
+use Veykemtu\BridgeApi\Services\CustomerGate;
 
 /**
  * Kimlik uçları — `docs/openapi.yaml` §Kimlik.
@@ -30,6 +31,17 @@ class AuthController extends ApiController
             'telephone' => ['required', 'string', 'regex:/^[1-9][0-9]{9}$/'],
             'password' => ['required', 'string', 'min:8', 'max:128'],
             'kvkk_accepted' => ['required', 'accepted'],
+
+            // Kurumsal (B2B) alanları — ŞİMDİLİK OPSİYONEL. Web ve mobil kayıt
+            // formları bu alanları göndermeye başlayana kadar zorunlu kılmak
+            // mevcut web kaydını 422 ile kırardı (ADR-09 kademeli geçiş).
+            // Sunucu her yeni kaydı yine de 'corporate' işaretler; alanlar
+            // dolunca (Aşama B) zorunluya çevrilecek.
+            'company_name' => ['sometimes', 'nullable', 'string', 'max:160'],
+            'tax_office' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'tax_number' => ['sometimes', 'nullable', 'string', 'max:32'],
+            'contact_person' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'company_phone' => ['sometimes', 'nullable', 'string', 'max:32'],
         ], [
             'kvkk_accepted.accepted' => 'KVKK aydınlatma metnini onaylamanız gerekiyor.',
             'telephone.regex' => 'Telefon 10 haneli olmalı (başında 0 veya +90 olmadan).',
@@ -43,6 +55,15 @@ class AuthController extends ApiController
         $customer->telephone = $data['telephone'];
         $customer->password = $data['password'];
         $customer->customer_group_id = $this->defaultGroupId();
+        // B2B: her yeni kayıt kurumsaldır; bireysel self-servis kayıt yok.
+        // Alanlar tek tek atanır (toplu fill değil) — çekirdek Customer'ın
+        // fillable'ı bld_* kolonlarını içermez, AuthController kalıbı budur.
+        $customer->bld_account_type = CustomerGate::TYPE_CORPORATE;
+        $customer->bld_org_name = $data['company_name'] ?? null;
+        $customer->bld_tax_office = $data['tax_office'] ?? null;
+        $customer->bld_tax_no = $data['tax_number'] ?? null;
+        $customer->bld_contact_person = $data['contact_person'] ?? null;
+        $customer->bld_org_phone = $data['company_phone'] ?? null;
         $customer->status = true;
         // KVKK onayı zaman damgasıyla saklanır (docs/02 §6).
         $customer->is_activated = true;
@@ -90,6 +111,8 @@ class AuthController extends ApiController
         /** @var ApiCustomer $customer */
         $customer = $request->user();
 
+        $accountType = (string) ($customer->bld_account_type ?? CustomerGate::TYPE_CORPORATE);
+
         return $this->json([
             'id' => (int) $customer->customer_id,
             'first_name' => (string) $customer->first_name,
@@ -97,6 +120,12 @@ class AuthController extends ApiController
             'email' => (string) $customer->email,
             'telephone' => (string) ($customer->telephone ?? ''),
             'default_location_id' => $this->defaultLocationId(),
+            // Kurumsal (B2B) alanları — additive. can_order istemci gating'i
+            // için: bireysel işaretli hesap sipariş veremez (sunucu da engeller).
+            'account_type' => $accountType,
+            'can_order' => $accountType === CustomerGate::TYPE_CORPORATE,
+            'company_name' => $customer->bld_org_name,
+            'contact_person' => $customer->bld_contact_person,
         ]);
     }
 
@@ -116,6 +145,11 @@ class AuthController extends ApiController
             'first_name' => ['sometimes', 'required', 'string', 'max:64'],
             'last_name' => ['sometimes', 'required', 'string', 'max:64'],
             'telephone' => ['sometimes', 'required', 'string', 'regex:/^[1-9][0-9]{9}$/'],
+            // Kurumsal alanlar güncellenebilir; vergi kimliği (tax_no/office)
+            // e-posta gibi kilitli — değişimi ayrı doğrulama ister.
+            'company_name' => ['sometimes', 'nullable', 'string', 'max:160'],
+            'contact_person' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'company_phone' => ['sometimes', 'nullable', 'string', 'max:32'],
         ], [
             'telephone.regex' => 'Telefon 10 haneli olmalı (başında 0 veya +90 olmadan).',
         ]);
@@ -123,6 +157,18 @@ class AuthController extends ApiController
         foreach (['first_name', 'last_name', 'telephone'] as $alan) {
             if (array_key_exists($alan, $data)) {
                 $customer->{$alan} = $data[$alan];
+            }
+        }
+
+        // Kurumsal alanlar `bld_` önekli kolonlara eşlenir.
+        $kurumsalEsleme = [
+            'company_name' => 'bld_org_name',
+            'contact_person' => 'bld_contact_person',
+            'company_phone' => 'bld_org_phone',
+        ];
+        foreach ($kurumsalEsleme as $gelen => $kolon) {
+            if (array_key_exists($gelen, $data)) {
+                $customer->{$kolon} = $data[$gelen];
             }
         }
 

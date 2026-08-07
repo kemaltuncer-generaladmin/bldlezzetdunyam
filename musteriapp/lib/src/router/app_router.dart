@@ -13,7 +13,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/account/account_screen.dart';
+import '../features/account/account_statement_screen.dart';
 import '../features/account/address_book_screen.dart';
+import '../features/account/ordering_disabled_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
 import '../features/cart/cart_screen.dart';
@@ -25,6 +27,9 @@ import '../features/orders/order_tracking_screen.dart';
 import '../features/orders/orders_screen.dart';
 import '../features/shell/home_shell.dart';
 import '../features/splash/splash_screen.dart';
+import '../features/subscriptions/subscription_create_screen.dart';
+import '../features/subscriptions/subscription_detail_screen.dart';
+import '../features/subscriptions/subscriptions_screen.dart';
 import '../features/update/force_update_screen.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/session_provider.dart';
@@ -38,13 +43,19 @@ abstract final class Routes {
   static const String menu = '/menu';
   static const String cart = '/cart';
   static const String checkout = '/checkout';
+  static const String subscriptions = '/subscriptions';
+  static const String subscriptionNew = '/subscriptions/new';
   static const String orders = '/orders';
   static const String account = '/account';
   static const String addresses = '/account/addresses';
+  static const String accountStatement = '/account/statement';
+  static const String orderingDisabled = '/ordering-disabled';
 
   static String productDetail(int menuItemId) => '/menu/item/$menuItemId';
 
   static String orderTracking(int orderId) => '/orders/$orderId';
+
+  static String subscriptionDetail(int id) => '/subscriptions/$id';
 }
 
 /// Giriş isteyen yollar.
@@ -56,7 +67,16 @@ bool _requiresAuth(String path) =>
     path.startsWith(Routes.orders) ||
     path.startsWith(Routes.checkout) ||
     // Adres defteri `/addresses` uçlarını kullanır; token yoksa 401 alırdı.
-    path == Routes.addresses;
+    path == Routes.addresses ||
+    path == Routes.accountStatement ||
+    // Abonelik LİSTESİ (sekme) serbest — giriş yoksa boş görünür. Detay ve
+    // yeni-talep uçları token ister.
+    path.startsWith('${Routes.subscriptions}/');
+
+/// Sipariş yüzeyleri: yalnız `can_order` müşteri girer. Menü/keşif serbesttir;
+/// engel sepet ve ödemeye konur (`docs/07-musteriapp.md` §B2B).
+bool _requiresOrdering(String path) =>
+    path == Routes.cart || path.startsWith(Routes.checkout);
 
 /// Riverpod durum değişimlerini `go_router`'a bağlayan köprü.
 class _RouterRefresh extends ChangeNotifier {
@@ -95,6 +115,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         final next = Uri.encodeComponent(state.uri.toString());
         return '${Routes.login}?next=$next';
       }
+
+      // Sipariş kapısı: giriş yapmış ama sipariş veremeyen kullanıcı sepet/ödeme
+      // yüzeylerine giremez; bilgi ekranına düşer. Sunucu bayrağı esastır.
+      if (session.requireValue.isSignedIn &&
+          !session.requireValue.canOrder &&
+          _requiresOrdering(path)) {
+        return Routes.orderingDisabled;
+      }
       return null;
     },
     routes: [
@@ -121,6 +149,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AddressBookScreen(),
       ),
       GoRoute(
+        path: Routes.accountStatement,
+        builder: (context, state) => const AccountStatementScreen(),
+      ),
+      GoRoute(
+        path: Routes.orderingDisabled,
+        builder: (context, state) => const OrderingDisabledScreen(),
+      ),
+      GoRoute(
         path: Routes.cart,
         builder: (context, state) => const CartScreen(),
       ),
@@ -138,6 +174,18 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/orders/:id',
         builder: (context, state) => OrderTrackingScreen(
           orderId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+        ),
+      ),
+      // `new` statik yolu `:id`'den ÖNCE tanımlanır; aksi halde ":id" "new"i
+      // yakalar ve talep ekranı hiç açılmaz.
+      GoRoute(
+        path: Routes.subscriptionNew,
+        builder: (context, state) => const SubscriptionCreateScreen(),
+      ),
+      GoRoute(
+        path: '/subscriptions/:id',
+        builder: (context, state) => SubscriptionDetailScreen(
+          id: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
         ),
       ),
       StatefulShellRoute.indexedStack(
@@ -159,6 +207,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: Routes.menu,
                 builder: (context, state) => const MenuScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: Routes.subscriptions,
+                builder: (context, state) => const SubscriptionsScreen(),
               ),
             ],
           ),

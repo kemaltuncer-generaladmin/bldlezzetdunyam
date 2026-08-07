@@ -28,6 +28,13 @@ class RegisterScreen extends ConsumerStatefulWidget {
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
+  // Firma bilgileri (B2B — yalnız kurumsal hesaplar sipariş verir).
+  final _companyName = TextEditingController();
+  final _contactPerson = TextEditingController();
+  final _taxOffice = TextEditingController();
+  final _taxNumber = TextEditingController();
+  final _companyPhone = TextEditingController();
+  // Giriş bilgileri.
   final _firstName = TextEditingController();
   final _lastName = TextEditingController();
   final _email = TextEditingController();
@@ -40,12 +47,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   void dispose() {
+    _companyName.dispose();
+    _contactPerson.dispose();
+    _taxOffice.dispose();
+    _taxNumber.dispose();
+    _companyPhone.dispose();
     _firstName.dispose();
     _lastName.dispose();
     _email.dispose();
     _telephone.dispose();
     _password.dispose();
     super.dispose();
+  }
+
+  static String? _emptyToNull(String value) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 
   Future<void> _submit() async {
@@ -63,16 +80,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     });
 
     try {
-      await ref.read(sessionProvider.notifier).register(
-        RegisterRequest(
-          firstName: _firstName.text.trim(),
-          lastName: _lastName.text.trim(),
-          email: _email.text.trim(),
-          telephone: _telephone.text.trim(),
-          password: _password.text,
-          kvkkAccepted: true,
-        ),
-      );
+      await ref
+          .read(sessionProvider.notifier)
+          .register(
+            RegisterRequest(
+              firstName: _firstName.text.trim(),
+              lastName: _lastName.text.trim(),
+              email: _email.text.trim(),
+              telephone: _telephone.text.trim(),
+              password: _password.text,
+              kvkkAccepted: true,
+              companyName: _companyName.text.trim(),
+              contactPerson: _contactPerson.text.trim(),
+              taxOffice: _emptyToNull(_taxOffice.text),
+              taxNumber: _emptyToNull(_taxNumber.text),
+              companyPhone: _emptyToNull(_companyPhone.text),
+            ),
+          );
       if (!mounted) return;
       context.go(widget.nextLocation ?? Routes.menu);
     } on ApiException catch (error) {
@@ -97,11 +121,74 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Firma bilgileri — B2B: yalnız kurumsal hesaplar sipariş verir.
+                _SectionLabel(text: l10n.registerCompanySection),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: BldSpacing.md),
+                  child: Text(
+                    l10n.registerCorporateNote,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+                TextFormField(
+                  controller: _companyName,
+                  textInputAction: TextInputAction.next,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: InputDecoration(
+                    labelText: l10n.registerCompanyName,
+                  ),
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? l10n.registerCompanyRequired
+                      : null,
+                ),
+                const SizedBox(height: BldSpacing.md),
+                TextFormField(
+                  controller: _contactPerson,
+                  textInputAction: TextInputAction.next,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: InputDecoration(
+                    labelText: l10n.registerContactPerson,
+                  ),
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? l10n.registerContactRequired
+                      : null,
+                ),
+                const SizedBox(height: BldSpacing.md),
+                TextFormField(
+                  controller: _taxOffice,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: l10n.registerTaxOffice,
+                  ),
+                ),
+                const SizedBox(height: BldSpacing.md),
+                TextFormField(
+                  controller: _taxNumber,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: l10n.registerTaxNumber,
+                  ),
+                ),
+                const SizedBox(height: BldSpacing.md),
+                TextFormField(
+                  controller: _companyPhone,
+                  keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: l10n.registerCompanyPhone,
+                  ),
+                ),
+                const SizedBox(height: BldSpacing.lg),
+
+                _SectionLabel(text: l10n.registerAccountSection),
                 TextFormField(
                   controller: _firstName,
                   textInputAction: TextInputAction.next,
                   textCapitalization: TextCapitalization.words,
-                  decoration: InputDecoration(labelText: l10n.registerFirstName),
+                  decoration: InputDecoration(
+                    labelText: l10n.registerFirstName,
+                  ),
                   validator: (value) => validateRequired(value, l10n),
                 ),
                 const SizedBox(height: BldSpacing.md),
@@ -183,6 +270,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Form içi bölüm başlığı — "Firma bilgileri" / "Giriş bilgileri".
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: BldSpacing.sm),
+      child: Text(text, style: Theme.of(context).textTheme.titleMedium),
     );
   }
 }

@@ -65,6 +65,10 @@ tags:
       Talepleri** ekranına düşer.
   - name: Sürüm
     description: İstemci sürüm kontrolü ve zorunlu güncelleme eşiği.
+  - name: Cari hesap
+    description: Kurumsal müşteri cari bakiye ve ekstre (B2B).
+  - name: Abonelik
+    description: Kurumsal öğle yemeği aboneliği — sipariş üreten kural (B2B).
 
 security:
   - CustomerToken: []
@@ -514,6 +518,237 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/InvalidTransition' }
+
+  # ────────────────────────────── Cari hesap ────────────────────────────
+
+  /account/summary:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+    get:
+      tags: [Cari hesap]
+      summary: Cari bakiye
+      description: Müşterinin güncel cari bakiyesi. Pozitif = müşterinin borcu.
+      operationId: getAccountSummary
+      security:
+        - CustomerToken: []
+      responses:
+        '200':
+          description: Güncel bakiye
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountSummary' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /account/statement:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: from
+        in: query
+        required: false
+        schema: { type: string, format: date }
+        description: 'Başlangıç tarihi (varsayılan 3 ay önce).'
+      - name: to
+        in: query
+        required: false
+        schema: { type: string, format: date }
+        description: 'Bitiş tarihi (varsayılan bugün).'
+    get:
+      tags: [Cari hesap]
+      summary: Cari ekstre
+      description: Tarih aralığındaki hareketler, açılış ve kapanış bakiyesiyle.
+      operationId: getAccountStatement
+      security:
+        - CustomerToken: []
+      responses:
+        '200':
+          description: Ekstre
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountStatement' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  # ─────────────────────────────── Abonelik ─────────────────────────────
+
+  /subscriptions:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+    get:
+      tags: [Abonelik]
+      summary: Aboneliklerim
+      operationId: listSubscriptions
+      security:
+        - CustomerToken: []
+      responses:
+        '200':
+          description: Abonelik listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Subscription' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    post:
+      tags: [Abonelik]
+      summary: Abonelik talebi oluştur
+      description: Fiyatsız talep açar (status pending); admin fiyatlandırıp aktifleştirir.
+      operationId: createSubscription
+      security:
+        - CustomerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubscriptionCreate' }
+      responses:
+        '201':
+          description: Oluşturulan abonelik
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /subscriptions/{id}:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      tags: [Abonelik]
+      summary: Abonelik detayı
+      operationId: getSubscription
+      security:
+        - CustomerToken: []
+      responses:
+        '200':
+          description: Abonelik
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /subscriptions/{id}/pause:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      tags: [Abonelik]
+      summary: Aboneliği duraklat
+      description: Yalnızca aktif abonelik duraklatılabilir; aksi 422.
+      operationId: pauseSubscription
+      security:
+        - CustomerToken: []
+      responses:
+        '200':
+          description: Güncel abonelik
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /subscriptions/{id}/resume:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      tags: [Abonelik]
+      summary: Aboneliği devam ettir
+      description: Yalnızca duraklatılmış abonelik devam ettirilebilir; aksi 422.
+      operationId: resumeSubscription
+      security:
+        - CustomerToken: []
+      responses:
+        '200':
+          description: Güncel abonelik
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /subscriptions/{id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      tags: [Abonelik]
+      summary: Aboneliği iptal et
+      operationId: cancelSubscription
+      security:
+        - CustomerToken: []
+      responses:
+        '200':
+          description: Güncel abonelik
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /subscriptions/{id}/exceptions:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      tags: [Abonelik]
+      summary: Tek-günlük istisna gir
+      description: Belirli bir günü atla veya adedini değiştir (kural değişimi değil).
+      operationId: addSubscriptionException
+      security:
+        - CustomerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubscriptionExceptionInput' }
+      responses:
+        '200':
+          description: Güncel abonelik
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
 
   /me/push-token:
     parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
@@ -1277,6 +1512,17 @@ components:
           type: boolean
           const: true
           description: '`false` ise `422 VALIDATION_FAILED`. Onay zaman damgasıyla saklanır.'
+        company_name:
+          type: string
+          maxLength: 160
+          description: >-
+            Ticari unvan (kurumsal/B2B). Şimdilik opsiyonel; web ve mobil kayıt
+            formları bu alanı göndermeye başlayınca zorunlu olacak. Sunucu her
+            yeni kaydı `corporate` olarak işaretler.
+        contact_person: { type: string, maxLength: 120, description: Yetkili kişi. }
+        tax_office: { type: string, maxLength: 120, description: Vergi dairesi. }
+        tax_number: { type: string, maxLength: 32, description: Vergi / TCKN no. }
+        company_phone: { type: string, maxLength: 32, description: Kurum telefonu. }
 
     AuthResponse:
       type: object
@@ -1300,6 +1546,160 @@ components:
         email: { type: string, format: email }
         telephone: { type: string }
         default_location_id: { type: [integer, 'null'], format: int64 }
+        account_type:
+          type: string
+          enum: [corporate, individual]
+          description: B2B — yeni kayıtlar `corporate`. Bireysel hesap sipariş veremez.
+        can_order:
+          type: boolean
+          description: İstemci sipariş yolunu bununla açar/kapatır; sunucu da denetler.
+        company_name: { type: [string, 'null'] }
+        contact_person: { type: [string, 'null'] }
+
+    # ── Cari hesap ──────────────────────────────────────────────────────
+
+    AccountSummary:
+      type: object
+      required: [balance, currency, as_of]
+      properties:
+        balance:
+          type: integer
+          format: int64
+          description: Güncel bakiye (kuruş). Pozitif = müşterinin borcu, negatif = fazla ödeme.
+        currency: { $ref: '#/components/schemas/Currency' }
+        as_of: { type: string, format: date-time }
+
+    AccountEntry:
+      type: object
+      required: [date, entry_type, amount, running_balance, source]
+      properties:
+        date: { type: string, format: date }
+        entry_type:
+          type: string
+          enum: [debit, credit]
+          description: '`debit` = borç (sipariş/abonelik), `credit` = alacak (tahsilat/iptal).'
+        amount: { $ref: '#/components/schemas/Money' }
+        running_balance:
+          type: integer
+          format: int64
+          description: O satırdan sonraki yürüyen bakiye (kuruş, işaretli).
+        source:
+          type: string
+          enum: [order, subscription, payment, manual, adjustment]
+        description: { type: [string, 'null'] }
+
+    AccountStatement:
+      type: object
+      required: [opening_balance, closing_balance, currency, from, to, entries]
+      properties:
+        opening_balance: { type: integer, format: int64 }
+        closing_balance: { type: integer, format: int64 }
+        currency: { $ref: '#/components/schemas/Currency' }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        entries:
+          type: array
+          items: { $ref: '#/components/schemas/AccountEntry' }
+
+    # ── Abonelik ────────────────────────────────────────────────────────
+
+    Subscription:
+      type: object
+      required:
+        [id, status, location_id, delivery_type, start_date, service_days,
+         default_quantity, payment_mode, menu_mode, lines, delivery_points, created_at]
+      properties:
+        id: { type: integer, format: int64 }
+        status: { type: string, enum: [pending, active, paused, cancelled] }
+        location_id: { type: integer, format: int64 }
+        delivery_type: { $ref: '#/components/schemas/DeliveryType' }
+        start_date: { type: string, format: date }
+        end_date: { type: [string, 'null'], format: date }
+        service_days:
+          type: array
+          items: { type: integer, minimum: 1, maximum: 7 }
+          description: ISO hafta günleri (1 Pazartesi .. 7 Pazar).
+        delivery_time_from: { type: [string, 'null'], examples: ['12:00'] }
+        delivery_time_to: { type: [string, 'null'], examples: ['13:00'] }
+        default_quantity: { type: integer, minimum: 1 }
+        agreed_unit_price:
+          oneOf:
+            - { $ref: '#/components/schemas/Money' }
+            - { type: 'null' }
+          description: Porsiyon başı anlaşmalı fiyat. Talepte null; admin belirler.
+        payment_mode: { type: string, enum: [account, prepaid_monthly] }
+        menu_mode: { type: string, enum: [fixed_list, daily_menu] }
+        lines:
+          type: array
+          items: { $ref: '#/components/schemas/SubscriptionLine' }
+        delivery_points:
+          type: array
+          items: { $ref: '#/components/schemas/SubscriptionDeliveryPoint' }
+        created_at: { type: string, format: date-time }
+
+    SubscriptionLine:
+      type: object
+      required: [quantity]
+      properties:
+        menu_id: { type: [integer, 'null'], format: int64 }
+        quantity: { type: integer, minimum: 1 }
+        agreed_unit_price:
+          oneOf:
+            - { $ref: '#/components/schemas/Money' }
+            - { type: 'null' }
+        label: { type: [string, 'null'] }
+
+    SubscriptionDeliveryPoint:
+      type: object
+      required: [id, address_id]
+      properties:
+        id: { type: integer, format: int64 }
+        address_id: { type: integer, format: int64 }
+        quantity: { type: [integer, 'null'] }
+        note: { type: [string, 'null'] }
+
+    SubscriptionCreate:
+      type: object
+      required: [location_id, delivery_type, start_date, service_days, default_quantity]
+      properties:
+        location_id: { type: integer, format: int64 }
+        delivery_type: { $ref: '#/components/schemas/DeliveryType' }
+        start_date: { type: string, format: date }
+        end_date: { type: [string, 'null'], format: date }
+        service_days:
+          type: array
+          minItems: 1
+          items: { type: integer, minimum: 1, maximum: 7 }
+        default_quantity: { type: integer, minimum: 1, maximum: 9999 }
+        delivery_time_from: { type: string, examples: ['12:00'] }
+        delivery_time_to: { type: string, examples: ['13:00'] }
+        lines:
+          type: array
+          items:
+            type: object
+            required: [menu_id, quantity]
+            properties:
+              menu_id: { type: integer, format: int64 }
+              quantity: { type: integer, minimum: 1 }
+              label: { type: string }
+        delivery_points:
+          type: array
+          items:
+            type: object
+            required: [address_id]
+            properties:
+              address_id: { type: integer, format: int64 }
+              quantity: { type: integer, minimum: 1 }
+              note: { type: string }
+        customer_note: { type: string }
+
+    SubscriptionExceptionInput:
+      type: object
+      required: [service_date]
+      properties:
+        service_date: { type: string, format: date }
+        skip: { type: boolean }
+        quantity_override: { type: integer, minimum: 1, maximum: 9999 }
 
     # ── Katalog ─────────────────────────────────────────────────────────
 
@@ -1719,6 +2119,10 @@ components:
         currency: { $ref: '#/components/schemas/Currency' }
         item_count: { type: integer, minimum: 1 }
         created_at: { type: string, format: date-time }
+        subscription_id:
+          type: [integer, 'null']
+          format: int64
+          description: Abonelikten üretildiyse abonelik kimliği; elle siparişte null.
 
     OrderItem:
       type: object
@@ -1775,6 +2179,10 @@ components:
           type: array
           items: { $ref: '#/components/schemas/StatusHistoryEntry' }
         created_at: { type: string, format: date-time }
+        subscription_id:
+          type: [integer, 'null']
+          format: int64
+          description: Abonelikten üretildiyse abonelik kimliği; elle siparişte null.
 
     # ── Mutfak ──────────────────────────────────────────────────────────
 
@@ -1812,6 +2220,9 @@ components:
         customer_note: { type: [string, 'null'] }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+        is_subscription:
+          type: boolean
+          description: Abonelikten üretilen sipariş — KDS kartında rozet.
 
     ReceiptLine:
       type: object

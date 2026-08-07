@@ -297,9 +297,7 @@ class _AddressFormState extends ConsumerState<_AddressForm> {
 
     return Padding(
       // Klavye açıldığında form alanları klavyenin altında kalmasın.
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.viewInsetsOf(context).bottom,
-      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(BldSpacing.md),
         child: Form(
@@ -330,8 +328,7 @@ class _AddressFormState extends ConsumerState<_AddressForm> {
               const SizedBox(height: BldSpacing.sm),
               ServiceAreaFields(
                 district: _district,
-                onDistrictChanged: (value) =>
-                    setState(() => _district = value),
+                onDistrictChanged: (value) => setState(() => _district = value),
               ),
               const SizedBox(height: BldSpacing.sm),
               TextFormField(

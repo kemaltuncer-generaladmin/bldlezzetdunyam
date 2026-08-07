@@ -1299,6 +1299,438 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'Bu siparişteki ürünlerin hiçbiri şu an menüde yok.'**
   String get homeReorderEmpty;
+
+  /// No description provided for @registerCompanySection.
+  ///
+  /// In tr, this message translates to:
+  /// **'Firma bilgileri'**
+  String get registerCompanySection;
+
+  /// No description provided for @registerAccountSection.
+  ///
+  /// In tr, this message translates to:
+  /// **'Giriş bilgileri'**
+  String get registerAccountSection;
+
+  /// No description provided for @registerCompanyName.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ticari unvan'**
+  String get registerCompanyName;
+
+  /// No description provided for @registerContactPerson.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yetkili kişi'**
+  String get registerContactPerson;
+
+  /// No description provided for @registerTaxOffice.
+  ///
+  /// In tr, this message translates to:
+  /// **'Vergi dairesi (opsiyonel)'**
+  String get registerTaxOffice;
+
+  /// No description provided for @registerTaxNumber.
+  ///
+  /// In tr, this message translates to:
+  /// **'Vergi / TC no (opsiyonel)'**
+  String get registerTaxNumber;
+
+  /// No description provided for @registerCompanyPhone.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kurum telefonu (opsiyonel)'**
+  String get registerCompanyPhone;
+
+  /// No description provided for @registerCorporateNote.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yalnızca kurumsal hesaplar sipariş verebilir.'**
+  String get registerCorporateNote;
+
+  /// No description provided for @registerCompanyRequired.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ticari unvan zorunludur.'**
+  String get registerCompanyRequired;
+
+  /// No description provided for @registerContactRequired.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yetkili kişi zorunludur.'**
+  String get registerContactRequired;
+
+  /// No description provided for @orderingDisabledTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sipariş kapalı'**
+  String get orderingDisabledTitle;
+
+  /// No description provided for @orderingDisabledBody.
+  ///
+  /// In tr, this message translates to:
+  /// **'Hesabınız sipariş vermeye kapalı. Kurumsal onay için bizimle iletişime geçin.'**
+  String get orderingDisabledBody;
+
+  /// No description provided for @navSubscriptions.
+  ///
+  /// In tr, this message translates to:
+  /// **'Abonelik'**
+  String get navSubscriptions;
+
+  /// No description provided for @accountSubscriptions.
+  ///
+  /// In tr, this message translates to:
+  /// **'Aboneliklerim'**
+  String get accountSubscriptions;
+
+  /// No description provided for @accountStatementShortcut.
+  ///
+  /// In tr, this message translates to:
+  /// **'Cari hesabım'**
+  String get accountStatementShortcut;
+
+  /// No description provided for @accountCompanyLabel.
+  ///
+  /// In tr, this message translates to:
+  /// **'Firma'**
+  String get accountCompanyLabel;
+
+  /// No description provided for @subscriptionsTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Aboneliklerim'**
+  String get subscriptionsTitle;
+
+  /// No description provided for @subscriptionsEmpty.
+  ///
+  /// In tr, this message translates to:
+  /// **'Henüz aboneliğiniz yok. Kurumsal öğle yemeği için talep oluşturun.'**
+  String get subscriptionsEmpty;
+
+  /// No description provided for @subscriptionsNew.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yeni abonelik talebi'**
+  String get subscriptionsNew;
+
+  /// No description provided for @subscriptionStatusPending.
+  ///
+  /// In tr, this message translates to:
+  /// **'Onay bekliyor'**
+  String get subscriptionStatusPending;
+
+  /// No description provided for @subscriptionStatusActive.
+  ///
+  /// In tr, this message translates to:
+  /// **'Aktif'**
+  String get subscriptionStatusActive;
+
+  /// No description provided for @subscriptionStatusPaused.
+  ///
+  /// In tr, this message translates to:
+  /// **'Duraklatıldı'**
+  String get subscriptionStatusPaused;
+
+  /// No description provided for @subscriptionStatusCancelled.
+  ///
+  /// In tr, this message translates to:
+  /// **'İptal'**
+  String get subscriptionStatusCancelled;
+
+  /// No description provided for @subscriptionQuantityLabel.
+  ///
+  /// In tr, this message translates to:
+  /// **'Günlük {count} porsiyon'**
+  String subscriptionQuantityLabel(int count);
+
+  /// No description provided for @subscriptionAgreedPrice.
+  ///
+  /// In tr, this message translates to:
+  /// **'Porsiyon fiyatı'**
+  String get subscriptionAgreedPrice;
+
+  /// No description provided for @subscriptionNoPrice.
+  ///
+  /// In tr, this message translates to:
+  /// **'Fiyat onay bekliyor'**
+  String get subscriptionNoPrice;
+
+  /// No description provided for @subscriptionDetailTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Abonelik'**
+  String get subscriptionDetailTitle;
+
+  /// No description provided for @subscriptionPause.
+  ///
+  /// In tr, this message translates to:
+  /// **'Duraklat'**
+  String get subscriptionPause;
+
+  /// No description provided for @subscriptionResume.
+  ///
+  /// In tr, this message translates to:
+  /// **'Devam ettir'**
+  String get subscriptionResume;
+
+  /// No description provided for @subscriptionCancel.
+  ///
+  /// In tr, this message translates to:
+  /// **'İptal et'**
+  String get subscriptionCancel;
+
+  /// No description provided for @subscriptionCancelConfirmTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Aboneliği iptal et'**
+  String get subscriptionCancelConfirmTitle;
+
+  /// No description provided for @subscriptionCancelConfirmBody.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu abonelik iptal edilecek. Emin misiniz?'**
+  String get subscriptionCancelConfirmBody;
+
+  /// No description provided for @subscriptionCancelled.
+  ///
+  /// In tr, this message translates to:
+  /// **'Abonelik iptal edildi.'**
+  String get subscriptionCancelled;
+
+  /// No description provided for @subscriptionPaused.
+  ///
+  /// In tr, this message translates to:
+  /// **'Abonelik duraklatıldı.'**
+  String get subscriptionPaused;
+
+  /// No description provided for @subscriptionResumed.
+  ///
+  /// In tr, this message translates to:
+  /// **'Abonelik devam ediyor.'**
+  String get subscriptionResumed;
+
+  /// No description provided for @subscriptionPeriod.
+  ///
+  /// In tr, this message translates to:
+  /// **'Dönem'**
+  String get subscriptionPeriod;
+
+  /// No description provided for @subscriptionDays.
+  ///
+  /// In tr, this message translates to:
+  /// **'Günler'**
+  String get subscriptionDays;
+
+  /// No description provided for @subscriptionDelivery.
+  ///
+  /// In tr, this message translates to:
+  /// **'Teslimat'**
+  String get subscriptionDelivery;
+
+  /// No description provided for @subscriptionProducts.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ürünler'**
+  String get subscriptionProducts;
+
+  /// No description provided for @subscriptionDeliveryTime.
+  ///
+  /// In tr, this message translates to:
+  /// **'Teslim saati'**
+  String get subscriptionDeliveryTime;
+
+  /// No description provided for @subscriptionOpenEnded.
+  ///
+  /// In tr, this message translates to:
+  /// **'süresiz'**
+  String get subscriptionOpenEnded;
+
+  /// No description provided for @subscriptionNoProducts.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ürün ekibimizce eklenecek.'**
+  String get subscriptionNoProducts;
+
+  /// No description provided for @subscriptionCreateTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Abonelik talebi'**
+  String get subscriptionCreateTitle;
+
+  /// No description provided for @subscriptionCreateIntro.
+  ///
+  /// In tr, this message translates to:
+  /// **'Günleri ve günlük adedi seçin; ekibimiz fiyatlandırıp onaylayacak.'**
+  String get subscriptionCreateIntro;
+
+  /// No description provided for @subscriptionCreateDays.
+  ///
+  /// In tr, this message translates to:
+  /// **'Teslimat günleri'**
+  String get subscriptionCreateDays;
+
+  /// No description provided for @subscriptionCreateQuantity.
+  ///
+  /// In tr, this message translates to:
+  /// **'Günlük porsiyon'**
+  String get subscriptionCreateQuantity;
+
+  /// No description provided for @subscriptionCreateStart.
+  ///
+  /// In tr, this message translates to:
+  /// **'Başlangıç tarihi'**
+  String get subscriptionCreateStart;
+
+  /// No description provided for @subscriptionCreateSubmit.
+  ///
+  /// In tr, this message translates to:
+  /// **'Talep gönder'**
+  String get subscriptionCreateSubmit;
+
+  /// No description provided for @subscriptionCreateNote.
+  ///
+  /// In tr, this message translates to:
+  /// **'Not (opsiyonel)'**
+  String get subscriptionCreateNote;
+
+  /// No description provided for @subscriptionCreatePickDay.
+  ///
+  /// In tr, this message translates to:
+  /// **'En az bir gün seçin.'**
+  String get subscriptionCreatePickDay;
+
+  /// No description provided for @subscriptionRequestSent.
+  ///
+  /// In tr, this message translates to:
+  /// **'Talebiniz alındı; fiyatlandırma sonrası aktifleşecek.'**
+  String get subscriptionRequestSent;
+
+  /// No description provided for @dayMon.
+  ///
+  /// In tr, this message translates to:
+  /// **'Pzt'**
+  String get dayMon;
+
+  /// No description provided for @dayTue.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sal'**
+  String get dayTue;
+
+  /// No description provided for @dayWed.
+  ///
+  /// In tr, this message translates to:
+  /// **'Çar'**
+  String get dayWed;
+
+  /// No description provided for @dayThu.
+  ///
+  /// In tr, this message translates to:
+  /// **'Per'**
+  String get dayThu;
+
+  /// No description provided for @dayFri.
+  ///
+  /// In tr, this message translates to:
+  /// **'Cum'**
+  String get dayFri;
+
+  /// No description provided for @daySat.
+  ///
+  /// In tr, this message translates to:
+  /// **'Cmt'**
+  String get daySat;
+
+  /// No description provided for @daySun.
+  ///
+  /// In tr, this message translates to:
+  /// **'Paz'**
+  String get daySun;
+
+  /// No description provided for @accountStatementTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Cari hesabım'**
+  String get accountStatementTitle;
+
+  /// No description provided for @accountBalanceLabel.
+  ///
+  /// In tr, this message translates to:
+  /// **'Güncel bakiye'**
+  String get accountBalanceLabel;
+
+  /// No description provided for @accountBalanceDebtNote.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ödenmemiş bakiye'**
+  String get accountBalanceDebtNote;
+
+  /// No description provided for @accountBalanceCreditNote.
+  ///
+  /// In tr, this message translates to:
+  /// **'Lehinize bakiye'**
+  String get accountBalanceCreditNote;
+
+  /// No description provided for @accountBalanceZeroNote.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bakiye sıfır'**
+  String get accountBalanceZeroNote;
+
+  /// No description provided for @accountStatementEmpty.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu aralıkta hareket yok.'**
+  String get accountStatementEmpty;
+
+  /// No description provided for @accountStatementEntries.
+  ///
+  /// In tr, this message translates to:
+  /// **'Hareketler'**
+  String get accountStatementEntries;
+
+  /// No description provided for @accountDebit.
+  ///
+  /// In tr, this message translates to:
+  /// **'Borç'**
+  String get accountDebit;
+
+  /// No description provided for @accountCredit.
+  ///
+  /// In tr, this message translates to:
+  /// **'Alacak'**
+  String get accountCredit;
+
+  /// No description provided for @accountSourceOrder.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sipariş'**
+  String get accountSourceOrder;
+
+  /// No description provided for @accountSourceSubscription.
+  ///
+  /// In tr, this message translates to:
+  /// **'Abonelik'**
+  String get accountSourceSubscription;
+
+  /// No description provided for @accountSourcePayment.
+  ///
+  /// In tr, this message translates to:
+  /// **'Tahsilat'**
+  String get accountSourcePayment;
+
+  /// No description provided for @accountSourceManual.
+  ///
+  /// In tr, this message translates to:
+  /// **'Elle giriş'**
+  String get accountSourceManual;
+
+  /// No description provided for @accountSourceAdjustment.
+  ///
+  /// In tr, this message translates to:
+  /// **'Düzeltme'**
+  String get accountSourceAdjustment;
 }
 
 class _AppLocalizationsDelegate

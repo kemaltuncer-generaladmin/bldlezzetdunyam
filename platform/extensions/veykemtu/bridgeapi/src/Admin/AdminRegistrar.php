@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Veykemtu\BridgeApi\Admin;
 
+use Veykemtu\BridgeApi\Admin\DashboardWidgets\BldCorporateStatus;
 use Veykemtu\BridgeApi\Admin\DashboardWidgets\BldStatus;
 
 /**
@@ -60,6 +61,25 @@ final class AdminRegistrar
      */
     public const string PERMISSION_QUOTES = 'Veykemtu.QuoteRequests';
 
+    /**
+     * Cari hesap ekranlarına erişim yetkisi — BEŞİNCİ kutu.
+     *
+     * PARA HAREKETİ. Cari bakiye ve hareketler, hangi kurumsal müşterinin ne
+     * kadar borcu olduğunu gösterir — ticari olarak hassas veri. İçerik veya
+     * teklif yetkisiyle aynı kutuya konsaydı, blog yazan birine tüm müşteri
+     * bakiyeleri açılırdı. Ayrı yetki, "en dar çevre" ilkesinin gereği.
+     */
+    public const string PERMISSION_ACCOUNT = 'Veykemtu.AccountLedger';
+
+    /**
+     * Abonelik ekranlarına erişim yetkisi — ALTINCI kutu.
+     *
+     * Cari (para hareketi) ile abonelik (sipariş üreten kural + fiyatlandırma)
+     * farklı işler: satış ekibi aboneliği fiyatlandırır, muhasebe cariyi
+     * yönetir. Ayrı yetki, "en dar çevre" ilkesi.
+     */
+    public const string PERMISSION_SUBSCRIPTIONS = 'Veykemtu.Subscriptions';
+
     /** Mutfak kasaları ekranının admin paneldeki adresi. */
     public const string DEVICES_URI = 'veykemtu/bridgeapi/kitchen_devices';
 
@@ -74,6 +94,21 @@ final class AdminRegistrar
 
     /** İçerik ekranlarının ortak üst menü grubu kodu. */
     public const string CONTENT_MENU = 'bld_content';
+
+    /** Cari hesaplar ekranının admin paneldeki adresi. */
+    public const string ACCOUNTS_URI = 'veykemtu/bridgeapi/customer_accounts';
+
+    /** Cari hareketler ekranının admin paneldeki adresi. */
+    public const string ACCOUNT_ENTRIES_URI = 'veykemtu/bridgeapi/account_entries';
+
+    /** Abonelikler ekranının admin paneldeki adresi. */
+    public const string SUBSCRIPTIONS_URI = 'veykemtu/bridgeapi/subscriptions';
+
+    /** Kapalı günler ekranının admin paneldeki adresi. */
+    public const string CLOSED_DAYS_URI = 'veykemtu/bridgeapi/closed_days';
+
+    /** Kurumsal (cari/abonelik) ekranların ortak üst menü grubu kodu. */
+    public const string CORPORATE_MENU = 'bld_corporate';
 
     private function __construct() {}
 
@@ -218,6 +253,51 @@ final class AdminRegistrar
                     ],
                 ],
             ],
+
+            /*
+             * KURUMSAL üst grubu — cari hesap (ve ileride abonelik) ekranları.
+             *
+             * "İçerikler"in (45) hemen ardında (46): sipariş/içerik akışından
+             * sonra, kurumsal muhasebe yüzeyi. Kendi yetkisi (`PERMISSION_ACCOUNT`)
+             * ve kendi grubu — para hareketi verisi içerik/teklifle karışmaz.
+             * Çocukların hepsinde `priority` zorunlu (CONTENT_MENU gerekçesi).
+             */
+            self::CORPORATE_MENU => [
+                'priority' => 46,
+                'class' => self::CORPORATE_MENU,
+                'icon' => 'fa-building',
+                'title' => lang('veykemtu.bridgeapi::accountledger.side_menu_group'),
+                'child' => [
+                    'bld_subscriptions' => [
+                        'priority' => 5,
+                        'class' => 'bld_subscriptions',
+                        'href' => admin_url(self::SUBSCRIPTIONS_URI),
+                        'title' => lang('veykemtu.bridgeapi::subscription.side_menu'),
+                        'permission' => self::PERMISSION_SUBSCRIPTIONS,
+                    ],
+                    'bld_customer_accounts' => [
+                        'priority' => 10,
+                        'class' => 'bld_customer_accounts',
+                        'href' => admin_url(self::ACCOUNTS_URI),
+                        'title' => lang('veykemtu.bridgeapi::accountledger.side_menu_accounts'),
+                        'permission' => self::PERMISSION_ACCOUNT,
+                    ],
+                    'bld_account_entries' => [
+                        'priority' => 20,
+                        'class' => 'bld_account_entries',
+                        'href' => admin_url(self::ACCOUNT_ENTRIES_URI),
+                        'title' => lang('veykemtu.bridgeapi::accountledger.side_menu_entries'),
+                        'permission' => self::PERMISSION_ACCOUNT,
+                    ],
+                    'bld_closed_days' => [
+                        'priority' => 30,
+                        'class' => 'bld_closed_days',
+                        'href' => admin_url(self::CLOSED_DAYS_URI),
+                        'title' => lang('veykemtu.bridgeapi::subscription.closed_side_menu'),
+                        'permission' => self::PERMISSION_SUBSCRIPTIONS,
+                    ],
+                ],
+            ],
         ];
     }
 
@@ -246,6 +326,14 @@ final class AdminRegistrar
                 'label' => 'lang:veykemtu.bridgeapi::quoterequest.permission',
                 'group' => 'igniter::admin.permissions.name',
             ],
+            self::PERMISSION_ACCOUNT => [
+                'label' => 'lang:veykemtu.bridgeapi::accountledger.permission',
+                'group' => 'igniter::admin.permissions.name',
+            ],
+            self::PERMISSION_SUBSCRIPTIONS => [
+                'label' => 'lang:veykemtu.bridgeapi::subscription.permission',
+                'group' => 'igniter::admin.permissions.name',
+            ],
         ];
     }
 
@@ -257,6 +345,10 @@ final class AdminRegistrar
         return [
             BldStatus::class => [
                 'label' => 'lang:veykemtu.bridgeapi::default.dashboard.label',
+                'context' => 'dashboard',
+            ],
+            BldCorporateStatus::class => [
+                'label' => 'lang:veykemtu.bridgeapi::subscription.dashboard_label',
                 'context' => 'dashboard',
             ],
         ];

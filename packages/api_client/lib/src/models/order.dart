@@ -213,6 +213,10 @@ abstract class OrderSummary with _$OrderSummary {
     required String currency,
     required int itemCount,
     required DateTime createdAt,
+
+    /// Abonelikten üretildiyse abonelik kimliği; elle siparişte `null`.
+    /// Sipariş kartındaki "Abonelik" rozeti bunu okur.
+    int? subscriptionId,
   }) = _OrderSummary;
 
   factory OrderSummary.fromJson(Map<String, dynamic> json) =>
@@ -271,6 +275,9 @@ abstract class OrderDetail with _$OrderDetail {
     Address? address,
     DateTime? requestedAt,
     String? customerNote,
+
+    /// Abonelikten üretildiyse abonelik kimliği; elle siparişte `null`.
+    int? subscriptionId,
   }) = _OrderDetail;
 
   const OrderDetail._();

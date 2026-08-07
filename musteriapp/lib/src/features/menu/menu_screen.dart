@@ -18,7 +18,11 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/catalog_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/bld_theme.dart';
+import '../../widgets/bld_card.dart';
 import '../../widgets/eta_notice.dart';
+import '../../widgets/network_food_image.dart';
+import '../../widgets/pill.dart';
+import '../../widgets/skeletons.dart';
 import '../../widgets/status_views.dart';
 
 class MenuScreen extends ConsumerStatefulWidget {
@@ -112,7 +116,10 @@ class _MenuBody extends ConsumerWidget {
         ),
         Expanded(
           child: menuAsync.when(
-            loading: () => const LoadingView(),
+            loading: () => const Padding(
+              padding: EdgeInsets.all(BldSpacing.md),
+              child: ListRowSkeleton(),
+            ),
             error: (error, _) => ErrorView(
               error: error,
               onRetry: () => ref.invalidate(menuProvider(location.id)),
@@ -163,12 +170,24 @@ class _LocationHeader extends StatelessWidget {
             width: double.infinity,
             color: bldColor(BldColors.brand100),
             padding: const EdgeInsets.all(BldSpacing.md),
-            child: Text(
-              l10n.menuOrderingClosed,
-              style: TextStyle(
-                color: bldColor(BldColors.brand900),
-                fontWeight: FontWeight.w600,
-              ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.pause_circle_outline,
+                  size: 18,
+                  color: bldColor(BldColors.brand900),
+                ),
+                const SizedBox(width: BldSpacing.sm),
+                Expanded(
+                  child: Text(
+                    l10n.menuOrderingClosed,
+                    style: TextStyle(
+                      color: bldColor(BldColors.brand900),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         if (eta != null)
@@ -235,9 +254,6 @@ class _CategoryTabs extends StatelessWidget {
           TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
-            labelColor: bldColor(BldColors.brand700),
-            unselectedLabelColor: bldColor(BldColors.neutral600),
-            indicatorColor: bldColor(BldColors.brand500),
             tabs: [for (final c in categories) Tab(text: c.name)],
           ),
           Expanded(
@@ -305,7 +321,7 @@ class _ItemList extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(BldSpacing.md),
       itemCount: items.length,
-      separatorBuilder: (_, _) => const SizedBox(height: BldSpacing.sm),
+      separatorBuilder: (_, _) => const SizedBox(height: BldSpacing.md - 4),
       itemBuilder: (context, index) =>
           MenuItemTile(item: items[index], location: location),
     );
@@ -323,108 +339,77 @@ class MenuItemTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final textTheme = Theme.of(context).textTheme;
     final available = item.isAvailable;
 
     return Opacity(
-      opacity: available ? 1 : 0.45,
-      child: Card(
-        child: InkWell(
-          borderRadius: BorderRadius.circular(BldRadius.md),
-          onTap: available
-              ? () => context.push(Routes.productDetail(item.id))
-              : null,
-          child: Padding(
-            padding: const EdgeInsets.all(BldSpacing.md),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Görsel API'den geliyor (`MenuItem.image_url`), panelden
-                // yönetiliyor. Ürünün görseli yoksa satır görselsiz çizilir —
-                // yer tutucu kutu, listeyi hiçbir şey anlatmayan gri
-                // dikdörtgenlerle doldururdu.
-                if (item.imageUrl != null) ...[
-                  _MenuItemThumb(url: item.imageUrl!),
-                  const SizedBox(width: BldSpacing.md),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      opacity: available ? 1 : 0.5,
+      child: BldCard(
+        padding: const EdgeInsets.all(BldSpacing.sm + 2),
+        onTap: available
+            ? () => context.push(Routes.productDetail(item.id))
+            : null,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Görsel API'den geliyor (`MenuItem.image_url`), panelden
+            // yönetiliyor. Ürünün görseli yoksa satır görselsiz çizilir — yer
+            // tutucu kutu, listeyi anlamsız gri dikdörtgenlerle doldururdu.
+            if (item.imageUrl != null) ...[
+              NetworkFoodImage(
+                url: item.imageUrl,
+                width: 76,
+                height: 76,
+                radius: BldRadius.md,
+              ),
+              const SizedBox(width: BldSpacing.md),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.name, style: textTheme.titleMedium),
+                  if (item.description != null &&
+                      item.description!.isNotEmpty) ...[
+                    const SizedBox(height: BldSpacing.xs),
+                    Text(
+                      item.description!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.bodySmall,
+                    ),
+                  ],
+                  const SizedBox(height: BldSpacing.sm),
+                  Row(
                     children: [
                       Text(
-                        item.name,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      if (item.description != null &&
-                          item.description!.isNotEmpty) ...[
-                        const SizedBox(height: BldSpacing.xs),
-                        Text(
-                          item.description!,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall,
+                        Money.format(item.price),
+                        style: TextStyle(
+                          color: bldColor(BldColors.brand700),
+                          fontWeight: FontWeight.w700,
+                          fontSize: BldTextScale.body,
                         ),
-                      ],
-                      const SizedBox(height: BldSpacing.sm),
-                      Row(
-                        children: [
-                          Text(
-                            Money.format(item.price),
-                            style: TextStyle(
-                              color: bldColor(BldColors.brand700),
-                              fontWeight: FontWeight.w700,
-                              fontSize: BldTextScale.body,
-                            ),
-                          ),
-                          if (!available) ...[
-                            const SizedBox(width: BldSpacing.sm),
-                            BldBadge(
-                              label: l10n.menuItemUnavailable,
-                              background: BldColors.neutral600,
-                            ),
-                          ],
-                        ],
                       ),
+                      if (!available) ...[
+                        const SizedBox(width: BldSpacing.sm),
+                        BldPill(label: l10n.menuItemUnavailable),
+                      ],
                     ],
                   ),
-                ),
-                if (available)
-                  Icon(
-                    Icons.chevron_right,
-                    color: bldColor(BldColors.neutral400),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
+            if (available)
+              Padding(
+                padding: const EdgeInsets.only(top: BldSpacing.xs),
+                child: Icon(
+                  Icons.chevron_right,
+                  color: bldColor(BldColors.neutral400),
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
 }
-
-/// Liste satırındaki küçük ürün görseli.
-///
-/// Kare: satırın yüksekliğini metin belirliyor ve 16:9 bir görsel satırı
-/// gereksiz uzatıyordu. Yüklenemezse hiç yer kaplamaz.
-class _MenuItemThumb extends StatelessWidget {
-  const _MenuItemThumb({required this.url});
-
-  final String url;
-
-  static const double _size = 72;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(BldRadius.sm),
-      child: Image.network(
-        url,
-        width: _size,
-        height: _size,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-      ),
-    );
-  }
-}
-
-/// Sepet dolu olduğunda menünün altında duran çubuk.

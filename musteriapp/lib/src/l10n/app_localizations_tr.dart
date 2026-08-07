@@ -679,4 +679,228 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get homeReorderEmpty =>
       'Bu siparişteki ürünlerin hiçbiri şu an menüde yok.';
+
+  @override
+  String get registerCompanySection => 'Firma bilgileri';
+
+  @override
+  String get registerAccountSection => 'Giriş bilgileri';
+
+  @override
+  String get registerCompanyName => 'Ticari unvan';
+
+  @override
+  String get registerContactPerson => 'Yetkili kişi';
+
+  @override
+  String get registerTaxOffice => 'Vergi dairesi (opsiyonel)';
+
+  @override
+  String get registerTaxNumber => 'Vergi / TC no (opsiyonel)';
+
+  @override
+  String get registerCompanyPhone => 'Kurum telefonu (opsiyonel)';
+
+  @override
+  String get registerCorporateNote =>
+      'Yalnızca kurumsal hesaplar sipariş verebilir.';
+
+  @override
+  String get registerCompanyRequired => 'Ticari unvan zorunludur.';
+
+  @override
+  String get registerContactRequired => 'Yetkili kişi zorunludur.';
+
+  @override
+  String get orderingDisabledTitle => 'Sipariş kapalı';
+
+  @override
+  String get orderingDisabledBody =>
+      'Hesabınız sipariş vermeye kapalı. Kurumsal onay için bizimle iletişime geçin.';
+
+  @override
+  String get navSubscriptions => 'Abonelik';
+
+  @override
+  String get accountSubscriptions => 'Aboneliklerim';
+
+  @override
+  String get accountStatementShortcut => 'Cari hesabım';
+
+  @override
+  String get accountCompanyLabel => 'Firma';
+
+  @override
+  String get subscriptionsTitle => 'Aboneliklerim';
+
+  @override
+  String get subscriptionsEmpty =>
+      'Henüz aboneliğiniz yok. Kurumsal öğle yemeği için talep oluşturun.';
+
+  @override
+  String get subscriptionsNew => 'Yeni abonelik talebi';
+
+  @override
+  String get subscriptionStatusPending => 'Onay bekliyor';
+
+  @override
+  String get subscriptionStatusActive => 'Aktif';
+
+  @override
+  String get subscriptionStatusPaused => 'Duraklatıldı';
+
+  @override
+  String get subscriptionStatusCancelled => 'İptal';
+
+  @override
+  String subscriptionQuantityLabel(int count) {
+    return 'Günlük $count porsiyon';
+  }
+
+  @override
+  String get subscriptionAgreedPrice => 'Porsiyon fiyatı';
+
+  @override
+  String get subscriptionNoPrice => 'Fiyat onay bekliyor';
+
+  @override
+  String get subscriptionDetailTitle => 'Abonelik';
+
+  @override
+  String get subscriptionPause => 'Duraklat';
+
+  @override
+  String get subscriptionResume => 'Devam ettir';
+
+  @override
+  String get subscriptionCancel => 'İptal et';
+
+  @override
+  String get subscriptionCancelConfirmTitle => 'Aboneliği iptal et';
+
+  @override
+  String get subscriptionCancelConfirmBody =>
+      'Bu abonelik iptal edilecek. Emin misiniz?';
+
+  @override
+  String get subscriptionCancelled => 'Abonelik iptal edildi.';
+
+  @override
+  String get subscriptionPaused => 'Abonelik duraklatıldı.';
+
+  @override
+  String get subscriptionResumed => 'Abonelik devam ediyor.';
+
+  @override
+  String get subscriptionPeriod => 'Dönem';
+
+  @override
+  String get subscriptionDays => 'Günler';
+
+  @override
+  String get subscriptionDelivery => 'Teslimat';
+
+  @override
+  String get subscriptionProducts => 'Ürünler';
+
+  @override
+  String get subscriptionDeliveryTime => 'Teslim saati';
+
+  @override
+  String get subscriptionOpenEnded => 'süresiz';
+
+  @override
+  String get subscriptionNoProducts => 'Ürün ekibimizce eklenecek.';
+
+  @override
+  String get subscriptionCreateTitle => 'Abonelik talebi';
+
+  @override
+  String get subscriptionCreateIntro =>
+      'Günleri ve günlük adedi seçin; ekibimiz fiyatlandırıp onaylayacak.';
+
+  @override
+  String get subscriptionCreateDays => 'Teslimat günleri';
+
+  @override
+  String get subscriptionCreateQuantity => 'Günlük porsiyon';
+
+  @override
+  String get subscriptionCreateStart => 'Başlangıç tarihi';
+
+  @override
+  String get subscriptionCreateSubmit => 'Talep gönder';
+
+  @override
+  String get subscriptionCreateNote => 'Not (opsiyonel)';
+
+  @override
+  String get subscriptionCreatePickDay => 'En az bir gün seçin.';
+
+  @override
+  String get subscriptionRequestSent =>
+      'Talebiniz alındı; fiyatlandırma sonrası aktifleşecek.';
+
+  @override
+  String get dayMon => 'Pzt';
+
+  @override
+  String get dayTue => 'Sal';
+
+  @override
+  String get dayWed => 'Çar';
+
+  @override
+  String get dayThu => 'Per';
+
+  @override
+  String get dayFri => 'Cum';
+
+  @override
+  String get daySat => 'Cmt';
+
+  @override
+  String get daySun => 'Paz';
+
+  @override
+  String get accountStatementTitle => 'Cari hesabım';
+
+  @override
+  String get accountBalanceLabel => 'Güncel bakiye';
+
+  @override
+  String get accountBalanceDebtNote => 'Ödenmemiş bakiye';
+
+  @override
+  String get accountBalanceCreditNote => 'Lehinize bakiye';
+
+  @override
+  String get accountBalanceZeroNote => 'Bakiye sıfır';
+
+  @override
+  String get accountStatementEmpty => 'Bu aralıkta hareket yok.';
+
+  @override
+  String get accountStatementEntries => 'Hareketler';
+
+  @override
+  String get accountDebit => 'Borç';
+
+  @override
+  String get accountCredit => 'Alacak';
+
+  @override
+  String get accountSourceOrder => 'Sipariş';
+
+  @override
+  String get accountSourceSubscription => 'Abonelik';
+
+  @override
+  String get accountSourcePayment => 'Tahsilat';
+
+  @override
+  String get accountSourceManual => 'Elle giriş';
+
+  @override
+  String get accountSourceAdjustment => 'Düzeltme';
 }

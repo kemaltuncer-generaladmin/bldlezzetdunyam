@@ -543,4 +543,173 @@ void main() {
       expect(paymentStatusLabelsTr[payment.status], 'Belirsiz');
     });
   });
+
+  group('Subscription', () {
+    test('sözleşme örneği ayrıştırılır', () {
+      final subscription = Subscription.fromJson({
+        'id': 7,
+        'status': 'active',
+        'location_id': 1,
+        'delivery_type': 'delivery',
+        'start_date': '2026-08-15',
+        'end_date': null,
+        'service_days': [1, 2, 3, 4, 5],
+        'delivery_time_from': '12:00',
+        'delivery_time_to': '13:00',
+        'default_quantity': 20,
+        'agreed_unit_price': 15000,
+        'payment_mode': 'account',
+        'menu_mode': 'fixed_list',
+        'lines': [
+          {
+            'menu_id': 101,
+            'quantity': 18,
+            'agreed_unit_price': 15000,
+            'label': 'Standart',
+          },
+          {
+            'menu_id': null,
+            'quantity': 2,
+            'agreed_unit_price': null,
+            'label': 'Vejetaryen',
+          },
+        ],
+        'delivery_points': [
+          {'id': 3, 'address_id': 55, 'quantity': 20, 'note': 'Zemin kat'},
+        ],
+        'created_at': '2026-08-10T09:00:00Z',
+      });
+
+      expect(subscription.id, 7);
+      expect(subscription.isActive, isTrue);
+      expect(subscription.deliveryType, DeliveryType.delivery);
+      expect(subscription.serviceDays, [1, 2, 3, 4, 5]);
+      expect(subscription.defaultQuantity, 20);
+      expect(subscription.agreedUnitPrice, 15000);
+      expect(subscription.paymentMode, 'account');
+      expect(subscription.lines, hasLength(2));
+      expect(subscription.lines[1].menuId, isNull);
+      expect(subscription.lines[1].agreedUnitPrice, isNull);
+      expect(subscription.deliveryPoints.single.addressId, 55);
+    });
+
+    test('talep (pending) fiyatsız gelir', () {
+      final subscription = Subscription.fromJson({
+        'id': 8,
+        'status': 'pending',
+        'location_id': 1,
+        'delivery_type': 'pickup',
+        'start_date': '2026-09-01',
+        'service_days': [1, 3, 5],
+        'default_quantity': 10,
+        'agreed_unit_price': null,
+        'payment_mode': 'account',
+        'menu_mode': 'fixed_list',
+        'lines': <Map<String, Object?>>[],
+        'delivery_points': <Map<String, Object?>>[],
+        'created_at': '2026-08-20T06:00:00Z',
+      });
+
+      expect(subscription.isPending, isTrue);
+      expect(subscription.agreedUnitPrice, isNull);
+      expect(subscription.lines, isEmpty);
+    });
+
+    test('bilinmeyen durum çökertmez (gevşek enum)', () {
+      final subscription = Subscription.fromJson({
+        'id': 9,
+        'status': 'suspended_for_debt',
+        'location_id': 1,
+        'delivery_type': 'delivery',
+        'start_date': '2026-09-01',
+        'service_days': [1],
+        'default_quantity': 5,
+        'payment_mode': 'account',
+        'menu_mode': 'fixed_list',
+        'lines': <Map<String, Object?>>[],
+        'delivery_points': <Map<String, Object?>>[],
+        'created_at': '2026-08-20T06:00:00Z',
+      });
+
+      expect(subscription.status, 'suspended_for_debt');
+      expect(subscription.isActive, isFalse);
+    });
+
+    test('talep gövdesi (SubscriptionCreateRequest) JSON üretir', () {
+      final request = SubscriptionCreateRequest(
+        locationId: 1,
+        deliveryType: DeliveryType.delivery,
+        startDate: '2026-09-01',
+        serviceDays: const [1, 2, 3, 4, 5],
+        defaultQuantity: 20,
+        customerNote: 'Öğle 12:30',
+      );
+      final json = request.toJson();
+
+      expect(json['location_id'], 1);
+      expect(json['delivery_type'], 'delivery');
+      expect(json['start_date'], '2026-09-01');
+      expect(json['service_days'], [1, 2, 3, 4, 5]);
+      expect(json['default_quantity'], 20);
+      expect(json['customer_note'], 'Öğle 12:30');
+    });
+  });
+
+  group('Cari hesap', () {
+    test('bakiye özeti — pozitif borç', () {
+      final summary = AccountSummary.fromJson({
+        'balance': 300000,
+        'currency': 'TRY',
+        'as_of': '2026-08-31T20:00:00Z',
+      });
+      expect(summary.balance, 300000);
+      expect(summary.hasDebt, isTrue);
+    });
+
+    test('negatif bakiye = fazla ödeme, borç değil', () {
+      final summary = AccountSummary.fromJson({
+        'balance': -4550,
+        'currency': 'TRY',
+        'as_of': '2026-08-31T20:00:00Z',
+      });
+      expect(summary.balance, -4550);
+      expect(summary.hasDebt, isFalse);
+    });
+
+    test('ekstre örneği ayrıştırılır', () {
+      final statement = AccountStatement.fromJson({
+        'opening_balance': 0,
+        'closing_balance': 150000,
+        'currency': 'TRY',
+        'from': '2026-08-01',
+        'to': '2026-08-31',
+        'entries': [
+          {
+            'date': '2026-08-10',
+            'entry_type': 'debit',
+            'amount': 300000,
+            'running_balance': 300000,
+            'source': 'subscription',
+            'description': 'Ağustos aboneliği',
+          },
+          {
+            'date': '2026-08-20',
+            'entry_type': 'credit',
+            'amount': 150000,
+            'running_balance': 150000,
+            'source': 'payment',
+            'description': null,
+          },
+        ],
+      });
+
+      expect(statement.openingBalance, 0);
+      expect(statement.closingBalance, 150000);
+      expect(statement.entries, hasLength(2));
+      expect(statement.entries.first.isDebit, isTrue);
+      expect(statement.entries.first.source, 'subscription');
+      expect(statement.entries.last.isDebit, isFalse);
+      expect(statement.entries.last.description, isNull);
+    });
+  });
 }

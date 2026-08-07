@@ -7,6 +7,7 @@ namespace Veykemtu\BridgeApi;
 use Igniter\Admin\Classes\Navigation;
 use Igniter\System\Classes\BaseExtension;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
@@ -17,6 +18,8 @@ use Override;
 use Throwable;
 use Veykemtu\BridgeApi\Admin\AdminRegistrar;
 use Veykemtu\BridgeApi\Admin\NavigationTrimmer;
+use Veykemtu\BridgeApi\Console\AccountEntryCommand;
+use Veykemtu\BridgeApi\Console\AccountPeriodCommand;
 use Veykemtu\BridgeApi\Console\AdminUserCommand;
 use Veykemtu\BridgeApi\Console\DemoMenuCommand;
 use Veykemtu\BridgeApi\Console\KitchenDeviceCommand;
@@ -24,6 +27,7 @@ use Veykemtu\BridgeApi\Console\MenuImageCommand;
 use Veykemtu\BridgeApi\Console\PurgeOrdersCommand;
 use Veykemtu\BridgeApi\Console\SetupCommand;
 use Veykemtu\BridgeApi\Console\SiteContentImportCommand;
+use Veykemtu\BridgeApi\Console\SubscriptionGenerateCommand;
 use Veykemtu\BridgeApi\Console\TranslationAuditCommand;
 use Veykemtu\BridgeApi\Exceptions\ApiExceptionRenderer;
 use Veykemtu\BridgeApi\Http\Middleware\AuthenticateToken;
@@ -33,6 +37,7 @@ use Veykemtu\BridgeApi\Models\SiteContent;
 use Veykemtu\BridgeApi\Models\SitePost;
 use Veykemtu\BridgeApi\Models\SiteService;
 use Veykemtu\BridgeApi\Observers\SiteContentObserver;
+use Veykemtu\BridgeApi\Support\BusinessTime;
 
 /**
  * BLD Köprü API eklentisi.
@@ -76,6 +81,9 @@ class Extension extends BaseExtension
         $this->registerConsoleCommand('veykemtu.siparisTemizle', PurgeOrdersCommand::class);
         $this->registerConsoleCommand('veykemtu.ceviriDenetle', TranslationAuditCommand::class);
         $this->registerConsoleCommand('veykemtu.siteIceriginiAktar', SiteContentImportCommand::class);
+        $this->registerConsoleCommand('veykemtu.cariHareket', AccountEntryCommand::class);
+        $this->registerConsoleCommand('veykemtu.cariDonemOzeti', AccountPeriodCommand::class);
+        $this->registerConsoleCommand('veykemtu.abonelikUret', SubscriptionGenerateCommand::class);
     }
 
     /**
@@ -107,6 +115,34 @@ class Extension extends BaseExtension
     public function registerDashboardWidgets(): array
     {
         return AdminRegistrar::registerDashboardWidgets();
+    }
+
+    /**
+     * Zamanlanmış işler — sunucudaki `schedule:run` cron'u tetikler.
+     *
+     * Gece üretim işi kesim saatinden ÖNCE (22:00) koşar; müşteriye sabaha
+     * kadar adet değiştirme payı kalır. İkisi de `withoutOverlapping` —
+     * uzun süren bir koşum bir sonrakiyle üst üste binmez. Saat dilimi
+     * `BusinessTime::ZONE` (Istanbul); sunucu UTC olsa da işler yerel saatle.
+     */
+    #[Override]
+    public function registerSchedule(Schedule $schedule): void
+    {
+        $schedule->command('veykemtu:abonelik-uret')
+            ->name('BLD abonelik üretim')
+            ->dailyAt('22:00')
+            ->timezone(BusinessTime::ZONE)
+            ->withoutOverlapping()
+            ->runInBackground();
+
+        // 04:00 Istanbul = 01:00 UTC — ayın 1'inde kalır. `01:00` seçilseydi
+        // UTC'ye çevrilince önceki ayın son gününe kayar ve 31 çekmeyen
+        // aylarda hiç tetiklenmezdi (timezone + monthlyOn tuzağı).
+        $schedule->command('veykemtu:cari-donem-ozeti')
+            ->name('BLD cari ay-sonu özeti')
+            ->monthlyOn(1, '04:00')
+            ->timezone(BusinessTime::ZONE)
+            ->withoutOverlapping();
     }
 
     #[Override]

@@ -13,6 +13,10 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/order_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/bld_theme.dart';
+import '../../widgets/bld_card.dart';
+import '../../widgets/empty_view.dart';
+import '../../widgets/pill.dart';
+import '../../widgets/skeletons.dart';
 import '../../widgets/status_views.dart';
 
 class OrdersScreen extends ConsumerWidget {
@@ -26,18 +30,19 @@ class OrdersScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.ordersTitle)),
       body: ordersAsync.when(
-        loading: () => const LoadingView(),
+        loading: () => const Padding(
+          padding: EdgeInsets.all(BldSpacing.md),
+          child: ListRowSkeleton(),
+        ),
         error: (error, _) => ErrorView(
           error: error,
           onRetry: () => ref.invalidate(ordersProvider),
         ),
         data: (page) {
           if (page.data.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(BldSpacing.lg),
-                child: Text(l10n.ordersEmpty, textAlign: TextAlign.center),
-              ),
+            return EmptyView(
+              icon: Icons.receipt_long_outlined,
+              title: l10n.ordersEmpty,
             );
           }
 
@@ -46,7 +51,8 @@ class OrdersScreen extends ConsumerWidget {
             child: ListView.separated(
               padding: const EdgeInsets.all(BldSpacing.md),
               itemCount: page.data.length,
-              separatorBuilder: (_, _) => const SizedBox(height: BldSpacing.sm),
+              separatorBuilder: (_, _) =>
+                  const SizedBox(height: BldSpacing.md - 4),
               itemBuilder: (context, index) =>
                   _OrderTile(order: page.data[index]),
             ),
@@ -65,49 +71,64 @@ class _OrderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final textTheme = Theme.of(context).textTheme;
 
-    return Card(
-      child: ListTile(
-        onTap: () => context.push(Routes.orderTracking(order.id)),
-        contentPadding: const EdgeInsets.all(BldSpacing.md),
-        title: Text(
-          l10n.orderNumberLabel(order.orderNumber),
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: BldSpacing.xs),
-          child: Text(
-            '${TurkishTime.longDateTime(order.createdAt)}'
-            '  ·  ${l10n.cartItemCount(order.itemCount)}',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              Money.format(order.total),
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: bldColor(BldColors.brand700),
-              ),
+    return BldCard(
+      onTap: () => context.push(Routes.orderTracking(order.id)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.orderNumberLabel(order.orderNumber),
+                  style: textTheme.titleMedium,
+                ),
+                const SizedBox(height: BldSpacing.xs),
+                Text(
+                  '${TurkishTime.longDateTime(order.createdAt)}'
+                  '  ·  ${l10n.cartItemCount(order.itemCount)}',
+                  style: textTheme.bodySmall,
+                ),
+                const SizedBox(height: BldSpacing.sm),
+                OrderStatusBadge(status: order.status),
+              ],
             ),
-            const SizedBox(height: BldSpacing.xs),
-            OrderStatusBadge(status: order.status),
-          ],
-        ),
+          ),
+          const SizedBox(width: BldSpacing.sm),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                Money.format(order.total),
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: BldTextScale.body,
+                  color: bldColor(BldColors.brand700),
+                ),
+              ),
+              const SizedBox(height: BldSpacing.lg),
+              Icon(
+                Icons.chevron_right,
+                color: bldColor(BldColors.neutral400),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
-/// Durum rozeti. Renk eşlemesi tek yerdedir; takip ekranı da bunu kullanır.
+/// Durum rozeti. Renk/varyant eşlemesi tek yerdedir; takip ekranı da kullanır.
 class OrderStatusBadge extends StatelessWidget {
   const OrderStatusBadge({super.key, required this.status});
 
   final OrderStatus status;
 
+  /// Katı zemin rengi (adım çubuğu gibi düz dolgu gereken yerler için korunur).
   static int backgroundFor(OrderStatus status) => switch (status) {
     OrderStatus.yeni => BldColors.info,
     OrderStatus.onaylandi => BldColors.info,
@@ -118,12 +139,22 @@ class OrderStatusBadge extends StatelessWidget {
     OrderStatus.iptal => BldColors.danger,
   };
 
+  static BldPillVariant variantFor(OrderStatus status) => switch (status) {
+    OrderStatus.yeni => BldPillVariant.info,
+    OrderStatus.onaylandi => BldPillVariant.info,
+    OrderStatus.hazirlaniyor => BldPillVariant.warning,
+    OrderStatus.hazir => BldPillVariant.success,
+    OrderStatus.yolda => BldPillVariant.brand,
+    OrderStatus.teslimEdildi => BldPillVariant.neutral,
+    OrderStatus.iptal => BldPillVariant.danger,
+  };
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return BldBadge(
+    return BldPill(
       label: orderStatusLabel(status, l10n),
-      background: backgroundFor(status),
+      variant: variantFor(status),
     );
   }
 }

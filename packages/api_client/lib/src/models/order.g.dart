@@ -172,6 +172,7 @@ _OrderSummary _$OrderSummaryFromJson(Map<String, dynamic> json) =>
       currency: json['currency'] as String,
       itemCount: (json['item_count'] as num).toInt(),
       createdAt: DateTime.parse(json['created_at'] as String),
+      subscriptionId: (json['subscription_id'] as num?)?.toInt(),
     );
 
 Map<String, dynamic> _$OrderSummaryToJson(_OrderSummary instance) =>
@@ -183,6 +184,7 @@ Map<String, dynamic> _$OrderSummaryToJson(_OrderSummary instance) =>
       'currency': instance.currency,
       'item_count': instance.itemCount,
       'created_at': instance.createdAt.toIso8601String(),
+      'subscription_id': ?instance.subscriptionId,
     };
 
 _OrderItem _$OrderItemFromJson(Map<String, dynamic> json) => _OrderItem(
@@ -246,6 +248,7 @@ _OrderDetail _$OrderDetailFromJson(Map<String, dynamic> json) => _OrderDetail(
       ? null
       : DateTime.parse(json['requested_at'] as String),
   customerNote: json['customer_note'] as String?,
+  subscriptionId: (json['subscription_id'] as num?)?.toInt(),
 );
 
 Map<String, dynamic> _$OrderDetailToJson(
@@ -266,6 +269,7 @@ Map<String, dynamic> _$OrderDetailToJson(
   'address': ?instance.address?.toJson(),
   'requested_at': ?instance.requestedAt?.toIso8601String(),
   'customer_note': ?instance.customerNote,
+  'subscription_id': ?instance.subscriptionId,
 };
 
 _PaginationMeta _$PaginationMetaFromJson(Map<String, dynamic> json) =>

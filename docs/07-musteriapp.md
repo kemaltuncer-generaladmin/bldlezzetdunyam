@@ -14,10 +14,13 @@
 
 ## 2. Ekranlar
 
+Alt gezinme **5 sekme**: Ana Sayfa (keşif) · Menü · Aboneliklerim · Siparişlerim · Hesabım.
+
 | Ekran | İçerik |
 |---|---|
 | Açılış | Token kontrolü, sürüm kontrolü (`/api/app-version`) |
-| Giriş / Kayıt | E-posta + şifre, KVKK onay kutusu, **"Beni hatırla"** |
+| Giriş / Kayıt | **Kurumsal kayıt** (firma bilgileri + giriş bilgileri), KVKK onay kutusu, **"Beni hatırla"** |
+| Ana Sayfa (keşif) | Hero + **aktif abonelik** ve **cari bakiye** kısayolu (girişliyken) + son sipariş + kategori/öne çıkan şeritleri |
 | Menü | Kategori sekmeleri, ürün listesi, arama |
 | Ürün detayı | Görsel, açıklama, seçenekler, adet, not, sepete ekle |
 | Sepet | Kalemler, adet düzenleme, tutar özeti |
@@ -25,7 +28,10 @@
 | Ödeme sayfası | Sanal POS `redirect_url` **sistem tarayıcısında** açılır |
 | Sipariş takip | Adım çubuğu, canlı durum |
 | Siparişlerim | Geçmiş liste, detay |
-| Hesabım | Profil, adres defteri (`/addresses`), bildirim ayarı, çıkış |
+| **Aboneliklerim** | Abonelik listesi, detay (duraklat/devam/iptal), yeni talep |
+| **Cari hesabım** | Güncel bakiye + hareket ekstresi (Hesabım'dan kısayol) |
+| Hesabım | Firma + yetkili profil, kısayollar (Aboneliklerim/Cari/Adres), bildirim ayarı, çıkış |
+| Sipariş kapalı | `can_order = false` kullanıcının sepet/ödemeye girişinde bilgi ekranı |
 | Zorunlu güncelleme | `min_supported` altındaysa engelleyici ekran |
 
 ## 3. Sunucu neyi belirler
@@ -108,3 +114,24 @@ Sipariş vermek internet gerektirir. İnternet yoksa:
 - API hata durumlarının kullanıcı mesajına çevrilmesi unit test
 - Zorunlu güncelleme mantığı (`version < min_supported`) unit test
 - Giriş → sipariş akışı widget test (API mock)
+- **Sipariş kapısı** (`Session.canOrder`) unit test (`session_gating_test.dart`)
+- **Abonelik/cari sözleşme örnekleri** `packages/api_client` contract test'te ayrıştırılır
+
+## 8. B2B: abonelik ve cari hesap self-servisi (Faz 2 — UYGULANDI)
+
+Sistem tamamen kurumsal. İş kuralı istemcide değil sunucuda; uygulama yalnız
+sunucu bayraklarını uygular.
+
+- **Sipariş kapısı:** `customer.can_order` yanlışsa sepet/ödeme yolları kapanır
+  ("Sipariş kapalı" bilgi ekranı); menü/keşif serbest. Kaynak `session_provider`,
+  uygulama `router/app_router.dart` `_requiresOrdering` kapısıyla yönlendirir.
+- **Kurumsal kayıt:** form iki bölüm — "Firma bilgileri" (ticari unvan + yetkili
+  **zorunlu**, vergi opsiyonel) ve "Giriş bilgileri". `account_type` gönderilmez;
+  sunucu `corporate` yazar.
+- **Aboneliklerim:** liste + detay. Detayda `active` iken duraklat, `paused` iken
+  devam ettir, her durumda iptal (onay diyaloğuyla). "Yeni abonelik talebi" günleri,
+  günlük adedi, başlangıcı ve teslimat tipini toplar; **fiyat alanı yoktur** — talep
+  `pending` doğar, admin fiyatlandırır.
+- **Cari hesabım:** güncel bakiye (pozitif = borç) + hareket ekstresi. Tutarların
+  hiçbiri istemcide hesaplanmaz; `Money.format` ile gösterilir.
+- Ana sayfada girişliyken aktif abonelik ve cari bakiye kısayolu görünür.

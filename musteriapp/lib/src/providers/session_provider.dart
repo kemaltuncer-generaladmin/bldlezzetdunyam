@@ -21,6 +21,12 @@ class Session {
   final bool isSignedIn;
   final Customer? customer;
 
+  /// Sunucu kararı: bu müşteri sipariş verebilir mi? (B2B geçişi — yalnız
+  /// kurumsal onaylı hesaplar sipariş verir.) Profil henüz çekilmediyse
+  /// (çevrimdışı açılış) kapıyı kapatmayız: `true` varsayılır, gerçek engel
+  /// sipariş ucundan (`403`) yine de gelir.
+  bool get canOrder => customer?.canOrder ?? true;
+
   @override
   bool operator ==(Object other) =>
       other is Session &&

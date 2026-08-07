@@ -22,6 +22,7 @@ import '../../providers/infra_providers.dart';
 import '../../providers/notification_providers.dart';
 import '../../providers/order_providers.dart';
 import '../../theme/bld_theme.dart';
+import '../../widgets/bld_card.dart';
 import '../../widgets/eta_notice.dart';
 import '../../widgets/status_views.dart';
 import 'orders_screen.dart';
@@ -350,26 +351,33 @@ class _Step extends StatelessWidget {
     return Column(
       children: [
         SizedBox(
-          height: 24,
+          height: 28,
           child: Row(
             children: [
               Expanded(
                 child: Container(
-                  height: 2,
+                  height: 3,
                   color: isFirst ? Colors.transparent : active,
                 ),
               ),
               Container(
-                width: 16,
-                height: 16,
+                width: 24,
+                height: 24,
                 decoration: BoxDecoration(
                   color: active,
                   shape: BoxShape.circle,
                 ),
+                child: reached
+                    ? Icon(
+                        Icons.check,
+                        size: 14,
+                        color: bldColor(BldColors.neutral0),
+                      )
+                    : null,
               ),
               Expanded(
                 child: Container(
-                  height: 2,
+                  height: 3,
                   color: isLast
                       ? Colors.transparent
                       : bldColor(
@@ -418,9 +426,14 @@ class _Section extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: BldSpacing.sm),
-          child,
+          Padding(
+            padding: const EdgeInsets.only(
+              left: BldSpacing.xs,
+              bottom: BldSpacing.sm,
+            ),
+            child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+          ),
+          BldCard(child: child),
         ],
       ),
     );

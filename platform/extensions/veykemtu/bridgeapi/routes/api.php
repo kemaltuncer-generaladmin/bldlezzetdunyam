@@ -12,6 +12,7 @@ declare(strict_types=1);
  */
 
 use Illuminate\Support\Facades\Route;
+use Veykemtu\BridgeApi\Http\Controllers\AccountController;
 use Veykemtu\BridgeApi\Http\Controllers\AddressController;
 use Veykemtu\BridgeApi\Http\Controllers\AppVersionController;
 use Veykemtu\BridgeApi\Http\Controllers\AuthController;
@@ -21,6 +22,7 @@ use Veykemtu\BridgeApi\Http\Controllers\KitchenController;
 use Veykemtu\BridgeApi\Http\Controllers\OrderController;
 use Veykemtu\BridgeApi\Http\Controllers\QuoteRequestController;
 use Veykemtu\BridgeApi\Http\Controllers\SiteContentController;
+use Veykemtu\BridgeApi\Http\Controllers\SubscriptionController;
 
 Route::prefix('api')
     ->middleware(['bld.headers'])
@@ -77,6 +79,23 @@ Route::prefix('api')
                 ->middleware('throttle:bld-order');
             Route::get('orders/{order}', [OrderController::class, 'show']);
             Route::post('orders/{order}/cancel', [OrderController::class, 'cancel']);
+
+            // Cari hesap (self-servis): güncel bakiye + tarih aralığı ekstresi.
+            // Yalnız istek sahibinin verisi döner (controller `$request->user()`).
+            Route::get('account/summary', [AccountController::class, 'summary']);
+            Route::get('account/statement', [AccountController::class, 'statement']);
+
+            // Abonelik (self-servis): müşteri kendi aboneliğini görür, TALEP
+            // açar (fiyatı admin belirler), duraklatır/devam/iptal, tek-gün
+            // istisna girer. Anlaşmalı fiyat müşteri tarafından set edilmez.
+            Route::get('subscriptions', [SubscriptionController::class, 'index']);
+            Route::post('subscriptions', [SubscriptionController::class, 'store'])
+                ->middleware('throttle:bld-order');
+            Route::get('subscriptions/{subscription}', [SubscriptionController::class, 'show']);
+            Route::post('subscriptions/{subscription}/pause', [SubscriptionController::class, 'pause']);
+            Route::post('subscriptions/{subscription}/resume', [SubscriptionController::class, 'resume']);
+            Route::post('subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel']);
+            Route::post('subscriptions/{subscription}/exceptions', [SubscriptionController::class, 'storeException']);
         });
 
         // ── Mutfak kapsamı ───────────────────────────────────────────────

@@ -19,6 +19,14 @@ abstract class RegisterRequest with _$RegisterRequest {
 
     /// `false` ise sunucu `422 VALIDATION_FAILED` döner.
     required bool kvkkAccepted,
+
+    /// Kurumsal (B2B) alanları — kayıt formunda toplanır. Sunucu her yeni
+    /// kaydı `corporate` işaretler; bireysel self-servis kayıt yoktur.
+    String? companyName,
+    String? contactPerson,
+    String? taxOffice,
+    String? taxNumber,
+    String? companyPhone,
   }) = _RegisterRequest;
 
   factory RegisterRequest.fromJson(Map<String, dynamic> json) =>
@@ -66,6 +74,15 @@ abstract class Customer with _$Customer {
     required String email,
     required String telephone,
     int? defaultLocationId,
+
+    /// `corporate` | `individual`. Eski yanıtlarda gelmeyebilir (`null`).
+    String? accountType,
+
+    /// Sipariş verebilir mi? Sunucu belirler; istemci sipariş yolunu buna
+    /// göre açar. Eski yanıtta alan yoksa `true` (grandfather güvencesi).
+    @Default(true) bool canOrder,
+    String? companyName,
+    String? contactPerson,
   }) = _Customer;
 
   const Customer._();
@@ -74,6 +91,9 @@ abstract class Customer with _$Customer {
       _$CustomerFromJson(json);
 
   String get fullName => '$firstName $lastName';
+
+  /// Kurumsal mı? Profil ekranında firma bilgisi buna göre gösterilir.
+  bool get isCorporate => accountType == 'corporate';
 }
 
 /// `POST /me/push-token` gövdesi.

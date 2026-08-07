@@ -7,6 +7,9 @@ namespace Veykemtu\BridgeApi\Services;
 use Igniter\Admin\Models\Status;
 use Igniter\Cart\Models\Order;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
+use Veykemtu\BridgeApi\Models\AccountLedgerEntry;
+use Veykemtu\BridgeApi\Support\BusinessTime;
+use Veykemtu\BridgeApi\Support\Money;
 
 /**
  * Sipariş durum makinesi — `docs/02-veri-modeli.md` §3.
@@ -18,6 +21,10 @@ use Veykemtu\BridgeApi\Exceptions\ApiException;
  */
 class OrderStatusTransition
 {
+    public function __construct(
+        private readonly AccountLedger $ledger,
+    ) {}
+
     public const string NEW = 'yeni';
 
     public const string CONFIRMED = 'onaylandi';
@@ -74,7 +81,47 @@ class OrderStatusTransition
             'user_id' => $userId,
         ]);
 
+        if ($to === self::CANCELLED) {
+            $this->reverseAccountDebitOnCancel($order);
+        }
+
         return $order->refresh();
+    }
+
+    /**
+     * İptal edilen `account` siparişinin cari borcunu ters alacakla nötrler.
+     *
+     * Append-only defter: borç silinmez, eşit bir alacak yazılır. Yalnızca
+     * gerçekten borç düşmüş siparişte çalışır (idempotent; ikinci iptal zaten
+     * durum makinesince engellenir).
+     */
+    private function reverseAccountDebitOnCancel(Order $order): void
+    {
+        if ($order->payment !== 'account') {
+            return;
+        }
+
+        $orderId = (int) $order->order_id;
+
+        if (!$this->ledger->hasEntry(
+            AccountLedgerEntry::SOURCE_ORDER,
+            'order',
+            $orderId,
+            AccountLedgerEntry::TYPE_DEBIT,
+        )) {
+            return;
+        }
+
+        $this->ledger->record(
+            customerId: (int) $order->customer_id,
+            type: AccountLedgerEntry::TYPE_CREDIT,
+            amountKurus: Money::toKurus($order->order_total),
+            source: AccountLedgerEntry::SOURCE_ORDER,
+            referenceType: 'order',
+            referenceId: $orderId,
+            description: 'Sipariş #'.$orderId.' iptal (ters kayıt)',
+            effectiveDate: BusinessTime::now(),
+        );
     }
 
     /** @throws ApiException */

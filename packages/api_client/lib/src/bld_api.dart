@@ -9,11 +9,13 @@ library;
 import 'package:dio/dio.dart';
 
 import 'api_exception.dart';
+import 'models/account.dart';
 import 'models/auth.dart';
 import 'models/catalog.dart';
 import 'models/converters.dart';
 import 'models/kitchen.dart';
 import 'models/order.dart';
+import 'models/subscription.dart';
 import 'services.dart';
 
 /// Token'ın nerede saklandığını istemci bilmez.
@@ -101,6 +103,8 @@ class BldApi {
     addresses = _AddressService(this);
     kitchen = _KitchenService(this);
     appVersion = _AppVersionService(this);
+    subscriptions = _SubscriptionService(this);
+    account = _AccountService(this);
   }
 
   final Dio _dio;
@@ -112,6 +116,8 @@ class BldApi {
   late final AddressService addresses;
   late final KitchenService kitchen;
   late final AppVersionService appVersion;
+  late final SubscriptionService subscriptions;
+  late final AccountService account;
 
   TokenStore get tokenStore => _tokenStore;
 
@@ -426,5 +432,86 @@ class _AppVersionService implements AppVersionService {
     '/app-version',
     query: {'app_id': appId},
     parse: (data) => AppVersionInfo.fromJson(BldApi._asMap(data)),
+  );
+}
+
+class _SubscriptionService implements SubscriptionService {
+  _SubscriptionService(this._api);
+
+  final BldApi _api;
+
+  @override
+  Future<List<Subscription>> list() => _api._send(
+    'GET',
+    '/subscriptions',
+    parse: (data) => BldApi._asDataList(data, Subscription.fromJson),
+  );
+
+  @override
+  Future<Subscription> get(int id) => _api._send(
+    'GET',
+    '/subscriptions/$id',
+    parse: (data) => Subscription.fromJson(BldApi._asMap(data)),
+  );
+
+  @override
+  Future<Subscription> create(SubscriptionCreateRequest request) => _api._send(
+    'POST',
+    '/subscriptions',
+    body: request.toJson(),
+    parse: (data) => Subscription.fromJson(BldApi._asMap(data)),
+  );
+
+  @override
+  Future<Subscription> pause(int id) => _api._send(
+    'POST',
+    '/subscriptions/$id/pause',
+    parse: (data) => Subscription.fromJson(BldApi._asMap(data)),
+  );
+
+  @override
+  Future<Subscription> resume(int id) => _api._send(
+    'POST',
+    '/subscriptions/$id/resume',
+    parse: (data) => Subscription.fromJson(BldApi._asMap(data)),
+  );
+
+  @override
+  Future<Subscription> cancel(int id) => _api._send(
+    'POST',
+    '/subscriptions/$id/cancel',
+    parse: (data) => Subscription.fromJson(BldApi._asMap(data)),
+  );
+
+  @override
+  Future<Subscription> addException(
+    int id,
+    SubscriptionExceptionRequest request,
+  ) => _api._send(
+    'POST',
+    '/subscriptions/$id/exceptions',
+    body: request.toJson(),
+    parse: (data) => Subscription.fromJson(BldApi._asMap(data)),
+  );
+}
+
+class _AccountService implements AccountService {
+  _AccountService(this._api);
+
+  final BldApi _api;
+
+  @override
+  Future<AccountSummary> summary() => _api._send(
+    'GET',
+    '/account/summary',
+    parse: (data) => AccountSummary.fromJson(BldApi._asMap(data)),
+  );
+
+  @override
+  Future<AccountStatement> statement({String? from, String? to}) => _api._send(
+    'GET',
+    '/account/statement',
+    query: {'from': ?from, 'to': ?to},
+    parse: (data) => AccountStatement.fromJson(BldApi._asMap(data)),
   );
 }

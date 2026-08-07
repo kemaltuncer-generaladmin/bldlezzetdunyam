@@ -7,6 +7,7 @@ library;
 
 export 'src/api_exception.dart';
 export 'src/bld_api.dart';
+export 'src/models/account.dart';
 export 'src/models/auth.dart';
 export 'src/models/catalog.dart';
 export 'src/models/converters.dart'
@@ -20,5 +21,6 @@ export 'src/models/converters.dart'
         paymentStatusLabelsTr;
 export 'src/models/kitchen.dart';
 export 'src/models/order.dart';
+export 'src/models/subscription.dart';
 export 'src/order_source.dart';
 export 'src/services.dart';

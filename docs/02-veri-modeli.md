@@ -161,3 +161,63 @@ KDS bunu üst şeritte gösterir — mutfak toplam üretime bakar.
 
 - Sipariş geçmişi 2 yıl saklanır, sonrası anonimleştirilir (müşteri bağı koparılır, istatistik kalır).
 - KVKK aydınlatma metni `website/` ve `musteriapp/` kayıt ekranında gösterilir; onay `customers` tablosunda zaman damgasıyla saklanır.
+
+## 7. B2B, cari hesap ve abonelik (Faz 2 — UYGULANDI)
+
+Tümü `bridgeapi` eklentisinde, ADR-09 additive kuralıyla: çekirdek `customers`/`orders` tablolarına yalnız `bld_` önekli kolon; geri kalan her şey `veykemtu_` önekli yeni tablo. `platform/vendor/` değişmez.
+
+### 7.1 `customers` — kurumsal kolonlar (additive)
+
+Müşteri grubu tek kalır ("Catering Müşterisi"); kurum/birey ayrımı kolonlarla taşınır. `up()` içinde **grandfather backfill**: mevcut tüm satırlar `corporate` yazılır — aktif alıcılar kırılmaz.
+
+| Kolon | Tip | Not |
+|---|---|---|
+| `bld_account_type` | varchar(16), default `corporate`, index | `corporate` \| `individual`. Sipariş kapısının kaynağı. |
+| `bld_org_name` | varchar null | Ticari unvan |
+| `bld_tax_office` | varchar null | Vergi dairesi |
+| `bld_tax_no` | varchar null | Vergi / TC no |
+| `bld_contact_person` | varchar null | Yetkili kişi |
+| `bld_org_phone` | varchar null | Kurum telefonu |
+
+Sözleşmede `Customer.account_type` + `can_order` olarak yansır; `can_order = (bld_account_type === 'corporate')`. İstemci sipariş yolunu bu bayrağa göre açar.
+
+### 7.2 `veykemtu_account_ledger` — cari hesap defteri (append-only)
+
+Muhasebe yazılımı değiliz (bkz. `docs/10` §4): fatura/e-Arşiv **kesilmez**. Bu tablo borç/alacak hareketini tutar; bakiye satır silinerek değil, ters kayıtla düzeltilir.
+
+| Kolon | Tip | Not |
+|---|---|---|
+| `id` | bigint PK | |
+| `customer_id` | bigint | |
+| `entry_type` | varchar(8) | `debit` (borç) \| `credit` (alacak) |
+| `amount_kurus` | bigint | Her zaman pozitif; yön `entry_type`'ta |
+| `source` | varchar(16) | `order` \| `subscription` \| `payment` \| `manual` \| `adjustment` |
+| `reference_type` / `reference_id` | varchar/bigint null | Kaynak belge |
+| `description` | varchar null | |
+| `effective_date` | date | İşlem günü (Istanbul) |
+| `created_by` | bigint null | Elle girişte admin |
+| `created_at` | timestamp | |
+
+- **İdempotency (şemada):** `UNIQUE(source, reference_type, reference_id, entry_type)` — bir siparişin borcu iki kez yazılamaz (`insertOrIgnore`).
+- İndeksler: `(customer_id, effective_date)`, `(customer_id, id)`.
+- **Bakiye** çalışma anında `SUM(credit − amount) − SUM(debit)` ile hesaplanır (stok defteri felsefesi: doğruluk önce, drift yok). Pozitif = müşterinin borcu.
+
+### 7.3 `veykemtu_account_periods` — ay sonu özeti
+
+Ay kapanış anlık görüntüsü (fatura değil): `customer_id`, `period` (YYYY-MM), `opening_kurus`, `debit_total_kurus`, `credit_total_kurus`, `closing_kurus`, `generated_at`. `UNIQUE(customer_id, period)` → aynı ay iki kez yazılamaz.
+
+### 7.4 Abonelik ailesi (`veykemtu_subscription*`)
+
+**İlke:** abonelik sipariş değil, **sipariş üreten kuraldır**. Gece işi kurala bakıp ertesi günün siparişlerini doğurur; doğan sipariş kendi hayatını yaşar.
+
+- **`veykemtu_subscriptions`** — kural başlığı: `customer_id`, `location_id`, `status` (`pending`\|`active`\|`paused`\|`cancelled`, default `pending`), `start_date`, `end_date` null=süresiz, `delivery_type`, `delivery_time_from/to`, `service_days` (JSON, ISO 1..7), `default_quantity`, `menu_mode` (`fixed_list`\|`daily_menu`), `agreed_unit_price_kurus` null (talepte fiyatsız; admin belirler), `payment_mode` (`account`\|`prepaid_monthly`).
+- **`veykemtu_subscription_lines`** — satır listesi (diyet/alerjen varyantı): `subscription_id`, `menu_id` null, `quantity`, `agreed_unit_price_kurus` null, `label`.
+- **`veykemtu_subscription_delivery_points`** — adres defterinden **çoklu** teslim noktası: `subscription_id`, `address_id`, `quantity` null (o noktaya porsiyon), `note`.
+- **`veykemtu_subscription_pauses`** — duraklatma (≠ iptal): `subscription_id`, `start_date`, `end_date`, `reason`.
+- **`veykemtu_subscription_exceptions`** — tek-gün istisna: `subscription_id`, `service_date`, `skip`, `quantity_override`; `UNIQUE(subscription_id, service_date)`.
+- **`veykemtu_closed_days`** — resmî tatil/kapalı gün: `closed_on` UNIQUE, `description`.
+- **`veykemtu_subscription_runs`** — üretim kaydı, **idempotency şemada**: `subscription_id`, `delivery_point_id` (default 0), `service_date`, `order_id` null; `UNIQUE(subscription_id, delivery_point_id, service_date)` → gece işi iki kez koşsa da tek sipariş.
+
+### 7.5 `orders` — abonelik bağı (additive)
+
+`bld_subscription_id` (bigint null, index). Üretilen siparişin hangi aboneliğe ait olduğu; normal siparişlerde null. KDS bu kolonu okumaz, `OrderPresenter` `is_subscription = (bld_subscription_id !== null)` türetir (yeni kolon gerekmez).

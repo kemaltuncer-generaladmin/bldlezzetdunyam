@@ -12,6 +12,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
+use Veykemtu\BridgeApi\Services\CustomerGate;
 use Veykemtu\BridgeApi\Services\OrderFactory;
 use Veykemtu\BridgeApi\Services\OrderPresenter;
 use Veykemtu\BridgeApi\Services\OrderStatusTransition;
@@ -29,6 +30,7 @@ class OrderController extends ApiController
         private readonly OrderFactory $factory,
         private readonly OrderPresenter $presenter,
         private readonly OrderStatusTransition $transitions,
+        private readonly CustomerGate $customerGate,
     ) {}
 
     public function store(Request $request): JsonResponse
@@ -80,6 +82,11 @@ class OrderController extends ApiController
 
         /** @var ApiCustomer $customer */
         $customer = $request->user();
+
+        // B2B: yalnızca kurumsal müşteri sipariş verebilir. Mevcut müşteriler
+        // grandfather ile 'corporate'; bu kapı yalnızca admin panelden
+        // 'individual' işaretlenmiş bir hesabı durdurur.
+        $this->customerGate->assertCorporate($customer);
 
         $order = $this->factory->create(
             customer: $customer,

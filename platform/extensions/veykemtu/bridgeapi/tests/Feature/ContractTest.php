@@ -540,7 +540,11 @@ class ContractTest extends TestCase
             ->json();
 
         $this->assertSame(
-            ['id', 'first_name', 'last_name', 'email', 'telephone', 'default_location_id'],
+            [
+                'id', 'first_name', 'last_name', 'email', 'telephone',
+                'default_location_id', 'account_type', 'can_order',
+                'company_name', 'contact_person',
+            ],
             array_keys($json),
         );
         // `group` alanı öğrenci kanalıyla birlikte kaldırıldı (docs/00 §4).

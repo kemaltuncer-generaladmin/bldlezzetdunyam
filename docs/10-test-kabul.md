@@ -89,6 +89,28 @@ Her senaryo elle koşulur ve sonuç tabloya işlenir. Hepsi geçmeden canlıya a
 | 3 | Yazdırma kuyruğu | 50 fiş sırayla basıldı, tekrar/kayıp yok |
 | 4 | Üretim listesi | Toplamlar doğru |
 
+### S8 — Abonelik (kurumsal öğle yemeği)
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Uygulamadan abonelik talebi (hafta içi, günlük 20) | `pending` oluşur, fiyat boş |
+| 2 | Admin panelde anlaşmalı fiyat girilir, `active` yapılır | Kural aktif |
+| 3 | `veykemtu:abonelik-uret --date=<yarın>` | Servis günündeyse sipariş(ler) doğar, `bld_subscription_id` dolu, fiyat **anlaşmalı fiyattan kopya** |
+| 4 | Aynı komut **ikinci kez** koşulur | Yeni sipariş **yok** (idempotency: `subscription_runs` UNIQUE) |
+| 5 | KDS'e bak | Sipariş normal düşer, `is_subscription = true` rozeti |
+| 6 | Uygulamadan duraklat → ertesi gün üret | Sipariş üretilmez; devam ettir → tekrar üretir |
+
+### S9 — Cari hesap (borç/tahsilat/ekstre)
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `payment=account` sipariş oluştur | Deftere `debit` yazılır, bakiye artar |
+| 2 | Siparişi iptal et | Ters `credit` yazılır (satır silinmez), bakiye eski değerine döner |
+| 3 | Admin "Tahsilat gir" ile `credit` | Bakiye düşer |
+| 4 | Aynı sipariş borcunu ikinci kez yazmayı dene | Engellenir (`UNIQUE(source, reference_type, reference_id, entry_type)`) |
+| 5 | Uygulamadan ekstre çek | Hareketler + yürüyen bakiye doğru; tutarlar sunucudan |
+| 6 | `veykemtu:cari-donem-ozeti --dry-run` | Açılış/borç/alacak/kapanış doğru; **fatura üretilmez** |
+
 ## 2. Bileşen bazlı kabul ölçütleri
 
 ### Backend (`platform/`)
@@ -171,6 +193,13 @@ Kapandı.
 
 ### Müşteri app (`musteriapp/`)
 - [ ] `flutter analyze` sıfır uyarı
+- [ ] Kurumsal kayıt formu ticari unvan + yetkili kişiyi zorunlu tutuyor
+- [ ] `can_order = false` hesap sepet/ödemeye giremiyor, "Sipariş kapalı"
+      ekranına düşüyor; menü/keşif serbest
+- [ ] Aboneliklerim: talep oluşturulabiliyor (`pending`), detayda
+      duraklat/devam/iptal çalışıyor
+- [ ] Cari hesabım: bakiye ve ekstre sunucudan geliyor, tutar istemcide
+      hesaplanmıyor
 - [ ] "Beni hatırla" kapalıyken uygulama yeniden açıldığında oturum kapalı;
       açıkken oturum sürüyor
 - [ ] Adres formlarında il değiştirilemiyor, ilçe yalnızca Selçuklu/Karatay
@@ -185,8 +214,14 @@ Kapandı.
       gerçek derleme **Mac + Apple Developer Program** gerektirir
 - [ ] Bundle kimliği iki platformda da `com.veykemtu.catering` (CI kontrol ediyor)
 - [ ] Push bildirimi geliyor ve deep link çalışıyor
-
-### Altyapı (`infra/`)
+- [x] Marka fontları (Inter + Sora) `assets/fonts/` içinde bundle'lı, OFL
+      lisansları yanında; çalışma anında indirme yok
+- [ ] **Marka uygulama ikonu + açılış (splash) üretilecek** — tek elde kalan
+      sürüm işi. `flutter_launcher_icons`/`flutter_native_splash` yapılandırması
+      **marka logosu** (owner'dan) gelince eklenir; şu an varsayılan Flutter
+      ikonu duruyor. Değişiklik native `android/`+`ios/` dosyalarına dokunduğu
+      için bir derleme ortamında doğrulanmalı (körlemesine üretilmedi — ağ
+      bozulmasın). Turuncu palet: `brand600 = #EA580C`.
 - [ ] Docker Compose tek komutla ayağa kalkıyor
 - [ ] 4 CI hattı da yeşil
 - [x] Yedek alınıyor ve **geri dönüş tatbikatı yapıldı** — üretim sunucusunda, 85 tablo / 31 sipariş geri geldi
@@ -236,4 +271,6 @@ Kapandı.
 - Stok takibi ve reçete maliyeti bu fazda yoktur.
 - Online ödeme (sanal POS) Faz 1'de **kapalıdır**; tahsilat kapıda ödeme veya cari hesap ile yapılır.
 - Öğrenci ve kurum içi sipariş kanalları **hiç yoktur** (bkz. `docs/00-genel-bakis.md` §4).
+- **Cari hesap muhasebe yazılımı değildir:** sistem borç/alacak hareketi, yürüyen bakiye, ekstre ve ay sonu **özeti** üretir; **fatura / e-Arşiv KESMEZ** (e-Arşiv ayrı, sonraki faz süreci). Tahsilat deftere ayrı `credit` hareketidir; `AccountPayment` geçidi `pending` kalır.
+- Abonelik `daily_menu` modu bu turda **ertelendi**: "günün menüsü" kaynağı olmadığından yalnız `fixed_list` tam desteklenir (bkz. `docs/11` §7.5).
 - Abonelik ve toplu fiyatlama Faz 2'dir; bu fazda ürün fiyatı tekildir.

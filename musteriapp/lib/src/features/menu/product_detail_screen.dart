@@ -12,6 +12,8 @@ import 'package:go_router/go_router.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/catalog_providers.dart';
 import '../../theme/bld_theme.dart';
+import '../../widgets/network_food_image.dart';
+import '../../widgets/pill.dart';
 import '../../widgets/status_views.dart';
 import '../cart/cart_controller.dart';
 
@@ -144,18 +146,24 @@ class _ProductFormState extends ConsumerState<_ProductForm> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final textTheme = Theme.of(context).textTheme;
     final item = widget.item;
 
     return Column(
       children: [
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.all(BldSpacing.md),
+            padding: const EdgeInsets.fromLTRB(
+              BldSpacing.md,
+              BldSpacing.md,
+              BldSpacing.md,
+              BldSpacing.lg,
+            ),
             children: [
-              if (item.imageUrl != null) _ProductImage(url: item.imageUrl!),
-              const SizedBox(height: BldSpacing.md),
-              Text(item.name, style: Theme.of(context).textTheme.headlineSmall),
-              const SizedBox(height: BldSpacing.xs),
+              NetworkFoodImage(url: item.imageUrl, aspectRatio: 16 / 9),
+              const SizedBox(height: BldSpacing.lg),
+              Text(item.name, style: textTheme.headlineSmall),
+              const SizedBox(height: BldSpacing.sm),
               Text(
                 Money.format(item.price),
                 style: TextStyle(
@@ -166,16 +174,26 @@ class _ProductFormState extends ConsumerState<_ProductForm> {
               ),
               if (item.description != null && item.description!.isNotEmpty) ...[
                 const SizedBox(height: BldSpacing.md),
-                Text(
-                  item.description!,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
+                Text(item.description!, style: textTheme.bodyMedium),
               ],
               if (item.allergens.isNotEmpty) ...[
                 const SizedBox(height: BldSpacing.md),
-                Text(
-                  l10n.productAllergens(item.allergens.join(', ')),
-                  style: Theme.of(context).textTheme.bodySmall,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: bldColor(BldColors.neutral400),
+                    ),
+                    const SizedBox(width: BldSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        l10n.productAllergens(item.allergens.join(', ')),
+                        style: textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
                 ),
               ],
               if (!item.isAvailable) ...[
@@ -191,8 +209,7 @@ class _ProductFormState extends ConsumerState<_ProductForm> {
                 ),
               ],
               const SizedBox(height: BldSpacing.lg),
-              Text(l10n.productQuantity,
-                  style: Theme.of(context).textTheme.titleMedium),
+              Text(l10n.productQuantity, style: textTheme.titleMedium),
               const SizedBox(height: BldSpacing.sm),
               _QuantityStepper(
                 quantity: _quantity,
@@ -215,44 +232,59 @@ class _ProductFormState extends ConsumerState<_ProductForm> {
             ],
           ),
         ),
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(BldSpacing.md),
-            child: FilledButton(
-              onPressed: item.isAvailable ? _addToCart : null,
-              child: Text(
-                '${l10n.productAddToCart}  ·  '
-                '${Money.format(_unitPrice * _quantity)}',
-              ),
-            ),
-          ),
+        _StickyAddBar(
+          enabled: item.isAvailable,
+          label: l10n.productAddToCart,
+          total: Money.format(_unitPrice * _quantity),
+          onPressed: _addToCart,
         ),
       ],
     );
   }
 }
 
-class _ProductImage extends StatelessWidget {
-  const _ProductImage({required this.url});
+/// Alttan sabit "sepete ekle" çubuğu — üstten yumuşak gölge içeriği ayırır.
+class _StickyAddBar extends StatelessWidget {
+  const _StickyAddBar({
+    required this.enabled,
+    required this.label,
+    required this.total,
+    required this.onPressed,
+  });
 
-  final String url;
+  final bool enabled;
+  final String label;
+  final String total;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(BldRadius.md),
-      child: AspectRatio(
-        aspectRatio: 16 / 9,
-        child: Image.network(
-          url,
-          fit: BoxFit.cover,
-          // Görsel yüklenemezse ekran boş bir kutuyla devam eder; ürün
-          // bilgisinin görünmesi görsele bağlı değildir.
-          errorBuilder: (context, error, stackTrace) => ColoredBox(
-            color: bldColor(BldColors.neutral100),
-            child: Icon(
-              Icons.image_not_supported_outlined,
-              color: bldColor(BldColors.neutral400),
+    return Container(
+      decoration: BoxDecoration(
+        color: bldColor(BldColors.neutral0),
+        boxShadow: [
+          BoxShadow(
+            color: bldColor(BldColors.neutral900).withValues(alpha: 0.06),
+            offset: const Offset(0, -4),
+            blurRadius: 16,
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(BldSpacing.md),
+          child: FilledButton(
+            onPressed: enabled ? onPressed : null,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(label),
+                Text(
+                  total,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ],
             ),
           ),
         ),
@@ -275,32 +307,29 @@ class _OptionGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final textTheme = Theme.of(context).textTheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Expanded(
-              child: Text(
-                option.name,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
+            Expanded(child: Text(option.name, style: textTheme.titleMedium)),
             if (option.required)
-              BldBadge(
+              BldPill(
                 label: l10n.commonRequired,
-                background: BldColors.brand500,
+                variant: BldPillVariant.brand,
               ),
           ],
         ),
+        const SizedBox(height: 2),
         Text(
           option.isMultiSelect
               ? l10n.productOptionPickMany
               : l10n.productOptionPickOne,
-          style: Theme.of(context).textTheme.bodySmall,
+          style: textTheme.bodySmall,
         ),
-        const SizedBox(height: BldSpacing.xs),
+        const SizedBox(height: BldSpacing.sm),
         for (final value in option.values)
           _OptionRow(
             value: value,
@@ -332,15 +361,31 @@ class _OptionRow extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: BldSpacing.xs),
+      borderRadius: BorderRadius.circular(BldRadius.md),
+      child: AnimatedContainer(
+        duration: bldDuration(BldMotion.fastMs),
+        curve: bldCurve(BldEase.standard),
+        margin: const EdgeInsets.only(bottom: BldSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: BldSpacing.md - 4,
+          vertical: BldSpacing.sm + 2,
+        ),
+        decoration: BoxDecoration(
+          color: selected
+              ? bldColor(BldColors.brand50)
+              : bldColor(BldColors.neutral0),
+          borderRadius: BorderRadius.circular(BldRadius.md),
+          border: Border.all(
+            color: selected
+                ? bldColor(BldColors.brand300)
+                : bldColor(BldColors.neutral200),
+          ),
+        ),
         child: Row(
           children: [
             Icon(
               multiSelect
-                  ? (selected
-                        ? Icons.check_box
-                        : Icons.check_box_outline_blank)
+                  ? (selected ? Icons.check_box : Icons.check_box_outline_blank)
                   : (selected
                         ? Icons.radio_button_checked
                         : Icons.radio_button_unchecked),
@@ -354,7 +399,10 @@ class _OptionRow extends StatelessWidget {
               Text(
                 // İşaretli fark: `+2,50 ₺` / `-2,50 ₺`.
                 '${delta > 0 ? '+' : ''}${Money.format(delta)}',
-                style: Theme.of(context).textTheme.bodySmall,
+                style: TextStyle(
+                  color: bldColor(BldColors.neutral600),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
           ],
         ),
@@ -371,24 +419,63 @@ class _QuantityStepper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        IconButton.outlined(
-          onPressed: quantity > 1 ? () => onChanged(quantity - 1) : null,
-          icon: const Icon(Icons.remove),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: BldSpacing.md),
-          child: Text(
-            '$quantity',
-            style: Theme.of(context).textTheme.titleMedium,
+    return Container(
+      decoration: BoxDecoration(
+        color: bldColor(BldColors.neutral50),
+        borderRadius: BorderRadius.circular(BldRadius.pill),
+        border: Border.all(color: bldColor(BldColors.neutral200)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _StepButton(
+            icon: Icons.remove,
+            onPressed: quantity > 1 ? () => onChanged(quantity - 1) : null,
+          ),
+          SizedBox(
+            width: 44,
+            child: Text(
+              '$quantity',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          _StepButton(
+            icon: Icons.add,
+            onPressed: () => onChanged(quantity + 1),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StepButton extends StatelessWidget {
+  const _StepButton({required this.icon, required this.onPressed});
+
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    return Material(
+      color: Colors.transparent,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.all(BldSpacing.sm + 2),
+          child: Icon(
+            icon,
+            size: 20,
+            color: enabled
+                ? bldColor(BldColors.brand700)
+                : bldColor(BldColors.neutral400),
           ),
         ),
-        IconButton.outlined(
-          onPressed: () => onChanged(quantity + 1),
-          icon: const Icon(Icons.add),
-        ),
-      ],
+      ),
     );
   }
 }

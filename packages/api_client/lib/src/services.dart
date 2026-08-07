@@ -8,10 +8,12 @@ library;
 
 import 'package:bld_core/bld_core.dart';
 
+import 'models/account.dart';
 import 'models/auth.dart';
 import 'models/catalog.dart';
 import 'models/kitchen.dart';
 import 'models/order.dart';
+import 'models/subscription.dart';
 
 // `OrderStatus` imzalarda geçtiği için yeniden dışa aktarılır; çağıranların
 // ayrıca bld_core'u import etmesi gerekmesin.
@@ -104,4 +106,36 @@ abstract interface class KitchenService {
 /// Sürüm ucu — kimlik gerektirmez.
 abstract interface class AppVersionService {
   Future<AppVersionInfo> check(String appId);
+}
+
+/// Abonelik uçları — müşteri token'ı gerektirir. Anlaşmalı fiyat müşteri
+/// tarafından set edilmez; [create] bir TALEP açar (`status = pending`).
+abstract interface class SubscriptionService {
+  Future<List<Subscription>> list();
+
+  Future<Subscription> get(int id);
+
+  Future<Subscription> create(SubscriptionCreateRequest request);
+
+  /// Yalnızca `active` iken; aksi halde `VALIDATION_FAILED`.
+  Future<Subscription> pause(int id);
+
+  /// Yalnızca `paused` iken.
+  Future<Subscription> resume(int id);
+
+  Future<Subscription> cancel(int id);
+
+  /// Tek-günlük istisna (atla veya adet değiştir).
+  Future<Subscription> addException(
+    int id,
+    SubscriptionExceptionRequest request,
+  );
+}
+
+/// Cari hesap uçları — müşteri token'ı gerektirir.
+abstract interface class AccountService {
+  Future<AccountSummary> summary();
+
+  /// [from]/[to] `YYYY-AA-GG`; verilmezse sunucu son 3 ayı döner.
+  Future<AccountStatement> statement({String? from, String? to});
 }

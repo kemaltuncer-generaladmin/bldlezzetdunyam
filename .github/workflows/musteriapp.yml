@@ -45,14 +45,21 @@ jobs:
         working-directory: musteriapp
         run: flutter test
 
-      - name: AAB derlemesi
+      - name: Release APK derlemesi
         working-directory: musteriapp
-        # İmzasız derleme: imzalama anahtarı CI gizli değişkenlerinde
-        # tutulur ve yalnızca sürüm etiketlerinde kullanılır (I-06).
-        # Buradaki amaç Gradle'ın hiç koşmadan kalmasını engellemek —
-        # Dart derleniyor diye Android derlemesinin de çalıştığını
-        # varsaymak, Play yüklemesinde patlamak demektir.
-        run: flutter build appbundle --debug
+        # Release APK, `build.gradle.kts`'teki debug imzasıyla imzalanır
+        # (I-06'ya kadar) — imzalama sırrı gerekmez ve APK cihaza doğrudan
+        # `adb install` ile kurulabilir. AAB yerine APK: AAB kurmak bundletool
+        # ister, APK istemez. Amaç hem Gradle'ı koşturmak hem indirilebilir
+        # bir çıktı bırakmak.
+        run: flutter build apk --release
+
+      - name: APK'yı indirilebilir artifact olarak yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: musteriapp-release-apk
+          path: musteriapp/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
 
   ios-derleme:
     # iOS derlemesi Xcode ister; yalnızca macOS runner'da koşabilir.

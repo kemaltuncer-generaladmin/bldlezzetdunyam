@@ -122,6 +122,12 @@ hazırlık süresi. Poligon gerekmez; nokta + çalışma takvimi yeter.
 
 **Bunu önce yazmadan kampanya/kupon yazılmaz.**
 
+> **Kapsam kararı (07.08.2026):** Tam fiyat motoru (kampanya/kupon) **hâlâ
+> kapsam dışı.** Abonelik turu (F2-09) bunu önkoşul yapmadı: abonelik anlaşmalı
+> fiyatı için gereken tek şey fiyatı abonelik/satırda saklayıp sipariş
+> üretilirken **kopyalamaktı**. Kampanya/kupon motoru F2-06/F2-07 ile birlikte
+> ayrı ele alınacak; o zamana dek `total` = ödenecek tutar, tek toplam.
+
 Tek bir sınıf, tek bir sıra:
 
 ```
@@ -180,7 +186,24 @@ girer girmez geçerliliğini görmeli, siparişi gönderdiğinde değil.
 
 ---
 
-## 7.5 F2-09 — Abonelik (kurumsal öğle yemeği)
+## 7.5 F2-09 — Abonelik (kurumsal öğle yemeği) — **YAPILDI (07.08.2026)**
+
+> **Durum:** Abonelik motoru + cari hesap defteri + B2B geçişi uygulandı.
+> Backend `bridgeapi` (migrations + modeller + `SubscriptionGenerateCommand` +
+> `AccountLedger` + admin ekranları/dashboard/scheduler), sözleşme additive
+> (`docs/openapi.yaml`), mobil self-servis (Aboneliklerim + Cari hesabım +
+> kurumsal kayıt + sipariş kapısı). Şema: `docs/02` §7, uçlar: `docs/03` §12,
+> senaryolar: `docs/10` S8/S9.
+>
+> **F2-05 önkoşulundan bilinçli sapma:** F2-09 notu "F2-05 (fiyat motoru)
+> önkoşuldur" diyordu. Sapıldı — gerekçe §5'te. Abonelik anlaşmalı fiyatı için
+> tam kampanya/kupon motoru gerekmez; fiyat abonelik/satırda saklanıp sipariş
+> üretilirken o günkü değeriyle **kopyalanır** (adres kopyalama gerekçesiyle
+> aynı). İki indirimin çakışıp toplamı eksiye düşürme riski (§6) böylece davet
+> edilmez.
+>
+> **Ertelenen:** `menu_mode = daily_menu` ("günün menüsü" kaynağı yok) — yalnız
+> `fixed_list` tam desteklenir.
 
 **Catering'in asıl iş modeli bu, tek seferlik sipariş değil.** Müşterinin
 tarifi: *"adam aylık abone olacak öğle yemeği için, mesela 20 adet her gün
@@ -342,6 +365,11 @@ hepsi `location_options` tablosunda yaşıyor ve bugün yalnızca
 | `docs/03-api-sozlesmesi.md` | Yeni uçların insan tarafı |
 | `docs/06/07` | Adres seçimi ve harita ekranları |
 | `docs/10-test-kabul.md` | Bölge/kampanya/kupon kabul ölçütleri |
+
+**F2-09 (abonelik) + B2B + cari için güncellendi (07.08.2026):** `docs/02` §7
+(yeni tablolar), `docs/03` §12 (kurumsal kayıt + cari + abonelik uçları),
+`docs/06`/`07` (B2B kayıt + mobil self-servis), `docs/10` (S8/S9 + "fatura
+kesilmez" sınırı), `docs/openapi.yaml` (additive şema/yollar).
 
 ---
 

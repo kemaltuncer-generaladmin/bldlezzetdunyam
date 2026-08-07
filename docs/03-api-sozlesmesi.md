@@ -642,3 +642,50 @@ Makine tarafından okunabilir sözleşme: **`docs/openapi.yaml`** (OpenAPI 3.1).
 `packages/api_client` ve `website/lib/api` bu dosyadan üretilir. **Elle yazılan istemci kodu kabul edilmez.**
 
 `platform/` aynı sözleşmeyi `openapi.json` olarak üretir (`php artisan veykemtu:openapi`). CI, üretilen `platform/openapi.json` ile `docs/openapi.yaml` arasında **anlamsal fark** olup olmadığını kontrol eder; fark varsa build kırmızıdır. Sunucu sözleşmeden sapamaz.
+
+## 12. Kurumsal kayıt, cari hesap ve abonelik (Faz 2 — UYGULANDI)
+
+Tümü additive: mevcut alanlar değişmedi. Para her yerde kuruş `int`; **tutar/bakiye/anlaşmalı fiyat sunucuda hesaplanır**, istemci yalnız gösterir.
+
+### 12.1 Kurumsal kayıt — `POST /api/auth/register` (additive alanlar)
+
+Sistem tamamen B2B'ye geçti. Yeni her kayıt sunucuda `corporate` işaretlenir (istemci `account_type` gönderemez). Additive istek alanları:
+
+| Alan | Zorunlu | Not |
+|---|---|---|
+| `company_name` | sunucu opsiyonel¹ | Ticari unvan |
+| `contact_person` | sunucu opsiyonel¹ | Yetkili kişi |
+| `tax_office` | hayır | Vergi dairesi |
+| `tax_number` | hayır | Vergi / TC no |
+| `company_phone` | hayır | Kurum telefonu |
+
+¹ Website'in mevcut kayıt akışını kırmamak için sunucu tarafında opsiyonel bırakıldı; **mobil kayıt formu `company_name` ve `contact_person`'ı zorunlu** toplar (istemci doğrulaması).
+
+`GET /api/auth/me` ve `updateMe` additive döner: `account_type`, `can_order`, `company_name`, `contact_person`. `tax_no`/`tax_office` yanıt profilinde salt-okunur. Eski istemci bu alanları yok sayar (uyum kuralı §1.4).
+
+**Sipariş kapısı:** `POST /api/orders` öncesi `CustomerGate::assertCorporate` çalışır; `bld_account_type !== 'corporate'` ise `403 FORBIDDEN`. Legacy müşteriler grandfather ile `corporate` olduğundan kırılmaz.
+
+### 12.2 Cari hesap — müşteri kendi verisi
+
+- **`GET /api/account/summary`** → `AccountSummary`: `{ balance, currency, as_of }`. `balance` işaretli kuruş; pozitif = müşterinin borcu.
+- **`GET /api/account/statement?from=&to=`** → `AccountStatement`: `{ opening_balance, closing_balance, currency, from, to, entries[] }`. `from`/`to` verilmezse sunucu son 3 ayı döner. Her `AccountEntry`: `date`, `entry_type` (`debit`\|`credit`), `amount` (pozitif kuruş), `running_balance` (yürüyen bakiye, işaretli), `source`, `description`. İstek yalnız **istek sahibinin** verisini döndürür (OrderController deseni).
+
+Fatura kesilmez (bkz. `docs/10` §4); tahsilat deftere ayrı `credit` hareketi olarak girer, `AccountPayment` geçidi bugünkü gibi `pending` kalır.
+
+### 12.3 Abonelik — müşteri self-servis
+
+Anlaşmalı fiyat müşteri tarafından **set edilmez**; `POST` bir **talep** açar (`status = pending`), fiyatı admin belirler.
+
+| Uç | Ne yapar |
+|---|---|
+| `GET /api/subscriptions` | Müşterinin abonelikleri (`Subscription[]`) |
+| `GET /api/subscriptions/{id}` | Tek abonelik |
+| `POST /api/subscriptions` | Talep oluştur (`SubscriptionCreate` → `pending`) |
+| `POST /api/subscriptions/{id}/pause` | Yalnız `active` iken; aksi `VALIDATION_FAILED` |
+| `POST /api/subscriptions/{id}/resume` | Yalnız `paused` iken |
+| `POST /api/subscriptions/{id}/cancel` | İptal (append-only; geçmiş silinmez) |
+| `POST /api/subscriptions/{id}/exceptions` | Tek-gün istisna (`skip` veya `quantity_override`) |
+
+`Subscription` şeması: `id, status, location_id, delivery_type, start_date, end_date, service_days[] (ISO 1..7), delivery_time_from/to, default_quantity, agreed_unit_price (null=fiyat bekliyor), payment_mode, menu_mode, lines[], delivery_points[], created_at`.
+
+`Order` şemasına additive `subscription_id` (null=normal sipariş); `KitchenOrder`'a additive `is_subscription` (mutfak rozetine kaynak).

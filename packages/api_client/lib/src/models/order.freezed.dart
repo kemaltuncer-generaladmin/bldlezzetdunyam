@@ -2079,7 +2079,9 @@ $PaymentCopyWith<$Res> get payment {
 /// @nodoc
 mixin _$OrderSummary {
 
- int get id; String get orderNumber;@OrderStatusConverter() OrderStatus get status; int get total; String get currency; int get itemCount; DateTime get createdAt;
+ int get id; String get orderNumber;@OrderStatusConverter() OrderStatus get status; int get total; String get currency; int get itemCount; DateTime get createdAt;/// Abonelikten üretildiyse abonelik kimliği; elle siparişte `null`.
+/// Sipariş kartındaki "Abonelik" rozeti bunu okur.
+ int? get subscriptionId;
 /// Create a copy of OrderSummary
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -2092,16 +2094,16 @@ $OrderSummaryCopyWith<OrderSummary> get copyWith => _$OrderSummaryCopyWithImpl<O
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is OrderSummary&&(identical(other.id, id) || other.id == id)&&(identical(other.orderNumber, orderNumber) || other.orderNumber == orderNumber)&&(identical(other.status, status) || other.status == status)&&(identical(other.total, total) || other.total == total)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.itemCount, itemCount) || other.itemCount == itemCount)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OrderSummary&&(identical(other.id, id) || other.id == id)&&(identical(other.orderNumber, orderNumber) || other.orderNumber == orderNumber)&&(identical(other.status, status) || other.status == status)&&(identical(other.total, total) || other.total == total)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.itemCount, itemCount) || other.itemCount == itemCount)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.subscriptionId, subscriptionId) || other.subscriptionId == subscriptionId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,orderNumber,status,total,currency,itemCount,createdAt);
+int get hashCode => Object.hash(runtimeType,id,orderNumber,status,total,currency,itemCount,createdAt,subscriptionId);
 
 @override
 String toString() {
-  return 'OrderSummary(id: $id, orderNumber: $orderNumber, status: $status, total: $total, currency: $currency, itemCount: $itemCount, createdAt: $createdAt)';
+  return 'OrderSummary(id: $id, orderNumber: $orderNumber, status: $status, total: $total, currency: $currency, itemCount: $itemCount, createdAt: $createdAt, subscriptionId: $subscriptionId)';
 }
 
 
@@ -2112,7 +2114,7 @@ abstract mixin class $OrderSummaryCopyWith<$Res>  {
   factory $OrderSummaryCopyWith(OrderSummary value, $Res Function(OrderSummary) _then) = _$OrderSummaryCopyWithImpl;
 @useResult
 $Res call({
- int id, String orderNumber,@OrderStatusConverter() OrderStatus status, int total, String currency, int itemCount, DateTime createdAt
+ int id, String orderNumber,@OrderStatusConverter() OrderStatus status, int total, String currency, int itemCount, DateTime createdAt, int? subscriptionId
 });
 
 
@@ -2129,7 +2131,7 @@ class _$OrderSummaryCopyWithImpl<$Res>
 
 /// Create a copy of OrderSummary
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? orderNumber = null,Object? status = null,Object? total = null,Object? currency = null,Object? itemCount = null,Object? createdAt = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? orderNumber = null,Object? status = null,Object? total = null,Object? currency = null,Object? itemCount = null,Object? createdAt = null,Object? subscriptionId = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,orderNumber: null == orderNumber ? _self.orderNumber : orderNumber // ignore: cast_nullable_to_non_nullable
@@ -2138,7 +2140,8 @@ as OrderStatus,total: null == total ? _self.total : total // ignore: cast_nullab
 as int,currency: null == currency ? _self.currency : currency // ignore: cast_nullable_to_non_nullable
 as String,itemCount: null == itemCount ? _self.itemCount : itemCount // ignore: cast_nullable_to_non_nullable
 as int,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime,
+as DateTime,subscriptionId: freezed == subscriptionId ? _self.subscriptionId : subscriptionId // ignore: cast_nullable_to_non_nullable
+as int?,
   ));
 }
 
@@ -2223,10 +2226,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  int total,  String currency,  int itemCount,  DateTime createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  int total,  String currency,  int itemCount,  DateTime createdAt,  int? subscriptionId)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _OrderSummary() when $default != null:
-return $default(_that.id,_that.orderNumber,_that.status,_that.total,_that.currency,_that.itemCount,_that.createdAt);case _:
+return $default(_that.id,_that.orderNumber,_that.status,_that.total,_that.currency,_that.itemCount,_that.createdAt,_that.subscriptionId);case _:
   return orElse();
 
 }
@@ -2244,10 +2247,10 @@ return $default(_that.id,_that.orderNumber,_that.status,_that.total,_that.curren
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  int total,  String currency,  int itemCount,  DateTime createdAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  int total,  String currency,  int itemCount,  DateTime createdAt,  int? subscriptionId)  $default,) {final _that = this;
 switch (_that) {
 case _OrderSummary():
-return $default(_that.id,_that.orderNumber,_that.status,_that.total,_that.currency,_that.itemCount,_that.createdAt);case _:
+return $default(_that.id,_that.orderNumber,_that.status,_that.total,_that.currency,_that.itemCount,_that.createdAt,_that.subscriptionId);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -2264,10 +2267,10 @@ return $default(_that.id,_that.orderNumber,_that.status,_that.total,_that.curren
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  int total,  String currency,  int itemCount,  DateTime createdAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  int total,  String currency,  int itemCount,  DateTime createdAt,  int? subscriptionId)?  $default,) {final _that = this;
 switch (_that) {
 case _OrderSummary() when $default != null:
-return $default(_that.id,_that.orderNumber,_that.status,_that.total,_that.currency,_that.itemCount,_that.createdAt);case _:
+return $default(_that.id,_that.orderNumber,_that.status,_that.total,_that.currency,_that.itemCount,_that.createdAt,_that.subscriptionId);case _:
   return null;
 
 }
@@ -2279,7 +2282,7 @@ return $default(_that.id,_that.orderNumber,_that.status,_that.total,_that.curren
 @JsonSerializable()
 
 class _OrderSummary implements OrderSummary {
-  const _OrderSummary({required this.id, required this.orderNumber, @OrderStatusConverter() required this.status, required this.total, required this.currency, required this.itemCount, required this.createdAt});
+  const _OrderSummary({required this.id, required this.orderNumber, @OrderStatusConverter() required this.status, required this.total, required this.currency, required this.itemCount, required this.createdAt, this.subscriptionId});
   factory _OrderSummary.fromJson(Map<String, dynamic> json) => _$OrderSummaryFromJson(json);
 
 @override final  int id;
@@ -2289,6 +2292,9 @@ class _OrderSummary implements OrderSummary {
 @override final  String currency;
 @override final  int itemCount;
 @override final  DateTime createdAt;
+/// Abonelikten üretildiyse abonelik kimliği; elle siparişte `null`.
+/// Sipariş kartındaki "Abonelik" rozeti bunu okur.
+@override final  int? subscriptionId;
 
 /// Create a copy of OrderSummary
 /// with the given fields replaced by the non-null parameter values.
@@ -2303,16 +2309,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OrderSummary&&(identical(other.id, id) || other.id == id)&&(identical(other.orderNumber, orderNumber) || other.orderNumber == orderNumber)&&(identical(other.status, status) || other.status == status)&&(identical(other.total, total) || other.total == total)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.itemCount, itemCount) || other.itemCount == itemCount)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OrderSummary&&(identical(other.id, id) || other.id == id)&&(identical(other.orderNumber, orderNumber) || other.orderNumber == orderNumber)&&(identical(other.status, status) || other.status == status)&&(identical(other.total, total) || other.total == total)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.itemCount, itemCount) || other.itemCount == itemCount)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.subscriptionId, subscriptionId) || other.subscriptionId == subscriptionId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,orderNumber,status,total,currency,itemCount,createdAt);
+int get hashCode => Object.hash(runtimeType,id,orderNumber,status,total,currency,itemCount,createdAt,subscriptionId);
 
 @override
 String toString() {
-  return 'OrderSummary(id: $id, orderNumber: $orderNumber, status: $status, total: $total, currency: $currency, itemCount: $itemCount, createdAt: $createdAt)';
+  return 'OrderSummary(id: $id, orderNumber: $orderNumber, status: $status, total: $total, currency: $currency, itemCount: $itemCount, createdAt: $createdAt, subscriptionId: $subscriptionId)';
 }
 
 
@@ -2323,7 +2329,7 @@ abstract mixin class _$OrderSummaryCopyWith<$Res> implements $OrderSummaryCopyWi
   factory _$OrderSummaryCopyWith(_OrderSummary value, $Res Function(_OrderSummary) _then) = __$OrderSummaryCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String orderNumber,@OrderStatusConverter() OrderStatus status, int total, String currency, int itemCount, DateTime createdAt
+ int id, String orderNumber,@OrderStatusConverter() OrderStatus status, int total, String currency, int itemCount, DateTime createdAt, int? subscriptionId
 });
 
 
@@ -2340,7 +2346,7 @@ class __$OrderSummaryCopyWithImpl<$Res>
 
 /// Create a copy of OrderSummary
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? orderNumber = null,Object? status = null,Object? total = null,Object? currency = null,Object? itemCount = null,Object? createdAt = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? orderNumber = null,Object? status = null,Object? total = null,Object? currency = null,Object? itemCount = null,Object? createdAt = null,Object? subscriptionId = freezed,}) {
   return _then(_OrderSummary(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,orderNumber: null == orderNumber ? _self.orderNumber : orderNumber // ignore: cast_nullable_to_non_nullable
@@ -2349,7 +2355,8 @@ as OrderStatus,total: null == total ? _self.total : total // ignore: cast_nullab
 as int,currency: null == currency ? _self.currency : currency // ignore: cast_nullable_to_non_nullable
 as String,itemCount: null == itemCount ? _self.itemCount : itemCount // ignore: cast_nullable_to_non_nullable
 as int,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime,
+as DateTime,subscriptionId: freezed == subscriptionId ? _self.subscriptionId : subscriptionId // ignore: cast_nullable_to_non_nullable
+as int?,
   ));
 }
 
@@ -2917,7 +2924,8 @@ mixin _$OrderDetail {
 
  int get id; String get orderNumber;@OrderStatusConverter() OrderStatus get status; List<OrderItem> get items; int get subtotal;/// `pickup` siparişte her zaman `0`.
  int get deliveryFee; int get total; String get currency;@DeliveryTypeConverter() DeliveryType get deliveryType; Payment get payment; List<StatusHistoryEntry> get statusHistory; DateTime get createdAt;/// `pickup` siparişte `null`.
- Address? get address; DateTime? get requestedAt; String? get customerNote;
+ Address? get address; DateTime? get requestedAt; String? get customerNote;/// Abonelikten üretildiyse abonelik kimliği; elle siparişte `null`.
+ int? get subscriptionId;
 /// Create a copy of OrderDetail
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -2930,16 +2938,16 @@ $OrderDetailCopyWith<OrderDetail> get copyWith => _$OrderDetailCopyWithImpl<Orde
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is OrderDetail&&(identical(other.id, id) || other.id == id)&&(identical(other.orderNumber, orderNumber) || other.orderNumber == orderNumber)&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.subtotal, subtotal) || other.subtotal == subtotal)&&(identical(other.deliveryFee, deliveryFee) || other.deliveryFee == deliveryFee)&&(identical(other.total, total) || other.total == total)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.deliveryType, deliveryType) || other.deliveryType == deliveryType)&&(identical(other.payment, payment) || other.payment == payment)&&const DeepCollectionEquality().equals(other.statusHistory, statusHistory)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.address, address) || other.address == address)&&(identical(other.requestedAt, requestedAt) || other.requestedAt == requestedAt)&&(identical(other.customerNote, customerNote) || other.customerNote == customerNote));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OrderDetail&&(identical(other.id, id) || other.id == id)&&(identical(other.orderNumber, orderNumber) || other.orderNumber == orderNumber)&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.subtotal, subtotal) || other.subtotal == subtotal)&&(identical(other.deliveryFee, deliveryFee) || other.deliveryFee == deliveryFee)&&(identical(other.total, total) || other.total == total)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.deliveryType, deliveryType) || other.deliveryType == deliveryType)&&(identical(other.payment, payment) || other.payment == payment)&&const DeepCollectionEquality().equals(other.statusHistory, statusHistory)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.address, address) || other.address == address)&&(identical(other.requestedAt, requestedAt) || other.requestedAt == requestedAt)&&(identical(other.customerNote, customerNote) || other.customerNote == customerNote)&&(identical(other.subscriptionId, subscriptionId) || other.subscriptionId == subscriptionId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,orderNumber,status,const DeepCollectionEquality().hash(items),subtotal,deliveryFee,total,currency,deliveryType,payment,const DeepCollectionEquality().hash(statusHistory),createdAt,address,requestedAt,customerNote);
+int get hashCode => Object.hash(runtimeType,id,orderNumber,status,const DeepCollectionEquality().hash(items),subtotal,deliveryFee,total,currency,deliveryType,payment,const DeepCollectionEquality().hash(statusHistory),createdAt,address,requestedAt,customerNote,subscriptionId);
 
 @override
 String toString() {
-  return 'OrderDetail(id: $id, orderNumber: $orderNumber, status: $status, items: $items, subtotal: $subtotal, deliveryFee: $deliveryFee, total: $total, currency: $currency, deliveryType: $deliveryType, payment: $payment, statusHistory: $statusHistory, createdAt: $createdAt, address: $address, requestedAt: $requestedAt, customerNote: $customerNote)';
+  return 'OrderDetail(id: $id, orderNumber: $orderNumber, status: $status, items: $items, subtotal: $subtotal, deliveryFee: $deliveryFee, total: $total, currency: $currency, deliveryType: $deliveryType, payment: $payment, statusHistory: $statusHistory, createdAt: $createdAt, address: $address, requestedAt: $requestedAt, customerNote: $customerNote, subscriptionId: $subscriptionId)';
 }
 
 
@@ -2950,7 +2958,7 @@ abstract mixin class $OrderDetailCopyWith<$Res>  {
   factory $OrderDetailCopyWith(OrderDetail value, $Res Function(OrderDetail) _then) = _$OrderDetailCopyWithImpl;
 @useResult
 $Res call({
- int id, String orderNumber,@OrderStatusConverter() OrderStatus status, List<OrderItem> items, int subtotal, int deliveryFee, int total, String currency,@DeliveryTypeConverter() DeliveryType deliveryType, Payment payment, List<StatusHistoryEntry> statusHistory, DateTime createdAt, Address? address, DateTime? requestedAt, String? customerNote
+ int id, String orderNumber,@OrderStatusConverter() OrderStatus status, List<OrderItem> items, int subtotal, int deliveryFee, int total, String currency,@DeliveryTypeConverter() DeliveryType deliveryType, Payment payment, List<StatusHistoryEntry> statusHistory, DateTime createdAt, Address? address, DateTime? requestedAt, String? customerNote, int? subscriptionId
 });
 
 
@@ -2967,7 +2975,7 @@ class _$OrderDetailCopyWithImpl<$Res>
 
 /// Create a copy of OrderDetail
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? orderNumber = null,Object? status = null,Object? items = null,Object? subtotal = null,Object? deliveryFee = null,Object? total = null,Object? currency = null,Object? deliveryType = null,Object? payment = null,Object? statusHistory = null,Object? createdAt = null,Object? address = freezed,Object? requestedAt = freezed,Object? customerNote = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? orderNumber = null,Object? status = null,Object? items = null,Object? subtotal = null,Object? deliveryFee = null,Object? total = null,Object? currency = null,Object? deliveryType = null,Object? payment = null,Object? statusHistory = null,Object? createdAt = null,Object? address = freezed,Object? requestedAt = freezed,Object? customerNote = freezed,Object? subscriptionId = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,orderNumber: null == orderNumber ? _self.orderNumber : orderNumber // ignore: cast_nullable_to_non_nullable
@@ -2984,7 +2992,8 @@ as List<StatusHistoryEntry>,createdAt: null == createdAt ? _self.createdAt : cre
 as DateTime,address: freezed == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
 as Address?,requestedAt: freezed == requestedAt ? _self.requestedAt : requestedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,customerNote: freezed == customerNote ? _self.customerNote : customerNote // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,subscriptionId: freezed == subscriptionId ? _self.subscriptionId : subscriptionId // ignore: cast_nullable_to_non_nullable
+as int?,
   ));
 }
 /// Create a copy of OrderDetail
@@ -3090,10 +3099,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  List<OrderItem> items,  int subtotal,  int deliveryFee,  int total,  String currency, @DeliveryTypeConverter()  DeliveryType deliveryType,  Payment payment,  List<StatusHistoryEntry> statusHistory,  DateTime createdAt,  Address? address,  DateTime? requestedAt,  String? customerNote)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  List<OrderItem> items,  int subtotal,  int deliveryFee,  int total,  String currency, @DeliveryTypeConverter()  DeliveryType deliveryType,  Payment payment,  List<StatusHistoryEntry> statusHistory,  DateTime createdAt,  Address? address,  DateTime? requestedAt,  String? customerNote,  int? subscriptionId)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _OrderDetail() when $default != null:
-return $default(_that.id,_that.orderNumber,_that.status,_that.items,_that.subtotal,_that.deliveryFee,_that.total,_that.currency,_that.deliveryType,_that.payment,_that.statusHistory,_that.createdAt,_that.address,_that.requestedAt,_that.customerNote);case _:
+return $default(_that.id,_that.orderNumber,_that.status,_that.items,_that.subtotal,_that.deliveryFee,_that.total,_that.currency,_that.deliveryType,_that.payment,_that.statusHistory,_that.createdAt,_that.address,_that.requestedAt,_that.customerNote,_that.subscriptionId);case _:
   return orElse();
 
 }
@@ -3111,10 +3120,10 @@ return $default(_that.id,_that.orderNumber,_that.status,_that.items,_that.subtot
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  List<OrderItem> items,  int subtotal,  int deliveryFee,  int total,  String currency, @DeliveryTypeConverter()  DeliveryType deliveryType,  Payment payment,  List<StatusHistoryEntry> statusHistory,  DateTime createdAt,  Address? address,  DateTime? requestedAt,  String? customerNote)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  List<OrderItem> items,  int subtotal,  int deliveryFee,  int total,  String currency, @DeliveryTypeConverter()  DeliveryType deliveryType,  Payment payment,  List<StatusHistoryEntry> statusHistory,  DateTime createdAt,  Address? address,  DateTime? requestedAt,  String? customerNote,  int? subscriptionId)  $default,) {final _that = this;
 switch (_that) {
 case _OrderDetail():
-return $default(_that.id,_that.orderNumber,_that.status,_that.items,_that.subtotal,_that.deliveryFee,_that.total,_that.currency,_that.deliveryType,_that.payment,_that.statusHistory,_that.createdAt,_that.address,_that.requestedAt,_that.customerNote);case _:
+return $default(_that.id,_that.orderNumber,_that.status,_that.items,_that.subtotal,_that.deliveryFee,_that.total,_that.currency,_that.deliveryType,_that.payment,_that.statusHistory,_that.createdAt,_that.address,_that.requestedAt,_that.customerNote,_that.subscriptionId);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -3131,10 +3140,10 @@ return $default(_that.id,_that.orderNumber,_that.status,_that.items,_that.subtot
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  List<OrderItem> items,  int subtotal,  int deliveryFee,  int total,  String currency, @DeliveryTypeConverter()  DeliveryType deliveryType,  Payment payment,  List<StatusHistoryEntry> statusHistory,  DateTime createdAt,  Address? address,  DateTime? requestedAt,  String? customerNote)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  List<OrderItem> items,  int subtotal,  int deliveryFee,  int total,  String currency, @DeliveryTypeConverter()  DeliveryType deliveryType,  Payment payment,  List<StatusHistoryEntry> statusHistory,  DateTime createdAt,  Address? address,  DateTime? requestedAt,  String? customerNote,  int? subscriptionId)?  $default,) {final _that = this;
 switch (_that) {
 case _OrderDetail() when $default != null:
-return $default(_that.id,_that.orderNumber,_that.status,_that.items,_that.subtotal,_that.deliveryFee,_that.total,_that.currency,_that.deliveryType,_that.payment,_that.statusHistory,_that.createdAt,_that.address,_that.requestedAt,_that.customerNote);case _:
+return $default(_that.id,_that.orderNumber,_that.status,_that.items,_that.subtotal,_that.deliveryFee,_that.total,_that.currency,_that.deliveryType,_that.payment,_that.statusHistory,_that.createdAt,_that.address,_that.requestedAt,_that.customerNote,_that.subscriptionId);case _:
   return null;
 
 }
@@ -3146,7 +3155,7 @@ return $default(_that.id,_that.orderNumber,_that.status,_that.items,_that.subtot
 @JsonSerializable()
 
 class _OrderDetail extends OrderDetail {
-  const _OrderDetail({required this.id, required this.orderNumber, @OrderStatusConverter() required this.status, required final  List<OrderItem> items, required this.subtotal, required this.deliveryFee, required this.total, required this.currency, @DeliveryTypeConverter() required this.deliveryType, required this.payment, required final  List<StatusHistoryEntry> statusHistory, required this.createdAt, this.address, this.requestedAt, this.customerNote}): _items = items,_statusHistory = statusHistory,super._();
+  const _OrderDetail({required this.id, required this.orderNumber, @OrderStatusConverter() required this.status, required final  List<OrderItem> items, required this.subtotal, required this.deliveryFee, required this.total, required this.currency, @DeliveryTypeConverter() required this.deliveryType, required this.payment, required final  List<StatusHistoryEntry> statusHistory, required this.createdAt, this.address, this.requestedAt, this.customerNote, this.subscriptionId}): _items = items,_statusHistory = statusHistory,super._();
   factory _OrderDetail.fromJson(Map<String, dynamic> json) => _$OrderDetailFromJson(json);
 
 @override final  int id;
@@ -3178,6 +3187,8 @@ class _OrderDetail extends OrderDetail {
 @override final  Address? address;
 @override final  DateTime? requestedAt;
 @override final  String? customerNote;
+/// Abonelikten üretildiyse abonelik kimliği; elle siparişte `null`.
+@override final  int? subscriptionId;
 
 /// Create a copy of OrderDetail
 /// with the given fields replaced by the non-null parameter values.
@@ -3192,16 +3203,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OrderDetail&&(identical(other.id, id) || other.id == id)&&(identical(other.orderNumber, orderNumber) || other.orderNumber == orderNumber)&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.subtotal, subtotal) || other.subtotal == subtotal)&&(identical(other.deliveryFee, deliveryFee) || other.deliveryFee == deliveryFee)&&(identical(other.total, total) || other.total == total)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.deliveryType, deliveryType) || other.deliveryType == deliveryType)&&(identical(other.payment, payment) || other.payment == payment)&&const DeepCollectionEquality().equals(other._statusHistory, _statusHistory)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.address, address) || other.address == address)&&(identical(other.requestedAt, requestedAt) || other.requestedAt == requestedAt)&&(identical(other.customerNote, customerNote) || other.customerNote == customerNote));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OrderDetail&&(identical(other.id, id) || other.id == id)&&(identical(other.orderNumber, orderNumber) || other.orderNumber == orderNumber)&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.subtotal, subtotal) || other.subtotal == subtotal)&&(identical(other.deliveryFee, deliveryFee) || other.deliveryFee == deliveryFee)&&(identical(other.total, total) || other.total == total)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.deliveryType, deliveryType) || other.deliveryType == deliveryType)&&(identical(other.payment, payment) || other.payment == payment)&&const DeepCollectionEquality().equals(other._statusHistory, _statusHistory)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.address, address) || other.address == address)&&(identical(other.requestedAt, requestedAt) || other.requestedAt == requestedAt)&&(identical(other.customerNote, customerNote) || other.customerNote == customerNote)&&(identical(other.subscriptionId, subscriptionId) || other.subscriptionId == subscriptionId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,orderNumber,status,const DeepCollectionEquality().hash(_items),subtotal,deliveryFee,total,currency,deliveryType,payment,const DeepCollectionEquality().hash(_statusHistory),createdAt,address,requestedAt,customerNote);
+int get hashCode => Object.hash(runtimeType,id,orderNumber,status,const DeepCollectionEquality().hash(_items),subtotal,deliveryFee,total,currency,deliveryType,payment,const DeepCollectionEquality().hash(_statusHistory),createdAt,address,requestedAt,customerNote,subscriptionId);
 
 @override
 String toString() {
-  return 'OrderDetail(id: $id, orderNumber: $orderNumber, status: $status, items: $items, subtotal: $subtotal, deliveryFee: $deliveryFee, total: $total, currency: $currency, deliveryType: $deliveryType, payment: $payment, statusHistory: $statusHistory, createdAt: $createdAt, address: $address, requestedAt: $requestedAt, customerNote: $customerNote)';
+  return 'OrderDetail(id: $id, orderNumber: $orderNumber, status: $status, items: $items, subtotal: $subtotal, deliveryFee: $deliveryFee, total: $total, currency: $currency, deliveryType: $deliveryType, payment: $payment, statusHistory: $statusHistory, createdAt: $createdAt, address: $address, requestedAt: $requestedAt, customerNote: $customerNote, subscriptionId: $subscriptionId)';
 }
 
 
@@ -3212,7 +3223,7 @@ abstract mixin class _$OrderDetailCopyWith<$Res> implements $OrderDetailCopyWith
   factory _$OrderDetailCopyWith(_OrderDetail value, $Res Function(_OrderDetail) _then) = __$OrderDetailCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String orderNumber,@OrderStatusConverter() OrderStatus status, List<OrderItem> items, int subtotal, int deliveryFee, int total, String currency,@DeliveryTypeConverter() DeliveryType deliveryType, Payment payment, List<StatusHistoryEntry> statusHistory, DateTime createdAt, Address? address, DateTime? requestedAt, String? customerNote
+ int id, String orderNumber,@OrderStatusConverter() OrderStatus status, List<OrderItem> items, int subtotal, int deliveryFee, int total, String currency,@DeliveryTypeConverter() DeliveryType deliveryType, Payment payment, List<StatusHistoryEntry> statusHistory, DateTime createdAt, Address? address, DateTime? requestedAt, String? customerNote, int? subscriptionId
 });
 
 
@@ -3229,7 +3240,7 @@ class __$OrderDetailCopyWithImpl<$Res>
 
 /// Create a copy of OrderDetail
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? orderNumber = null,Object? status = null,Object? items = null,Object? subtotal = null,Object? deliveryFee = null,Object? total = null,Object? currency = null,Object? deliveryType = null,Object? payment = null,Object? statusHistory = null,Object? createdAt = null,Object? address = freezed,Object? requestedAt = freezed,Object? customerNote = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? orderNumber = null,Object? status = null,Object? items = null,Object? subtotal = null,Object? deliveryFee = null,Object? total = null,Object? currency = null,Object? deliveryType = null,Object? payment = null,Object? statusHistory = null,Object? createdAt = null,Object? address = freezed,Object? requestedAt = freezed,Object? customerNote = freezed,Object? subscriptionId = freezed,}) {
   return _then(_OrderDetail(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,orderNumber: null == orderNumber ? _self.orderNumber : orderNumber // ignore: cast_nullable_to_non_nullable
@@ -3246,7 +3257,8 @@ as List<StatusHistoryEntry>,createdAt: null == createdAt ? _self.createdAt : cre
 as DateTime,address: freezed == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
 as Address?,requestedAt: freezed == requestedAt ? _self.requestedAt : requestedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,customerNote: freezed == customerNote ? _self.customerNote : customerNote // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,subscriptionId: freezed == subscriptionId ? _self.subscriptionId : subscriptionId // ignore: cast_nullable_to_non_nullable
+as int?,
   ));
 }
 
