@@ -24,6 +24,18 @@ Description=Mutfak KDS
 After=graphical-session.target
 PartOf=graphical-session.target
 
+# Çökme döngüsünde sonsuza kadar denemeyi bırakmasın: systemd varsayılanı
+# 10 sn'de 5 denemeden sonra pes eder, biz istemiyoruz — kasa her hâlükârda
+# ekranı geri getirmeli (docs/10 S4 adım 7).
+#
+# [Unit] ALTINDA, [Service] DEĞİL. systemd bu anahtarı yalnızca [Unit]
+# bölümünden okur; [Service] içindeyken "Unknown key … ignoring" deyip
+# geçiyordu ve varsayılan sınır yürürlükte kalıyordu. Bugünkü `RestartSec=5`
+# ile sınır zaten tetiklenmiyor (10 sn'ye üç başlatma sığar), ama koruma o
+# değere sessizce bağımlı olmamalı: biri RestartSec'i düşürdüğünde kasa
+# gece yarısı beş denemeden sonra karanlıkta kalırdı.
+StartLimitIntervalSec=0
+
 [Service]
 Type=simple
 ExecStart=%h/.local/opt/mutfakapp/mutfakapp
@@ -33,11 +45,6 @@ RestartSec=5
 # ortamına kendisi aktarıyor. `DISPLAY` burada yalnızca XWayland yedeği
 # olarak duruyor: bir gün X11 oturumuna düşülürse uygulama yine açılır.
 Environment=DISPLAY=:0
-
-# Çökme döngüsünde sonsuza kadar denemeyi bırakmasın: systemd varsayılanı
-# 10 sn'de 5 denemeden sonra pes eder, biz istemiyoruz — kasa her hâlükârda
-# ekranı geri getirmeli (docs/10 S4 adım 7).
-StartLimitIntervalSec=0
 
 [Install]
 # `default.target` DEĞİL.
