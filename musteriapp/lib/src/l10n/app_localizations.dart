@@ -1654,6 +1654,18 @@ abstract class AppLocalizations {
   /// **'En az bir ürün ekleyin.'**
   String get subscriptionCreatePickProduct;
 
+  /// No description provided for @subscriptionCreatePortions.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kaç kişilik? (günlük porsiyon)'**
+  String get subscriptionCreatePortions;
+
+  /// No description provided for @subscriptionPortionCount.
+  ///
+  /// In tr, this message translates to:
+  /// **'Günlük {count} kişilik'**
+  String subscriptionPortionCount(int count);
+
   /// No description provided for @subscriptionCreatePickerTitle.
   ///
   /// In tr, this message translates to:

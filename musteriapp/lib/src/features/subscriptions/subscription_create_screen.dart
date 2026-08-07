@@ -49,8 +49,11 @@ class _SubscriptionCreateScreenState
   /// ISO hafta günleri (1..5 varsayılan — kurumsal öğle hafta içi).
   final Set<int> _days = {1, 2, 3, 4, 5};
 
-  /// Eklenen ürünler (menuId → ürün + adet).
+  /// Eklenen ürünler (menuId → ürün + porsiyon başı adet).
   final Map<int, _PickedProduct> _picked = {};
+
+  /// Günlük porsiyon (kişi) sayısı. Mutfağa düşen adet = porsiyon × ürün adedi.
+  int _portions = 1;
 
   DeliveryType _deliveryType = DeliveryType.delivery;
   late DateTime _startDate;
@@ -75,9 +78,6 @@ class _SubscriptionCreateScreenState
     _noteController.dispose();
     super.dispose();
   }
-
-  int get _totalPortions =>
-      _picked.values.fold(0, (sum, p) => sum + p.quantity);
 
   Future<void> _pickStartDate() async {
     final now = DateTime.now();
@@ -153,7 +153,7 @@ class _SubscriptionCreateScreenState
               deliveryType: _deliveryType,
               startDate: _isoDate(_startDate),
               serviceDays: sortedDays,
-              defaultQuantity: _totalPortions < 1 ? 1 : _totalPortions,
+              defaultQuantity: _portions,
               lines: lines,
               customerNote: note.isEmpty ? null : note,
             ),
@@ -236,6 +236,40 @@ class _SubscriptionCreateScreenState
             onPressed: menuItems.isEmpty ? null : () => _addProduct(menuItems),
             icon: const Icon(Icons.add),
             label: Text(l10n.subscriptionCreateAddProduct),
+          ),
+          const SizedBox(height: BldSpacing.lg),
+
+          // Kaç kişilik — günlük porsiyon. Mutfağa düşen adet = porsiyon ×
+          // menüdeki ürün adedi.
+          SectionHeader(
+            title: l10n.subscriptionCreatePortions,
+            padding: const EdgeInsets.only(
+              left: BldSpacing.xs,
+              bottom: BldSpacing.sm,
+            ),
+          ),
+          BldCard(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.subscriptionPortionCount(_portions),
+                    style: textTheme.titleMedium,
+                  ),
+                ),
+                IconButton.outlined(
+                  onPressed: _portions > 1
+                      ? () => setState(() => _portions--)
+                      : null,
+                  icon: const Icon(Icons.remove),
+                ),
+                const SizedBox(width: BldSpacing.sm),
+                IconButton.filled(
+                  onPressed: () => setState(() => _portions++),
+                  icon: const Icon(Icons.add),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: BldSpacing.lg),
 

@@ -558,6 +558,11 @@
   "subscriptionCreateAddProduct": "Ürün ekle",
   "subscriptionCreateNoProducts": "Henüz ürün eklenmedi. Menüden ürün ekleyin.",
   "subscriptionCreatePickProduct": "En az bir ürün ekleyin.",
+  "subscriptionCreatePortions": "Kaç kişilik? (günlük porsiyon)",
+  "subscriptionPortionCount": "Günlük {count} kişilik",
+  "@subscriptionPortionCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "subscriptionCreatePickerTitle": "Ürün seç",
   "subscriptionRequestSent": "Talebiniz alındı; fiyatlandırma sonrası aktifleşecek.",
 

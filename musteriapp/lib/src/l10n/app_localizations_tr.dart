@@ -869,6 +869,14 @@ class AppLocalizationsTr extends AppLocalizations {
   String get subscriptionCreatePickProduct => 'En az bir ürün ekleyin.';
 
   @override
+  String get subscriptionCreatePortions => 'Kaç kişilik? (günlük porsiyon)';
+
+  @override
+  String subscriptionPortionCount(int count) {
+    return 'Günlük $count kişilik';
+  }
+
+  @override
   String get subscriptionCreatePickerTitle => 'Ürün seç';
 
   @override

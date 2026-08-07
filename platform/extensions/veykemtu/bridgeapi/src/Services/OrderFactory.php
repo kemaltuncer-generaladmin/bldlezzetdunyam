@@ -142,7 +142,10 @@ class OrderFactory
         Carbon $serviceDate,
     ): Order {
         $lines = $this->resolveSubscriptionLines($subscription, $serviceDate);
-        $subtotal = array_sum(array_column($lines, 'line_total'));
+        // Fiyat porsiyon başınadır: toplam = porsiyon × anlaşmalı porsiyon
+        // fiyatı (yemekler bileşen olduğundan satır fiyatları 0'dır).
+        $subtotal = max(1, $subscription->quantityForDate($serviceDate))
+            * (int) $subscription->agreed_unit_price_kurus;
 
         $deliveryType = $subscription->delivery_type === 'delivery'
             ? Order::DELIVERY
@@ -236,25 +239,24 @@ class OrderFactory
             );
         }
 
-        $override = $subLines->count() === 1
-            ? $subscription->quantityOverrideFor($serviceDate)
-            : null;
+        if ($subscription->agreed_unit_price_kurus === null) {
+            throw ApiException::validationFailed(
+                'Anlaşmalı fiyat tanımlı değil.',
+                ['subscription_id' => $subscription->id],
+            );
+        }
+
+        // Porsiyon = o günkü kişi sayısı (istisna override ?? default_quantity).
+        // Menü satırları her PORSİYONUN bileşenidir; mutfağa düşen adet
+        // porsiyon × satır adedidir (ör. 3 porsiyon, menüde 1 çorba → 3 çorba).
+        // Fiyat porsiyon başınadır ve toplam ayrıca hesaplanır
+        // (createForSubscription), bu yüzden satır fiyatı 0'dır — yemekler
+        // sabit menü porsiyonunun bileşeni, ayrı ücretlendirilmez.
+        $portions = max(1, $subscription->quantityForDate($serviceDate));
 
         $lines = [];
         foreach ($subLines as $subLine) {
-            $unitPrice = $subLine->agreed_unit_price_kurus
-                ?? $subscription->agreed_unit_price_kurus;
-            if ($unitPrice === null) {
-                throw ApiException::validationFailed(
-                    'Anlaşmalı fiyat tanımlı değil.',
-                    ['subscription_id' => $subscription->id],
-                );
-            }
-
-            $quantity = $override ?? (int) $subLine->quantity;
-            if ($quantity < 1) {
-                continue;
-            }
+            $quantity = $portions * max(1, (int) $subLine->quantity);
 
             $menu = Menu::where('menu_id', $subLine->menu_id)->first();
             if ($menu === null) {
@@ -267,8 +269,8 @@ class OrderFactory
             $lines[] = [
                 'menu' => $menu,
                 'quantity' => $quantity,
-                'unit_price' => (int) $unitPrice,
-                'line_total' => (int) $unitPrice * $quantity,
+                'unit_price' => 0,
+                'line_total' => 0,
                 'options' => [],
                 'note' => $subLine->label,
             ];
