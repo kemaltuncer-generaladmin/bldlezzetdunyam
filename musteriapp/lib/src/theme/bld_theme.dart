@@ -93,6 +93,20 @@ abstract final class BldTheme {
           borderSide: BorderSide(color: bldColor(BldColors.brand500), width: 2),
         ),
       ),
+      // DİKKAT — `Size.fromHeight` GENİŞLİĞİ SONSUZ yapar.
+      //
+      // Amaç "buton bulunduğu sütunu doldursun" ve sütun içinde tam olarak
+      // bunu yapıyor. Ama sonsuz bir asgari GENİŞLİK, sınırsız genişlik
+      // veren bir kapsayıcıyla (`Row`, `Wrap`, kaydırılabilir satır)
+      // buluştuğunda düzen hesabı istisna fırlatır.
+      //
+      // Belirtisi butonla ilgili görünmez: istisna fırlatan alt ağaç
+      // yerleşemediği için kapsayan liste kaydırılamaz hâle gelir. Ödeme
+      // ekranında tam olarak bu yaşandı (`checkout_screen.dart`,
+      // `checkout_scroll_test.dart` bunu koruyor).
+      //
+      // Bu butonlardan birini `Row` içine koyacaksanız `Expanded` veya
+      // `Flexible` ile sarın; ikisi de sınırlı genişlik verir.
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(52),

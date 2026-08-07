@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../providers/infra_providers.dart';
+import '../../widgets/cart_bar.dart';
 import '../../widgets/status_views.dart';
 
 class HomeShell extends ConsumerWidget {
@@ -26,7 +27,13 @@ class HomeShell extends ConsumerWidget {
           Expanded(child: navigationShell),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
+      // Sepet çubuğu gezinmenin ÜSTÜNDE: sekme değiştirmek onu
+      // kaybettirmemeli, çünkü sorun tam olarak "sepeti bulamıyorum"du.
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CartBar(),
+          NavigationBar(
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: (index) => navigationShell.goBranch(
           index,
@@ -53,6 +60,8 @@ class HomeShell extends ConsumerWidget {
             icon: const Icon(Icons.person_outline),
             selectedIcon: const Icon(Icons.person),
             label: l10n.navAccount,
+          ),
+            ],
           ),
         ],
       ),

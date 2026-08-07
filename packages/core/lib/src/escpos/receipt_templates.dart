@@ -212,6 +212,21 @@ Uint8List buildCustomerReceipt(
         builder.line(row);
       }
     }
+
+    // Haritadan seçilen nokta varsa QR.
+    //
+    // Serbest metin adres KALDIRILMIYOR, QR onun ÜSTÜNE ekleniyor: kuryenin
+    // telefonu bitmiş, kamerası bozuk ya da fiş buruşmuş olabilir. Fiş tek
+    // başına da adrese götürmeye yetmeli — QR son yüz metreyi kısaltan bir
+    // kolaylık, tek bilgi kaynağı değil.
+    if (address.hasPin) {
+      builder
+        ..feed()
+        ..align(EscPosAlign.center)
+        ..qr(address.mapUrl)
+        ..line('Haritada aç')
+        ..align(EscPosAlign.left);
+    }
   } else {
     builder
       ..align(EscPosAlign.center)

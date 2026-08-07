@@ -20,7 +20,6 @@ import '../../router/app_router.dart';
 import '../../theme/bld_theme.dart';
 import '../../widgets/eta_notice.dart';
 import '../../widgets/status_views.dart';
-import '../cart/cart_controller.dart';
 
 class MenuScreen extends ConsumerStatefulWidget {
   const MenuScreen({super.key});
@@ -46,7 +45,6 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.menuTitle)),
-      bottomNavigationBar: const _CartBar(),
       body: locationAsync.when(
         loading: () => const LoadingView(),
         error: (error, _) => ErrorView(
@@ -430,30 +428,3 @@ class _MenuItemThumb extends StatelessWidget {
 }
 
 /// Sepet dolu olduğunda menünün altında duran çubuk.
-class _CartBar extends ConsumerWidget {
-  const _CartBar();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    final cart = ref.watch(cartProvider);
-    if (cart.isEmpty) return const SizedBox.shrink();
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(BldSpacing.md),
-        child: FilledButton(
-          onPressed: () => context.push(Routes.cart),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.shopping_basket_outlined, size: 20),
-              const SizedBox(width: BldSpacing.sm),
-              Text(l10n.menuCartButton(Money.format(cart.subtotal))),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

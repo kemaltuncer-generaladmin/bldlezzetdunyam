@@ -77,6 +77,28 @@ final CustomerReceiptData customerDelivery = CustomerReceiptData(
   ),
 );
 
+/// Haritadan iğne bırakılmış sipariş — fişe QR basılmalı.
+final CustomerReceiptData customerDeliveryWithPin = CustomerReceiptData(
+  orderNumber: 'S-5014',
+  deliveryType: DeliveryType.delivery,
+  printedAt: printedAt,
+  lines: const [
+    CustomerReceiptLine(quantity: 2, name: 'Tavuk Sote', lineTotal: 37000),
+  ],
+  subtotal: 37000,
+  deliveryFee: 4000,
+  total: 41000,
+  paymentMethod: ReceiptPaymentMethod.cash,
+  paymentStatus: ReceiptPaymentStatus.pending,
+  address: const ReceiptAddress(
+    line1: 'Örnek Mah. 12. Sk No:3',
+    district: 'Çankaya',
+    city: 'Ankara',
+    latitude: 40.2114567,
+    longitude: 28.9876543,
+  ),
+);
+
 final CustomerReceiptData customerPickup = CustomerReceiptData(
   orderNumber: 'S-5013',
   deliveryType: DeliveryType.pickup,
@@ -160,6 +182,56 @@ void main() {
         'receipt_musteri_pickup',
         buildCustomerReceipt(customerPickup),
       );
+    });
+
+    test('haritadan seçilmiş konumla (QR)', () {
+      expectGolden(
+        'receipt_musteri_delivery_qr',
+        buildCustomerReceipt(customerDeliveryWithPin),
+      );
+    });
+  });
+
+  group('QR kod', () {
+    test('iğne yoksa QR komutu hiç basılmaz', () {
+      // Koordinatsız sipariş fişinde QR bloğu bulunmamalı; boş bir QR
+      // yazıcıda çöp sembol üretir.
+      final bytes = buildCustomerReceipt(customerDelivery);
+      expect(_contains(bytes, EscPosCommands.qrPrint), isFalse);
+    });
+
+    test('iğne varsa QR basma komutu bulunur', () {
+      final bytes = buildCustomerReceipt(customerDeliveryWithPin);
+      expect(_contains(bytes, EscPosCommands.qrPrint), isTrue);
+    });
+
+    test('QR verisi harita bağlantısını taşır', () {
+      final bytes = buildCustomerReceipt(customerDeliveryWithPin);
+      final url = customerDeliveryWithPin.address!.mapUrl;
+
+      expect(_contains(bytes, url.codeUnits), isTrue);
+      // Yedi ondalık korunmalı: yuvarlama iğneyi metrelerce kaydırır.
+      expect(url, contains('40.2114567,28.9876543'));
+    });
+
+    test('uzunluk baytı cn+fn+m dahil sayılır', () {
+      // En sık yapılan hata yalnızca veri uzunluğunu yazmak. O durumda
+      // yazıcı eksik bayt bekler, sonraki komutları veri sanar ve fişin
+      // geri kalanı çöp basar.
+      final store = EscPosCommands.qrStore(List<int>.filled(10, 0x41));
+
+      expect(store[3], 13, reason: 'pL = veri + 3 olmalı');
+      expect(store[4], 0, reason: 'pH');
+      expect(store.length, 18);
+    });
+
+    test('uzunluk 255i aşınca pH kullanılır', () {
+      // Uzun bir URL (ör. ondalıkları tam koordinat + ek parametre) 255
+      // baytı aşabilir; tek baytlık uzunluk sessizce taşardı.
+      final store = EscPosCommands.qrStore(List<int>.filled(300, 0x41));
+
+      expect(store[3], (303) & 0xFF);
+      expect(store[4], (303) >> 8);
     });
   });
 
@@ -326,6 +398,26 @@ List<int> _parseHexDump(String content) => content
 ///
 /// Kontrol dizileri (`ESC ...`, `GS ...`) atılır, satır beslemesi `\n` olur,
 /// PC857 baytları Unicode'a döner. Yalnızca teşhis içindir.
+/// [bytes] içinde [pattern] dizisi geçiyor mu?
+///
+/// Metne çevirip aramıyoruz: QR komutları yazdırılabilir olmayan baytlar
+/// içeriyor ve PC857 çözümü onları bozar.
+bool _contains(List<int> bytes, List<int> pattern) {
+  if (pattern.isEmpty || pattern.length > bytes.length) return false;
+
+  for (var i = 0; i <= bytes.length - pattern.length; i++) {
+    var eslesti = true;
+    for (var j = 0; j < pattern.length; j++) {
+      if (bytes[i + j] != pattern[j]) {
+        eslesti = false;
+        break;
+      }
+    }
+    if (eslesti) return true;
+  }
+  return false;
+}
+
 String _decode(List<int> bytes) {
   final buffer = StringBuffer();
   var index = 0;

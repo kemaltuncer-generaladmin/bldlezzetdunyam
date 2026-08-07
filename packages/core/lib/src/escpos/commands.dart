@@ -67,6 +67,59 @@ abstract final class EscPosCommands {
 
   /// `ESC a n` — hizalama.
   static List<int> align(EscPosAlign alignment) => [0x1B, 0x61, alignment.code];
+
+  // ── QR kod (`GS ( k`) ────────────────────────────────────────────────
+  //
+  // Dört ayrı komut gerekiyor ve SIRASI ÖNEMLİ: model → modül boyu → hata
+  // düzeltme → veriyi tampona yaz → tamponu bas. Yazıcı veriyi kendi
+  // tamponunda tutuyor; "bas" komutu gelmeden hiçbir şey çıkmaz.
+  //
+  // `pL, pH` küçük-uçlu uzunluktur ve `cn + fn + m` baytlarını DA sayar.
+  // En sık yapılan hata yalnızca veri uzunluğunu yazmak: yazıcı eksik bayt
+  // bekler, sonraki komutları veri sanar ve fişin geri kalanı çöp basar.
+
+  /// QR modelini seçer. `49` = Model 1, `50` = Model 2.
+  ///
+  /// Model 2 varsayılan: neredeyse tüm okuyucular destekliyor ve aynı veri
+  /// için daha küçük sembol üretiyor.
+  static const List<int> qrModel = [
+    0x1D, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 50, 0x00,
+  ];
+
+  /// Modül (nokta) boyu — `1..16`.
+  ///
+  /// 6 seçildi: 80 mm kağıtta yaklaşık 3 cm'lik bir kare veriyor. Daha
+  /// küçüğü telefon kamerasıyla loş mutfak ışığında okunmuyor, daha büyüğü
+  /// fişi gereksiz uzatıyor.
+  static List<int> qrModuleSize(int size) => [
+    0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, size,
+  ];
+
+  /// Hata düzeltme düzeyi — `48`=L, `49`=M, `50`=Q, `51`=H.
+  ///
+  /// M (%15) seçildi: termal fiş buruşuyor, ıslanıyor ve kuryenin cebinde
+  /// eziliyor. L bu koşullarda okunamaz hâle geliyor; H ise sembolü
+  /// gereksiz büyütüyor.
+  static List<int> qrErrorCorrection(int level) => [
+    0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, level,
+  ];
+
+  /// Veriyi yazıcının QR tamponuna yazar.
+  static List<int> qrStore(List<int> data) {
+    // +3: `cn` (0x31), `fn` (0x50) ve `m` (0x30) baytları da uzunluğa dahil.
+    final length = data.length + 3;
+    return [
+      0x1D, 0x28, 0x6B,
+      length & 0xFF, (length >> 8) & 0xFF,
+      0x31, 0x50, 0x30,
+      ...data,
+    ];
+  }
+
+  /// Tamponu basar.
+  static const List<int> qrPrint = [
+    0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30,
+  ];
 }
 
 /// ESC/POS bayt dizisi oluşturucu.
@@ -134,6 +187,31 @@ class EscPosBuilder {
   /// Ham bayt ekler — komut tablosunda olmayan bir şeye ihtiyaç duyan
   /// (ör. yazıcıya özel) durumlar için tek kaçış kapısı.
   void raw(List<int> bytes) => _buffer.add(bytes);
+
+  /// QR kod basar.
+  ///
+  /// [data] **ASCII** olmalıdır. Türkçe karakter içeren bir metin PC857 ile
+  /// kodlanır ve okuyucu bunu çözemez; bu yüzden burada `Pc857.encode`
+  /// KULLANILMIYOR, bayta doğrudan çevriliyor. Çağıran zaten bir URL
+  /// geçiriyor.
+  void qr(
+    String data, {
+    int moduleSize = defaultQrModuleSize,
+    int errorCorrection = qrErrorCorrectionM,
+  }) {
+    _buffer
+      ..add(EscPosCommands.qrModel)
+      ..add(EscPosCommands.qrModuleSize(moduleSize))
+      ..add(EscPosCommands.qrErrorCorrection(errorCorrection))
+      ..add(EscPosCommands.qrStore(data.codeUnits))
+      ..add(EscPosCommands.qrPrint);
+  }
+
+  /// Gerekçesi [EscPosCommands.qrModuleSize] üzerinde.
+  static const int defaultQrModuleSize = 6;
+
+  /// Gerekçesi [EscPosCommands.qrErrorCorrection] üzerinde.
+  static const int qrErrorCorrectionM = 49;
 
   Uint8List build() => _buffer.toBytes();
 }

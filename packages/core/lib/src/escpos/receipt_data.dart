@@ -92,12 +92,40 @@ class ReceiptAddress {
     required this.district,
     required this.city,
     this.note,
+    this.latitude,
+    this.longitude,
   });
 
   final String line1;
   final String district;
   final String city;
   final String? note;
+
+  /// Müşterinin haritadan seçtiği nokta. İkisi birden doluysa fişe QR
+  /// basılır ve kurye okutunca doğrudan oraya gider.
+  final double? latitude;
+  final double? longitude;
+
+  /// QR basılabilir mi?
+  bool get hasPin => latitude != null && longitude != null;
+
+  /// QR'a gömülecek adres.
+  ///
+  /// ## Neden `https://…maps`, `geo:` DEĞİL
+  ///
+  /// `geo:` şeması Android'de çalışıyor ama iOS kamerası çoğu durumda hiçbir
+  /// şey açmıyor ve kurye QR'ı okutup boş ekranla kalıyor. `https` bağlantısı
+  /// her telefonun kamerasında tıklanabilir çıkıyor ve harita uygulaması
+  /// kuruluysa doğrudan ona devrediliyor.
+  ///
+  /// Bu bir bağlantıdır, bir API çağrısı değil: anahtar ya da faturalandırma
+  /// gerektirmez. Haritayı OpenStreetMap'ten seçmemizle çelişmiyor.
+  ///
+  /// Yedi ondalık: sütun `DECIMAL(10,7)` ve ~1 cm çözünürlük veriyor. Daha
+  /// azına yuvarlamak iğneyi metrelerce kaydırırdı.
+  String get mapUrl =>
+      'https://www.google.com/maps?q='
+      '${latitude!.toStringAsFixed(7)},${longitude!.toStringAsFixed(7)}';
 }
 
 /// Mutfak fişi verisi — fiyat, adres ve telefon içermez.

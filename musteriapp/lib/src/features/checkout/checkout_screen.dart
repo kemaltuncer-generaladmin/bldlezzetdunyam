@@ -381,11 +381,24 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
                             : () => setState(() => _requestedAtIstanbul = null),
                         child: Text(l10n.checkoutClearRequestedAt),
                       ),
-                    OutlinedButton(
-                      onPressed: _submitting ? null : _pickRequestedAt,
-                      child: Text(l10n.checkoutPickDateTime),
-                    ),
                   ],
+                ),
+
+                // Seçme düğmesi KENDİ SATIRINDA.
+                //
+                // Row içindeyken formun tamamını bozuyordu: tema
+                // `minimumSize: Size.fromHeight(48)` veriyor ve
+                // `Size.fromHeight` genişliği SONSUZ yapıyor. Sütun içinde
+                // bu zararsız — buton satırı doldurur. Row ise çocuklarına
+                // sınırsız genişlik veriyor, sonsuz asgari genişlikle
+                // buluşunca düzen hesabı istisna fırlatıyordu.
+                //
+                // Belirtisi hiç de "buton bozuk" gibi görünmüyordu: istisna
+                // fırlatan alt ağaç yerleşemediği için LİSTE KAYDIRILAMIYOR,
+                // kullanıcı formun altına inemiyor ve sipariş veremiyordu.
+                OutlinedButton(
+                  onPressed: _submitting ? null : _pickRequestedAt,
+                  child: Text(l10n.checkoutPickDateTime),
                 ),
 
                 _SectionTitle(l10n.checkoutPaymentMethod),

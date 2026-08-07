@@ -64,6 +64,10 @@ ReceiptAddress _address(Address address) => ReceiptAddress(
   district: address.district,
   city: address.city,
   note: address.note,
+  // Koordinat taşınmazsa fişe QR basılmaz ve müşterinin haritada
+  // işaretlediği kapı kuryeye hiç ulaşmaz.
+  latitude: address.latitude,
+  longitude: address.longitude,
 );
 
 ReceiptPaymentMethod _paymentMethod(PaymentMethod method) => switch (method) {
