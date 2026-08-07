@@ -594,4 +594,36 @@ class AppLocalizationsTr extends AppLocalizations {
   String notificationOrderBody(String orderNumber, String status) {
     return '$orderNumber numaralı siparişiniz: $status';
   }
+
+  @override
+  String get mapPickerTitle => 'Teslimat konumu';
+
+  @override
+  String get mapPickerHint =>
+      'Haritayı kaydırarak iğneyi teslimat noktasına getirin.';
+
+  @override
+  String get mapPickerConfirm => 'Bu konumu kullan';
+
+  @override
+  String get mapPickerClear => 'İğneyi kaldır';
+
+  @override
+  String get mapPickerSelect => 'Haritadan seç';
+
+  @override
+  String get mapPickerChange => 'Konumu değiştir';
+
+  @override
+  String get mapPickerSelected => 'Konum seçildi';
+
+  @override
+  String get mapPickerNotSelected => 'Konum seçilmedi';
+
+  @override
+  String get mapPickerOptional =>
+      'İsteğe bağlı — kuryenin doğru kapıyı bulmasına yardım eder.';
+
+  @override
+  String get mapPickerAttribution => '© OpenStreetMap katkıcıları';
 }

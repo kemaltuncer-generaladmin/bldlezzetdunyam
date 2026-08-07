@@ -9,12 +9,14 @@ import 'package:bld_api_client/bld_api_client.dart';
 import 'package:bld_design_system/bld_design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../core/api_error_text.dart';
 import '../../core/validators.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/address_providers.dart';
 import '../../widgets/status_views.dart';
+import '../location/pin_field.dart';
 
 class AddressBookScreen extends ConsumerWidget {
   const AddressBookScreen({super.key});
@@ -207,6 +209,9 @@ class _AddressFormState extends ConsumerState<_AddressForm> {
   late final TextEditingController _note;
   late bool _isDefault;
 
+  /// Haritadan seçilen nokta. `null` = iğne yok.
+  LatLng? _pin;
+
   bool _saving = false;
   String? _error;
 
@@ -222,6 +227,9 @@ class _AddressFormState extends ConsumerState<_AddressForm> {
     // İlk adres sunucuda zaten varsayılan olur; kutuyu işaretli göstermek
     // kullanıcıya olmayan bir seçim yaptığını düşündürürdü.
     _isDefault = existing?.isDefault ?? false;
+    _pin = existing != null && existing.hasPin
+        ? LatLng(existing.latitude!, existing.longitude!)
+        : null;
   }
 
   @override
@@ -254,6 +262,13 @@ class _AddressFormState extends ConsumerState<_AddressForm> {
       city: _city.text.trim(),
       note: _emptyOrNull(_note),
       isDefault: _isDefault,
+
+      // İğne yokken bilerek `null` gönderiliyor ve bu, sunucuda "koordinatı
+      // sil" demek (`SavedAddressInput` belgesine bakın). Alanı atlamak
+      // "değiştirme" anlamına gelirdi ve iğnesini kaldıran müşterinin eski
+      // noktası kayıtta kalırdı.
+      latitude: _pin?.latitude,
+      longitude: _pin?.longitude,
     );
 
     final notifier = ref.read(addressBookProvider.notifier);
@@ -328,6 +343,11 @@ class _AddressFormState extends ConsumerState<_AddressForm> {
               TextFormField(
                 controller: _note,
                 decoration: InputDecoration(labelText: l10n.addressNote),
+              ),
+              const SizedBox(height: BldSpacing.sm),
+              PinField(
+                point: _pin,
+                onChanged: (value) => setState(() => _pin = value),
               ),
               const SizedBox(height: BldSpacing.sm),
               CheckboxListTile(

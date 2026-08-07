@@ -13,6 +13,7 @@ import 'package:bld_design_system/bld_design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api_error_text.dart';
@@ -28,6 +29,7 @@ import '../../router/app_router.dart';
 import '../../widgets/eta_notice.dart';
 import '../../widgets/status_views.dart';
 import '../cart/cart_controller.dart';
+import '../location/pin_field.dart';
 
 class CheckoutScreen extends ConsumerWidget {
   const CheckoutScreen({super.key});
@@ -86,6 +88,10 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
   DeliveryType _deliveryType = DeliveryType.delivery;
   PaymentMethod? _paymentMethod;
   DateTime? _requestedAtIstanbul;
+
+  /// Haritadan seçilen teslimat noktası. `null` = iğne yok, sipariş yine
+  /// verilebilir.
+  LatLng? _pin;
 
   bool _submitting = false;
   String? _failure;
@@ -147,6 +153,13 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
       _district.text = address.district;
       _city.text = address.city;
       _addressNote.text = address.note ?? '';
+
+      // İğne de kopyalanıyor. Kopyalanmasaydı defterdeki adresi seçen
+      // müşteri, haritada işaretlediği kapıyı her siparişte yeniden
+      // göstermek zorunda kalırdı.
+      _pin = address.hasPin
+          ? LatLng(address.latitude!, address.longitude!)
+          : null;
     });
   }
 
@@ -180,6 +193,8 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
               note: _addressNote.text.trim().isEmpty
                   ? null
                   : _addressNote.text.trim(),
+              latitude: _pin?.latitude,
+              longitude: _pin?.longitude,
             )
           : null,
       requestedAt: _requestedAtIstanbul == null
@@ -335,6 +350,15 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
                   TextFormField(
                     controller: _addressNote,
                     decoration: InputDecoration(labelText: l10n.addressNote),
+                  ),
+                  const SizedBox(height: BldSpacing.sm),
+
+                  // Harita, serbest metnin ALTINDA ve yerine değil: OSM'de
+                  // kapı numarası her yerde keskin değil, adres hâlâ asıl
+                  // bilgi. İğne kuryenin son yüz metresi için.
+                  PinField(
+                    point: _pin,
+                    onChanged: (value) => setState(() => _pin = value),
                   ),
                 ],
 

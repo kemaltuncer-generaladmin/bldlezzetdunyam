@@ -11,6 +11,8 @@ _Address _$AddressFromJson(Map<String, dynamic> json) => _Address(
   district: json['district'] as String,
   city: json['city'] as String,
   note: json['note'] as String?,
+  latitude: (json['latitude'] as num?)?.toDouble(),
+  longitude: (json['longitude'] as num?)?.toDouble(),
 );
 
 Map<String, dynamic> _$AddressToJson(_Address instance) => <String, dynamic>{
@@ -18,6 +20,8 @@ Map<String, dynamic> _$AddressToJson(_Address instance) => <String, dynamic>{
   'district': instance.district,
   'city': instance.city,
   'note': ?instance.note,
+  'latitude': ?instance.latitude,
+  'longitude': ?instance.longitude,
 };
 
 _SavedAddress _$SavedAddressFromJson(Map<String, dynamic> json) =>
@@ -29,6 +33,8 @@ _SavedAddress _$SavedAddressFromJson(Map<String, dynamic> json) =>
       isDefault: json['is_default'] as bool,
       label: json['label'] as String?,
       note: json['note'] as String?,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
     );
 
 Map<String, dynamic> _$SavedAddressToJson(_SavedAddress instance) =>
@@ -40,6 +46,8 @@ Map<String, dynamic> _$SavedAddressToJson(_SavedAddress instance) =>
       'is_default': instance.isDefault,
       'label': ?instance.label,
       'note': ?instance.note,
+      'latitude': ?instance.latitude,
+      'longitude': ?instance.longitude,
     };
 
 _SavedAddressInput _$SavedAddressInputFromJson(Map<String, dynamic> json) =>
@@ -50,6 +58,8 @@ _SavedAddressInput _$SavedAddressInputFromJson(Map<String, dynamic> json) =>
       label: json['label'] as String?,
       note: json['note'] as String?,
       isDefault: json['is_default'] as bool?,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
     );
 
 Map<String, dynamic> _$SavedAddressInputToJson(_SavedAddressInput instance) =>
@@ -60,6 +70,8 @@ Map<String, dynamic> _$SavedAddressInputToJson(_SavedAddressInput instance) =>
       'label': ?instance.label,
       'note': ?instance.note,
       'is_default': ?instance.isDefault,
+      'latitude': instance.latitude,
+      'longitude': instance.longitude,
     };
 
 _OrderCreateItem _$OrderCreateItemFromJson(Map<String, dynamic> json) =>

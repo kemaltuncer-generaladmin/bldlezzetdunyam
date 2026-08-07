@@ -37,6 +37,20 @@ dependencies:
   timezone: ^0.11.1
   url_launcher: ^6.3.2
 
+  # Harita — teslimat noktasının iğneyle seçilmesi.
+  #
+  # NEDEN OpenStreetMap, Google Maps DEĞİL: Google Maps SDK'sı faturalandırma
+  # hesabı ve API anahtarı istiyor. Anahtar derlemeye gömülmek zorunda ve
+  # sızdığında fatura bize yazılıyor; ayrıca anahtarsız her ortam (yeni
+  # kurulan geliştirme makinesi, CI) haritasız kalırdı. OSM anahtarsız
+  # çalışır ve maliyeti yoktur.
+  #
+  # Karşılığı dürüstçe: OSM'de bina/kapı numarası Türkiye'de Google kadar
+  # keskin değil. Adres serbest metni bu yüzden KALDIRILMADI — harita onun
+  # yerine değil, yanına eklendi.
+  flutter_map: ^8.2.2
+  latlong2: ^0.9.1
+
 # `packages/*` pub workspace üyesidir ve birbirine `^0.1.0` (hosted) diye
 # bakar. musteriapp workspace'e katılmadığı için o referanslar path'e
 # çevrilmelidir; aksi halde pub yayınlanmamış paketi pub.dev'de arar.

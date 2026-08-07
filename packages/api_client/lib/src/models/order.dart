@@ -16,7 +16,23 @@ abstract class Address with _$Address {
     required String district,
     required String city,
     String? note,
+
+    /// Haritadan seçilen teslimat noktası.
+    ///
+    /// İsteğe bağlı: konum izni vermeyen ya da adresi elle yazan müşteri de
+    /// sipariş verebilir. [longitude] ile birlikte anlamlıdır — sunucu yarım
+    /// çifti koordinat saymaz ve ikisini de `null` döndürür.
+    double? latitude,
+    double? longitude,
   }) = _Address;
+
+  const Address._();
+
+  /// Haritada gösterilebilir bir noktası var mı?
+  ///
+  /// Tek tek `!= null` denetimi yerine bunu kullanın: çiftin bütünlüğü tek
+  /// yerde tanımlı kalsın.
+  bool get hasPin => latitude != null && longitude != null;
 
   factory Address.fromJson(Map<String, dynamic> json) =>
       _$AddressFromJson(json);
@@ -42,16 +58,32 @@ abstract class SavedAddress with _$SavedAddress {
 
     /// Kuryeye not. Fişte görünür.
     String? note,
+
+    /// Haritadan seçilen nokta — [longitude] ile birlikte anlamlıdır.
+    double? latitude,
+    double? longitude,
   }) = _SavedAddress;
 
   const SavedAddress._();
+
+  /// Haritada gösterilebilir bir noktası var mı?
+  bool get hasPin => latitude != null && longitude != null;
 
   factory SavedAddress.fromJson(Map<String, dynamic> json) =>
       _$SavedAddressFromJson(json);
 
   /// Siparişe gidecek kopya.
-  Address toOrderAddress() =>
-      Address(line1: line1, district: district, city: city, note: note);
+  ///
+  /// Koordinat da kopyalanır: defterdeki iğne siparişe geçmezse kurye yine
+  /// serbest metne bakmak zorunda kalır ve harita hiçbir işe yaramaz.
+  Address toOrderAddress() => Address(
+    line1: line1,
+    district: district,
+    city: city,
+    note: note,
+    latitude: latitude,
+    longitude: longitude,
+  );
 
   /// Tek satırda okunabilir hâli — liste ve seçicide kullanılır.
   String get summary => '$line1, $district / $city';
@@ -67,6 +99,26 @@ abstract class SavedAddressInput with _$SavedAddressInput {
     String? label,
     String? note,
     bool? isDefault,
+
+    /// Haritadan seçilen nokta.
+    ///
+    /// ## `@JsonKey(includeIfNull: true)` NEDEN GEREKLİ
+    ///
+    /// Paketin varsayılanı `include_if_null: false` (bkz. `build.yaml`), yani
+    /// `null` alanlar gövdeden tamamen çıkarılır. Sunucu ise bu iki durumu
+    /// AYIRT EDİYOR (`docs/openapi.yaml` §SavedAddressInput):
+    ///
+    ///   - alan yok   → mevcut iğne korunur
+    ///   - alan null  → iğne silinir
+    ///
+    /// Varsayılan ayarla `null` hiç gönderilemezdi ve **iğne kaldırılamazdı**:
+    /// müşteri haritadan noktayı silse bile eski koordinat kayıtta kalır,
+    /// kurye bir daha oraya giderdi. Bu iki alan bilinçli olarak istisna.
+    ///
+    /// Karşılığı: iğnesiz adres kaydederken gövdede `"latitude": null` gider.
+    /// Zararsız — sunucuda zaten `nullable`.
+    @JsonKey(includeIfNull: true) double? latitude,
+    @JsonKey(includeIfNull: true) double? longitude,
   }) = _SavedAddressInput;
 
   factory SavedAddressInput.fromJson(Map<String, dynamic> json) =>

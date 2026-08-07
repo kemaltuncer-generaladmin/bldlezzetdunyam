@@ -1149,6 +1149,66 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'{orderNumber} numaralı siparişiniz: {status}'**
   String notificationOrderBody(String orderNumber, String status);
+
+  /// Harita ile konum seçme ekranının başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Teslimat konumu'**
+  String get mapPickerTitle;
+
+  /// Harita ekranında ne yapılacağını anlatan yönerge
+  ///
+  /// In tr, this message translates to:
+  /// **'Haritayı kaydırarak iğneyi teslimat noktasına getirin.'**
+  String get mapPickerHint;
+
+  /// Seçilen noktayı onaylayan düğme
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu konumu kullan'**
+  String get mapPickerConfirm;
+
+  /// Kayıtlı koordinatı silen düğme
+  ///
+  /// In tr, this message translates to:
+  /// **'İğneyi kaldır'**
+  String get mapPickerClear;
+
+  /// Adres formunda harita ekranını açan düğme
+  ///
+  /// In tr, this message translates to:
+  /// **'Haritadan seç'**
+  String get mapPickerSelect;
+
+  /// İğne varken harita ekranını açan düğme
+  ///
+  /// In tr, this message translates to:
+  /// **'Konumu değiştir'**
+  String get mapPickerChange;
+
+  /// Adres formunda iğnenin var olduğunu belirten etiket
+  ///
+  /// In tr, this message translates to:
+  /// **'Konum seçildi'**
+  String get mapPickerSelected;
+
+  /// Adres formunda iğnenin olmadığını belirten etiket
+  ///
+  /// In tr, this message translates to:
+  /// **'Konum seçilmedi'**
+  String get mapPickerNotSelected;
+
+  /// Koordinatın zorunlu olmadığını anlatan açıklama
+  ///
+  /// In tr, this message translates to:
+  /// **'İsteğe bağlı — kuryenin doğru kapıyı bulmasına yardım eder.'**
+  String get mapPickerOptional;
+
+  /// OpenStreetMap lisansının gerektirdiği kaynak gösterimi
+  ///
+  /// In tr, this message translates to:
+  /// **'© OpenStreetMap katkıcıları'**
+  String get mapPickerAttribution;
 }
 
 class _AppLocalizationsDelegate

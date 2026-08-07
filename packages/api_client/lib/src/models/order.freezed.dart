@@ -15,7 +15,12 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Address {
 
- String get line1; String get district; String get city; String? get note;
+ String get line1; String get district; String get city; String? get note;/// Haritadan seçilen teslimat noktası.
+///
+/// İsteğe bağlı: konum izni vermeyen ya da adresi elle yazan müşteri de
+/// sipariş verebilir. [longitude] ile birlikte anlamlıdır — sunucu yarım
+/// çifti koordinat saymaz ve ikisini de `null` döndürür.
+ double? get latitude; double? get longitude;
 /// Create a copy of Address
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +33,16 @@ $AddressCopyWith<Address> get copyWith => _$AddressCopyWithImpl<Address>(this as
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Address&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.note, note) || other.note == note));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Address&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.note, note) || other.note == note)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,line1,district,city,note);
+int get hashCode => Object.hash(runtimeType,line1,district,city,note,latitude,longitude);
 
 @override
 String toString() {
-  return 'Address(line1: $line1, district: $district, city: $city, note: $note)';
+  return 'Address(line1: $line1, district: $district, city: $city, note: $note, latitude: $latitude, longitude: $longitude)';
 }
 
 
@@ -48,7 +53,7 @@ abstract mixin class $AddressCopyWith<$Res>  {
   factory $AddressCopyWith(Address value, $Res Function(Address) _then) = _$AddressCopyWithImpl;
 @useResult
 $Res call({
- String line1, String district, String city, String? note
+ String line1, String district, String city, String? note, double? latitude, double? longitude
 });
 
 
@@ -65,13 +70,15 @@ class _$AddressCopyWithImpl<$Res>
 
 /// Create a copy of Address
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? line1 = null,Object? district = null,Object? city = null,Object? note = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? line1 = null,Object? district = null,Object? city = null,Object? note = freezed,Object? latitude = freezed,Object? longitude = freezed,}) {
   return _then(_self.copyWith(
 line1: null == line1 ? _self.line1 : line1 // ignore: cast_nullable_to_non_nullable
 as String,district: null == district ? _self.district : district // ignore: cast_nullable_to_non_nullable
 as String,city: null == city ? _self.city : city // ignore: cast_nullable_to_non_nullable
 as String,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,latitude: freezed == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
+as double?,longitude: freezed == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
+as double?,
   ));
 }
 
@@ -156,10 +163,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String line1,  String district,  String city,  String? note)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String line1,  String district,  String city,  String? note,  double? latitude,  double? longitude)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Address() when $default != null:
-return $default(_that.line1,_that.district,_that.city,_that.note);case _:
+return $default(_that.line1,_that.district,_that.city,_that.note,_that.latitude,_that.longitude);case _:
   return orElse();
 
 }
@@ -177,10 +184,10 @@ return $default(_that.line1,_that.district,_that.city,_that.note);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String line1,  String district,  String city,  String? note)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String line1,  String district,  String city,  String? note,  double? latitude,  double? longitude)  $default,) {final _that = this;
 switch (_that) {
 case _Address():
-return $default(_that.line1,_that.district,_that.city,_that.note);case _:
+return $default(_that.line1,_that.district,_that.city,_that.note,_that.latitude,_that.longitude);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -197,10 +204,10 @@ return $default(_that.line1,_that.district,_that.city,_that.note);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String line1,  String district,  String city,  String? note)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String line1,  String district,  String city,  String? note,  double? latitude,  double? longitude)?  $default,) {final _that = this;
 switch (_that) {
 case _Address() when $default != null:
-return $default(_that.line1,_that.district,_that.city,_that.note);case _:
+return $default(_that.line1,_that.district,_that.city,_that.note,_that.latitude,_that.longitude);case _:
   return null;
 
 }
@@ -211,14 +218,21 @@ return $default(_that.line1,_that.district,_that.city,_that.note);case _:
 /// @nodoc
 @JsonSerializable()
 
-class _Address implements Address {
-  const _Address({required this.line1, required this.district, required this.city, this.note});
+class _Address extends Address {
+  const _Address({required this.line1, required this.district, required this.city, this.note, this.latitude, this.longitude}): super._();
   factory _Address.fromJson(Map<String, dynamic> json) => _$AddressFromJson(json);
 
 @override final  String line1;
 @override final  String district;
 @override final  String city;
 @override final  String? note;
+/// Haritadan seçilen teslimat noktası.
+///
+/// İsteğe bağlı: konum izni vermeyen ya da adresi elle yazan müşteri de
+/// sipariş verebilir. [longitude] ile birlikte anlamlıdır — sunucu yarım
+/// çifti koordinat saymaz ve ikisini de `null` döndürür.
+@override final  double? latitude;
+@override final  double? longitude;
 
 /// Create a copy of Address
 /// with the given fields replaced by the non-null parameter values.
@@ -233,16 +247,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Address&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.note, note) || other.note == note));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Address&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.note, note) || other.note == note)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,line1,district,city,note);
+int get hashCode => Object.hash(runtimeType,line1,district,city,note,latitude,longitude);
 
 @override
 String toString() {
-  return 'Address(line1: $line1, district: $district, city: $city, note: $note)';
+  return 'Address(line1: $line1, district: $district, city: $city, note: $note, latitude: $latitude, longitude: $longitude)';
 }
 
 
@@ -253,7 +267,7 @@ abstract mixin class _$AddressCopyWith<$Res> implements $AddressCopyWith<$Res> {
   factory _$AddressCopyWith(_Address value, $Res Function(_Address) _then) = __$AddressCopyWithImpl;
 @override @useResult
 $Res call({
- String line1, String district, String city, String? note
+ String line1, String district, String city, String? note, double? latitude, double? longitude
 });
 
 
@@ -270,13 +284,15 @@ class __$AddressCopyWithImpl<$Res>
 
 /// Create a copy of Address
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? line1 = null,Object? district = null,Object? city = null,Object? note = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? line1 = null,Object? district = null,Object? city = null,Object? note = freezed,Object? latitude = freezed,Object? longitude = freezed,}) {
   return _then(_Address(
 line1: null == line1 ? _self.line1 : line1 // ignore: cast_nullable_to_non_nullable
 as String,district: null == district ? _self.district : district // ignore: cast_nullable_to_non_nullable
 as String,city: null == city ? _self.city : city // ignore: cast_nullable_to_non_nullable
 as String,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,latitude: freezed == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
+as double?,longitude: freezed == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
+as double?,
   ));
 }
 
@@ -289,7 +305,8 @@ mixin _$SavedAddress {
 
  int get id; String get line1; String get district; String get city; bool get isDefault;/// Müşterinin verdiği ad — "Ev", "Ofis", "Şantiye".
  String? get label;/// Kuryeye not. Fişte görünür.
- String? get note;
+ String? get note;/// Haritadan seçilen nokta — [longitude] ile birlikte anlamlıdır.
+ double? get latitude; double? get longitude;
 /// Create a copy of SavedAddress
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -302,16 +319,16 @@ $SavedAddressCopyWith<SavedAddress> get copyWith => _$SavedAddressCopyWithImpl<S
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SavedAddress&&(identical(other.id, id) || other.id == id)&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault)&&(identical(other.label, label) || other.label == label)&&(identical(other.note, note) || other.note == note));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SavedAddress&&(identical(other.id, id) || other.id == id)&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault)&&(identical(other.label, label) || other.label == label)&&(identical(other.note, note) || other.note == note)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,line1,district,city,isDefault,label,note);
+int get hashCode => Object.hash(runtimeType,id,line1,district,city,isDefault,label,note,latitude,longitude);
 
 @override
 String toString() {
-  return 'SavedAddress(id: $id, line1: $line1, district: $district, city: $city, isDefault: $isDefault, label: $label, note: $note)';
+  return 'SavedAddress(id: $id, line1: $line1, district: $district, city: $city, isDefault: $isDefault, label: $label, note: $note, latitude: $latitude, longitude: $longitude)';
 }
 
 
@@ -322,7 +339,7 @@ abstract mixin class $SavedAddressCopyWith<$Res>  {
   factory $SavedAddressCopyWith(SavedAddress value, $Res Function(SavedAddress) _then) = _$SavedAddressCopyWithImpl;
 @useResult
 $Res call({
- int id, String line1, String district, String city, bool isDefault, String? label, String? note
+ int id, String line1, String district, String city, bool isDefault, String? label, String? note, double? latitude, double? longitude
 });
 
 
@@ -339,7 +356,7 @@ class _$SavedAddressCopyWithImpl<$Res>
 
 /// Create a copy of SavedAddress
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? line1 = null,Object? district = null,Object? city = null,Object? isDefault = null,Object? label = freezed,Object? note = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? line1 = null,Object? district = null,Object? city = null,Object? isDefault = null,Object? label = freezed,Object? note = freezed,Object? latitude = freezed,Object? longitude = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,line1: null == line1 ? _self.line1 : line1 // ignore: cast_nullable_to_non_nullable
@@ -348,7 +365,9 @@ as String,city: null == city ? _self.city : city // ignore: cast_nullable_to_non
 as String,isDefault: null == isDefault ? _self.isDefault : isDefault // ignore: cast_nullable_to_non_nullable
 as bool,label: freezed == label ? _self.label : label // ignore: cast_nullable_to_non_nullable
 as String?,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,latitude: freezed == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
+as double?,longitude: freezed == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
+as double?,
   ));
 }
 
@@ -433,10 +452,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String line1,  String district,  String city,  bool isDefault,  String? label,  String? note)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String line1,  String district,  String city,  bool isDefault,  String? label,  String? note,  double? latitude,  double? longitude)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SavedAddress() when $default != null:
-return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_that.label,_that.note);case _:
+return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_that.label,_that.note,_that.latitude,_that.longitude);case _:
   return orElse();
 
 }
@@ -454,10 +473,10 @@ return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String line1,  String district,  String city,  bool isDefault,  String? label,  String? note)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String line1,  String district,  String city,  bool isDefault,  String? label,  String? note,  double? latitude,  double? longitude)  $default,) {final _that = this;
 switch (_that) {
 case _SavedAddress():
-return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_that.label,_that.note);case _:
+return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_that.label,_that.note,_that.latitude,_that.longitude);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -474,10 +493,10 @@ return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String line1,  String district,  String city,  bool isDefault,  String? label,  String? note)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String line1,  String district,  String city,  bool isDefault,  String? label,  String? note,  double? latitude,  double? longitude)?  $default,) {final _that = this;
 switch (_that) {
 case _SavedAddress() when $default != null:
-return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_that.label,_that.note);case _:
+return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_that.label,_that.note,_that.latitude,_that.longitude);case _:
   return null;
 
 }
@@ -489,7 +508,7 @@ return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_
 @JsonSerializable()
 
 class _SavedAddress extends SavedAddress {
-  const _SavedAddress({required this.id, required this.line1, required this.district, required this.city, required this.isDefault, this.label, this.note}): super._();
+  const _SavedAddress({required this.id, required this.line1, required this.district, required this.city, required this.isDefault, this.label, this.note, this.latitude, this.longitude}): super._();
   factory _SavedAddress.fromJson(Map<String, dynamic> json) => _$SavedAddressFromJson(json);
 
 @override final  int id;
@@ -501,6 +520,9 @@ class _SavedAddress extends SavedAddress {
 @override final  String? label;
 /// Kuryeye not. Fişte görünür.
 @override final  String? note;
+/// Haritadan seçilen nokta — [longitude] ile birlikte anlamlıdır.
+@override final  double? latitude;
+@override final  double? longitude;
 
 /// Create a copy of SavedAddress
 /// with the given fields replaced by the non-null parameter values.
@@ -515,16 +537,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SavedAddress&&(identical(other.id, id) || other.id == id)&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault)&&(identical(other.label, label) || other.label == label)&&(identical(other.note, note) || other.note == note));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SavedAddress&&(identical(other.id, id) || other.id == id)&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault)&&(identical(other.label, label) || other.label == label)&&(identical(other.note, note) || other.note == note)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,line1,district,city,isDefault,label,note);
+int get hashCode => Object.hash(runtimeType,id,line1,district,city,isDefault,label,note,latitude,longitude);
 
 @override
 String toString() {
-  return 'SavedAddress(id: $id, line1: $line1, district: $district, city: $city, isDefault: $isDefault, label: $label, note: $note)';
+  return 'SavedAddress(id: $id, line1: $line1, district: $district, city: $city, isDefault: $isDefault, label: $label, note: $note, latitude: $latitude, longitude: $longitude)';
 }
 
 
@@ -535,7 +557,7 @@ abstract mixin class _$SavedAddressCopyWith<$Res> implements $SavedAddressCopyWi
   factory _$SavedAddressCopyWith(_SavedAddress value, $Res Function(_SavedAddress) _then) = __$SavedAddressCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String line1, String district, String city, bool isDefault, String? label, String? note
+ int id, String line1, String district, String city, bool isDefault, String? label, String? note, double? latitude, double? longitude
 });
 
 
@@ -552,7 +574,7 @@ class __$SavedAddressCopyWithImpl<$Res>
 
 /// Create a copy of SavedAddress
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? line1 = null,Object? district = null,Object? city = null,Object? isDefault = null,Object? label = freezed,Object? note = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? line1 = null,Object? district = null,Object? city = null,Object? isDefault = null,Object? label = freezed,Object? note = freezed,Object? latitude = freezed,Object? longitude = freezed,}) {
   return _then(_SavedAddress(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,line1: null == line1 ? _self.line1 : line1 // ignore: cast_nullable_to_non_nullable
@@ -561,7 +583,9 @@ as String,city: null == city ? _self.city : city // ignore: cast_nullable_to_non
 as String,isDefault: null == isDefault ? _self.isDefault : isDefault // ignore: cast_nullable_to_non_nullable
 as bool,label: freezed == label ? _self.label : label // ignore: cast_nullable_to_non_nullable
 as String?,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,latitude: freezed == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
+as double?,longitude: freezed == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
+as double?,
   ));
 }
 
@@ -572,7 +596,24 @@ as String?,
 /// @nodoc
 mixin _$SavedAddressInput {
 
- String get line1; String get district; String get city; String? get label; String? get note; bool? get isDefault;
+ String get line1; String get district; String get city; String? get label; String? get note; bool? get isDefault;/// Haritadan seçilen nokta.
+///
+/// ## `@JsonKey(includeIfNull: true)` NEDEN GEREKLİ
+///
+/// Paketin varsayılanı `include_if_null: false` (bkz. `build.yaml`), yani
+/// `null` alanlar gövdeden tamamen çıkarılır. Sunucu ise bu iki durumu
+/// AYIRT EDİYOR (`docs/openapi.yaml` §SavedAddressInput):
+///
+///   - alan yok   → mevcut iğne korunur
+///   - alan null  → iğne silinir
+///
+/// Varsayılan ayarla `null` hiç gönderilemezdi ve **iğne kaldırılamazdı**:
+/// müşteri haritadan noktayı silse bile eski koordinat kayıtta kalır,
+/// kurye bir daha oraya giderdi. Bu iki alan bilinçli olarak istisna.
+///
+/// Karşılığı: iğnesiz adres kaydederken gövdede `"latitude": null` gider.
+/// Zararsız — sunucuda zaten `nullable`.
+@JsonKey(includeIfNull: true) double? get latitude;@JsonKey(includeIfNull: true) double? get longitude;
 /// Create a copy of SavedAddressInput
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -585,16 +626,16 @@ $SavedAddressInputCopyWith<SavedAddressInput> get copyWith => _$SavedAddressInpu
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SavedAddressInput&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.label, label) || other.label == label)&&(identical(other.note, note) || other.note == note)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SavedAddressInput&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.label, label) || other.label == label)&&(identical(other.note, note) || other.note == note)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,line1,district,city,label,note,isDefault);
+int get hashCode => Object.hash(runtimeType,line1,district,city,label,note,isDefault,latitude,longitude);
 
 @override
 String toString() {
-  return 'SavedAddressInput(line1: $line1, district: $district, city: $city, label: $label, note: $note, isDefault: $isDefault)';
+  return 'SavedAddressInput(line1: $line1, district: $district, city: $city, label: $label, note: $note, isDefault: $isDefault, latitude: $latitude, longitude: $longitude)';
 }
 
 
@@ -605,7 +646,7 @@ abstract mixin class $SavedAddressInputCopyWith<$Res>  {
   factory $SavedAddressInputCopyWith(SavedAddressInput value, $Res Function(SavedAddressInput) _then) = _$SavedAddressInputCopyWithImpl;
 @useResult
 $Res call({
- String line1, String district, String city, String? label, String? note, bool? isDefault
+ String line1, String district, String city, String? label, String? note, bool? isDefault,@JsonKey(includeIfNull: true) double? latitude,@JsonKey(includeIfNull: true) double? longitude
 });
 
 
@@ -622,7 +663,7 @@ class _$SavedAddressInputCopyWithImpl<$Res>
 
 /// Create a copy of SavedAddressInput
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? line1 = null,Object? district = null,Object? city = null,Object? label = freezed,Object? note = freezed,Object? isDefault = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? line1 = null,Object? district = null,Object? city = null,Object? label = freezed,Object? note = freezed,Object? isDefault = freezed,Object? latitude = freezed,Object? longitude = freezed,}) {
   return _then(_self.copyWith(
 line1: null == line1 ? _self.line1 : line1 // ignore: cast_nullable_to_non_nullable
 as String,district: null == district ? _self.district : district // ignore: cast_nullable_to_non_nullable
@@ -630,7 +671,9 @@ as String,city: null == city ? _self.city : city // ignore: cast_nullable_to_non
 as String,label: freezed == label ? _self.label : label // ignore: cast_nullable_to_non_nullable
 as String?,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
 as String?,isDefault: freezed == isDefault ? _self.isDefault : isDefault // ignore: cast_nullable_to_non_nullable
-as bool?,
+as bool?,latitude: freezed == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
+as double?,longitude: freezed == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
+as double?,
   ));
 }
 
@@ -715,10 +758,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String line1,  String district,  String city,  String? label,  String? note,  bool? isDefault)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String line1,  String district,  String city,  String? label,  String? note,  bool? isDefault, @JsonKey(includeIfNull: true)  double? latitude, @JsonKey(includeIfNull: true)  double? longitude)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SavedAddressInput() when $default != null:
-return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_that.isDefault);case _:
+return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_that.isDefault,_that.latitude,_that.longitude);case _:
   return orElse();
 
 }
@@ -736,10 +779,10 @@ return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String line1,  String district,  String city,  String? label,  String? note,  bool? isDefault)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String line1,  String district,  String city,  String? label,  String? note,  bool? isDefault, @JsonKey(includeIfNull: true)  double? latitude, @JsonKey(includeIfNull: true)  double? longitude)  $default,) {final _that = this;
 switch (_that) {
 case _SavedAddressInput():
-return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_that.isDefault);case _:
+return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_that.isDefault,_that.latitude,_that.longitude);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -756,10 +799,10 @@ return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String line1,  String district,  String city,  String? label,  String? note,  bool? isDefault)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String line1,  String district,  String city,  String? label,  String? note,  bool? isDefault, @JsonKey(includeIfNull: true)  double? latitude, @JsonKey(includeIfNull: true)  double? longitude)?  $default,) {final _that = this;
 switch (_that) {
 case _SavedAddressInput() when $default != null:
-return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_that.isDefault);case _:
+return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_that.isDefault,_that.latitude,_that.longitude);case _:
   return null;
 
 }
@@ -771,7 +814,7 @@ return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_th
 @JsonSerializable()
 
 class _SavedAddressInput implements SavedAddressInput {
-  const _SavedAddressInput({required this.line1, required this.district, required this.city, this.label, this.note, this.isDefault});
+  const _SavedAddressInput({required this.line1, required this.district, required this.city, this.label, this.note, this.isDefault, @JsonKey(includeIfNull: true) this.latitude, @JsonKey(includeIfNull: true) this.longitude});
   factory _SavedAddressInput.fromJson(Map<String, dynamic> json) => _$SavedAddressInputFromJson(json);
 
 @override final  String line1;
@@ -780,6 +823,25 @@ class _SavedAddressInput implements SavedAddressInput {
 @override final  String? label;
 @override final  String? note;
 @override final  bool? isDefault;
+/// Haritadan seçilen nokta.
+///
+/// ## `@JsonKey(includeIfNull: true)` NEDEN GEREKLİ
+///
+/// Paketin varsayılanı `include_if_null: false` (bkz. `build.yaml`), yani
+/// `null` alanlar gövdeden tamamen çıkarılır. Sunucu ise bu iki durumu
+/// AYIRT EDİYOR (`docs/openapi.yaml` §SavedAddressInput):
+///
+///   - alan yok   → mevcut iğne korunur
+///   - alan null  → iğne silinir
+///
+/// Varsayılan ayarla `null` hiç gönderilemezdi ve **iğne kaldırılamazdı**:
+/// müşteri haritadan noktayı silse bile eski koordinat kayıtta kalır,
+/// kurye bir daha oraya giderdi. Bu iki alan bilinçli olarak istisna.
+///
+/// Karşılığı: iğnesiz adres kaydederken gövdede `"latitude": null` gider.
+/// Zararsız — sunucuda zaten `nullable`.
+@override@JsonKey(includeIfNull: true) final  double? latitude;
+@override@JsonKey(includeIfNull: true) final  double? longitude;
 
 /// Create a copy of SavedAddressInput
 /// with the given fields replaced by the non-null parameter values.
@@ -794,16 +856,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SavedAddressInput&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.label, label) || other.label == label)&&(identical(other.note, note) || other.note == note)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SavedAddressInput&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.label, label) || other.label == label)&&(identical(other.note, note) || other.note == note)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,line1,district,city,label,note,isDefault);
+int get hashCode => Object.hash(runtimeType,line1,district,city,label,note,isDefault,latitude,longitude);
 
 @override
 String toString() {
-  return 'SavedAddressInput(line1: $line1, district: $district, city: $city, label: $label, note: $note, isDefault: $isDefault)';
+  return 'SavedAddressInput(line1: $line1, district: $district, city: $city, label: $label, note: $note, isDefault: $isDefault, latitude: $latitude, longitude: $longitude)';
 }
 
 
@@ -814,7 +876,7 @@ abstract mixin class _$SavedAddressInputCopyWith<$Res> implements $SavedAddressI
   factory _$SavedAddressInputCopyWith(_SavedAddressInput value, $Res Function(_SavedAddressInput) _then) = __$SavedAddressInputCopyWithImpl;
 @override @useResult
 $Res call({
- String line1, String district, String city, String? label, String? note, bool? isDefault
+ String line1, String district, String city, String? label, String? note, bool? isDefault,@JsonKey(includeIfNull: true) double? latitude,@JsonKey(includeIfNull: true) double? longitude
 });
 
 
@@ -831,7 +893,7 @@ class __$SavedAddressInputCopyWithImpl<$Res>
 
 /// Create a copy of SavedAddressInput
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? line1 = null,Object? district = null,Object? city = null,Object? label = freezed,Object? note = freezed,Object? isDefault = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? line1 = null,Object? district = null,Object? city = null,Object? label = freezed,Object? note = freezed,Object? isDefault = freezed,Object? latitude = freezed,Object? longitude = freezed,}) {
   return _then(_SavedAddressInput(
 line1: null == line1 ? _self.line1 : line1 // ignore: cast_nullable_to_non_nullable
 as String,district: null == district ? _self.district : district // ignore: cast_nullable_to_non_nullable
@@ -839,7 +901,9 @@ as String,city: null == city ? _self.city : city // ignore: cast_nullable_to_non
 as String,label: freezed == label ? _self.label : label // ignore: cast_nullable_to_non_nullable
 as String?,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
 as String?,isDefault: freezed == isDefault ? _self.isDefault : isDefault // ignore: cast_nullable_to_non_nullable
-as bool?,
+as bool?,latitude: freezed == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
+as double?,longitude: freezed == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
+as double?,
   ));
 }
 

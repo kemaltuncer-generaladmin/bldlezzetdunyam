@@ -389,5 +389,45 @@
         "type": "String"
       }
     }
+  },
+  "mapPickerTitle": "Teslimat konumu",
+  "@mapPickerTitle": {
+    "description": "Harita ile konum seçme ekranının başlığı"
+  },
+  "mapPickerHint": "Haritayı kaydırarak iğneyi teslimat noktasına getirin.",
+  "@mapPickerHint": {
+    "description": "Harita ekranında ne yapılacağını anlatan yönerge"
+  },
+  "mapPickerConfirm": "Bu konumu kullan",
+  "@mapPickerConfirm": {
+    "description": "Seçilen noktayı onaylayan düğme"
+  },
+  "mapPickerClear": "İğneyi kaldır",
+  "@mapPickerClear": {
+    "description": "Kayıtlı koordinatı silen düğme"
+  },
+  "mapPickerSelect": "Haritadan seç",
+  "@mapPickerSelect": {
+    "description": "Adres formunda harita ekranını açan düğme"
+  },
+  "mapPickerChange": "Konumu değiştir",
+  "@mapPickerChange": {
+    "description": "İğne varken harita ekranını açan düğme"
+  },
+  "mapPickerSelected": "Konum seçildi",
+  "@mapPickerSelected": {
+    "description": "Adres formunda iğnenin var olduğunu belirten etiket"
+  },
+  "mapPickerNotSelected": "Konum seçilmedi",
+  "@mapPickerNotSelected": {
+    "description": "Adres formunda iğnenin olmadığını belirten etiket"
+  },
+  "mapPickerOptional": "İsteğe bağlı — kuryenin doğru kapıyı bulmasına yardım eder.",
+  "@mapPickerOptional": {
+    "description": "Koordinatın zorunlu olmadığını anlatan açıklama"
+  },
+  "mapPickerAttribution": "© OpenStreetMap katkıcıları",
+  "@mapPickerAttribution": {
+    "description": "OpenStreetMap lisansının gerektirdiği kaynak gösterimi"
   }
 }
