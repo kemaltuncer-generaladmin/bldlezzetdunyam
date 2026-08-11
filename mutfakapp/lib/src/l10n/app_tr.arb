@@ -1204,10 +1204,6 @@
   "@salesReasonOther": {
     "description": "Sebep seçeneği."
   },
-  "salesReasonRequired": "Sebep seçilmeli.",
-  "@salesReasonRequired": {
-    "description": "Sebep boş."
-  },
   "salesStopped": "Satış durduruldu.",
   "@salesStopped": {
     "description": "Başarı mesajı."

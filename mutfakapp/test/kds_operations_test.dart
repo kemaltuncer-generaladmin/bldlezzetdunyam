@@ -9,6 +9,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:bld_api_client/bld_api_client.dart';
+import 'package:bld_core/bld_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -594,6 +595,57 @@ void main() {
       expect(queue.all(), hasLength(1));
       expect(queue.all().single.orderId, 5012);
       expect(queue.all().single.type, ReceiptType.mutfak);
+
+      await tearDownTree(tester);
+    });
+
+    testWidgets('KURYE FİŞİ de yeniden bastırılabilir', (tester) async {
+      // Kurye fişi K-14'te üçüncü tip olarak eklendi ve tetikleyici onu
+      // otomatik basıyor; ama kâğıt sıkışırsa personelin elle yeniden
+      // bastıracak bir yolu YOKTU — menüde yalnız mutfak ve müşteri vardı.
+      final queue = PrintQueue.inMemory();
+      addTearDown(queue.close);
+      final service = PrintService(
+        queue: queue,
+        device: NullPrinter(),
+        kitchen: FakeKitchenService(),
+      );
+      addTearDown(service.dispose);
+
+      await pumpKds(
+        tester,
+        settings: settings,
+        orders: [makeOrder(id: 5013)],
+        printService: service,
+      );
+
+      await tester.tap(find.byIcon(Icons.print_outlined));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      await tester.tap(find.text('Kurye fişini yeniden bas'));
+      await tester.pump();
+
+      expect(queue.all().single.type, ReceiptType.kurye);
+
+      await tearDownTree(tester);
+    });
+
+    testWidgets('GEL-AL siparişte kurye fişi ÖNERİLMEZ', (tester) async {
+      // Gel-al siparişin kuryesi yok; boş adresli bir kâğıt basmak
+      // personeli olmayan bir teslimatı aramaya iter.
+      await pumpKds(
+        tester,
+        settings: settings,
+        orders: [makeOrder(id: 5014, deliveryType: DeliveryType.pickup)],
+      );
+
+      await tester.tap(find.byIcon(Icons.print_outlined));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.text('Mutfak fişini yeniden bas'), findsOneWidget);
+      expect(find.text('Kurye fişini yeniden bas'), findsNothing);
 
       await tearDownTree(tester);
     });

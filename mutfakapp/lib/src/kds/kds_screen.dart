@@ -338,6 +338,7 @@ class _Board extends ConsumerWidget {
                         showReprintSheet(
                           context,
                           (type) => _reprint(context, ref, order, type),
+                          reprintableTypes(order),
                         ),
                       )
                     : null,

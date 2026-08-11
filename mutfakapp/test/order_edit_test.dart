@@ -342,6 +342,64 @@ void main() {
       expect(find.textContaining('iade başlatılamadı'), findsOneWidget);
     });
 
+    testWidgets('İADE TUTARI kaydedildi mesajında görünür', (tester) async {
+      // Personel bu değişikliği müşteriyle telefonda konuşarak giriyor;
+      // "ne kadarı iade edildi" sorusunun cevabını kapatmadan önce
+      // görmeli. Kaydetmeden önce gösterilemiyor: fiyatı istemci
+      // bilmiyor (ADR-08), sunucu farkı ancak kayıtla döndürüyor.
+      final api = FakeOrderEditApi()
+        ..result = const RevisionResult(
+          revisionNo: 1,
+          refundKurus: 18000,
+          extraChargeKurus: 0,
+        );
+      await pumpEdit(tester, api);
+
+      await tester.tap(rowButton('Mercimek Çorbası', Icons.remove));
+      await tester.pump();
+      await saveWithReason(tester);
+
+      expect(find.textContaining('180,00 ₺'), findsOneWidget);
+      expect(find.textContaining('iade edilecek'), findsOneWidget);
+    });
+
+    testWidgets('EK TAHSİLAT tutarı kaydedildi mesajında görünür', (
+      tester,
+    ) async {
+      final api = FakeOrderEditApi()
+        ..result = const RevisionResult(
+          revisionNo: 2,
+          refundKurus: 0,
+          extraChargeKurus: 4550,
+        );
+      await pumpEdit(tester, api);
+
+      await tester.tap(rowButton('Mercimek Çorbası', Icons.add));
+      await tester.pump();
+      await saveWithReason(tester);
+
+      expect(find.textContaining('45,50 ₺'), findsOneWidget);
+      expect(find.textContaining('Tahsil edilecek'), findsOneWidget);
+    });
+
+    testWidgets('FARK YOKSA tutar satırı eklenmez', (tester) async {
+      // Adet değişmeden not düzeltilirse para hareketi yok; "0,00 ₺"
+      // yazmak personeli boşuna kasaya yollar.
+      final api = FakeOrderEditApi()
+        ..result = const RevisionResult(
+          revisionNo: 3,
+          refundKurus: 0,
+          extraChargeKurus: 0,
+        );
+      await pumpEdit(tester, api);
+
+      await tester.tap(rowButton('Mercimek Çorbası', Icons.remove));
+      await tester.pump();
+      await saveWithReason(tester);
+
+      expect(find.textContaining('₺'), findsNothing);
+    });
+
     testWidgets('sunucu hatası ekranda kalır ve gerekçesini söyler', (
       tester,
     ) async {

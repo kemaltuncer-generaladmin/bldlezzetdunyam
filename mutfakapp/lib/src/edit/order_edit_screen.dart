@@ -18,6 +18,7 @@ library;
 import 'dart:async';
 
 import 'package:bld_api_client/bld_api_client.dart';
+import 'package:bld_core/bld_core.dart';
 import 'package:bld_core/escpos.dart';
 import 'package:bld_design_system/bld_design_system.dart';
 import 'package:flutter/material.dart';
@@ -276,7 +277,7 @@ class _OrderEditScreenState extends ConsumerState<OrderEditScreen> {
             warning == null ? BldColors.success : BldColors.warning,
           ),
           content: Text(
-            warning ?? l10n.editSaved(result.revisionNo),
+            warning ?? _savedMessage(l10n, result),
             style: const TextStyle(
               fontSize: KdsTextScale.statusBar,
               color: Color(BldColors.neutral900),
@@ -300,6 +301,29 @@ class _OrderEditScreenState extends ConsumerState<OrderEditScreen> {
         ),
       );
     }
+  }
+
+  /// Kaydedildi mesajı — para farkı çıktıysa TUTARIYLA birlikte.
+  ///
+  /// NEDEN TUTAR BURADA GÖSTERİLİYOR, ONAY DİYALOĞUNDA DEĞİL: personel bu
+  /// değişikliği müşteriyle telefonda konuşup anlaşarak giriyor ve
+  /// "ne kadarı iade edildi" sorusunun cevabını kapatmadan önce görmesi
+  /// gerekiyor. Kaydetmeden ÖNCE gösterilemiyor çünkü fiyatı istemci
+  /// bilmiyor (ADR-08); sunucu farkı ancak kayıtla birlikte döndürüyor.
+  ///
+  /// GÖSTERİLEN YALNIZCA FARK, cari bakiye değil — ADR-08 korunuyor.
+  String _savedMessage(AppL10n l10n, RevisionResult result) {
+    final saved = l10n.editSaved(result.revisionNo);
+
+    if (result.refundKurus > 0) {
+      return '$saved — ${l10n.editRefund(Money.format(result.refundKurus))}';
+    }
+    if (result.extraChargeKurus > 0) {
+      return '$saved — '
+          '${l10n.editExtraCharge(Money.format(result.extraChargeKurus))}';
+    }
+
+    return saved;
   }
 
   /// Para farkı kendiliğinden kapanmadıysa personele söylenecek uyarı.

@@ -457,7 +457,8 @@ class _CardActions extends StatelessWidget {
           IconButton.filledTonal(
             tooltip: l10n.reprintTooltip,
             iconSize: 30,
-            onPressed: () => showReprintSheet(context, onReprint),
+            onPressed: () =>
+                showReprintSheet(context, onReprint, reprintableTypes(order)),
             icon: const Icon(Icons.print_outlined),
           )
         else
@@ -468,14 +469,11 @@ class _CardActions extends StatelessWidget {
             padding: const EdgeInsets.all(BldSpacing.md),
             icon: const Icon(Icons.print_outlined),
             itemBuilder: (context) => [
-              PopupMenuItem<ReceiptType>(
-                value: ReceiptType.mutfak,
-                child: Text(l10n.reprintKitchen),
-              ),
-              PopupMenuItem<ReceiptType>(
-                value: ReceiptType.musteri,
-                child: Text(l10n.reprintCustomer),
-              ),
+              for (final type in reprintableTypes(order))
+                PopupMenuItem<ReceiptType>(
+                  value: type,
+                  child: Text(reprintLabel(l10n, type)),
+                ),
             ],
           ),
       ],
@@ -483,10 +481,29 @@ class _CardActions extends StatelessWidget {
   }
 }
 
+/// Bu sipariş için yeniden basılabilecek fiş tipleri.
+///
+/// KURYE FİŞİ YALNIZ `delivery` SİPARİŞTE: gel-al siparişinin kuryesi yok
+/// ve boş adresli bir kâğıt basmak, personeli olmayan bir teslimatı
+/// aramaya iter. Tetikleyici tarafındaki kural da aynı (`print_triggers`).
+List<ReceiptType> reprintableTypes(KitchenOrder order) => [
+  ReceiptType.mutfak,
+  ReceiptType.musteri,
+  if (order.deliveryType == DeliveryType.delivery) ReceiptType.kurye,
+];
+
+/// Fiş tipinin personele gösterilen adı.
+String reprintLabel(AppL10n l10n, ReceiptType type) => switch (type) {
+  ReceiptType.mutfak => l10n.reprintKitchen,
+  ReceiptType.musteri => l10n.reprintCustomer,
+  ReceiptType.kurye => l10n.reprintCourier,
+};
+
 /// Fiş yeniden basma alt sayfası — dokunmatik kipin açılır menü karşılığı.
 Future<void> showReprintSheet(
   BuildContext context,
   void Function(ReceiptType type) onReprint,
+  List<ReceiptType> types,
 ) async {
   final l10n = AppL10n.of(context);
 
@@ -505,7 +522,7 @@ Future<void> showReprintSheet(
               fontWeight: FontWeight.bold,
             ),
           ),
-          for (final type in const [ReceiptType.mutfak, ReceiptType.musteri])
+          for (final type in types)
             ListTile(
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: BldSpacing.lg,
@@ -513,9 +530,7 @@ Future<void> showReprintSheet(
               ),
               leading: const Icon(Icons.print_outlined, size: 30),
               title: Text(
-                type == ReceiptType.mutfak
-                    ? l10n.reprintKitchen
-                    : l10n.reprintCustomer,
+                reprintLabel(l10n, type),
                 style: const TextStyle(fontSize: KdsTextScale.orderNumber),
               ),
               onTap: () => Navigator.of(context).pop(type),

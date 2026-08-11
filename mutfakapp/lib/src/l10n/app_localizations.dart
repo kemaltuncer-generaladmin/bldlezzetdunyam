@@ -1563,12 +1563,6 @@ abstract class AppL10n {
   /// **'Diğer'**
   String get salesReasonOther;
 
-  /// Sebep boş.
-  ///
-  /// In tr, this message translates to:
-  /// **'Sebep seçilmeli.'**
-  String get salesReasonRequired;
-
   /// Başarı mesajı.
   ///
   /// In tr, this message translates to:

@@ -850,9 +850,6 @@ class AppL10nTr extends AppL10n {
   String get salesReasonOther => 'Diğer';
 
   @override
-  String get salesReasonRequired => 'Sebep seçilmeli.';
-
-  @override
   String get salesStopped => 'Satış durduruldu.';
 
   @override
