@@ -156,6 +156,24 @@ return [
         'label_connection_alarm_seconds' => 'Bağlantı uyarısı tekrar aralığı (saniye)',
         'help_connection_alarm_seconds' => 'Sunucuya ulaşılamadığında uyarının kaç saniyede bir tekrarlanacağı. 10 ile 600 arası.',
 
+        // K-09 — ses ve hoparlör. Sahada "ses çalmıyor" en sık bildirilen
+        // arızaydı; seviye, çıkış ve anons artık panelden denenebiliyor.
+        'label_volume_percent' => 'Ses seviyesi (%)',
+        'help_volume_percent' => 'Uygulamanın kendi ses seviyesi. Kasanın hoparlörü kısıksa bu tek başına yetmez; kasadaki Ayarlar > Ses bölümünden hoparlör seviyesi de açılmalı.',
+        'label_audio_sink' => 'Ses çıkışı',
+        'help_audio_sink' => 'PipeWire/PulseAudio çıkış adı ya da düğüm numarası. Boş bırakılırsa sistem varsayılanı kullanılır. Kasadaki Ayarlar ekranı mevcut çıkışları listeler.',
+        'text_default_output' => 'Sistem varsayılanı',
+        'label_alarm_repeat_seconds' => 'Alarm tekrarları arası bekleme (saniye)',
+        'help_alarm_repeat_seconds' => '0 = aralıksız tekrar. Yeni sipariş alarmı sipariş onaylanana kadar çalar.',
+        'label_alarm_max_repeats' => 'En fazla alarm tekrarı',
+        'help_alarm_max_repeats' => '0 = sınırsız. Sınır koymak, kimse gelmediğinde personelin hoparlörün fişini çekmesini önler.',
+        'label_tts_enabled' => 'Sesli anons',
+        'help_tts_enabled' => 'Yeni siparişi Türkçe okur ("12 numaralı yeni sipariş, 4 ürün"). Kasada speech-dispatcher kurulu olmalı.',
+        'label_tts_rate_percent' => 'Anons hızı (%)',
+        'help_tts_rate_percent' => '100 = aracın varsayılan hızı. 50 ile 200 arası.',
+        'label_touch_mode' => 'Dokunmatik kip',
+        'help_touch_mode' => 'Dokunmatik monitörlerde düğmeler büyür, açılır menüler alt sayfaya döner ve klavye gerektiren alanlarda ekran klavyesi açılır.',
+
         'section_thresholds' => 'Gecikme eşikleri',
         'section_thresholds_comment' => 'Sipariş kartı önce sarıya, sonra kırmızıya döner. Geciken eşiği uyarı eşiğinden küçük olamaz; küçük yazarsanız uyarı eşiğine yükseltilir.',
 

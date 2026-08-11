@@ -184,7 +184,12 @@ class EtaSourceConverter implements JsonConverter<EtaSource, String> {
 /// İki tip vardır. Teslim fişi, öğrenci kanalıyla birlikte iptal edilmiştir.
 enum ReceiptType {
   mutfak('mutfak'),
-  musteri('musteri');
+  musteri('musteri'),
+
+  /// Kurye fişi (K-14): ad + telefon + adres + tahsil edilecek tutar.
+  ///
+  /// Yalnız `delivery` siparişte basılır — gel-al'da kurye yok.
+  kurye('kurye');
 
   const ReceiptType(this.wireName);
 

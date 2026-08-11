@@ -1,0 +1,51 @@
+# receipt_bbd_pickup — beklenen ESC/POS baytları (416 bayt)
+# Üreten: packages/core/test/escpos_golden_test.dart
+# Yenileme: BLD_UPDATE_GOLDEN=1 dart test
+#
+# Okunabilir karşılığı (kontrol baytları noktayla gösterilir):
+#   BBD STORE
+#   KİTAP SİPARİŞİ
+#   Sipariş: BBD-124
+#   04.08.2026 14:32
+#   ------------------------------------------------
+#   1x
+#   Kürk Mantolu Madonna
+#   
+#   ------------------------------------------------
+#   Mehmet Demir
+#   MAĞAZADAN TESLİM
+#   ------------------------------------------------
+#   ------------------------------------------------
+#   BBD Store siparişi - BLD panosunda görünmez.
+#   
+#   
+#   
+#   
+#   
+
+1B 40 1B 74 1D 1B 61 01 1D 21 11 1B 45 01 42 42
+44 20 53 54 4F 52 45 0A 1D 21 00 4B 98 54 41 50
+20 53 98 50 41 52 98 9E 98 0A 1B 45 00 53 69 70
+61 72 69 9F 3A 20 42 42 44 2D 31 32 34 0A 30 34
+2E 30 38 2E 32 30 32 36 20 31 34 3A 33 32 0A 1B
+61 00 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 0A 1D 21 11 1B 45 01 31 78 0A 1D 21 00 4B
+81 72 6B 20 4D 61 6E 74 6F 6C 75 20 4D 61 64 6F
+6E 6E 61 0A 1B 45 00 0A 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 0A 1B 45 01 4D 65 68 6D
+65 74 20 44 65 6D 69 72 0A 1B 45 00 1B 61 01 1B
+45 01 4D 41 A6 41 5A 41 44 41 4E 20 54 45 53 4C
+98 4D 0A 1B 45 00 1B 61 00 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 0A 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 0A 42 42 44 20 53
+74 6F 72 65 20 73 69 70 61 72 69 9F 69 20 2D 20
+42 4C 44 20 70 61 6E 6F 73 75 6E 64 61 20 67 94
+72 81 6E 6D 65 7A 2E 0A 0A 0A 0A 0A 1D 56 42 00

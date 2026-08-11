@@ -33,6 +33,9 @@ class OrderCard extends StatefulWidget {
     required this.onAdvance,
     required this.onToggleItem,
     required this.onReprint,
+    this.touchMode = false,
+    this.onDetails,
+    this.onEdit,
     super.key,
   });
 
@@ -66,6 +69,21 @@ class OrderCard extends StatefulWidget {
   /// Fişi elle yeniden bastırır. Kâğıt sıkıştığında personelin ayarlar
   /// ekranına gitmesi gerekmesin diye kartın üzerindedir.
   final void Function(ReceiptType type) onReprint;
+
+  /// Dokunmatik kip: kaydırma jestleri ve açılır menü yerine alt sayfa.
+  final bool touchMode;
+
+  /// Uzun basma / sola kaydırma — kartın işlem sayfası.
+  ///
+  /// `null` ise jest hiç bağlanmaz: bağlanıp hiçbir şey yapmayan bir jest,
+  /// personeli "dokundum ama olmadı" döngüsüne sokar.
+  final VoidCallback? onDetails;
+
+  /// Sipariş düzenleme ekranını açar (K-14).
+  ///
+  /// Terminal durumdaki siparişte `null` gelir ve düğme çizilmez —
+  /// sunucu zaten reddediyor, çizilen düğme yalnız hayal kırıklığı.
+  final VoidCallback? onEdit;
 
   @override
   State<OrderCard> createState() => _OrderCardState();
@@ -130,7 +148,7 @@ class _OrderCardState extends State<OrderCard>
         ? const Color(KdsColors.surfaceRaised)
         : accent;
 
-    return AnimatedBuilder(
+    final card = AnimatedBuilder(
       animation: _blink,
       builder: (context, child) => DecoratedBox(
         decoration: BoxDecoration(
@@ -176,6 +194,10 @@ class _OrderCardState extends State<OrderCard>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _CardHeader(order: order, age: widget.age),
+                    if (order.revisionNo > 0) ...[
+                      const SizedBox(height: BldSpacing.xs),
+                      _RevisionBadge(revisionNo: order.revisionNo),
+                    ],
                     const SizedBox(height: BldSpacing.xs),
                     _PrepBar(
                       order: order,
@@ -186,14 +208,50 @@ class _OrderCardState extends State<OrderCard>
                       const SizedBox(height: BldSpacing.xs),
                       _RequestedAt(order: order, age: widget.age),
                     ],
-                    if (order.customerLabel != null) ...[
+                    if (order.customerName != null ||
+                        order.customerLabel != null) ...[
                       const SizedBox(height: BldSpacing.xs),
                       Text(
-                        order.customerLabel!,
+                        // Tam ad varsa o gösterilir: personel müşteriyi
+                        // arayacaksa "Ayşe Y." yerine tam adı bilmeli.
+                        order.customerName ?? order.customerLabel!,
                         style: const TextStyle(
                           fontSize: KdsTextScale.statusBar,
                           color: Color(KdsColors.onSurfaceMuted),
                         ),
+                      ),
+                    ],
+                    // ── TELEFON (K-14) ──────────────────────────────────
+                    //
+                    // `docs/03` §5 eskiden "mutfak listesinde telefon
+                    // GÖRÜNMEZ" diyordu ve sipariş düzenleme gelene kadar
+                    // doğruydu. Artık personel müşteriyi ARAYIP anlaşmak
+                    // zorunda; numara için fiş basmak saçma.
+                    //
+                    // SEÇİLEBİLİR METİN: kasada telefon uygulaması yok,
+                    // personel numarayı cep telefonuna yazıyor. Seçip
+                    // kopyalayabilmesi tek kolaylık.
+                    if (order.customerPhone != null) ...[
+                      const SizedBox(height: BldSpacing.xs),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.phone_outlined,
+                            size: 20,
+                            color: Color(KdsColors.onSurfaceMuted),
+                          ),
+                          const SizedBox(width: BldSpacing.xs),
+                          Expanded(
+                            child: SelectableText(
+                              order.customerPhone!,
+                              maxLines: 1,
+                              style: const TextStyle(
+                                fontSize: KdsTextScale.orderNumber,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                     const Padding(
@@ -230,11 +288,13 @@ class _OrderCardState extends State<OrderCard>
                     ],
                     const SizedBox(height: BldSpacing.md),
                     _CardActions(
+                      touchMode: widget.touchMode,
                       order: order,
                       accent: accent,
                       busy: widget.busy,
                       onAdvance: widget.onAdvance,
                       onReprint: widget.onReprint,
+                      onEdit: widget.onEdit,
                     ),
                   ],
                 ),
@@ -244,11 +304,80 @@ class _OrderCardState extends State<OrderCard>
         ),
       ),
     );
+
+    if (!widget.touchMode) return card;
+
+    // ── Dokunmatik jestler (K-10) ────────────────────────────────────────
+    //
+    // YALNIZCA dokunmatik kipte bağlanıyor: fareyle kullanılan kasada
+    // yatay sürükleme, listeyi kaydırmaya çalışan kullanıcıyı yanlışlıkla
+    // siparişi ilerletmeye götürebilir.
+    //
+    // Sağa kaydır = ilerlet (okuma yönünde "ileri"), sola kaydır ve uzun
+    // bas = işlem sayfası. Eşik `_swipeThreshold`: kısa tutulursa liste
+    // kaydırırken tetikleniyor, uzun tutulursa jest hiç çalışmıyor hissi
+    // veriyor.
+    return GestureDetector(
+      behavior: HitTestBehavior.deferToChild,
+      onLongPress: widget.onDetails,
+      onHorizontalDragEnd: (details) {
+        final velocity = details.primaryVelocity ?? 0;
+        if (velocity.abs() < _swipeVelocityThreshold) return;
+
+        if (velocity > 0) {
+          if (!widget.busy && order.nextStatus != null) widget.onAdvance();
+        } else {
+          widget.onDetails?.call();
+        }
+      },
+      child: card,
+    );
   }
+}
+
+/// Sipariş düzenlendi rozeti (K-12).
+///
+/// NEDEN GÖRÜNÜR OLMAK ZORUNDA: revize edilmiş bir siparişin kâğıdı
+/// mutfakta iki kez basılıyor (eski + revize). Kart üzerinde işaret
+/// yoksa personel hangi kâğıdın geçerli olduğunu bilemez.
+class _RevisionBadge extends StatelessWidget {
+  const _RevisionBadge({required this.revisionNo});
+
+  final int revisionNo;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.centerLeft,
+    child: Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: BldSpacing.sm,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(BldColors.warning),
+        borderRadius: BorderRadius.circular(BldRadius.sm),
+      ),
+      child: Text(
+        AppL10n.of(context).orderRevised(revisionNo),
+        style: const TextStyle(
+          fontSize: KdsTextScale.statusBar,
+          fontWeight: FontWeight.bold,
+          color: Color(BldColors.neutral900),
+        ),
+      ),
+    ),
+  );
 }
 
 /// Sol aciliyet şeridinin genişliği. Bir metreden görünmesi gerekir.
 const double _accentStripeWidth = 12;
+
+/// Kaydırma jestinin tetikleme hızı (px/sn).
+///
+/// Sahada ölçülmedi, Material'ın `kMinFlingVelocity` (50) değerinin
+/// katı olarak seçildi: liste kaydırırken oluşan yanlışlıkla yatay
+/// bileşen bu hıza ulaşmıyor, kasıtlı bir kaydırma rahatça aşıyor.
+const double _swipeVelocityThreshold = 300;
 
 /// Karttaki eylem satırı: tek ileri adım + fiş yeniden basma.
 ///
@@ -261,6 +390,8 @@ class _CardActions extends StatelessWidget {
     required this.busy,
     required this.onAdvance,
     required this.onReprint,
+    this.touchMode = false,
+    this.onEdit,
   });
 
   final KitchenOrder order;
@@ -268,6 +399,8 @@ class _CardActions extends StatelessWidget {
   final bool busy;
   final VoidCallback onAdvance;
   final void Function(ReceiptType type) onReprint;
+  final bool touchMode;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -301,27 +434,99 @@ class _CardActions extends StatelessWidget {
           )
         else
           const Spacer(),
+        // DÜZENLE — mutfak müşteriyle konuşup adedi değiştiriyor (K-14).
+        //
+        // İlerlet düğmesinin YANINDA ama ondan küçük: düzenleme nadir,
+        // ilerletme her siparişte. Aynı boyutta olsalardı acele eden
+        // personel yanlışına basardı.
+        if (onEdit != null) ...[
+          const SizedBox(width: BldSpacing.sm),
+          IconButton.filledTonal(
+            tooltip: l10n.editAction,
+            iconSize: touchMode ? 30 : 26,
+            onPressed: busy ? null : onEdit,
+            icon: const Icon(Icons.edit_outlined),
+          ),
+        ],
         const SizedBox(width: BldSpacing.sm),
-        PopupMenuButton<ReceiptType>(
-          onSelected: onReprint,
-          tooltip: l10n.reprintTooltip,
-          iconSize: 28,
-          padding: const EdgeInsets.all(BldSpacing.md),
-          icon: const Icon(Icons.print_outlined),
-          itemBuilder: (context) => [
-            PopupMenuItem<ReceiptType>(
-              value: ReceiptType.mutfak,
-              child: Text(l10n.reprintKitchen),
-            ),
-            PopupMenuItem<ReceiptType>(
-              value: ReceiptType.musteri,
-              child: Text(l10n.reprintCustomer),
-            ),
-          ],
-        ),
+        // DOKUNMATİKTE AÇILIR MENÜ YOK. `PopupMenuButton` küçük satırlar
+        // çiziyor ve menü parmağın altında kalıyor: personel neye
+        // bastığını göremiyor. Alt sayfa tam genişlik, büyük satır ve
+        // parmağın üstünde açılıyor.
+        if (touchMode)
+          IconButton.filledTonal(
+            tooltip: l10n.reprintTooltip,
+            iconSize: 30,
+            onPressed: () => showReprintSheet(context, onReprint),
+            icon: const Icon(Icons.print_outlined),
+          )
+        else
+          PopupMenuButton<ReceiptType>(
+            onSelected: onReprint,
+            tooltip: l10n.reprintTooltip,
+            iconSize: 28,
+            padding: const EdgeInsets.all(BldSpacing.md),
+            icon: const Icon(Icons.print_outlined),
+            itemBuilder: (context) => [
+              PopupMenuItem<ReceiptType>(
+                value: ReceiptType.mutfak,
+                child: Text(l10n.reprintKitchen),
+              ),
+              PopupMenuItem<ReceiptType>(
+                value: ReceiptType.musteri,
+                child: Text(l10n.reprintCustomer),
+              ),
+            ],
+          ),
       ],
     );
   }
+}
+
+/// Fiş yeniden basma alt sayfası — dokunmatik kipin açılır menü karşılığı.
+Future<void> showReprintSheet(
+  BuildContext context,
+  void Function(ReceiptType type) onReprint,
+) async {
+  final l10n = AppL10n.of(context);
+
+  final selected = await showModalBottomSheet<ReceiptType>(
+    context: context,
+    backgroundColor: const Color(KdsColors.surface),
+    builder: (context) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: BldSpacing.sm),
+          Text(
+            l10n.reprintTooltip,
+            style: const TextStyle(
+              fontSize: KdsTextScale.columnHeader,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          for (final type in const [ReceiptType.mutfak, ReceiptType.musteri])
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: BldSpacing.lg,
+                vertical: BldSpacing.sm,
+              ),
+              leading: const Icon(Icons.print_outlined, size: 30),
+              title: Text(
+                type == ReceiptType.mutfak
+                    ? l10n.reprintKitchen
+                    : l10n.reprintCustomer,
+                style: const TextStyle(fontSize: KdsTextScale.orderNumber),
+              ),
+              onTap: () => Navigator.of(context).pop(type),
+            ),
+          const SizedBox(height: BldSpacing.md),
+        ],
+      ),
+    ),
+  );
+
+  if (selected != null) onReprint(selected);
 }
 
 class _CardHeader extends StatelessWidget {

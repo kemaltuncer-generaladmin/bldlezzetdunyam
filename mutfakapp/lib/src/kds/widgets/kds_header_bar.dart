@@ -5,11 +5,14 @@
 /// bakan şefin ilk göreceği şey geciken sipariş sayısı olmalıdır.
 library;
 
+import 'dart:async';
+
 import 'package:bld_design_system/bld_design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
+import '../../input/onscreen_keyboard.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/kds_theme.dart';
 
@@ -267,10 +270,19 @@ class _SearchFieldState extends ConsumerState<_SearchField> {
       );
     }
 
+    final touchMode = ref.watch(
+      kdsSettingsProvider.select((settings) => settings.touchMode),
+    );
+
     return TextField(
       controller: _controller,
       // Odak düğümü sağlayıcıda: `F2` kısayolu buraya atlar (`kds_screen.dart`).
       focusNode: ref.watch(searchFocusProvider),
+      // DOKUNMATİKTE ALAN SALT OKUNUR, dokunuş klavyeli bir pencere açar.
+      // Alanı doğrudan yazılabilir bırakmak, harici klavye yokken personeli
+      // yanıp sönen bir imlece bakarken bırakıyordu.
+      readOnly: touchMode,
+      onTap: touchMode ? () => unawaited(_openTouchSearch(context)) : null,
       onChanged: ref.read(searchQueryProvider.notifier).set,
       style: const TextStyle(fontSize: KdsTextScale.orderNumber),
       decoration: InputDecoration(
@@ -293,5 +305,65 @@ class _SearchFieldState extends ConsumerState<_SearchField> {
         ),
       ),
     );
+  }
+
+  /// Dokunmatik arama penceresi: büyük alan + ekran klavyesi.
+  ///
+  /// Pencere içinde canlı arıyoruz (her tuşta `set`): personel yazarken
+  /// arkadaki panonun daraldığını görmeli, "Tamam"a basıp sonucu
+  /// beklememelidir.
+  Future<void> _openTouchSearch(BuildContext context) async {
+    final l10n = AppL10n.of(context);
+    final notifier = ref.read(searchQueryProvider.notifier);
+    final controller = TextEditingController(text: ref.read(searchQueryProvider));
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(KdsColors.surface),
+        title: Text(l10n.searchLabel),
+        content: SizedBox(
+          width: 900,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                autofocus: true,
+                onChanged: notifier.set,
+                style: const TextStyle(fontSize: KdsTextScale.columnHeader),
+                decoration: InputDecoration(
+                  hintText: l10n.searchHint,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: BldSpacing.md),
+              OnscreenKeyboard(
+                controller: controller,
+                onSubmit: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              notifier.clear();
+              Navigator.of(context).pop();
+            },
+            child: Text(l10n.searchClear),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 56)),
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.close),
+          ),
+        ],
+      ),
+    );
+
+    // Pencere içindeki denetleyici yalnızca oraya ait; sorgu zaten
+    // sağlayıcıda ve alan onu yansıtıyor.
+    controller.dispose();
   }
 }

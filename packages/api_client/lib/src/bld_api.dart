@@ -397,6 +397,14 @@ class _KitchenService implements KitchenService {
   );
 
   @override
+  Future<CourierReceipt> courierReceipt(int orderId) => _api._send(
+    'GET',
+    '/kitchen/orders/$orderId/receipt',
+    query: {'type': ReceiptType.kurye.wireName},
+    parse: (data) => CourierReceipt.fromJson(BldApi._asMap(data)),
+  );
+
+  @override
   Future<void> ackPrint(int orderId, PrintAckRequest request) =>
       _api._send<void>(
         'POST',

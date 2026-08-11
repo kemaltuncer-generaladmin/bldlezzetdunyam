@@ -33,6 +33,7 @@ use Veykemtu\BridgeApi\Exceptions\ApiExceptionRenderer;
 use Veykemtu\BridgeApi\Http\Middleware\AuthenticateToken;
 use Veykemtu\BridgeApi\Http\Middleware\RequireAppHeaders;
 use Veykemtu\BridgeApi\Http\Middleware\RequireScope;
+use Veykemtu\BridgeApi\Http\Middleware\VerifyBbdSignature;
 use Veykemtu\BridgeApi\Models\SiteContent;
 use Veykemtu\BridgeApi\Models\SitePost;
 use Veykemtu\BridgeApi\Models\SiteService;
@@ -201,6 +202,8 @@ class Extension extends BaseExtension
         $router->aliasMiddleware('bld.headers', RequireAppHeaders::class);
         $router->aliasMiddleware('bld.auth', AuthenticateToken::class);
         $router->aliasMiddleware('bld.scope', RequireScope::class);
+        // BBD Store köprüsü (K-16) — HMAC imzası, token değil.
+        $router->aliasMiddleware('bbd.signature', VerifyBbdSignature::class);
     }
 
     /**
@@ -217,7 +220,35 @@ class Extension extends BaseExtension
         RateLimiter::for('bld-order', static fn(Request $request): Limit => Limit::perHour(20)
             ->by((string) ($request->user()?->getKey() ?? $request->ip())));
 
-        RateLimiter::for('bld-kitchen', static fn(Request $request): Limit => Limit::perHour(1200)
+        /*
+         * MUTFAK SINIRI — bütçe hesaplı (12.08.2026'da yeniden ölçüldü).
+         *
+         * Sınır 600'den 1200'e, oradan 2000'e çıktı. Her seferinde
+         * kasanın gerçekte attığı istek sayısı sayıldı; "biraz daha
+         * yükseltelim" diye değil.
+         *
+         * Kasa başına saatlik istek bütçesi:
+         *
+         *   sipariş yoklaması   5 sn  → 720   (docs/05 §4)
+         *   BBD kuyruğu        20 sn  → 180   (K-16)
+         *   heartbeat          60 sn  →  60
+         *   sağlık bildirimi   60 sn  →  60
+         *   satış şalteri      60 sn  →  60   (K-11, yavaş saat)
+         *   abonelik listesi   60 sn  →  60   (yavaş saat)
+         *                              ────
+         *   sürekli toplam              1140
+         *
+         * Kalan ~860 kullanıcı kaynaklı ve patlamalı: F5 tam yenileme,
+         * fiş yeniden basma, düzenleme ekranı (editable + menu +
+         * revisions), satış kontrolü ekranı, abonelik planı sekmeleri.
+         * Yoğun bir vardiyada bunlar yüzlerce isteğe çıkabiliyor.
+         *
+         * SINIR NEDEN BU KADAR ÖNEMLİ: aşıldığında kasa `429` alıyor ve
+         * mutfak SİPARİŞ GÖRMÜYOR. Sessiz değil (bağlantı uyarısı çalar)
+         * ama sebebi anlaşılmaz — ağ sağlam, sunucu ayakta, yalnız
+         * sayaç dolmuş.
+         */
+        RateLimiter::for('bld-kitchen', static fn(Request $request): Limit => Limit::perHour(2000)
             ->by((string) ($request->user()?->getKey() ?? $request->ip())));
 
         /*
@@ -233,6 +264,21 @@ class Extension extends BaseExtension
          * anlamsız kılar. Sınır IP başına: talebi gönderende hesap yok.
          */
         RateLimiter::for('bld-quote', static fn(Request $request): Limit => Limit::perHour(10)
+            ->by($request->ip() ?? 'bilinmeyen'));
+
+        /*
+         * BBD Store köprüsü (K-16).
+         *
+         * 300/saat: BBD'nin sipariş hacmi mutfağınkinden küçük ve tek
+         * kaynaktan geliyor. Sınır, hatalı bir döngünün mutfağın
+         * yazıcısını kâğıt bitene kadar çalıştırmasını engelliyor —
+         * imzalı bir uçta asıl risk saldırı değil, karşı taraftaki bir
+         * hata.
+         *
+         * Sınır IP başına: BBD tek sunucudan geliyor ve ayrı bir kimlik
+         * anahtarı yok (kimliği imza taşıyor, istek gövdesi değil).
+         */
+        RateLimiter::for('bld-partner', static fn(Request $request): Limit => Limit::perHour(300)
             ->by($request->ip() ?? 'bilinmeyen'));
     }
 

@@ -151,6 +151,50 @@ X-01 ─► X-05 ─┬─► X-02 ─► X-03 ─► X-04 ─┬─► K/W/M ha
 
 **Donanım riski, Gün 1'de kapatılır:** Termal yazıcı `K-03`'ten **önce** fiziksel olarak doğrulanır — `lsusb` ile VID/PID alınır, ham bayt testi (`echo -e "Test\n\n\n\x1D\x56\x42\x00" > /dev/usb/lp0`) yapılır. Fiş çıkmazsa hat durur ve bildirilir; bu projenin en büyük tek donanım riskidir.
 
+## 8.5 Mutfak turu — K-09 … K-16 (11.08.2026)
+
+`yapılacaklar.md` içindeki MutfakApp maddelerinin görev karşılıkları.
+K-01…K-08 Faz 1'de kapandı; bu blok mutfak uygulamasının ikinci turu.
+
+| ID | İş | Durum |
+|---|---|---|
+| `K-09` | Ses altyapısı: `pw-play` argüman hatası, seviye, çıkış cihazı, olay bazlı sesler, TTS, tanılama | **Bitti** |
+| `K-10` | Dokunmatik uyum: hedef boyutları, Türkçe ekran klavyesi, kaydırma jestleri, geri alma penceresi | **Bitti** |
+| `K-11` | Satış kontrolü: süreli+sebepli sipariş durdurma (şifre korumalı) + ürün bazında "bugün tükendi" | **Bitti** |
+| `K-12` | Sipariş düzenleme motoru: `LineResolver` ayrıştırması, `OrderEditor`, revizyon tablosu, cari düzeltme | **Bitti** |
+| `K-13` | İade katmanı: sağlayıcı-bağımsız `RefundGateway` + `RefundManager` + iade kayıtları | **Bitti** |
+| `K-14` | Kurye fişi (3. tip), panoda telefon, revize rozeti, revizyonlu fiş tetikleri, **KDS düzenleme ekranı** | **Bitti** |
+| `K-15` | Abonelik üretim planı ekranı + üretim planı fişi | **Bitti** |
+| `K-16` | BBD Store köprüsü: imzalı webhook → ayrı ses + termal fiş | **Bitti** |
+
+### Bağımlılıklar
+
+```
+K-09 ──┐
+K-10 ──┼── bağımsız, paralel gidebilir
+K-11 ──┘
+K-12 → K-13 → K-14
+K-15, K-16 bağımsız
+```
+
+### Mutfak turu KAPANDI (12.08.2026)
+
+`yapılacaklar.md` içindeki yedi MutfakApp maddesinin tamamı karşılandı.
+Kapsam dışında bırakılan tek şey **cari hesabın KDS'te gösterilmesi**;
+bu bilinçli bir karar (ADR-08 korunuyor) ve düzenleme onayında yalnız
+iade/fark tutarı görünüyor.
+
+**Sunucuda koşturulacak göçler (5 adet):**
+
+```bash
+cd platform
+php artisan igniter:up
+vendor/bin/phpunit --testsuite Veykemtu
+```
+
+**Yeni `.env` girdileri:** `BBD_WEBHOOK_SECRET` (boşsa BBD ucu kapalı),
+`BLD_REFUND_DRIVER`.
+
 ## 9. Kapsam kesme sırası (takvim sıkışırsa)
 
 Sırayla feda edilir:

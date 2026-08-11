@@ -36,6 +36,7 @@ class OrderFactory
         private readonly LocationGate $gate,
         private readonly OrderStatusTransition $transitions,
         private readonly AccountLedger $ledger,
+        private readonly LineResolver $lines,
     ) {}
 
     /**
@@ -54,7 +55,7 @@ class OrderFactory
         $this->gate->assertAcceptsOrder($location, $requestedAt);
         $this->gate->assertPaymentMethodAllowed($location, $paymentMethod);
 
-        $lines = $this->resolveLines($items);
+        $lines = $this->lines->resolve($items);
         $subtotal = array_sum(array_column($lines, 'line_total'));
 
         $this->gate->assertMeetsMinimum($location, $subtotal);
@@ -98,8 +99,8 @@ class OrderFactory
             )->status_id;
             $order->save();
 
-            $this->storeLines($order, $lines);
-            $this->storeTotals($order, $subtotal, $deliveryFee);
+            $this->lines->writeLines($order, $lines);
+            $this->lines->rewriteTotals($order, $subtotal, $deliveryFee);
 
             // Durum geçmişinin ilk satırı burada doğar; çekirdeğin metodu
             // status_history'yi ve bildirimleri yönetir.
@@ -193,8 +194,8 @@ class OrderFactory
             )->status_id;
             $order->save();
 
-            $this->storeLines($order, $lines);
-            $this->storeTotals($order, $subtotal, 0);
+            $this->lines->writeLines($order, $lines);
+            $this->lines->rewriteTotals($order, $subtotal, 0);
             $order->updateOrderStatus($order->status_id, ['notify' => false]);
 
             if ($paymentMethod === 'account') {
@@ -254,6 +255,13 @@ class OrderFactory
         // sabit menü porsiyonunun bileşeni, ayrı ücretlendirilmez.
         $portions = max(1, $subscription->quantityForDate($serviceDate));
 
+        // ABONELİK, `LineResolver::resolve()` KULLANMAZ ve bu bilinçlidir:
+        //   * fiyat anlaşmalı (`agreed_unit_price_kurus`), menü fiyatı değil;
+        //   * "satışta değil" ve "bugün tükendi" (K-11) kontrolleri
+        //     UYGULANMAZ — abonelik bir sözleşmedir, günlük stok kararı onu
+        //     iptal edemez. Bir günü atlamak için
+        //     `veykemtu_subscription_exceptions` kaydı girilir; o ayrı ve
+        //     bilinçli bir karardır.
         $lines = [];
         foreach ($subLines as $subLine) {
             $quantity = $portions * max(1, (int) $subLine->quantity);
@@ -315,190 +323,4 @@ class OrderFactory
         return (int) $model->address_id;
     }
 
-    /**
-     * Kalemleri menüye karşı doğrular ve fiyatlandırır.
-     *
-     * @param  array<int, array<string, mixed>>  $items
-     * @return list<array{menu:Menu, quantity:int, unit_price:int, line_total:int, options:list<array<string,mixed>>, note:string|null}>
-     */
-    private function resolveLines(array $items): array
-    {
-        $lines = [];
-
-        foreach ($items as $item) {
-            $menuId = (int) ($item['menu_id'] ?? 0);
-            $quantity = (int) ($item['quantity'] ?? 0);
-
-            $menu = Menu::with('menu_options.menu_option_values.option_value')
-                ->where('menu_id', $menuId)
-                ->first();
-
-            if ($menu === null) {
-                throw ApiException::itemUnavailable('Ürün menüde bulunamadı.', $menuId);
-            }
-
-            if ((bool) $menu->menu_status !== true) {
-                throw ApiException::itemUnavailable(
-                    "{$menu->menu_name} şu anda satışta değil.",
-                    $menuId,
-                );
-            }
-
-            if ($quantity < 1) {
-                throw ApiException::validationFailed('Adet en az 1 olmalı.', [
-                    'menu_id' => $menuId,
-                ]);
-            }
-
-            $selected = array_map(intval(...), $item['option_value_ids'] ?? []);
-            $options = $this->resolveOptions($menu, $selected);
-
-            $unitPrice = Money::toKurus($menu->menu_price)
-                + array_sum(array_column($options, 'price_delta'));
-
-            $lines[] = [
-                'menu' => $menu,
-                'quantity' => $quantity,
-                'unit_price' => $unitPrice,
-                'line_total' => $unitPrice * $quantity,
-                'options' => $options,
-                'note' => isset($item['note']) ? (string) $item['note'] : null,
-            ];
-        }
-
-        return $lines;
-    }
-
-    /**
-     * Seçilen seçenek değerlerini doğrular.
-     *
-     * Bilinmeyen bir değer kimliği sessizce yok sayılmaz: istemci ile sunucu
-     * menüsü ayrışmış demektir ve tutar da ayrışır. Kullanıcı "sepette 410 TL
-     * yazıyordu" derken haklı olur.
-     *
-     * @param  list<int>  $selected
-     * @return list<array{id:int, name:string, price_delta:int}>
-     */
-    private function resolveOptions(Menu $menu, array $selected): array
-    {
-        if ($selected === []) {
-            return [];
-        }
-
-        $available = [];
-        foreach ($menu->menu_options as $menuOption) {
-            foreach ($menuOption->menu_option_values as $value) {
-                $available[(int) $value->menu_option_value_id] = [
-                    'id' => (int) $value->menu_option_value_id,
-                    'name' => (string) ($value->option_value->value ?? ''),
-                    'price_delta' => Money::toKurus($value->price ?? 0),
-                    'menu_option_id' => (int) $menuOption->menu_option_id,
-                ];
-            }
-        }
-
-        $resolved = [];
-        foreach ($selected as $valueId) {
-            if (!isset($available[$valueId])) {
-                throw ApiException::validationFailed(
-                    'Seçilen ürün seçeneği geçersiz. Menüyü yenileyip tekrar deneyin.',
-                    ['option_value_id' => $valueId, 'menu_id' => (int) $menu->menu_id],
-                );
-            }
-            $resolved[] = $available[$valueId];
-        }
-
-        return $resolved;
-    }
-
-    /** @param list<array<string, mixed>> $lines */
-    private function storeLines(Order $order, array $lines): void
-    {
-        foreach ($lines as $line) {
-            /** @var Menu $menu */
-            $menu = $line['menu'];
-
-            $orderMenuId = DB::table('order_menus')->insertGetId([
-                'order_id' => $order->order_id,
-                'menu_id' => $menu->menu_id,
-                'name' => $menu->menu_name,
-                'quantity' => $line['quantity'],
-                'price' => Money::toDecimal($line['unit_price']),
-                'subtotal' => Money::toDecimal($line['line_total']),
-                'option_values' => serialize(array_column($line['options'], 'name')),
-                'comment' => $line['note'],
-            ]);
-
-            foreach ($line['options'] as $option) {
-                DB::table('order_menu_options')->insert([
-                    'order_id' => $order->order_id,
-                    'order_menu_id' => $orderMenuId,
-                    'menu_option_id' => $option['menu_option_id'],
-                    'menu_option_value_id' => $option['id'],
-                    'order_option_name' => $option['name'],
-                    'order_option_price' => Money::toDecimal($option['price_delta']),
-                    'quantity' => $line['quantity'],
-                ]);
-            }
-        }
-    }
-
-    private function storeTotals(Order $order, int $subtotal, int $deliveryFee): void
-    {
-        $rows = [
-            ['code' => 'subtotal', 'title' => 'Ara Toplam', 'value' => $subtotal, 'priority' => 0, 'summable' => false],
-        ];
-
-        if ($deliveryFee > 0) {
-            $rows[] = ['code' => 'delivery', 'title' => 'Teslimat', 'value' => $deliveryFee, 'priority' => 100, 'summable' => true];
-        }
-
-        $rows[] = ['code' => 'order_total', 'title' => 'Toplam', 'value' => $subtotal + $deliveryFee, 'priority' => 999, 'summable' => false];
-
-        foreach ($rows as $row) {
-            DB::table('order_totals')->insert([
-                'order_id' => $order->order_id,
-                'code' => $row['code'],
-                'title' => $row['title'],
-                'value' => Money::toDecimal($row['value']),
-                'priority' => $row['priority'],
-                'is_summable' => $row['summable'],
-            ]);
-        }
-    }
-
-
-    /** @param array<string, mixed>|null $address */
-    private function storeAddress(ApiCustomer $customer, ?array $address): int
-    {
-        if ($address === null || blank($address['line1'] ?? null)) {
-            throw ApiException::validationFailed('Teslimat adresi zorunludur.', [
-                'address' => 'Adrese gönderim için adres girilmeli.',
-            ]);
-        }
-
-        $model = new Address;
-        $model->customer_id = $customer->customer_id;
-        $model->address_1 = (string) $address['line1'];
-        $model->address_2 = $address['note'] ?? null;
-        $model->city = (string) ($address['city'] ?? '');
-        $model->state = (string) ($address['district'] ?? '');
-
-        // Koordinat siparişin ANLIK GÖRÜNTÜSÜNE yazılıyor, adres defterine
-        // bakılarak değil. Müşteri sipariş verdikten sonra kayıtlı adresinin
-        // iğnesini taşırsa, mutfaktaki fiş ve kuryenin gideceği nokta
-        // değişmemeli; sipariş verildiği andaki yer neredeyse orası kalır.
-        //
-        // Çift olarak yazılıyor: yarısı dolu bir kayıt haritada gösterilemez.
-        $lat = $address['latitude'] ?? null;
-        $lng = $address['longitude'] ?? null;
-        if ($lat !== null && $lng !== null) {
-            $model->bld_latitude = $lat;
-            $model->bld_longitude = $lng;
-        }
-
-        $model->save();
-
-        return (int) $model->address_id;
-    }
 }

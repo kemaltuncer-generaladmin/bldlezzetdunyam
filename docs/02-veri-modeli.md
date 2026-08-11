@@ -112,12 +112,56 @@ KDS kendi kuyruğunu diskte tutar; bu tablo yalnızca **denetim** içindir (hang
 - İstemci sadece hedef durumu ister; sunucu izin verir veya reddeder.
 - `yolda` yalnızca `delivery_type=delivery` siparişlerde kullanılır; `pickup` siparişte `hazir → yolda` isteği `422 INVALID_TRANSITION` döner.
 
-**Yazdırma tetikleri:**
+**Yazdırma tetikleri** (güncel — `docs/05-mutfakapp.md` §5.5 ve §14):
 
-| Durum geçişi | Basılan fiş |
-|---|---|
-| → `yeni` (oluşma anı) | Mutfak fişi |
-| → `hazir` | Müşteri fişi |
+| Durum | Basılan fiş | Koşul |
+|---|---|---|
+| `onaylandi` ya da ötesi | Mutfak fişi | — |
+| `hazir` ya da ötesi | Müşteri fişi | — |
+| `hazir` ya da ötesi | **Kurye fişi** | yalnız `delivery_type = delivery` |
+| revizyon numarası arttı | Mutfak + kurye fişi **yeniden** | — |
+
+> **DÜZELTME (11.08.2026).** Bu tablo "→ `yeni` (oluşma anı) → mutfak
+> fişi" diyordu ve **05.08.2026'dan beri yanlıştı**: `yeni` durumunda
+> hiçbir fiş basılmıyor. Gerekçe `docs/05` §5.5'te — sipariş henüz kabul
+> edilmemiştir ve müşteri iptal edebilir (`docs/03` §4); `yeni`de basmak,
+> iptal edilen her sipariş için çöpe giden bir fiş demekti. Kod baştan
+> beri doğruydu, doküman geride kalmıştı.
+>
+> Kurye fişi ve revizyon tetiği K-14 ile eklendi.
+
+### Mutfak turu tabloları (K-11 … K-13, 11.08.2026)
+
+| Tablo | Ne için | Kritik kısıt |
+|---|---|---|
+| `veykemtu_menu_soldout` | Mutfağın günlük "bugün tükendi" işareti | `UNIQUE(menu_id, sold_out_on)` — aynı ürün aynı gün iki kez işaretlenemez; `sold_out_on` **tarih** olduğu için gün dönümünde kendiliğinden geçersizleşir (temizleyecek cron yok) |
+| `veykemtu_order_revisions` | Sipariş düzenlemesinin belgesi | `UNIQUE(order_id, revision_no)`; `before_json`/`after_json` **tam anlık görüntü** tutar, fark değil |
+| `veykemtu_payment_refunds` | İade kayıtları | `UNIQUE(revision_id)` — bir revizyon en fazla bir iade doğurur; `NULL` revizyon (elle iade) tekilliğe takılmaz |
+| `veykemtu_bbd_receipts` | BBD Store (kitap e-ticareti) siparişleri | `UNIQUE(external_id)`; `printed_at IS NULL` **kuyruk** görevi görüyor. `orders` tablosuna HİÇ dokunmaz — gerekçe aşağıda |
+| `orders.bld_revision_no` | Kaçıncı revizyon (additive kolon) | 0 = düzenlenmedi; fiş tekilliğinin üçüncü parçası |
+
+**`menus.menu_status` neden kullanılmadı:** o alan yöneticinin KALICI
+kararı, mutfağınki GÜNLÜK. Aynı alanı paylaşsalardı akşam tükenen ürünü
+sabah yöneticinin elle geri açması gerekirdi.
+
+**Cari defter referansı revizyona bağlı:** `veykemtu_account_ledger`
+üzerindeki `UNIQUE(source, reference_type, reference_id, entry_type)`
+kısıtı sipariş kimliğine bağlansaydı, aynı siparişin ikinci düzenlemesi
+`insertOrIgnore` tarafından sessizce yutulur ve müşteri fazla borçlu
+kalırdı. Bu yüzden `reference_type = 'order_revision'`.
+
+**BBD tablosu neden `orders`'tan ayrı:** BBD Store bir **kitap
+e-ticaret sitesi** ve ayrı bir sunucuda yaşıyor. Ürünleri BLD menüsünde
+yok, fiyatları BLD fiyat listesinde değil, müşterisi BLD müşterisi değil
+ve iş akışı bile farklı — biri pişiriliyor, diğeri raftan alınıp
+kutulanıyor. Köprünün tek varlık sebebi **termal yazıcıyı paylaşmak**.
+`orders`'a yazılsaydı ciro raporu, üretim listesi ve cari hesap bir
+gecede yanlış olurdu.
+
+**`order_totals` tekilliği yok:** `(order_id, code)` üzerinde kısıt
+bulunmuyor ve eski `storeTotals()` yalnız `insert` yapıyordu. İkinci kez
+çağrılsa sipariş iki "Ara Toplam" satırı taşırdı.
+`LineResolver::rewriteTotals()` önce siliyor.
 
 ## 4. Üretim listesi (türetilmiş veri)
 

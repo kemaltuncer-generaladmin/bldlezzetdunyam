@@ -69,6 +69,43 @@ Her senaryo elle koşulur ve sonuç tabloya işlenir. Hepsi geçmeden canlıya a
 | 5 | Admin panelden cihazı iptal et | KDS bir sonraki istekte `403 DEVICE_REVOKED`, eşleme ekranına döner |
 | 6 | Repoda sır taraması (`gitleaks` vb.) | Sıfır bulgu |
 | 7 | `platform/vendor/` diff kontrolü | Sıfır değişiklik |
+| 8 | `GET /api/kitchen/orders` yanıtını incele | `customer_phone` **VAR** (K-14), `address` ve fiyat alanları **YOK** |
+| 9 | İmzasız `POST /api/partner/bbd/orders` | `401` (K-16) |
+| 10 | Gövdesi değiştirilmiş imzalı BBD isteği | `401` — imza ham gövde üzerinde |
+| 11 | `BBD_WEBHOOK_SECRET` boşken BBD isteği | `401` — sırsız uç kapalıdır |
+
+> **KURAL DEĞİŞİKLİĞİ (K-14, 11.08.2026).** 8. satır eskiden "telefon
+> döndürmemeli" diyordu. Sipariş düzenleme geldiğinde personel müşteriyi
+> **arayıp** anlaşmak zorunda kaldı; numarayı görmek için fiş basmak saçma.
+> Fiyat ve adres gizliliği aynen duruyor — kural kaldırılmadı, daraltıldı.
+> Gerekçe `docs/05-mutfakapp.md` §14.
+
+### S9 — Mutfak turu (K-09 … K-16, 12.08.2026)
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Ayarlar → Ses → "Sesi dene" | Hoparlörden ses çıkar; çıkmıyorsa "Ses tanılama" satırı **sebebi yazar** |
+| 2 | Ses seviyesini %20'ye çek, tekrar dene | Ses gözle görülür biçimde kısılır |
+| 3 | Kasadan hoparlörü sessize al, ayarlardan "Hoparlör seviyesi"ni aç | Ses geri gelir (sessiz kip de kalkar) |
+| 4 | Dokunmatik kipi aç, klavye/fareyi çıkar | Kilit açma, arama, satış durdurma, sipariş düzenleme **tamamen dokunmatikle** yapılabilir |
+| 5 | Bir siparişi ilerlet, 10 sn içinde "GERİ AL" | Sipariş bir adım geri döner |
+| 6 | Aynı işlemi 3 dakika sonra dene | `422` — pencere doldu |
+| 7 | Satış kontrolü → durdur (30 dk, sebep) | Şifre sorulur; şifresiz kapanmaz |
+| 8 | Kapalıyken web ve mobilden sipariş dene | Engellenir, **sebep ve saat** gösterilir |
+| 9 | Süre dolduktan sonra sipariş dene | Kendiliğinden açılmış olmalı (cron yok) |
+| 10 | Bir ürünü "bugün tükendi" işaretle | Menüde soluk; siparişe eklenemez; **abonelik üretimi etkilenmez** |
+| 11 | Siparişi düzenle (20 → 10), sebep seç, kaydet | 5 sn içinde web takip ekranında adet ve toplam değişir; mobilde bildirim düşer |
+| 12 | Aynı siparişi ikinci kez düzenle | Cari deftere **ikinci** hareket yazılır (birincisi yutulmaz) |
+| 13 | Düzenleme sonrası yazıcı | Mutfak + kurye fişi **"REVİZE #N"** başlığıyla yeniden basılır; müşteri fişi basılmaz |
+| 14 | Admin panel | Revizyon ve iade kaydı görünür; başarısız iade **açık** durur |
+| 15 | Abonelik ekranı (F8) | Ürün toplamları, teslimat saatleri ve uyarılar görünür |
+| 16 | `veykemtu:abonelik-uret` KOŞMADAN yarın sekmesi | **Kırmızı "üretim koşmamış" uyarısı** çıkar |
+| 17 | "Üretim planı fişi bas", iki kez | İki ayrı kâğıt çıkar (kuyruk tekilliğine takılmaz); uyarılar kâğıtta da var |
+| 18 | İmzalı `curl` ile BBD siparişi gönder | BBD sesi çalar, **paketleme fişi** basar |
+| 19 | Aynı `external_id` ile ikinci kez gönder | `accepted: false`, **ikinci fiş çıkmaz** |
+| 20 | BBD fişi gönderirken yazıcıyı kapat | Fiş kuyrukta kalır; yazıcı açılınca basılır (ack yalnız basım başarılıysa) |
+| 21 | BBD siparişi sonrası panoyu ve `orders_today` sayacını incele | **Hiçbir değişiklik yok** |
+| 22 | Bir vardiya boyunca kasa loglarını izle | `429` **hiç görülmemeli** (istek bütçesi, `docs/05` §11) |
 
 ### S6 — Geçersiz durum geçişleri
 
@@ -238,6 +275,7 @@ Kapandı.
 | S3 Sipariş alım şalteri | ☐ Geçti ☐ Kaldı | |
 | S4 Dayanıklılık | ☐ Geçti ☐ Kaldı | |
 | S5 Güvenlik | ☐ Geçti ☐ Kaldı | |
+| S9 Mutfak turu (K-09…K-16) | ☐ Geçti ☐ Kaldı | |
 | S6 Durum geçişleri | ☐ Geçti ☐ Kaldı | |
 | S7 Yük | ☐ Geçti ☐ Kaldı | |
 

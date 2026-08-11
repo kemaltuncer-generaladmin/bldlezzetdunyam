@@ -31,6 +31,8 @@ class _KeyboardHelpDialog extends StatelessWidget {
       ('F4', l10n.shortcutSilence),
       ('F5', l10n.shortcutRefresh),
       ('F6', l10n.shortcutHealth),
+      ('F7', l10n.shortcutSales),
+      ('F8', l10n.planOpen),
       ('Esc', l10n.shortcutClear),
     ];
 

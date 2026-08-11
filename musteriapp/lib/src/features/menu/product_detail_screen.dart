@@ -198,7 +198,14 @@ class _ProductFormState extends ConsumerState<_ProductForm> {
               ],
               if (!item.isAvailable) ...[
                 const SizedBox(height: BldSpacing.md),
-                FormErrorBox(message: l10n.productUnavailableNotice),
+                // Mutfağın günlük kararı ile yöneticinin kalıcı kararı
+                // farklı beklenti yaratıyor: "bugünlük tükendi" yarın
+                // dönmeye değer, "satışta değil" değmez (K-11).
+                FormErrorBox(
+                  message: item.soldOutToday
+                      ? (item.soldOutReason ?? l10n.productSoldOutToday)
+                      : l10n.productUnavailableNotice,
+                ),
               ],
               for (final option in item.options) ...[
                 const SizedBox(height: BldSpacing.lg),

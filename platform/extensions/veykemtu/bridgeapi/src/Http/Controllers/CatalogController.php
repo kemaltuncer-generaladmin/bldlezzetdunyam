@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
 use Veykemtu\BridgeApi\Services\EtaService;
 use Veykemtu\BridgeApi\Services\LocationGate;
+use Veykemtu\BridgeApi\Services\MenuAvailability;
 use Veykemtu\BridgeApi\Support\Money;
 
 /**
@@ -23,6 +24,7 @@ class CatalogController extends ApiController
     public function __construct(
         private readonly LocationGate $gate,
         private readonly EtaService $eta,
+        private readonly MenuAvailability $availability,
     ) {}
 
     /**
@@ -81,6 +83,10 @@ class CatalogController extends ApiController
                 => ($a['category']->priority ?? 0) <=> ($b['category']->priority ?? 0),
         );
 
+        // Tükendi listesi BİR KEZ okunuyor: her ürün için ayrı sorgu,
+        // 80 kalemlik bir menüde 80 sorgu demekti.
+        $soldOutReasons = $this->availability->soldOutReasons();
+
         $data = [];
         foreach ($grouped as $entry) {
             $data[] = [
@@ -88,7 +94,8 @@ class CatalogController extends ApiController
                 'name' => (string) $entry['category']->name,
                 'sort' => (int) ($entry['category']->priority ?? 0),
                 'items' => array_map(
-                    fn(Menu $menu): array => $this->menuItemPayload($menu),
+                    fn(Menu $menu): array
+                        => $this->menuItemPayload($menu, $soldOutReasons),
                     $entry['items'],
                 ),
             ];
@@ -106,6 +113,11 @@ class CatalogController extends ApiController
             'slug' => (string) ($location->permalink_slug ?? ''),
             'is_open' => $this->gate->isOpen($location),
             'ordering_enabled' => $this->gate->orderingEnabled($location),
+            // Durdurma sebebi ve süresi additive: müşteri "neden" ve
+            // "ne zaman" sorularının cevabını görsün diye (K-11).
+            'ordering_pause_reason' => $this->gate->pauseReason($location),
+            'ordering_resumes_at' => $this->gate->pauseEndsAt($location)
+                ?->toIso8601ZuluString(),
             'order_cutoff' => $this->gate->orderCutoff($location),
             'min_order_total' => $this->gate->minOrderTotal($location),
             'delivery_fee' => $this->gate->deliveryFee($location),
@@ -161,8 +173,14 @@ class CatalogController extends ApiController
             : url($thumb);
     }
 
-    private function menuItemPayload(Menu $menu): array
+    /**
+     * @param  array<int, string|null>  $soldOutReasons  menu_id => sebep
+     */
+    private function menuItemPayload(Menu $menu, array $soldOutReasons = []): array
     {
+        $soldOut = array_key_exists((int) $menu->menu_id, $soldOutReasons);
+        $soldOutReason = $soldOut ? $soldOutReasons[(int) $menu->menu_id] : null;
+
         $options = [];
         foreach ($menu->menu_options as $menuOption) {
             $option = $menuOption->option;
@@ -198,7 +216,16 @@ class CatalogController extends ApiController
             'currency' => 'TRY',
             'image_url' => $this->imageUrl($menu),
             // Satışta olmayan ürün listede KALIR, soluk gösterilir (docs/03 §3).
-            'is_available' => (bool) $menu->menu_status,
+            //
+            // İki sebep tek alana düşüyor: yöneticinin kalıcı kararı
+            // (`menu_status`) ve mutfağın günlük kararı (`sold_out`).
+            // İstemci ikisini ayırt etmek zorunda değil — kullanıcı için
+            // sonuç aynı: sipariş edilemez. Ama SEBEP ayrı alanda, çünkü
+            // "bugünlük tükendi" ile "artık satmıyoruz" farklı beklenti
+            // yaratır.
+            'is_available' => (bool) $menu->menu_status && !$soldOut,
+            'sold_out_today' => $soldOut,
+            'sold_out_reason' => $soldOutReason,
             'allergens' => $menu->allergens
                 ->map(static fn($ingredient): string => (string) $ingredient->name)
                 ->values()

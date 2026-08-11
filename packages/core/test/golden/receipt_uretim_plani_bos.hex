@@ -1,0 +1,47 @@
+# receipt_uretim_plani_bos — beklenen ESC/POS baytları (374 bayt)
+# Üreten: packages/core/test/escpos_golden_test.dart
+# Yenileme: BLD_UPDATE_GOLDEN=1 dart test
+#
+# Okunabilir karşılığı (kontrol baytları noktayla gösterilir):
+#   ÜRETİM PLANI
+#   12.08.2026
+#   Basım: 04.08.2026 14:32
+#   ------------------------------------------------
+#   !! DİKKAT
+#   * Bu gün için 3 abonelik bekleniyor ama hiç
+#   sipariş üretilmemiş.
+#   ------------------------------------------------
+#   ÜRETİM YOK
+#   ------------------------------------------------
+#   Bu belge bilgi fişidir,
+#   mali değeri yoktur.
+#   
+#   
+#   
+#   
+#   
+
+1B 40 1B 74 1D 1B 61 01 1D 21 11 1B 45 01 9A 52
+45 54 98 4D 20 50 4C 41 4E 49 0A 31 32 2E 30 38
+2E 32 30 32 36 0A 1D 21 00 1B 45 00 42 61 73 8D
+6D 3A 20 30 34 2E 30 38 2E 32 30 32 36 20 31 34
+3A 33 32 0A 1B 61 00 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 0A 1B 45 01 21 21 20 44 98
+4B 4B 41 54 0A 1B 45 00 2A 20 42 75 20 67 81 6E
+20 69 87 69 6E 20 33 20 61 62 6F 6E 65 6C 69 6B
+20 62 65 6B 6C 65 6E 69 79 6F 72 20 61 6D 61 20
+68 69 87 0A 73 69 70 61 72 69 9F 20 81 72 65 74
+69 6C 6D 65 6D 69 9F 2E 0A 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 0A 1B 61 01 1B 45 01
+9A 52 45 54 98 4D 20 59 4F 4B 0A 1B 45 00 1B 61
+00 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 0A 42 75 20 62 65 6C 67 65 20 62 69 6C 67 69
+20 66 69 9F 69 64 69 72 2C 0A 6D 61 6C 69 20 64
+65 A7 65 72 69 20 79 6F 6B 74 75 72 2E 0A 0A 0A
+0A 0A 1D 56 42 00

@@ -23,6 +23,11 @@ class SpyPlayer implements AlarmPlayer {
 
   @override
   bool get isMuted => muted;
+  @override
+  String? get muteReason => muted ? 'test: ses yok' : null;
+
+  @override
+  String? get playerExecutable => muted ? null : 'test-player';
 
   @override
   Future<void> start() async {

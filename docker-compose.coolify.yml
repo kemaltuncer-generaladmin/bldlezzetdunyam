@@ -47,6 +47,19 @@ services:
       # Sır, site tarafındaki CONTENT_REVALIDATE_SECRET ile AYNI olmalı.
       SITE_REVALIDATE_URL: ${SITE_REVALIDATE_URL:-}
       SITE_REVALIDATE_SECRET: ${CONTENT_REVALIDATE_SECRET:-}
+
+      # BBD Store köprüsü (K-16). BBD ayrı bir sunucudaki kitap
+      # e-ticaret sitesi; tek bağ mutfaktaki termal yazıcı.
+      #
+      # BOŞ BIRAKILIRSA UÇ KAPALIDIR ve her istek 401 döner — bilinçli.
+      # Boş sırla imza doğrulamak, herkesin geçebildiği bir kapı olurdu.
+      # Değer Coolify ortam değişkenlerinde tutulur, ASLA burada değil.
+      BBD_WEBHOOK_SECRET: ${BBD_WEBHOOK_SECRET:-}
+
+      # İade sürücüsü (K-13). Yalnız `online` ödemeli siparişler için;
+      # `account` cari deftere, `cash` manuel iadeye gider. Gerçek sanal
+      # POS bağlanınca buraya onun adı yazılacak.
+      BLD_REFUND_DRIVER: ${BLD_REFUND_DRIVER:-simulated}
     volumes:
       # Yüklenen medya ve loglar imajda değil, kalıcı birimde durur —
       # yeni sürüm dağıtıldığında silinmemeleri gerekir.

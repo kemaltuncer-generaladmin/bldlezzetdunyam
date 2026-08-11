@@ -669,4 +669,396 @@ class AppL10nTr extends AppL10n {
 
   @override
   String get subscriptionDialogClose => 'Kapat';
+
+  @override
+  String get settingsSectionSound => 'Ses ve hoparlör';
+
+  @override
+  String get settingsSoundVolume => 'Uygulama ses seviyesi';
+
+  @override
+  String get settingsSoundVolumeHint =>
+      'Alarmın kendi seviyesi. Hoparlör kısıksa bu ayar tek başına yetmez.';
+
+  @override
+  String get settingsSpeakerVolume => 'Hoparlör (sistem) seviyesi';
+
+  @override
+  String get settingsSpeakerVolumeHint =>
+      'Kasanın kendi seviyesi. Değiştirmek tüm sistemi etkiler.';
+
+  @override
+  String get settingsSpeakerApply => 'Uygula';
+
+  @override
+  String get settingsSpeakerUnknown => 'Okunamadı';
+
+  @override
+  String get settingsSpeakerFailed => 'Hoparlör seviyesi ayarlanamadı.';
+
+  @override
+  String get settingsAudioOutput => 'Ses çıkışı';
+
+  @override
+  String get settingsAudioOutputDefault => 'Sistem varsayılanı';
+
+  @override
+  String get settingsAudioOutputEmpty => 'Çıkış listesi alınamadı.';
+
+  @override
+  String get settingsSoundEvents => 'Hangi olaylarda ses çalsın?';
+
+  @override
+  String get settingsSoundEventAlways => 'Kapatılamaz';
+
+  @override
+  String get settingsAlarmRepeat => 'Tekrarlar arası bekleme';
+
+  @override
+  String get settingsAlarmRepeatHint =>
+      '0 = aralıksız. Alarm sipariş onaylanana kadar çalar.';
+
+  @override
+  String get settingsAlarmMaxRepeats => 'En fazla tekrar';
+
+  @override
+  String get settingsAlarmMaxRepeatsHint =>
+      '0 = sınırsız. Sınır koymak, kimse gelmediğinde hoparlörün fişini çektirmeyi önler.';
+
+  @override
+  String settingsTimes(int count) {
+    return '$count kez';
+  }
+
+  @override
+  String settingsPercent(int count) {
+    return '%$count';
+  }
+
+  @override
+  String get settingsTts => 'Sesli anons';
+
+  @override
+  String get settingsTtsHint =>
+      'Yeni siparişi Türkçe okur: \"12 numaralı yeni sipariş, 4 ürün\".';
+
+  @override
+  String get settingsTtsRate => 'Anons hızı';
+
+  @override
+  String get settingsTtsTest => 'Anonsu dene';
+
+  @override
+  String get settingsTtsUnavailable =>
+      'Sesli anons aracı yok. Kurmak için: sudo apt install speech-dispatcher';
+
+  @override
+  String get settingsSoundDiagnostics => 'Ses tanılama';
+
+  @override
+  String get settingsSoundPlayer => 'Oynatıcı';
+
+  @override
+  String get settingsSoundPlayerMissing => 'bulunamadı';
+
+  @override
+  String get settingsSoundFolder => 'Ses klasörü';
+
+  @override
+  String get settingsSoundProblem => 'Sorun';
+
+  @override
+  String get settingsSoundOk => 'Ses çalışıyor.';
+
+  @override
+  String get settingsSoundNotProbed => 'Henüz denenmedi';
+
+  @override
+  String get settingsSectionTouch => 'Dokunmatik';
+
+  @override
+  String get settingsTouchMode => 'Dokunmatik kip';
+
+  @override
+  String get settingsTouchModeHint =>
+      'Düğmeler büyür, açılır menüler alt sayfaya döner, klavye gerektiren alanlarda ekran klavyesi açılır.';
+
+  @override
+  String undoPrompt(String status) {
+    return 'Sipariş ilerletildi. $status durumuna geri alınsın mı?';
+  }
+
+  @override
+  String get undoAction => 'GERİ AL';
+
+  @override
+  String get undoFailed =>
+      'Geri alınamadı — süre doldu ya da sipariş başka yerden değiştirildi.';
+
+  @override
+  String get salesTitle => 'Satış kontrolü';
+
+  @override
+  String get salesOpenTitle => 'Sipariş alınıyor';
+
+  @override
+  String get salesOpenBody => 'Web ve mobil uygulamadan sipariş verilebiliyor.';
+
+  @override
+  String get salesClosedTitle => 'SİPARİŞ ALINMIYOR';
+
+  @override
+  String get salesClosedIndefinite => 'Elle açılana kadar kapalı.';
+
+  @override
+  String salesClosedUntil(String time, String remaining) {
+    return 'Otomatik açılış: $time (kalan $remaining)';
+  }
+
+  @override
+  String get salesStop => 'SATIŞI DURDUR';
+
+  @override
+  String get salesResume => 'SATIŞI AÇ';
+
+  @override
+  String get salesReasonTitle => 'Neden durduruluyor?';
+
+  @override
+  String get salesDurationTitle => 'Ne kadar süreyle?';
+
+  @override
+  String get salesPasswordTitle => 'Açılış şifresi';
+
+  @override
+  String get salesPasswordHint =>
+      'Satışı durdurmak ciroyu keser. Kasanın açılış şifresini girin.';
+
+  @override
+  String get salesPasswordWrong => 'Şifre yanlış.';
+
+  @override
+  String get salesReasonBusy => 'Yoğunluk';
+
+  @override
+  String get salesReasonFault => 'Arıza (yazıcı, ocak, kasa)';
+
+  @override
+  String get salesReasonStock => 'Malzeme bitti';
+
+  @override
+  String get salesReasonOther => 'Diğer';
+
+  @override
+  String get salesReasonRequired => 'Sebep seçilmeli.';
+
+  @override
+  String get salesStopped => 'Satış durduruldu.';
+
+  @override
+  String get salesResumed => 'Satış yeniden açıldı.';
+
+  @override
+  String salesFailed(String message) {
+    return 'İşlem başarısız: $message';
+  }
+
+  @override
+  String salesBannerClosed(String detail) {
+    return 'SİPARİŞ ALINMIYOR — $detail';
+  }
+
+  @override
+  String get salesProducts => 'Ürünler';
+
+  @override
+  String get salesSoldOut => 'Bugün tükendi';
+
+  @override
+  String get salesNotListed => 'Menüde değil (yönetici kapattı)';
+
+  @override
+  String get salesProductSearch => 'Ürün ara';
+
+  @override
+  String get salesProductsEmpty => 'Ürün bulunamadı.';
+
+  @override
+  String salesRemainingMinutes(int count) {
+    return '$count dk';
+  }
+
+  @override
+  String salesRemainingHours(int hours, int minutes) {
+    return '$hours sa $minutes dk';
+  }
+
+  @override
+  String get shortcutSales => 'Satış kontrolü (durdur/aç, tükendi)';
+
+  @override
+  String get receiptTypeCourier => 'Kurye fişi';
+
+  @override
+  String get reprintCourier => 'Kurye fişini yeniden bas';
+
+  @override
+  String orderRevised(int count) {
+    return 'REVİZE #$count';
+  }
+
+  @override
+  String get editTitle => 'Siparişi düzenle';
+
+  @override
+  String get editAction => 'DÜZENLE';
+
+  @override
+  String get editPhoneHint => 'Kaydetmeden ÖNCE müşteriyi arayın ve anlaşın.';
+
+  @override
+  String get editSubscriptionWarning =>
+      'Bu bir abonelik siparişi. Değişiklik YALNIZ bugünü etkiler; abonelik tanımı değişmez.';
+
+  @override
+  String get editItems => 'Kalemler';
+
+  @override
+  String get editAddProduct => 'Ürün ekle';
+
+  @override
+  String get editRemove => 'Kaldır';
+
+  @override
+  String editRemoved(String name) {
+    return '$name kaldırıldı';
+  }
+
+  @override
+  String get editReason => 'Değişiklik sebebi';
+
+  @override
+  String get editReasonRequired => 'Sebep seçmeden kaydedilemez.';
+
+  @override
+  String get editNote => 'İç not (isteğe bağlı)';
+
+  @override
+  String get editSave => 'KAYDET VE FİŞ BAS';
+
+  @override
+  String get editNoChange => 'Hiçbir şey değişmedi.';
+
+  @override
+  String get editConfirmTitle => 'Değişikliği kaydet';
+
+  @override
+  String editRefund(String amount) {
+    return 'Müşteriye iade edilecek: $amount';
+  }
+
+  @override
+  String editExtraCharge(String amount) {
+    return 'Tahsil edilecek fark: $amount';
+  }
+
+  @override
+  String get editNoMoneyChange => 'Tutar değişmiyor.';
+
+  @override
+  String editSaved(int count) {
+    return 'Revizyon #$count kaydedildi. Fişler yeniden basılıyor.';
+  }
+
+  @override
+  String editFailed(String message) {
+    return 'Kaydedilemedi: $message';
+  }
+
+  @override
+  String editSettlementManual(String message) {
+    return 'Para farkı elle tamamlanacak: $message';
+  }
+
+  @override
+  String get editSettlementFailed =>
+      'Sipariş güncellendi ama iade başlatılamadı. Yönetici panelinden takip edin.';
+
+  @override
+  String get editProductSearch => 'Ürün ara';
+
+  @override
+  String get editEmptyItems =>
+      'Sipariş boş bırakılamaz. Tümünü kaldırmak için siparişi iptal edin.';
+
+  @override
+  String get editRequestedAt => 'Teslimat saati';
+
+  @override
+  String get editChangeTime => 'Saati değiştir';
+
+  @override
+  String get planTitle => 'Abonelik üretim planı';
+
+  @override
+  String get planToday => 'Bugün';
+
+  @override
+  String get planTomorrow => 'Yarın';
+
+  @override
+  String get planWeek => 'Bu hafta';
+
+  @override
+  String get planTotals => 'Hazırlanacak toplam';
+
+  @override
+  String get planDeliveries => 'Teslimat çizelgesi';
+
+  @override
+  String get planWarnings => 'Dikkat';
+
+  @override
+  String get planEmpty => 'Bu gün için abonelik siparişi yok.';
+
+  @override
+  String get planPrint => 'ÜRETİM PLANI FİŞİ BAS';
+
+  @override
+  String get planPrinted => 'Üretim planı yazıcıya gönderildi.';
+
+  @override
+  String planPrintFailed(String message) {
+    return 'Plan fişi basılamadı: $message';
+  }
+
+  @override
+  String planPortions(int count) {
+    return '$count porsiyon';
+  }
+
+  @override
+  String get planNoTime => 'Saat yok';
+
+  @override
+  String planFailed(String message) {
+    return 'Plan alınamadı: $message';
+  }
+
+  @override
+  String get planOpen => 'Abonelik planı';
+
+  @override
+  String bbdPrinted(int count) {
+    return 'BBD: $count';
+  }
+
+  @override
+  String get bbdTooltip =>
+      'BBD Store fişleri — bu siparişler panoda görünmez, yalnız fiş basılır.';
+
+  @override
+  String bbdPending(int count) {
+    return 'BBD kuyruğunda $count fiş bekliyor';
+  }
 }

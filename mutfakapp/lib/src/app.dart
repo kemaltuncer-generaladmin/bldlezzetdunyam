@@ -20,14 +20,21 @@ import 'l10n/app_localizations.dart';
 import 'pairing/pairing_screen.dart';
 import 'theme/kds_theme.dart';
 
-class MutfakApp extends StatelessWidget {
+class MutfakApp extends ConsumerWidget {
   const MutfakApp({super.key});
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
+  Widget build(BuildContext context, WidgetRef ref) => MaterialApp(
     onGenerateTitle: (context) => AppL10n.of(context).appTitle,
     debugShowCheckedModeBanner: false,
-    theme: KdsTheme.build(),
+    // Dokunmatik kip TEMA SEVİYESİNDE uygulanıyor: her widget'a bayrak
+    // geçirmek yerine düğme boyutlarını tek yerden büyütmek, gözden kaçan
+    // küçük hedef bırakmaz (K-10).
+    theme: KdsTheme.build(
+      touch: ref.watch(
+        kdsSettingsProvider.select((settings) => settings.touchMode),
+      ),
+    ),
     // Tek dil: Türkçe. Cihaz dili ne olursa olsun mutfak Türkçe görür.
     locale: const Locale('tr'),
     localizationsDelegates: const [
@@ -127,6 +134,9 @@ class _AppRootState extends ConsumerState<AppRoot> {
   }
 
   Widget _lockScreen() => UnlockScreen(
+    showOnscreenKeyboard: ref.watch(
+      kdsSettingsProvider.select((settings) => settings.touchMode),
+    ),
     onUnlocked: () {
       setState(() => _unlocked = true);
       unawaited(ref.read(unlockStoreProvider).remember());
@@ -153,7 +163,10 @@ class _PairedRoot extends ConsumerWidget {
     ref
       ..watch(newOrderAlarmProvider)
       ..watch(connectionAlarmProvider)
-      ..watch(kitchenHealthProvider);
+      ..watch(kitchenHealthProvider)
+      // BBD köprüsü de burada kuruluyor (K-16): fiş kuyruğu, ayarlar
+      // ekranı açıkken ya da pano boşken de işlemeye devam etmeli.
+      ..watch(bbdMonitorProvider);
 
     ref.listen<AsyncValue<OrderSourceConnection>>(connectionProvider, (
       _,

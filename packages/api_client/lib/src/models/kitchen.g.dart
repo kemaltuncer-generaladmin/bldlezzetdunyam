@@ -68,7 +68,10 @@ _KitchenOrder _$KitchenOrderFromJson(Map<String, dynamic> json) =>
           ? null
           : DateTime.parse(json['requested_at'] as String),
       customerLabel: json['customer_label'] as String?,
+      customerName: json['customer_name'] as String?,
+      customerPhone: json['customer_phone'] as String?,
       customerNote: json['customer_note'] as String?,
+      revisionNo: (json['revision_no'] as num?)?.toInt() ?? 0,
       isSubscription: json['is_subscription'] as bool? ?? false,
     );
 
@@ -84,7 +87,10 @@ Map<String, dynamic> _$KitchenOrderToJson(
   'updated_at': instance.updatedAt.toIso8601String(),
   'requested_at': ?instance.requestedAt?.toIso8601String(),
   'customer_label': ?instance.customerLabel,
+  'customer_name': ?instance.customerName,
+  'customer_phone': ?instance.customerPhone,
   'customer_note': ?instance.customerNote,
+  'revision_no': instance.revisionNo,
   'is_subscription': instance.isSubscription,
 };
 
@@ -221,6 +227,61 @@ Map<String, dynamic> _$CustomerReceiptToJson(
   'requested_at': ?instance.requestedAt?.toIso8601String(),
   'customer_label': ?instance.customerLabel,
   'printed_at': ?instance.printedAt?.toIso8601String(),
+};
+
+_CourierReceipt _$CourierReceiptFromJson(Map<String, dynamic> json) =>
+    _CourierReceipt(
+      orderNumber: json['order_number'] as String,
+      deliveryType: const DeliveryTypeConverter().fromJson(
+        json['delivery_type'] as String,
+      ),
+      items: (json['items'] as List<dynamic>)
+          .map((e) => OrderItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      total: (json['total'] as num).toInt(),
+      currency: json['currency'] as String,
+      payment: Payment.fromJson(json['payment'] as Map<String, dynamic>),
+      type: json['type'] as String? ?? 'kurye',
+      address: json['address'] == null
+          ? null
+          : Address.fromJson(json['address'] as Map<String, dynamic>),
+      requestedAt: json['requested_at'] == null
+          ? null
+          : DateTime.parse(json['requested_at'] as String),
+      customerName: json['customer_name'] as String?,
+      customerPhone: json['customer_phone'] as String?,
+      customerNote: json['customer_note'] as String?,
+      printedAt: json['printed_at'] == null
+          ? null
+          : DateTime.parse(json['printed_at'] as String),
+      revisionNo: (json['revision_no'] as num?)?.toInt() ?? 0,
+      revisionSummary:
+          (json['revision_summary'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
+      collectAmount: (json['collect_amount'] as num?)?.toInt() ?? 0,
+    );
+
+Map<String, dynamic> _$CourierReceiptToJson(
+  _CourierReceipt instance,
+) => <String, dynamic>{
+  'order_number': instance.orderNumber,
+  'delivery_type': const DeliveryTypeConverter().toJson(instance.deliveryType),
+  'items': instance.items.map((e) => e.toJson()).toList(),
+  'total': instance.total,
+  'currency': instance.currency,
+  'payment': instance.payment.toJson(),
+  'type': instance.type,
+  'address': ?instance.address?.toJson(),
+  'requested_at': ?instance.requestedAt?.toIso8601String(),
+  'customer_name': ?instance.customerName,
+  'customer_phone': ?instance.customerPhone,
+  'customer_note': ?instance.customerNote,
+  'printed_at': ?instance.printedAt?.toIso8601String(),
+  'revision_no': instance.revisionNo,
+  'revision_summary': instance.revisionSummary,
+  'collect_amount': instance.collectAmount,
 };
 
 _PrintAckRequest _$PrintAckRequestFromJson(Map<String, dynamic> json) =>

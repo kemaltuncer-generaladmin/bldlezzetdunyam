@@ -24,6 +24,7 @@ import 'package:mutfakapp/src/settings/kds_settings.dart';
 import 'package:mutfakapp/src/data/kitchen_health.dart';
 import 'package:mutfakapp/src/kds/widgets/order_card.dart';
 import 'package:mutfakapp/src/sound/alarm_player.dart';
+import 'package:mutfakapp/src/sound/tts_announcer.dart';
 
 import 'fake_kds_settings_store.dart';
 import 'fake_unlock_store.dart';
@@ -31,6 +32,7 @@ import 'unlock_helper.dart';
 import 'fake_device_session_store.dart';
 import 'fake_kitchen_service.dart';
 import 'fake_kitchen_health_api.dart';
+import 'fake_system_audio.dart';
 
 class FakeOrderSource implements OrderSource {
   FakeOrderSource({
@@ -71,6 +73,7 @@ Future<void> pumpKds(
   PrintService? printService,
   KitchenHealthApi? health,
   FakeUnlockStore? store,
+  FakeSalesControlApi? sales,
 
   /// `false` ise kilit ekranı açık bırakılır — arkada ne olduğunu ölçmek için.
   bool unlock = true,
@@ -122,6 +125,20 @@ Future<void> pumpKds(
         kitchenHealthApiProvider.overrideWithValue(
           health ?? FakeKitchenHealthApi(),
         ),
+        // Sesli anons ve hoparlör denetimi de sahte: ikisi de alt süreç
+        // (`spd-say`, `wpctl`) açar ve test makinesinin ses kurulumuna
+        // bağlı, kararsız testler üretir.
+        ttsAnnouncerProvider.overrideWithValue(const SilentTtsAnnouncer()),
+        systemAudioProvider.overrideWithValue(FakeSystemAudio()),
+        // Satış kontrolü de sahte: gerçek uç `dart:io` ile ağa çıkar ve
+        // ekran testini test makinesinin ağına bağlar.
+        salesControlApiProvider.overrideWithValue(
+          sales ?? FakeSalesControlApi(),
+        ),
+        // BBD köprüsü de sahte: gerçek uç `dart:io` ile ağa çıkar ve
+        // ekran testini test makinesinin ağına bağlar (K-16).
+        bbdApiProvider.overrideWithValue(FakeBbdApi()),
+        bbdAlarmPlayerProvider.overrideWithValue(SilentAlarmPlayer()),
         // İşçi BAŞLATILMAZ: ekran testi yazdırmayı değil çizimi ölçer,
         // çalışan bir kuyruk döngüsü testte asılı zamanlayıcı bırakır.
         printServiceProvider.overrideWith(

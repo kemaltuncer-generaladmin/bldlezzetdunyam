@@ -45,7 +45,22 @@ abstract final class KdsAccents {
 }
 
 abstract final class KdsTheme {
-  static ThemeData build() {
+  /// Dokunmatik kipte en küçük dokunma hedefi.
+  ///
+  /// Material'ın 48 px önerisi parmak ucu içindir. Mutfakta eldivenli ya da
+  /// yağlı elle basılıyor; sahada 48 px'te komşu düğmeye basma yaygındı.
+  static const double touchTargetSize = 56;
+
+  /// Dokunmatik kipte ikon boyutu (varsayılan 22–24).
+  static const double touchIconSize = 30;
+
+  /// [touch] açıkken düğmeler ve ikonlar büyür.
+  ///
+  /// Kipin TEMADA olması bilinçli: her widget'a bayrak geçirmek yerine tek
+  /// yerden büyütmek, gözden kaçan küçük hedef bırakmaz. Kapalıyken çıktı
+  /// bugünküyle bit bit aynıdır — dokunmatik olmayan kasalarda hiçbir
+  /// regresyon riski yok.
+  static ThemeData build({bool touch = false}) {
     const surface = Color(KdsColors.surface);
     const onSurface = Color(KdsColors.onSurface);
 
@@ -80,7 +95,7 @@ abstract final class KdsTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           // Uzaktan ve aceleyle basılır: dokunma hedefi büyük tutulur.
-          minimumSize: const Size.fromHeight(56),
+          minimumSize: Size.fromHeight(touch ? 64 : 56),
           textStyle: const TextStyle(
             fontSize: KdsTextScale.orderNumber,
             fontWeight: FontWeight.bold,
@@ -90,6 +105,40 @@ abstract final class KdsTheme {
           ),
         ),
       ),
+      // Aşağıdaki üçü YALNIZCA dokunmatik kipte devreye giriyor. Varsayılan
+      // kipte `null` bırakmak, bugünkü görünümün bit bit korunmasını
+      // garanti eder.
+      iconButtonTheme: touch
+          ? IconButtonThemeData(
+              style: IconButton.styleFrom(
+                minimumSize: const Size.square(touchTargetSize),
+                iconSize: touchIconSize,
+              ),
+            )
+          : null,
+      textButtonTheme: touch
+          ? TextButtonThemeData(
+              style: TextButton.styleFrom(
+                minimumSize: const Size(0, touchTargetSize),
+                textStyle: const TextStyle(
+                  fontSize: KdsTextScale.orderNumber,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            )
+          : null,
+      // Dokunmatik ekranda fare tekerleği yok; kaydırma parmakla ve
+      // ivmeli olmalı. `BouncingScrollPhysics` bitiş noktasını hissettirir
+      // ve "liste bitti mi, takıldı mı" belirsizliğini kaldırır.
+      scrollbarTheme: touch
+          ? const ScrollbarThemeData(
+              thickness: WidgetStatePropertyAll(12),
+              thumbVisibility: WidgetStatePropertyAll(true),
+            )
+          : null,
+      listTileTheme: touch
+          ? const ListTileThemeData(minVerticalPadding: 14)
+          : null,
     );
   }
 }

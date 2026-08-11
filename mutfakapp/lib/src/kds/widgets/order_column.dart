@@ -33,8 +33,20 @@ class OrderColumn extends StatefulWidget {
     required this.onAdvance,
     required this.onToggleItem,
     required this.onReprint,
+    this.touchMode = false,
+    this.onDetails,
+    this.onEdit,
     super.key,
   });
+
+  /// Dokunmatik kip — karta jest ve alt sayfa davranışı ekler (K-10).
+  final bool touchMode;
+
+  /// Kartın işlem sayfası (uzun bas / sola kaydır).
+  final void Function(KitchenOrder order)? onDetails;
+
+  /// Sipariş düzenleme ekranı (K-14).
+  final void Function(KitchenOrder order)? onEdit;
 
   final KdsColumn column;
   final String title;
@@ -138,6 +150,15 @@ class _OrderColumnState extends State<OrderColumn> {
         onAdvance: () => widget.onAdvance(order),
         onToggleItem: (itemIndex) => widget.onToggleItem(order, itemIndex),
         onReprint: (type) => widget.onReprint(order, type),
+        touchMode: widget.touchMode,
+        onDetails: widget.onDetails == null
+            ? null
+            : () => widget.onDetails!(order),
+        // Terminal durumdaki siparişte düzenleme yok: sunucu reddediyor
+        // ve çizilen düğme yalnız hayal kırıklığı üretir.
+        onEdit: widget.onEdit == null || order.status.isTerminal
+            ? null
+            : () => widget.onEdit!(order),
       ),
     );
   }

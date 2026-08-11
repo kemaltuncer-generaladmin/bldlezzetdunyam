@@ -180,7 +180,11 @@ class _LocationHeader extends StatelessWidget {
                 const SizedBox(width: BldSpacing.sm),
                 Expanded(
                   child: Text(
-                    l10n.menuOrderingClosed,
+                    // SEBEP SUNUCUDAN GELİYORSA ONU GÖSTER (K-11).
+                    // "Şu anda sipariş alamıyoruz" tek başına müşteriyi
+                    // tekrar tekrar denemeye itiyor; "fırın arızalandı"
+                    // beklemeyi bilinçli kılıyor.
+                    location.orderingPauseReason ?? l10n.menuOrderingClosed,
                     style: TextStyle(
                       color: bldColor(BldColors.brand900),
                       fontWeight: FontWeight.w600,

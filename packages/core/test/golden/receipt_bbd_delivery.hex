@@ -1,0 +1,94 @@
+# receipt_bbd_delivery — beklenen ESC/POS baytları (826 bayt)
+# Üreten: packages/core/test/escpos_golden_test.dart
+# Yenileme: BLD_UPDATE_GOLDEN=1 dart test
+#
+# Okunabilir karşılığı (kontrol baytları noktayla gösterilir):
+#   BBD STORE
+#   KİTAP SİPARİŞİ
+#   Sipariş: BBD-123
+#   04.08.2026 14:28
+#   ------------------------------------------------
+#   2x
+#   Türkiye'nin Yakın Tarihi - Cilt II
+#      Kod: 9789750718533
+#      Ahmet Yılmaz
+#      Ciltli, 3. baskı
+#      >> Kapağı çizik olmasın
+#   
+#   1x
+#   Sessiz Ev
+#      Kod: 9789750802942
+#   
+#   ------------------------------------------------
+#   Ayşe Yılmaz
+#   Tel: 0555 123 45 67
+#   Adres:
+#   Örnek Mah. 12. Sk No:3, Selçuklu / Konya
+#   ------------------------------------------------
+#   Kargo: Yurtiçi Kargo
+#   1234567890123
+#   ------------------------------------------------
+#   NOT: Hediye paketi yapılsın
+#   ------------------------------------------------
+#   Ödeme: Kapıda ödeme
+#   TUTAR: 185,00
+#   ------------------------------------------------
+#   BBD Store siparişi - BLD panosunda görünmez.
+#   
+#   
+#   
+#   
+#   
+
+1B 40 1B 74 1D 1B 61 01 1D 21 11 1B 45 01 42 42
+44 20 53 54 4F 52 45 0A 1D 21 00 4B 98 54 41 50
+20 53 98 50 41 52 98 9E 98 0A 1B 45 00 53 69 70
+61 72 69 9F 3A 20 42 42 44 2D 31 32 33 0A 30 34
+2E 30 38 2E 32 30 32 36 20 31 34 3A 32 38 0A 1B
+61 00 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 0A 1D 21 11 1B 45 01 32 78 0A 1D 21 00 54
+81 72 6B 69 79 65 27 6E 69 6E 20 59 61 6B 8D 6E
+20 54 61 72 69 68 69 20 2D 20 43 69 6C 74 20 49
+49 0A 1B 45 00 20 20 20 4B 6F 64 3A 20 39 37 38
+39 37 35 30 37 31 38 35 33 33 0A 20 20 20 41 68
+6D 65 74 20 59 8D 6C 6D 61 7A 0A 20 20 20 43 69
+6C 74 6C 69 2C 20 33 2E 20 62 61 73 6B 8D 0A 20
+20 20 3E 3E 20 4B 61 70 61 A7 8D 20 87 69 7A 69
+6B 20 6F 6C 6D 61 73 8D 6E 0A 0A 1D 21 11 1B 45
+01 31 78 0A 1D 21 00 53 65 73 73 69 7A 20 45 76
+0A 1B 45 00 20 20 20 4B 6F 64 3A 20 39 37 38 39
+37 35 30 38 30 32 39 34 32 0A 0A 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 0A 1B 45 01 41
+79 9F 65 20 59 8D 6C 6D 61 7A 0A 1B 45 00 54 65
+6C 3A 20 30 35 35 35 20 31 32 33 20 34 35 20 36
+37 0A 41 64 72 65 73 3A 0A 99 72 6E 65 6B 20 4D
+61 68 2E 20 31 32 2E 20 53 6B 20 4E 6F 3A 33 2C
+20 53 65 6C 87 75 6B 6C 75 20 2F 20 4B 6F 6E 79
+61 0A 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 0A 1B 45 01 4B 61 72 67 6F 3A 20 59 75 72
+74 69 87 69 20 4B 61 72 67 6F 0A 1B 45 00 1D 21
+11 31 32 33 34 35 36 37 38 39 30 31 32 33 0A 1D
+21 00 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 0A 4E 4F 54 3A 20 48 65 64 69 79 65 20 70
+61 6B 65 74 69 20 79 61 70 8D 6C 73 8D 6E 0A 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 0A
+99 64 65 6D 65 3A 20 4B 61 70 8D 64 61 20 94 64
+65 6D 65 0A 1B 61 01 1D 21 11 1B 45 01 54 55 54
+41 52 3A 20 31 38 35 2C 30 30 0A 1D 21 00 1B 45
+00 1B 61 00 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 0A 42 42 44 20 53 74 6F 72 65 20 73
+69 70 61 72 69 9F 69 20 2D 20 42 4C 44 20 70 61
+6E 6F 73 75 6E 64 61 20 67 94 72 81 6E 6D 65 7A
+2E 0A 0A 0A 0A 0A 1D 56 42 00

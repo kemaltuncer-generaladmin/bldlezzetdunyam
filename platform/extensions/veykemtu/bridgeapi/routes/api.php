@@ -16,6 +16,7 @@ use Veykemtu\BridgeApi\Http\Controllers\AccountController;
 use Veykemtu\BridgeApi\Http\Controllers\AddressController;
 use Veykemtu\BridgeApi\Http\Controllers\AppVersionController;
 use Veykemtu\BridgeApi\Http\Controllers\AuthController;
+use Veykemtu\BridgeApi\Http\Controllers\BbdController;
 use Veykemtu\BridgeApi\Http\Controllers\CatalogController;
 use Veykemtu\BridgeApi\Http\Controllers\HealthController;
 use Veykemtu\BridgeApi\Http\Controllers\KitchenController;
@@ -55,6 +56,20 @@ Route::prefix('api')
         // ayrıca oran sınırı uygulanır.
         Route::post('kitchen/pair', [KitchenController::class, 'pair'])
             ->middleware('throttle:bld-auth');
+
+        // ── Ortak (BBD Store) ────────────────────────────────────────────
+        //
+        // Kimlik doğrulaması HMAC İMZASIYLA, token'la değil: BBD ayrı bir
+        // sunucudaki ayrı bir proje ve arada paylaşılan tek şey bir sır.
+        // Sabit bir token her istekte ağdan geçen ve loglara düşen bir
+        // parola olurdu.
+        //
+        // `bld.headers` UYGULANMAZ: BBD bizim istemcimiz değil, ortak bir
+        // sistem; ondan `X-App-Id` beklemek anlamsız olurdu.
+        Route::withoutMiddleware(['bld.headers'])->group(function (): void {
+            Route::post('partner/bbd/orders', [BbdController::class, 'store'])
+                ->middleware(['bbd.signature', 'throttle:bld-partner']);
+        });
 
         // ── Müşteri kapsamı ──────────────────────────────────────────────
         Route::middleware(['bld.auth', 'bld.scope:customer'])->group(function (): void {
@@ -104,6 +119,8 @@ Route::prefix('api')
             ->group(function (): void {
                 Route::get('orders', [KitchenController::class, 'orders']);
                 Route::get('subscription-orders', [KitchenController::class, 'subscriptionOrders']);
+                // Abonelik üretim planı (K-15): toplamlar, saatler, uyarılar.
+                Route::get('subscription-plan', [KitchenController::class, 'subscriptionPlan']);
                 Route::post('orders/{order}/status', [KitchenController::class, 'setStatus']);
                 Route::get('orders/{order}/receipt', [KitchenController::class, 'receipt']);
                 Route::post('print-jobs/{order}/ack', [KitchenController::class, 'ackPrint']);
@@ -111,5 +128,31 @@ Route::prefix('api')
                 Route::get('heartbeat', [KitchenController::class, 'heartbeat']);
                 Route::post('busy', [KitchenController::class, 'setBusy']);
                 Route::post('health', [KitchenController::class, 'health']);
+
+                // ── Satış kontrolü (K-11) ────────────────────────────
+                //
+                // `busy` yalnız uyarır; aşağıdakiler satışı gerçekten
+                // keser. Kasa tarafında onay + sebep + süre + açılış
+                // şifresi isteniyor (`docs/05` §11).
+                Route::get('ordering', [KitchenController::class, 'ordering']);
+                Route::post('ordering', [KitchenController::class, 'setOrdering']);
+                Route::get('menu-availability', [KitchenController::class, 'menuAvailability']);
+                Route::post('menu-availability', [KitchenController::class, 'setMenuAvailability']);
+
+                // ── Sipariş düzenleme (K-12) ─────────────────────────
+                //
+                // Personel müşteriyle TELEFONDA anlaşıp uyguluyor; bu
+                // uçlar bir onay akışı değil, bir kayıt akışıdır.
+                Route::get('orders/{order}/editable', [KitchenController::class, 'editable']);
+                Route::get('orders/{order}/revisions', [KitchenController::class, 'revisions']);
+                Route::post('orders/{order}/revisions', [KitchenController::class, 'storeRevision']);
+                Route::get('menu', [KitchenController::class, 'menu']);
+
+                // ── BBD Store köprüsü (K-16) ─────────────────────────
+                //
+                // Basılmayı bekleyen BBD fişleri. Bunlar BLD siparişi
+                // DEĞİL; panoya girmez, yalnız ses + kâğıt üretir.
+                Route::get('bbd-orders', [KitchenController::class, 'bbdOrders']);
+                Route::post('bbd-orders/{receipt}/ack', [KitchenController::class, 'ackBbd']);
             });
     });

@@ -496,7 +496,6 @@
   "@homeReorderEmpty": {
     "description": "Tekrar siparişte hiçbir ürün bulunamadığında"
   },
-
   "registerCompanySection": "Firma bilgileri",
   "registerAccountSection": "Giriş bilgileri",
   "registerCompanyName": "Ticari unvan",
@@ -507,15 +506,12 @@
   "registerCorporateNote": "Yalnızca kurumsal hesaplar sipariş verebilir.",
   "registerCompanyRequired": "Ticari unvan zorunludur.",
   "registerContactRequired": "Yetkili kişi zorunludur.",
-
   "orderingDisabledTitle": "Sipariş kapalı",
   "orderingDisabledBody": "Hesabınız sipariş vermeye kapalı. Kurumsal onay için bizimle iletişime geçin.",
-
   "navSubscriptions": "Abonelik",
   "accountSubscriptions": "Aboneliklerim",
   "accountStatementShortcut": "Cari hesabım",
   "accountCompanyLabel": "Firma",
-
   "subscriptionsTitle": "Aboneliklerim",
   "subscriptionsEmpty": "Henüz aboneliğiniz yok. Kurumsal öğle yemeği için talep oluşturun.",
   "subscriptionsNew": "Yeni abonelik talebi",
@@ -525,7 +521,11 @@
   "subscriptionStatusCancelled": "İptal",
   "subscriptionQuantityLabel": "Günlük {count} porsiyon",
   "@subscriptionQuantityLabel": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "subscriptionAgreedPrice": "Porsiyon fiyatı",
   "subscriptionNoPrice": "Fiyat onay bekliyor",
@@ -545,7 +545,6 @@
   "subscriptionDeliveryTime": "Teslim saati",
   "subscriptionOpenEnded": "süresiz",
   "subscriptionNoProducts": "Ürün ekibimizce eklenecek.",
-
   "subscriptionCreateTitle": "Abonelik talebi",
   "subscriptionCreateIntro": "Ürünleri, günleri ve teslimatı seçin; ekibimiz fiyatlandırıp onaylayacak.",
   "subscriptionCreateDays": "Teslimat günleri",
@@ -561,11 +560,14 @@
   "subscriptionCreatePortions": "Kaç kişilik? (günlük porsiyon)",
   "subscriptionPortionCount": "Günlük {count} kişilik",
   "@subscriptionPortionCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "subscriptionCreatePickerTitle": "Ürün seç",
   "subscriptionRequestSent": "Talebiniz alındı; fiyatlandırma sonrası aktifleşecek.",
-
   "dayMon": "Pzt",
   "dayTue": "Sal",
   "dayWed": "Çar",
@@ -573,7 +575,6 @@
   "dayFri": "Cum",
   "daySat": "Cmt",
   "daySun": "Paz",
-
   "accountStatementTitle": "Cari hesabım",
   "accountBalanceLabel": "Güncel bakiye",
   "accountBalanceDebtNote": "Ödenmemiş bakiye",
@@ -587,5 +588,9 @@
   "accountSourceSubscription": "Abonelik",
   "accountSourcePayment": "Tahsilat",
   "accountSourceManual": "Elle giriş",
-  "accountSourceAdjustment": "Düzeltme"
+  "accountSourceAdjustment": "Düzeltme",
+  "productSoldOutToday": "Bugünlük tükendi",
+  "@productSoldOutToday": {
+    "description": "Mutfağın günlük tükendi işareti (K-11)."
+  }
 }

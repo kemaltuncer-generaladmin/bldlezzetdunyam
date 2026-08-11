@@ -77,6 +77,7 @@ class KdsStatusBar extends ConsumerWidget {
                     ),
                   ],
                   const SizedBox(width: BldSpacing.lg),
+                  const _BbdChip(),
                   const _TodayCounter(),
                   const SizedBox(width: BldSpacing.lg),
                   const _Freshness(),
@@ -141,6 +142,66 @@ class _TodayCounter extends ConsumerWidget {
       style: const TextStyle(
         fontSize: KdsTextScale.statusBar,
         fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+}
+
+/// BBD Store sayacı (K-16).
+///
+/// BU SİPARİŞLER PANODA YOK — kasıtlı. Çip, "bir yerde bir şey oldu ve
+/// kâğıt çıktı" bilgisini veriyor; personel panoda arayıp bulamadığında
+/// nereye bakacağını bilsin diye.
+///
+/// HİÇ FİŞ GELMEDİYSE ÇİZİLMEZ: BBD kullanmayan bir kurulumda durum
+/// çubuğunda boşuna yer kaplamaz.
+class _BbdChip extends ConsumerWidget {
+  const _BbdChip();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppL10n.of(context);
+    final bbd = ref.watch(bbdMonitorProvider);
+
+    if (bbd.printedToday == 0 && bbd.pending == 0) {
+      return const SizedBox.shrink();
+    }
+
+    // Bekleyen fiş varsa sarı: yazıcı sorunu olabilir ve kâğıt çıkmamış
+    // olabilir. Basılmışsa nötr — yalnız bilgi.
+    final waiting = bbd.pending > 0;
+
+    return Padding(
+      padding: const EdgeInsets.only(right: BldSpacing.lg),
+      child: Tooltip(
+        message: waiting
+            ? l10n.bbdPending(bbd.pending)
+            : l10n.bbdTooltip,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.storefront_outlined,
+              size: 20,
+              color: Color(
+                waiting ? KdsColors.statusWarn : KdsColors.onSurfaceMuted,
+              ),
+            ),
+            const SizedBox(width: BldSpacing.xs),
+            Text(
+              l10n.bbdPrinted(
+                waiting ? bbd.pending : bbd.printedToday,
+              ),
+              style: TextStyle(
+                fontSize: KdsTextScale.statusBar,
+                fontWeight: FontWeight.bold,
+                color: Color(
+                  waiting ? KdsColors.statusWarn : KdsColors.onSurfaceMuted,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -218,9 +279,30 @@ class _BusyToggleState extends ConsumerState<_BusyToggle> {
   bool _busy = false;
   bool _sending = false;
 
+  /// Personelin bu oturumda düğmeye bastığı an.
+  ///
+  /// Sunucudan okunan değeri ne zaman kabul edeceğimizi belirliyor:
+  /// istek uçarken gelen bir yanıt, personelin az önceki dokunuşunu geri
+  /// alıyormuş gibi görünüyordu.
+  bool _touched = false;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppL10n.of(context);
+
+    // AÇILIŞTA SUNUCUDAN OKUNUR (K-11 düzeltmesi).
+    //
+    // Önceden yalnız yerel `_busy` tutuluyordu: kasa yeniden başladığında
+    // düğme "yoğunluk kapalı" gösteriyor, oysa vitrin hâlâ yoğun
+    // işaretliydi. İki kasalı kurulumda ikinci kasa da hiç haberdar
+    // olmuyordu. Artık şalterin durumu satış kontrolü uçlarından geliyor.
+    final remote = ref.watch(orderingStateProvider).value;
+    if (remote != null && !_sending && !_touched && remote.busy != _busy) {
+      // `build` içinde `setState` çağrılamaz; bir sonraki kareye bırakıyoruz.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _busy = remote.busy);
+      });
+    }
 
     // İPUCU BUTONUN İÇİNDE, DIŞINDA DEĞİL. `Tooltip` çocuğuna
     // `OverlayPortal` üzerinden SINIRSIZ genişlik geçiriyor; butonun
@@ -254,7 +336,10 @@ class _BusyToggleState extends ConsumerState<_BusyToggle> {
   }
 
   Future<void> _toggle() async {
-    setState(() => _sending = true);
+    setState(() {
+      _sending = true;
+      _touched = true;
+    });
     final hedef = !_busy;
 
     try {

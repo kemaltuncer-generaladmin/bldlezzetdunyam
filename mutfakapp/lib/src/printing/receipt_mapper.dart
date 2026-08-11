@@ -73,6 +73,43 @@ ReceiptAddress _address(Address address) => ReceiptAddress(
   longitude: address.longitude,
 );
 
+/// `CourierReceipt` → kurye fiş şablonunun girdisi (K-14).
+///
+/// Müşteri fişinden farkı: kalem fiyatları taşınır ama ara toplam/teslimat
+/// ücreti taşınmaz — kurye fiyat kırılımına bakmıyor, tek sorusu "ne kadar
+/// alacağım". O da [CourierReceiptData.collectAmount].
+CourierReceiptData toCourierReceiptData(
+  CourierReceipt receipt, {
+  required DateTime printedAt,
+}) => CourierReceiptData(
+  orderNumber: receipt.orderNumber,
+  deliveryType: receipt.deliveryType,
+  lines: receipt.items
+      .map(
+        (item) => CustomerReceiptLine(
+          quantity: item.quantity,
+          name: item.name,
+          lineTotal: item.lineTotal,
+          options: item.options,
+        ),
+      )
+      .toList(growable: false),
+  total: receipt.total,
+  paymentMethod: _paymentMethod(receipt.payment.method),
+  paymentStatus: _paymentStatus(receipt.payment.status),
+  printedAt: receipt.printedAt ?? printedAt,
+  customerName: receipt.customerName,
+  customerPhone: receipt.customerPhone,
+  customerNote: receipt.customerNote,
+  // Gel-al siparişte adres yok — kurye fişi zaten basılmaz ama uç
+  // yine de çağrılabilir (elle yeniden basma).
+  address: receipt.address == null ? null : _address(receipt.address!),
+  requestedAt: receipt.requestedAt,
+  revisionNo: receipt.revisionNo,
+  revisionSummary: receipt.revisionSummary,
+  collectAmount: receipt.collectAmount,
+);
+
 ReceiptPaymentMethod _paymentMethod(PaymentMethod method) => switch (method) {
   PaymentMethod.online => ReceiptPaymentMethod.online,
   PaymentMethod.cash => ReceiptPaymentMethod.cash,

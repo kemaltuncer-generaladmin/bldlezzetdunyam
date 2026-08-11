@@ -29,8 +29,20 @@ use Veykemtu\BridgeApi\Exceptions\ApiException;
  * `busy` bunlardan **ayrıdır ve siparişi ENGELLEMEZ**. Mutfak yoğunken
  * kapıyı kapatmak yerine müşteriyi uyarmak istiyoruz: sipariş girer, ekranda
  * "hazırlanması uzun sürebilir" yazar. Sipariş almayı gerçekten durdurmak
- * `ordering_enabled` şalteridir ve o yöneticinindir — mutfak personeli tek
- * tuşla cirosu kapatamamalı.
+ * `ordering_enabled` şalteridir.
+ *
+ * KURAL DEĞİŞTİ (K-11, 11.08.2026): `ordering_enabled` eskiden yalnız
+ * yöneticinindi ("mutfak personeli tek tuşla cirosu kapatamamalı").
+ * Sahada kural tersine işledi: yazıcı bozulduğunda, malzeme bittiğinde ya
+ * da ekip yetişemediğinde mutfak sipariş almaya devam ediyor, gelen
+ * siparişleri tek tek telefonla iptal ediyordu. Müşteri deneyimi
+ * "siparişim alındı, sonra arandı ve iptal edildi" oluyordu — kapalı bir
+ * dükkândan çok daha kötü.
+ *
+ * Şalter artık mutfaktan da çevrilebiliyor ama **tek tuşla değil**:
+ * onay + sebep + süre + kasanın açılış şifresi isteniyor (`docs/05` §11).
+ * Süreli durdurma bu yüzden var — "kapattım, açmayı unuttum" en olası
+ * hata ve kendiliğinden açılma onu ortadan kaldırıyor.
  *
  * Değerler TastyIgniter'ın kendi `location_options` tablosunda tutulur —
  * kendi tablomuzu açmaya gerek yok ve admin panelde aynı yerde yaşarlar.
@@ -50,6 +62,12 @@ class LocationGate
     private const string KEY_BUSY = 'bld_busy';
 
     private const string KEY_BUSY_MESSAGE = 'bld_busy_message';
+
+    /** Süreli durdurma: bu ana kadar kapalı (ISO-8601, UTC). */
+    private const string KEY_PAUSED_UNTIL = 'bld_ordering_paused_until';
+
+    /** Durdurma sebebi — müşteriye gösterilir. */
+    private const string KEY_PAUSE_REASON = 'bld_ordering_pause_reason';
 
     // ── Teslimat süresi tahmini ────────────────────────────────────────────
     private const string KEY_PREP_MINUTES = 'bld_prep_minutes';
@@ -88,14 +106,106 @@ class LocationGate
         }
     }
 
+    /**
+     * Sipariş alınıyor mu?
+     *
+     * SÜRENİN DOLMASI TEMBEL DEĞERLENDİRİLİYOR — cron yok. Bir zamanlayıcı
+     * kurmak, zamanlayıcının çalışmadığı her durumda (kuyruk durmuş,
+     * makine kapanmış) dükkânın kapalı kalması demekti. Okuma anında
+     * karşılaştırmak, hiçbir arka plan işine bağımlı değil.
+     */
     public function orderingEnabled(Location $location): bool
     {
-        return (bool) $this->option($location, self::KEY_ORDERING, true);
+        if ((bool) $this->option($location, self::KEY_ORDERING, true)) {
+            return true;
+        }
+
+        $until = $this->pauseEndsAt($location);
+        if ($until === null) {
+            return false;
+        }
+
+        if ($until->isFuture()) {
+            return false;
+        }
+
+        // Süre doldu: bayrağı da temizliyoruz ki admin panel gerçeği
+        // göstersin. Yalnız okumada düzeltseydik panel "kapalı" derken
+        // sipariş girebilirdi.
+        $this->resumeOrdering($location);
+
+        return true;
     }
 
     public function setOrderingEnabled(Location $location, bool $enabled): void
     {
         $this->setOption($location, self::KEY_ORDERING, $enabled);
+
+        if ($enabled) {
+            $this->clearPause($location);
+        }
+    }
+
+    /**
+     * Sipariş almayı durdurur.
+     *
+     * @param  Carbon|null  $until  `null` = süresiz (elle açılana kadar)
+     */
+    public function pauseOrdering(
+        Location $location,
+        ?Carbon $until = null,
+        ?string $reason = null,
+    ): void {
+        $this->setOption($location, self::KEY_ORDERING, false);
+        $this->setOption(
+            $location,
+            self::KEY_PAUSED_UNTIL,
+            $until?->utc()->toIso8601ZuluString(),
+        );
+        $this->setOption(
+            $location,
+            self::KEY_PAUSE_REASON,
+            $reason === null || trim($reason) === '' ? null : trim($reason),
+        );
+    }
+
+    /** Siparişi yeniden açar ve durdurma izlerini siler. */
+    public function resumeOrdering(Location $location): void
+    {
+        $this->setOption($location, self::KEY_ORDERING, true);
+        $this->clearPause($location);
+    }
+
+    /** Durdurmanın biteceği an; süresiz ya da açıkken `null`. */
+    public function pauseEndsAt(Location $location): ?Carbon
+    {
+        $value = $this->option($location, self::KEY_PAUSED_UNTIL, null);
+
+        if (!is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->utc();
+        } catch (\Throwable) {
+            // Bozuk değer "süresiz kapalı" sayılır: tersi, elle
+            // düzenlenmiş bir satırın dükkânı sessizce açması olurdu.
+            return null;
+        }
+    }
+
+    /** Durdurma sebebi — müşteriye gösterilir. Yoksa `null`. */
+    public function pauseReason(Location $location): ?string
+    {
+        $value = $this->option($location, self::KEY_PAUSE_REASON, null);
+
+        return is_string($value) && trim($value) !== '' ? trim($value) : null;
+    }
+
+    private function clearPause(Location $location): void
+    {
+        $this->setOption($location, self::KEY_PAUSED_UNTIL, null);
+        $this->setOption($location, self::KEY_PAUSE_REASON, null);
     }
 
     /** `HH:mm` veya `null`. */
@@ -293,9 +403,22 @@ class LocationGate
     public function assertAcceptsOrder(Location $location, ?Carbon $requestedAt): void
     {
         if (!$this->orderingEnabled($location)) {
-            throw ApiException::locationClosed(
-                'Şu anda sipariş alınmıyor. Lütfen daha sonra tekrar deneyin.',
-            );
+            // Sebep varsa MÜŞTERİYE SÖYLENİR. "Şu anda sipariş alınmıyor"
+            // tek başına müşteriyi tekrar tekrar denemeye itiyor; "yoğunluk
+            // nedeniyle 19:30'a kadar" ise beklemeyi bilinçli kılıyor.
+            $reason = $this->pauseReason($location);
+            $until = $this->pauseEndsAt($location);
+
+            $message = 'Şu anda sipariş alınmıyor.';
+            if ($reason !== null) {
+                $message .= ' '.$reason;
+            }
+            if ($until !== null) {
+                $message .= ' Tahmini yeniden açılış: '
+                    .$until->copy()->setTimezone(BusinessTime::ZONE)->format('H:i').'.';
+            }
+
+            throw ApiException::locationClosed($message);
         }
 
         if (!$this->isOpen($location)) {

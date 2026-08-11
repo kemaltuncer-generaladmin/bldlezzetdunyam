@@ -64,9 +64,28 @@ abstract class KitchenOrder with _$KitchenOrder {
     required DateTime updatedAt,
     DateTime? requestedAt,
 
-    /// Yalnızca ad + soyad baş harfi. Telefon/adres/e-posta gönderilmez.
+    /// Yalnızca ad + soyad baş harfi (kartın üst satırı).
     String? customerLabel,
+
+    /// Müşterinin tam adı ve telefonu (K-14).
+    ///
+    /// KURAL DEĞİŞTİ (11.08.2026): `docs/03` §5 eskiden "mutfak listesinde
+    /// telefon GÖRÜNMEZ" diyordu ve sipariş düzenleme gelene kadar
+    /// doğruydu. Artık personel müşteriyi ARAYIP anlaşmak zorunda;
+    /// numarayı görmek için fiş basmak saçma. **Fiyat ve adres hâlâ
+    /// gönderilmiyor** — kural kaldırılmadı, daraltıldı.
+    ///
+    /// Eski sunucu bu alanları göndermezse `null` gelir ve kart eskisi
+    /// gibi çizilir.
+    String? customerName,
+    String? customerPhone,
     String? customerNote,
+
+    /// Kaçıncı revizyon (K-12). 0 = hiç düzenlenmedi.
+    ///
+    /// Artması, fişlerin yeniden basılması gerektiği anlamına gelir
+    /// (`print_triggers.dart`).
+    @Default(0) int revisionNo,
 
     /// Bu sipariş bir abonelik kuralından mı üretildi? (`docs/openapi.yaml`
     /// `is_subscription`.) KDS bunu rozet + "bugün abonelik var" paneliyle
@@ -182,6 +201,44 @@ abstract class CustomerReceipt with _$CustomerReceipt {
 
   factory CustomerReceipt.fromJson(Map<String, dynamic> json) =>
       _$CustomerReceiptFromJson(json);
+}
+
+/// `GET /kitchen/orders/{id}/receipt?type=kurye` — kuryenin eline giden
+/// fiş (K-14).
+///
+/// NEDEN ÜÇÜNCÜ TİP: kurye üç bilgiye ihtiyaç duyuyor ve hiçbiri tek bir
+/// mevcut fişte birlikte yok — kime (ad + telefon), nereye (adres + QR),
+/// ne kadar tahsil edilecek. Mutfak fişinde adres yok; müşteri fişi ise
+/// müşteride kalıyor.
+@freezed
+abstract class CourierReceipt with _$CourierReceipt {
+  const factory CourierReceipt({
+    required String orderNumber,
+    @DeliveryTypeConverter() required DeliveryType deliveryType,
+    required List<OrderItem> items,
+    required int total,
+    required String currency,
+    required Payment payment,
+    @Default('kurye') String type,
+    Address? address,
+    DateTime? requestedAt,
+    String? customerName,
+    String? customerPhone,
+    String? customerNote,
+    DateTime? printedAt,
+
+    /// Kaçıncı revizyon; 0 = düzenlenmemiş.
+    @Default(0) int revisionNo,
+
+    /// İnsan okuyabilir değişiklik satırları.
+    @Default(<String>[]) List<String> revisionSummary,
+
+    /// Kapıda tahsil edilecek tutar (kuruş). Ödenmişse 0.
+    @Default(0) int collectAmount,
+  }) = _CourierReceipt;
+
+  factory CourierReceipt.fromJson(Map<String, dynamic> json) =>
+      _$CourierReceiptFromJson(json);
 }
 
 /// `POST /kitchen/print-jobs/{order_id}/ack` gövdesi.

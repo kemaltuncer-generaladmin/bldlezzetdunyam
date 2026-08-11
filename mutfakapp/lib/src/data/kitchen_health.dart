@@ -71,6 +71,13 @@ class KitchenManagedSettings {
     this.healthSeconds,
     this.connectionAlarmSeconds,
     this.alarmSilenceable,
+    this.volumePercent,
+    this.audioSink,
+    this.ttsEnabled,
+    this.ttsRatePercent,
+    this.alarmRepeatSeconds,
+    this.alarmMaxRepeats,
+    this.touchMode,
   });
 
   static const KitchenManagedSettings empty = KitchenManagedSettings();
@@ -85,6 +92,20 @@ class KitchenManagedSettings {
   final int? connectionAlarmSeconds;
   final bool? alarmSilenceable;
 
+  /// Uygulama içi ses seviyesi (0–100).
+  final int? volumePercent;
+
+  /// Çıkış cihazı (PipeWire/PulseAudio sink adı).
+  final String? audioSink;
+
+  final bool? ttsEnabled;
+  final int? ttsRatePercent;
+  final int? alarmRepeatSeconds;
+  final int? alarmMaxRepeats;
+
+  /// Dokunmatik kip — yönetici uzaktan açabilsin diye burada (K-10).
+  final bool? touchMode;
+
   bool get isEmpty =>
       pollSeconds == null &&
       soundEnabled == null &&
@@ -94,7 +115,14 @@ class KitchenManagedSettings {
       printerCodePage == null &&
       healthSeconds == null &&
       connectionAlarmSeconds == null &&
-      alarmSilenceable == null;
+      alarmSilenceable == null &&
+      volumePercent == null &&
+      audioSink == null &&
+      ttsEnabled == null &&
+      ttsRatePercent == null &&
+      alarmRepeatSeconds == null &&
+      alarmMaxRepeats == null &&
+      touchMode == null;
 
   factory KitchenManagedSettings.fromJson(Map<String, Object?> json) =>
       KitchenManagedSettings(
@@ -107,6 +135,13 @@ class KitchenManagedSettings {
         healthSeconds: _asIntOrNull(json['health_seconds']),
         connectionAlarmSeconds: _asIntOrNull(json['connection_alarm_seconds']),
         alarmSilenceable: _asBoolOrNull(json['alarm_silenceable']),
+        volumePercent: _asIntOrNull(json['volume_percent']),
+        audioSink: _asStringOrNull(json['audio_sink']),
+        ttsEnabled: _asBoolOrNull(json['tts_enabled']),
+        ttsRatePercent: _asIntOrNull(json['tts_rate_percent']),
+        alarmRepeatSeconds: _asIntOrNull(json['alarm_repeat_seconds']),
+        alarmMaxRepeats: _asIntOrNull(json['alarm_max_repeats']),
+        touchMode: _asBoolOrNull(json['touch_mode']),
       );
 
   @override
@@ -120,7 +155,14 @@ class KitchenManagedSettings {
       other.printerCodePage == printerCodePage &&
       other.healthSeconds == healthSeconds &&
       other.connectionAlarmSeconds == connectionAlarmSeconds &&
-      other.alarmSilenceable == alarmSilenceable;
+      other.alarmSilenceable == alarmSilenceable &&
+      other.volumePercent == volumePercent &&
+      other.audioSink == audioSink &&
+      other.ttsEnabled == ttsEnabled &&
+      other.ttsRatePercent == ttsRatePercent &&
+      other.alarmRepeatSeconds == alarmRepeatSeconds &&
+      other.alarmMaxRepeats == alarmMaxRepeats &&
+      other.touchMode == touchMode;
 
   @override
   int get hashCode => Object.hash(
@@ -133,6 +175,13 @@ class KitchenManagedSettings {
     healthSeconds,
     connectionAlarmSeconds,
     alarmSilenceable,
+    volumePercent,
+    audioSink,
+    ttsEnabled,
+    ttsRatePercent,
+    alarmRepeatSeconds,
+    alarmMaxRepeats,
+    touchMode,
   );
 }
 

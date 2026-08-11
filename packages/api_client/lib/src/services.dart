@@ -93,6 +93,11 @@ abstract interface class KitchenService {
   /// Müşteri fişi verisi (fiyatlı, adrese gönderimde adresli).
   Future<CustomerReceipt> customerReceipt(int orderId);
 
+  /// Kurye fişi (K-14) — ad, telefon, adres, tahsil edilecek tutar.
+  ///
+  /// Yalnız `delivery` siparişte anlamlı; gel-al'da kurye yoktur.
+  Future<CourierReceipt> courierReceipt(int orderId);
+
   /// Fiş basıldı bildirimi. İdempotenttir; başarısız olursa çağıran sessizce
   /// yutar — fişin basılmış olması bu çağrıya bağlı değildir.
   Future<void> ackPrint(int orderId, PrintAckRequest request);

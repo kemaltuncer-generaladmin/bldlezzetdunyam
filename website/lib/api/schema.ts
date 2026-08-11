@@ -347,6 +347,208 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/account/summary": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cari bakiye
+         * @description Müşterinin güncel cari bakiyesi. Pozitif = müşterinin borcu.
+         */
+        get: operations["getAccountSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/statement": {
+        parameters: {
+            query?: {
+                /** @description Başlangıç tarihi (varsayılan 3 ay önce). */
+                from?: string;
+                /** @description Bitiş tarihi (varsayılan bugün). */
+                to?: string;
+            };
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cari ekstre
+         * @description Tarih aralığındaki hareketler, açılış ve kapanış bakiyesiyle.
+         */
+        get: operations["getAccountStatement"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /** Aboneliklerim */
+        get: operations["listSubscriptions"];
+        put?: never;
+        /**
+         * Abonelik talebi oluştur
+         * @description Fiyatsız talep açar (status pending); admin fiyatlandırıp aktifleştirir.
+         */
+        post: operations["createSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions/{id}": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        /** Abonelik detayı */
+        get: operations["getSubscription"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions/{id}/pause": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Aboneliği duraklat
+         * @description Yalnızca aktif abonelik duraklatılabilir; aksi 422.
+         */
+        post: operations["pauseSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions/{id}/resume": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Aboneliği devam ettir
+         * @description Yalnızca duraklatılmış abonelik devam ettirilebilir; aksi 422.
+         */
+        post: operations["resumeSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Aboneliği iptal et */
+        post: operations["cancelSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions/{id}/exceptions": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tek-günlük istisna gir
+         * @description Belirli bir günü atla veya adedini değiştir (kural değişimi değil).
+         */
+        post: operations["addSubscriptionException"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/push-token": {
         parameters: {
             query?: never;
@@ -413,6 +615,33 @@ export interface paths {
          *     için `since` kullanılmalıdır — `after` yalnızca yeni siparişleri getirir.
          */
         get: operations["listKitchenOrders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/kitchen/subscription-orders": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Bugün ve yarının abonelik siparişleri
+         * @description Ana pano (`/kitchen/orders`) yalnız bugünü gösterir. Abonelik yemekleri
+         *     önceden hazırlandığı için mutfak yarını da görmek ister. Bu uç yalnız
+         *     `is_subscription` siparişleri, terminal olmayanları döner; salt bilgidir
+         *     (durum ilerletme ana panoda). `today`/`tomorrow` ayrı gruplanır.
+         */
+        get: operations["listKitchenSubscriptionOrders"];
         put?: never;
         post?: never;
         delete?: never;
@@ -547,13 +776,341 @@ export interface paths {
          *     çıkar ve admin panelde görünür.
          *
          *     **Sipariş almayı DURDURMAZ.** Siparişi gerçekten kesen şalter
-         *     `ordering_enabled`'dır ve yalnızca yönetici değiştirebilir —
-         *     mutfak personeli tek tuşla cirosu kapatabilmemeli.
+         *     `ordering_enabled`'dır; onun mutfak ucu `POST /kitchen/ordering`
+         *     (K-11) ve orada onay + sebep + süre + kasanın açılış şifresi
+         *     isteniyor. Bu uç yalnızca uyarır.
          *
          *     Durum vitrine yazılır, cihaza değil: iki kasa olsa ikisi de aynı
          *     şeyi gösterir ve müşteri tarafı zaten vitrini okur.
          */
         post: operations["setKitchenBusy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/partner/bbd/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * BBD Store siparişi (webhook)
+         * @description **BBD Store bir KİTAP e-ticaret sitesidir**, catering değil; ayrı
+         *     bir sunucuda ayrı bir projedir.
+         *
+         *     **KÖPRÜNÜN TEK VARLIK SEBEBİ TERMAL YAZICIYI PAYLAŞMAK (K-16).**
+         *     BBD'de bir sipariş onaylandığında mutfaktaki kasa BBD'ye özel bir
+         *     ses çalıyor ve aynı yazıcıdan bir **paketleme fişi** basıyor.
+         *     Başka hiçbir şey yok.
+         *
+         *     Bu siparişler BLD'nin `orders` tablosuna **girmez**, KDS
+         *     panosunda görünmez, üretim listesine / vardiya istatistiğine /
+         *     `orders_today` sayacına / cari hesaba **karışmaz**. Tek bağ ses
+         *     ve kâğıttır; geri bildirim, durum senkronizasyonu yoktur.
+         *
+         *     **Kimlik doğrulama HMAC imzasıyla, token'la değil.** Arada
+         *     paylaşılan tek şey bir sır; sabit bir Bearer token her istekte
+         *     ağdan geçen ve loglara düşen bir parola olurdu.
+         *
+         *     ```
+         *     imza = HMAC_SHA256(BBD_WEBHOOK_SECRET, ham istek gövdesi)
+         *     X-BBD-Signature: sha256=<hex>
+         *     ```
+         *
+         *     İmza **ham gövde** üzerinde hesaplanır; JSON yeniden
+         *     serileştirilmez (boşluk ve anahtar sırası imzayı değiştirir).
+         *
+         *     **İDEMPOTENT:** aynı `external_id` ikinci kez gelirse yeni satır
+         *     açılmaz, fiş iki kez basılmaz ve yanıt yine `200` olur
+         *     (`accepted: false`). `409` dönmek, karşı tarafı sonsuz yeniden
+         *     denemeye sokardı.
+         *
+         *     `X-App-Id` / `X-App-Version` başlıkları **istenmez**: BBD bizim
+         *     istemcimiz değil, ortak bir sistem.
+         */
+        post: operations["receiveBbdOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/kitchen/bbd-orders": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Basılmayı bekleyen BBD fişleri
+         * @description `since` YOK, `printed_at IS NULL` VAR: BBD fişleri bir liste
+         *     değil, bir **kuyruk**. Zaman damgasıyla artımlı çekmek, ağ
+         *     kesintisinde basılmamış bir fişi sonsuza dek atlayabilirdi.
+         *
+         *     Kasa **yalnız basım başarılıysa** ack gönderiyor; başarısızsa fiş
+         *     kuyrukta kalıyor ve bir sonraki turda geri geliyor.
+         *
+         *     En fazla 20 satır döner: kasa uzun süre kapalı kalmışsa 200 fişi
+         *     tek seferde basmaya kalkmamalı.
+         */
+        get: operations["listBbdOrders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/kitchen/bbd-orders/{receipt}/ack": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                receipt: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * BBD fişi basıldı
+         * @description İdempotent: ilk `printed_at` korunur. Ağ hatasında kasa tekrar
+         *     gönderirse "ne zaman basıldı" cevabı değişmemeli.
+         */
+        post: operations["ackBbdReceipt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/kitchen/subscription-plan": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Abonelik üretim planı
+         * @description Mutfağın sabah baktığı ekran (K-15). `subscription-orders`
+         *     ucundan farkı: **ürün bazında toplamlar**, teslimat saatleri ve
+         *     **uyarılar** taşır.
+         *
+         *     Uyarılar en önemli parçadır ve en kolay atlanandır: üretim
+         *     koşmamışsa (`not_generated`) mutfak "bugün abonelik yok" sanıp
+         *     hazırlık yapmıyor. Diğerleri kapalı gün, duraklatılmış abonelik
+         *     ve tek-gün istisnaları.
+         */
+        get: operations["getSubscriptionPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/kitchen/orders/{id}/editable": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Düzenlenebilir sipariş görüntüsü
+         * @description **FİYAT YOKTUR** (ADR-08). Personel adet değiştirirken fiyata
+         *     bakmıyor; iade/fark tutarı kaydetme onayında tek bir sayı olarak
+         *     gösteriliyor ve o cari bakiye değil.
+         */
+        get: operations["getEditableOrder"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/kitchen/orders/{id}/revisions": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        /** Revizyon geçmişi */
+        get: operations["listOrderRevisions"];
+        put?: never;
+        /**
+         * Siparişi düzenle (yeni revizyon)
+         * @description **AKIŞ (K-12).** Mutfak personeli müşteriyle **telefonda konuşur**,
+         *     anlaşır, sonra değişikliği buraya yazar. Onay beklenmez; onay zaten
+         *     alınmıştır. Bu uç bir talep değil, bir **kayıt** ucudur.
+         *
+         *     Sunucu tek işlemde: satırları yeniden yazar, toplamları yeniden
+         *     hesaplar, `orders.updated_at`'i **dokunur** (KDS'in değişikliği
+         *     görmesi buna bağlı), revizyon belgesini yazar, cari hesabı düzeltir
+         *     ve gerekiyorsa iade başlatır.
+         *
+         *     `items` **tam listedir**, fark değil: eksik gönderilen kalem
+         *     siparişten çıkarılır. Boş liste `422` — tümünü kaldırmak "iptal"
+         *     demektir ve o ayrı bir durum geçişidir.
+         *
+         *     Teslim edilmiş ya da iptal edilmiş sipariş düzenlenemez (`422`).
+         *
+         *     Abonelikten doğan sipariş düzenlenebilir ama **yalnız o günü**
+         *     etkiler; abonelik tanımı değişmez.
+         */
+        post: operations["createOrderRevision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/kitchen/menu": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ürün ekleme için menü (fiyatsız)
+         * @description Düzenleme ekranının ürün seçicisi. Yalnız **eklenebilir** ürünleri
+         *     döndürür; `menu-availability` ucundan farkı bu — orada amaç
+         *     kapatmak/açmak olduğu için kapalı ürünler de listelenir.
+         */
+        get: operations["getKitchenMenu"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/kitchen/ordering": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Satış şalterinin durumu
+         * @description Süresi dolmuş bir durdurma bu uçta **kendiliğinden kalkar** —
+         *     yanıt her zaman gerçeği söyler. Tembel değerlendirme bilinçli:
+         *     zamanlayıcıya bağlansaydı, kuyruk durduğunda dükkân kapalı
+         *     kalırdı.
+         */
+        get: operations["getKitchenOrdering"];
+        put?: never;
+        /**
+         * Sipariş almayı durdur / aç
+         * @description **KURAL DEĞİŞİKLİĞİ (K-11, 11.08.2026).** `ordering_enabled`
+         *     eskiden yalnız yöneticinindi (`docs/03` §3: "mutfak personeli tek
+         *     tuşla cirosu kapatabilmemeli"). Sahada kural tersine işledi:
+         *     yazıcı bozulduğunda ya da malzeme bittiğinde mutfak sipariş
+         *     almaya devam ediyor, gelenleri tek tek telefonla iptal ediyordu.
+         *     Müşteri için "siparişim alındı, sonra arandı ve iptal edildi",
+         *     kapalı bir dükkândan çok daha kötü.
+         *
+         *     Şalter artık mutfaktan da çevriliyor ama **tek tuşla değil**: kasa
+         *     onay, sebep, süre ve açılış şifresi istiyor (`docs/05` §11).
+         *
+         *     `minutes` anlamları:
+         *     * yok / `null` — süresiz (elle açılana kadar),
+         *     * `0` — bugünün sonuna kadar (yarın sabah kendiliğinden açılır),
+         *     * `>0` — o kadar dakika.
+         *
+         *     `reason` müşteriye gösterilir (`Location.ordering_pause_reason`).
+         */
+        post: operations["setKitchenOrdering"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/kitchen/menu-availability": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ürünler ve "bugün tükendi" işaretleri
+         * @description **FİYAT YOKTUR** — ADR-08 korunuyor. Mutfak neyin bittiğine karar
+         *     verirken fiyata bakmıyor; para bilgisi bu ekranda yalnızca
+         *     sızıntı riski.
+         *
+         *     `listed` yöneticinin KALICI kararı (`menus.menu_status`),
+         *     `sold_out` mutfağın GÜNLÜK kararı. İkisi ayrı tutuluyor: aynı
+         *     alanı paylaşsalardı akşam tükenen ürünü sabah yöneticinin elle
+         *     geri açması gerekirdi.
+         */
+        get: operations["getKitchenMenuAvailability"];
+        put?: never;
+        /**
+         * Ürünü bugünlük tükendi işaretle / işareti kaldır
+         * @description İşaret **gün dönümünde kendiliğinden geçersizleşir**; temizleyecek
+         *     bir cron yoktur, dolayısıyla cron durduğunda ürünlerin kapalı
+         *     kalması gibi bir arıza da yoktur.
+         *
+         *     **Abonelik siparişleri bu işaretten etkilenmez**: abonelik bir
+         *     sözleşmedir, günlük stok kararı onu iptal edemez. Bir abonelik
+         *     gününü atlamak için `veykemtu_subscription_exceptions` kaydı
+         *     girilir — ayrı ve bilinçli bir karardır.
+         */
+        post: operations["setKitchenMenuAvailability"];
         delete?: never;
         options?: never;
         head?: never;
@@ -658,6 +1215,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/quote-requests": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Teklif talebi gönder
+         * @description Kurumsal sitedeki "Teklif Al" formunun gönderim ucu. Kimlik
+         *     gerektirmez: teklif isteyebilmek için önce hesap açtırmak, formun
+         *     terk edilmesinin en yaygın sebebidir. Koruma oran sınırındadır
+         *     (10 istek / saat / IP).
+         *
+         *     **DOĞRULAMA BİLİNÇLİ OLARAK GEVŞEKTİR.** Bu ucun başarısızlığı
+         *     "hatalı istek" değil, kaybedilmiş iştir; ziyaretçi formu bir kez
+         *     doldurur ve 422 gördüğünde çoğu zaman tekrar denemez. Bu yüzden:
+         *
+         *     - **Bilinmeyen alanlar sessizce yok sayılır.** Şemada olmayan bir
+         *       alan (`utm_source` gibi) isteği reddettirmez. Site sözleşmeden bir
+         *       sürüm önde gidebilmelidir.
+         *     - **`service_type`, `frequency` ve `menu_preference` enum DEĞİLDİR.**
+         *       Değerler `website/content/services.ts` slug'larından gelir ve yeni
+         *       bir hizmet önce orada doğar; enum kısıtı o aradaki her talebi çöpe
+         *       atardı. Aşağıdaki `examples` listeleri bilgi amaçlıdır, kısıt değil.
+         *     - **Çözümlenemeyen tarih ve rakam olmayan kişi sayısı boş bırakılır**,
+         *       talep yine kaydedilir.
+         *     - **Sütun sınırını aşan metin kesilir**, reddedilmez.
+         *
+         *     Reddedilen yalnızca iki durum vardır ve ikisi de bilinçli kayıptır:
+         *     KVKK onayının olmaması ve kişiye ulaşmanın hiçbir yolunun olmaması.
+         *
+         *     **Tekilleştirme yapılmaz.** Aynı kişinin ikinci gönderimi ikinci bir
+         *     kayıttır: aynı firma iki farklı etkinlik için teklif isteyebilir.
+         */
+        post: operations["createQuoteRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/app-version": {
         parameters: {
             query?: never;
@@ -708,6 +1313,27 @@ export interface components {
          *     | `yolda` | `teslim_edildi`, `iptal` |
          *     | `teslim_edildi` | — (terminal) |
          *     | `iptal` | — (terminal) |
+         *
+         *     **GERİ ALMA PENCERESİ (K-10, 11.08.2026).** Matrise ek olarak,
+         *     mutfak kapsamı **tek adım geri** alabilir — yalnız son durum
+         *     değişikliğinden sonraki **120 saniye** içinde:
+         *
+         *     | Kaynak | Geri alınabilir hedef |
+         *     |---|---|
+         *     | `hazirlaniyor` | `onaylandi` |
+         *     | `hazir` | `hazirlaniyor` |
+         *     | `yolda` | `hazir` |
+         *
+         *     `yeni`ye dönüş ve terminal durumlardan (`teslim_edildi`, `iptal`)
+         *     geri alma **yoktur**: mutfak fişi `onaylandi`da basılıyor ve basılı
+         *     kâğıt geri alınamaz; iptal ise cari hesaba ters kayıt yazıyor ve
+         *     geri alması bir muhasebe düzeltmesi olur.
+         *
+         *     Pencere dışındaki ya da iki adımlık bir geri alma isteği
+         *     `422 INVALID_TRANSITION` döner. Gerekçe: dokunmatik monitörde
+         *     kartlar parmağın altında ve yanlışlıkla kaydırma gerçek; geri
+         *     alınamayan bir dokunuş siparişi yanlış sütuna gönderip mutfağı
+         *     gereksiz fiş basmaya zorluyordu.
          * @enum {string}
          */
         OrderStatus: "yeni" | "onaylandi" | "hazirlaniyor" | "hazir" | "yolda" | "teslim_edildi" | "iptal";
@@ -728,8 +1354,13 @@ export interface components {
          * @enum {string}
          */
         PaymentStatus: "pending" | "paid";
-        /** @enum {string} */
-        ReceiptType: "mutfak" | "musteri";
+        /**
+         * @description `kurye` K-14 ile eklendi: kuryenin eline giden fiş (ad + telefon,
+         *     adres + harita QR, tahsil edilecek tutar, revizyon özeti).
+         *     Yalnız `delivery` siparişte basılır — gel-al'da kurye yoktur.
+         * @enum {string}
+         */
+        ReceiptType: "mutfak" | "musteri" | "kurye";
         /** @enum {string} */
         ErrorCode: "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_FOUND" | "VALIDATION_FAILED" | "INVALID_TRANSITION" | "LOCATION_CLOSED" | "ITEM_UNAVAILABLE" | "DEVICE_REVOKED" | "RATE_LIMITED" | "SERVER_ERROR";
         /**
@@ -778,6 +1409,16 @@ export interface components {
              * @constant
              */
             kvkk_accepted: true;
+            /** @description Ticari unvan (kurumsal/B2B). Şimdilik opsiyonel; web ve mobil kayıt formları bu alanı göndermeye başlayınca zorunlu olacak. Sunucu her yeni kaydı `corporate` olarak işaretler. */
+            company_name?: string;
+            /** @description Yetkili kişi. */
+            contact_person?: string;
+            /** @description Vergi dairesi. */
+            tax_office?: string;
+            /** @description Vergi / TCKN no. */
+            tax_number?: string;
+            /** @description Kurum telefonu. */
+            company_phone?: string;
         };
         AuthResponse: {
             token: string;
@@ -797,6 +1438,134 @@ export interface components {
             telephone: string;
             /** Format: int64 */
             default_location_id?: number | null;
+            /**
+             * @description B2B — yeni kayıtlar `corporate`. Bireysel hesap sipariş veremez.
+             * @enum {string}
+             */
+            account_type?: "corporate" | "individual";
+            /** @description İstemci sipariş yolunu bununla açar/kapatır; sunucu da denetler. */
+            can_order?: boolean;
+            company_name?: string | null;
+            contact_person?: string | null;
+        };
+        AccountSummary: {
+            /**
+             * Format: int64
+             * @description Güncel bakiye (kuruş). Pozitif = müşterinin borcu, negatif = fazla ödeme.
+             */
+            balance: number;
+            currency: components["schemas"]["Currency"];
+            /** Format: date-time */
+            as_of: string;
+        };
+        AccountEntry: {
+            /** Format: date */
+            date: string;
+            /**
+             * @description `debit` = borç (sipariş/abonelik), `credit` = alacak (tahsilat/iptal).
+             * @enum {string}
+             */
+            entry_type: "debit" | "credit";
+            amount: components["schemas"]["Money"];
+            /**
+             * Format: int64
+             * @description O satırdan sonraki yürüyen bakiye (kuruş, işaretli).
+             */
+            running_balance: number;
+            /** @enum {string} */
+            source: "order" | "subscription" | "payment" | "manual" | "adjustment";
+            description?: string | null;
+        };
+        AccountStatement: {
+            /** Format: int64 */
+            opening_balance: number;
+            /** Format: int64 */
+            closing_balance: number;
+            currency: components["schemas"]["Currency"];
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            entries: components["schemas"]["AccountEntry"][];
+        };
+        Subscription: {
+            /** Format: int64 */
+            id: number;
+            /** @enum {string} */
+            status: "pending" | "active" | "paused" | "cancelled";
+            /** Format: int64 */
+            location_id: number;
+            delivery_type: components["schemas"]["DeliveryType"];
+            /** Format: date */
+            start_date: string;
+            /** Format: date */
+            end_date?: string | null;
+            /** @description ISO hafta günleri (1 Pazartesi .. 7 Pazar). */
+            service_days: number[];
+            /** @example 12:00 */
+            delivery_time_from?: string | null;
+            /** @example 13:00 */
+            delivery_time_to?: string | null;
+            default_quantity: number;
+            /** @description Porsiyon başı anlaşmalı fiyat. Talepte null; admin belirler. */
+            agreed_unit_price?: components["schemas"]["Money"] | null;
+            /** @enum {string} */
+            payment_mode: "account" | "prepaid_monthly";
+            /** @enum {string} */
+            menu_mode: "fixed_list" | "daily_menu";
+            lines: components["schemas"]["SubscriptionLine"][];
+            delivery_points: components["schemas"]["SubscriptionDeliveryPoint"][];
+            /** Format: date-time */
+            created_at: string;
+        };
+        SubscriptionLine: {
+            /** Format: int64 */
+            menu_id?: number | null;
+            quantity: number;
+            agreed_unit_price?: components["schemas"]["Money"] | null;
+            label?: string | null;
+        };
+        SubscriptionDeliveryPoint: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            address_id: number;
+            quantity?: number | null;
+            note?: string | null;
+        };
+        SubscriptionCreate: {
+            /** Format: int64 */
+            location_id: number;
+            delivery_type: components["schemas"]["DeliveryType"];
+            /** Format: date */
+            start_date: string;
+            /** Format: date */
+            end_date?: string | null;
+            service_days: number[];
+            default_quantity: number;
+            /** @example 12:00 */
+            delivery_time_from?: string;
+            /** @example 13:00 */
+            delivery_time_to?: string;
+            lines?: {
+                /** Format: int64 */
+                menu_id: number;
+                quantity: number;
+                label?: string;
+            }[];
+            delivery_points?: {
+                /** Format: int64 */
+                address_id: number;
+                quantity?: number;
+                note?: string;
+            }[];
+            customer_note?: string;
+        };
+        SubscriptionExceptionInput: {
+            /** Format: date */
+            service_date: string;
+            skip?: boolean;
+            quantity_override?: number;
         };
         Location: {
             /** Format: int64 */
@@ -806,10 +1575,24 @@ export interface components {
             /** @description Çalışma saatlerinden **türetilir**. Şu an sipariş saati içinde miyiz? */
             is_open: boolean;
             /**
-             * @description Yöneticinin admin panelden çevirdiği elle ana şalter. `false` ise saat uygun
-             *     olsa bile sipariş alınmaz.
+             * @description Elle ana şalter. `false` ise saat uygun olsa bile sipariş alınmaz.
+             *
+             *     Yönetici admin panelden, **mutfak da** `POST /kitchen/ordering`
+             *     ile çevirebilir (K-11). Süreli bir durdurmanın süresi dolduysa
+             *     bu alan okuma anında kendiliğinden `true` döner.
              */
             ordering_enabled: boolean;
+            /**
+             * @description Durdurma sebebi — müşteriye gösterilir. "Şu anda sipariş
+             *     alınmıyor" tek başına müşteriyi tekrar tekrar denemeye itiyor;
+             *     sebep ve saat beklemeyi bilinçli kılıyor.
+             */
+            ordering_pause_reason?: string | null;
+            /**
+             * Format: date-time
+             * @description Süreli durdurmanın bitişi; süresizse `null`.
+             */
+            ordering_resumes_at?: string | null;
             /**
              * @description Günlük son sipariş saati (Europe/Istanbul) veya `null`.
              * @example 16:00
@@ -917,7 +1700,15 @@ export interface components {
          *     basımını durdurur.
          */
         KitchenSettings: {
-            /** @description Sipariş yoklama aralığı. */
+            /**
+             * @description Sipariş yoklama aralığı.
+             *
+             *     **Alt sınır 2'den 3'e çıktı (12.08.2026).** 2 saniyelik
+             *     yoklama saatte 1800 istek demek ve diğer kasa döngüleriyle
+             *     birlikte `bld-kitchen` oran sınırını (2000/saat) aşıyordu;
+             *     aşıldığında kasa `429` alıyor ve **mutfak sipariş görmüyor**.
+             *     Sunucu 3'ün altındaki değeri 3'e çeker.
+             */
             poll_seconds?: number | null;
             /**
              * @description Yeni sipariş sesi. **Bağlantı uyarısını KAPATMAZ** — o
@@ -950,8 +1741,239 @@ export interface components {
              *     alarmı durdurmanın tek yolu siparişi onaylamaktır.
              */
             alarm_silenceable?: boolean | null;
+            /**
+             * @description Uygulamanın kendi ses seviyesi (oynatıcıya `--volume` olarak
+             *     geçer). Kasanın **hoparlör** seviyesinden ayrıdır; hoparlör
+             *     kısıksa bu tek başına yetmez.
+             */
+            volume_percent?: number | null;
+            /**
+             * @description Ses çıkışı (PipeWire/PulseAudio sink adı ya da düğüm numarası).
+             *     **Boş dize = varsayılan çıkışa dön.** `null` bu alanda da
+             *     "yönetici dokunmadı" demek olduğu için, seçimi geri almanın
+             *     tek yolu boş dizedir.
+             */
+            audio_sink?: string | null;
+            /**
+             * @description Türkçe sesli anons ("12 numaralı yeni sipariş, 4 ürün").
+             *     Kasada `spd-say`/`espeak-ng` yoksa sessizce devre dışı kalır.
+             */
+            tts_enabled?: boolean | null;
+            /** @description Anons hızı; 100 = aracın varsayılanı. */
+            tts_rate_percent?: number | null;
+            /**
+             * @description Alarm tekrarları arasındaki bekleme. `0` = aralıksız (varsayılan
+             *     "onaylayana kadar susmaz" davranışı).
+             */
+            alarm_repeat_seconds?: number | null;
+            /**
+             * @description En fazla tekrar sayısı. `0` = sınırsız. Sınır, kimse gelmediğinde
+             *     personelin hoparlörün fişini çekmesini önlemek içindir.
+             */
+            alarm_max_repeats?: number | null;
+            /**
+             * @description Dokunmatik monitör kipi: dokunma hedefleri büyür, açılır menüler
+             *     alt sayfaya döner, klavye gerektiren alanlarda ekran klavyesi
+             *     açılır.
+             */
+            touch_mode?: boolean | null;
             /** Format: date-time */
             updated_at?: string | null;
+        };
+        /**
+         * @description BBD Store'un gönderdiği **kitap** siparişi. BBD'nin ürünleri BLD
+         *     menüsünde eşleştirilmez; ad fişe **olduğu gibi** basılır.
+         */
+        BbdOrderRequest: {
+            /** @description BBD'nin kendi kimliği. Tekilleştirmenin dayanağı. */
+            external_id: string;
+            order_number?: string | null;
+            /** Format: date-time */
+            created_at?: string | null;
+            customer_label?: string | null;
+            phone?: string | null;
+            /**
+             * @description Kitap satışında `delivery` **kargo** demek (kurye değil),
+             *     `pickup` mağazadan teslim. `pickup` ise fişe adres bloğu
+             *     basılmaz — basılan adres paketin yanlışlıkla kargoya
+             *     verilmesine yol açar.
+             * @enum {string|null}
+             */
+            delivery_type?: "delivery" | "pickup" | null;
+            /**
+             * @description **Serbest metin** — BLD'nin yapılandırılmış adres modeli
+             *     değil. BBD'nin biçimi bizimkiyle aynı olmak zorunda değil ve
+             *     ayrıştırmaya çalışmak ilk farklı biçimde yanlış satır basardı.
+             */
+            address?: string | null;
+            note?: string | null;
+            items: {
+                /**
+                 * @description Kitap adı. Uzun olabilir; fiş şablonu **çift boyda
+                 *     basmaz**, satıra sarar. (Mutfak fişinde ürün adı çift
+                 *     boydur çünkü bir metreden okunuyor; kitap adı çift
+                 *     boyda 24 sütuna sığmaz ve fiş okunmaz hâle gelir.)
+                 */
+                name: string;
+                quantity: number;
+                /** @description Stok kodu / ISBN — raftan bulmanın en hızlı yolu. */
+                sku?: string | null;
+                /** @description Yazar, cilt, baskı gibi ek nitelikler. */
+                attributes?: string[];
+                note?: string | null;
+            }[];
+            /**
+             * @description Kuruş. Gönderilmezse fişe tutar satırı **basılmaz** —
+             *     uydurulmuş ya da sıfır bir tutar, kapıda ödemede yanlış
+             *     tahsilata yol açar.
+             */
+            amount_kurus?: number | null;
+            /** @description Kargo firması — paketleyen kişi doğru poşeti seçsin diye. */
+            cargo_company?: string | null;
+            /**
+             * @description Kargo takip numarası. Fişe **çift genişlikte** basılır: paketin
+             *     üstündeki etiketle elle karşılaştırılıyor ve tek bir yanlış
+             *     hane yanlış pakete gider.
+             */
+            tracking_number?: string | null;
+            /**
+             * @description "Ödendi (kredi kartı)" / "Kapıda ödeme" gibi **serbest metin**.
+             *     Enum değil: BBD'nin ödeme yöntemleri bizimkilerle aynı olmak
+             *     zorunda değil ve bilinmeyen bir değeri "Bilinmeyen"e düşürmek,
+             *     paketleyene yanlış bilgi vermek olurdu.
+             */
+            payment_label?: string | null;
+        };
+        BbdQueuedReceipt: {
+            /**
+             * Format: int64
+             * @description BLD'deki satır kimliği; ack bununla gönderilir.
+             */
+            id: number;
+            external_id: string;
+            /** Format: date-time */
+            received_at?: string | null;
+            /** @description BBD'nin gönderdiği ham gövde; fiş bundan üretilir. */
+            payload: components["schemas"]["BbdOrderRequest"];
+        };
+        SubscriptionPlanDay: {
+            /** Format: date */
+            date: string;
+            /** @description Ürün bazında toplam — mutfağın sabah baktığı tek şey. */
+            totals: {
+                name: string;
+                quantity: number;
+            }[];
+            /**
+             * @description `KitchenOrder` alanlarına ek olarak `delivery_time` (`HH:mm`)
+             *     ve `subscription_label` taşır. Bu ikisi `KitchenOrder`
+             *     şemasına girmez: pano kartının onlara ihtiyacı yok ve her
+             *     yoklamada taşımak boşuna bant genişliği.
+             */
+            orders: {
+                [key: string]: unknown;
+            }[];
+            warnings: {
+                /**
+                 * @description `not_generated` **kritiktir** ve arayüzde kırmızı
+                 *     gösterilir: üretim cron'u koşmamış demektir ve mutfak
+                 *     bunu bilmezse hazırlık yapmaz. Diğerleri bilgidir.
+                 * @enum {string}
+                 */
+                kind: "not_generated" | "closed_day" | "paused" | "exception";
+                message: string;
+            }[];
+        };
+        /**
+         * @description Düzenleme ekranının gördüğü sipariş. **Fiyat alanı yoktur**
+         *     (ADR-08); telefon vardır (K-14).
+         */
+        EditableOrder: {
+            /** Format: int64 */
+            id: number;
+            order_number: string;
+            status: components["schemas"]["OrderStatus"];
+            delivery_type: components["schemas"]["DeliveryType"];
+            /** Format: date-time */
+            requested_at?: string | null;
+            customer_name?: string | null;
+            customer_phone?: string | null;
+            customer_note?: string | null;
+            revision_no?: number;
+            /**
+             * @description Abonelikten doğan sipariş. Düzenleme YALNIZ O GÜNÜ etkiler;
+             *     abonelik tanımı değişmez.
+             */
+            is_subscription?: boolean;
+            items: {
+                /** Format: int64 */
+                order_menu_id: number;
+                /** Format: int64 */
+                menu_id: number;
+                name: string;
+                quantity: number;
+                options?: string[];
+                note?: string | null;
+            }[];
+        };
+        OrderRevision: {
+            revision_no: number;
+            reason: string;
+            note?: string | null;
+            refund_kurus?: number;
+            extra_charge_kurus?: number;
+            /** Format: date-time */
+            created_at?: string | null;
+        };
+        /**
+         * @description Bir düzenlemenin sonucu. `refund_kurus` ve `extra_charge_kurus`
+         *     **ikisi de pozitif**; hangisinin dolu olduğu yönü belirler. Tek
+         *     işaretli alan yerine iki alan: iade ile ek tahsilat muhasebede ayrı
+         *     kalemler ve raporda ayrı toplanır.
+         */
+        OrderRevisionResult: {
+            /** Format: int64 */
+            id?: number;
+            revision_no: number;
+            reason?: string;
+            refund_kurus: number;
+            extra_charge_kurus: number;
+            /** @description İnsan okuyabilir değişiklik satırları ("Mercimek: 20 → 10"). */
+            summary_lines?: string[];
+            /** @description Para farkının nasıl kapatıldığı. */
+            settlement?: {
+                /** @enum {string} */
+                kind?: "refund" | "extra_charge" | "none";
+                /** @enum {string} */
+                status?: "succeeded" | "pending" | "manual" | "failed";
+                message?: string | null;
+            };
+        };
+        KitchenOrdering: {
+            ordering_enabled: boolean;
+            /** @description Durdurma sebebi; müşteriye de gösterilir. */
+            reason?: string | null;
+            /**
+             * Format: date-time
+             * @description Süreli durdurmanın bitişi. `null` = süresiz (elle açılana
+             *     kadar) ya da şalter zaten açık.
+             */
+            resumes_at?: string | null;
+            /** @description Yoğunluk uyarısı — satışı kesmez, yalnız uyarır. */
+            busy?: boolean;
+            /** Format: date-time */
+            server_time: string;
+        };
+        /** @description Mutfağın gördüğü ürün. **Fiyat alanı yoktur** (ADR-08). */
+        KitchenMenuItem: {
+            /** Format: int64 */
+            menu_id: number;
+            name: string;
+            /** @description Yöneticinin kalıcı kararı — ürün menüde mi? */
+            listed: boolean;
+            /** @description Mutfağın günlük kararı — bugün tükendi mi? */
+            sold_out: boolean;
+            sold_out_reason?: string | null;
         };
         KitchenCommand: {
             /** Format: int64 */
@@ -990,6 +2012,14 @@ export interface components {
              *     yapıldığında eskisi kendiliğinden bırakır.
              */
             is_default: boolean;
+            /**
+             * Format: double
+             * @description Haritadan seçilen nokta. `longitude` ile birlikte anlamlıdır;
+             *     yalnızca biri doluysa yanıtta ikisi de `null` döner.
+             */
+            latitude?: number | null;
+            /** Format: double */
+            longitude?: number | null;
         };
         SavedAddressInput: {
             label?: string | null;
@@ -998,6 +2028,16 @@ export interface components {
             city: string;
             note?: string | null;
             is_default?: boolean;
+            /**
+             * Format: double
+             * @description İsteğe bağlı. Güncellemede **`null` göndermek koordinatı siler** —
+             *     alanı hiç göndermemek ise mevcut koordinatı korur. İğnesini
+             *     kaldıran müşterinin eski noktası kayıtta kalmasın diye bu ikisi
+             *     ayrı davranışlardır.
+             */
+            latitude?: number | null;
+            /** Format: double */
+            longitude?: number | null;
         };
         MenuCategory: {
             /** Format: int64 */
@@ -1015,8 +2055,22 @@ export interface components {
             currency: components["schemas"]["Currency"];
             /** Format: uri */
             image_url?: string | null;
-            /** @description `false` ürün yanıtta kalır; istemci soluk gösterir, sepete eklemez. */
+            /**
+             * @description `false` ürün yanıtta kalır; istemci soluk gösterir, sepete eklemez.
+             *
+             *     İki sebepten biriyle `false` olur: yöneticinin kalıcı kararı
+             *     (`menus.menu_status`) ya da mutfağın günlük "bugün tükendi"
+             *     işareti (`sold_out_today`). Kullanıcı için sonuç aynı; sebep
+             *     ayrı alanda çünkü farklı beklenti yaratır.
+             */
             is_available: boolean;
+            /**
+             * @description Mutfak bugünlük tükendi işaretledi mi? (K-11)
+             * @default false
+             */
+            sold_out_today: boolean;
+            /** @description `sold_out_today` doğruyken mutfağın yazdığı sebep. */
+            sold_out_reason?: string | null;
             allergens?: string[];
             options?: components["schemas"]["MenuOption"][];
         };
@@ -1049,6 +2103,21 @@ export interface components {
             district: string;
             city: string;
             note?: string | null;
+            /**
+             * Format: double
+             * @description Haritadan seçilen teslimat noktası. **İsteğe bağlı** — konum izni
+             *     vermeyen ya da adresi elle yazan müşteri de sipariş verebilir.
+             *
+             *     `longitude` ile birlikte anlamlıdır: yalnızca biri gönderilirse
+             *     ikisi de yok sayılır, yanıtta ikisi de `null` döner. Yarısı dolu
+             *     bir koordinat haritada gösterilemez.
+             */
+            latitude?: number | null;
+            /**
+             * Format: double
+             * @description `latitude` ile birlikte anlamlıdır.
+             */
+            longitude?: number | null;
         };
         OrderCreateRequest: {
             /** Format: int64 */
@@ -1109,6 +2178,11 @@ export interface components {
             item_count: number;
             /** Format: date-time */
             created_at: string;
+            /**
+             * Format: int64
+             * @description Abonelikten üretildiyse abonelik kimliği; elle siparişte null.
+             */
+            subscription_id?: number | null;
         };
         OrderItem: {
             /** Format: int64 */
@@ -1147,6 +2221,11 @@ export interface components {
             status_history: components["schemas"]["StatusHistoryEntry"][];
             /** Format: date-time */
             created_at: string;
+            /**
+             * Format: int64
+             * @description Abonelikten üretildiyse abonelik kimliği; elle siparişte null.
+             */
+            subscription_id?: number | null;
         };
         /** @description Fiyat alanı **yoktur** — mutfak kapsamı fiyat görmez. */
         KitchenOrderItem: {
@@ -1156,8 +2235,15 @@ export interface components {
             note?: string | null;
         };
         /**
-         * @description Fiyat, telefon, adres ve e-posta **içermez**. `customer_label` yalnızca
-         *     ad + soyad baş harfidir.
+         * @description Fiyat, adres ve e-posta **içermez**.
+         *
+         *     **KURAL DEĞİŞTİ (K-14, 11.08.2026):** telefon artık içerir.
+         *     Önceki sürüm üç ayrı yerde "mutfak listesinde telefon GÖRÜNMEZ"
+         *     diyordu ve sipariş düzenleme (K-12) gelene kadar doğruydu:
+         *     mutfağın telefona ihtiyacı yoktu. Artık personel müşteriyi
+         *     **arayıp** anlaşmak zorunda ve numarayı görmek için fiş basmak
+         *     (ya da basılmış fişi aramak) saçma. Fiyat ve adres gizliliği
+         *     aynen duruyor — kural kaldırılmadı, daraltıldı.
          */
         KitchenOrder: {
             /** Format: int64 */
@@ -1169,12 +2255,41 @@ export interface components {
             delivery_type: components["schemas"]["DeliveryType"];
             /** @example Ayşe Y. */
             customer_label?: string | null;
+            /**
+             * @description Tam ad (K-14). Personel arayacaksa baş harf yetmiyor.
+             * @example Ayşe Yılmaz
+             */
+            customer_name?: string | null;
+            /**
+             * @description Müşterinin telefonu (K-14). Personelin düzenleme öncesi
+             *     arayabilmesi için.
+             * @example 0555 123 45 67
+             */
+            customer_phone?: string | null;
+            /**
+             * @description Kaçıncı revizyon (K-12). Artması, mutfak ve kurye fişlerinin
+             *     yeniden basılması gerektiği anlamına gelir.
+             * @default 0
+             */
+            revision_no: number;
             items: components["schemas"]["KitchenOrderItem"][];
             customer_note?: string | null;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
             updated_at: string;
+            /** @description Abonelikten üretilen sipariş — KDS kartında rozet. */
+            is_subscription?: boolean;
+        };
+        /**
+         * @description Bugün ve yarının abonelik siparişleri, gün gün gruplu. Mutfağın yemek
+         *     kuyruğunu önceden planlaması için — durum ilerletme ana panoda kalır.
+         */
+        KitchenSubscriptionOrders: {
+            today: components["schemas"]["KitchenOrder"][];
+            tomorrow: components["schemas"]["KitchenOrder"][];
+            /** Format: date-time */
+            server_time: string;
         };
         ReceiptLine: {
             quantity: number;
@@ -1193,6 +2308,16 @@ export interface components {
             /** Format: date-time */
             requested_at?: string | null;
             lines: components["schemas"]["ReceiptLine"][];
+            /**
+             * @description Müşterinin telefonu. Fişte basılır; kurye kapıda kaldığında ya da
+             *     adres tarifi yetmediğinde arayacak numara elinde olsun diye.
+             *
+             *     KDS **kartında** (`KitchenOrder`) telefon yoktur ve eklenmeyecektir:
+             *     ekran mutfakta gün boyu açık durur, kartta telefon olması her
+             *     müşterinin numarasını salondan görünür kılardı. Fiş tek bir sipariş
+             *     için basılıp pakete/kuryeye gider.
+             */
+            customer_phone?: string | null;
             customer_note?: string | null;
             /** Format: date-time */
             printed_at?: string | null;
@@ -1387,6 +2512,100 @@ export interface components {
              */
             updated_at?: string | null;
         };
+        /**
+         * @description Talebin panel içindeki takip durumu. **Ziyaretçi bunu görmez ve
+         *     gönderirken belirleyemez** — gövdede `status` alanı gelse bile yok
+         *     sayılır, yeni kayıt her zaman `yeni` doğar.
+         *
+         *     Dört kademe var çünkü üçü yetmiyordu: `cevaplandi` (teklif gönderildi,
+         *     cevap bekleniyor) ile `kapandi` (iş alındı veya kaybedildi)
+         *     ayrılmasaydı liste zamanla takip edilemeyecek kadar şişerdi.
+         * @enum {string}
+         */
+        QuoteStatus: "yeni" | "okundu" | "cevaplandi" | "kapandi";
+        /**
+         * @description Sitedeki teklif formunun gövdesi (`website/lib/validation/quote.ts`).
+         *
+         *     **Şemada olmayan alanlar hata değildir, sessizce yok sayılır** — uç
+         *     gerekçesi `POST /quote-requests` açıklamasındadır. `status` ve
+         *     `admin_note` gibi panele ait alanlar gövdeden ATANAMAZ.
+         */
+        QuoteRequestInput: {
+            /** @description Zorunlu. 120 karakteri aşan değer kesilir, reddedilmez. */
+            full_name: string;
+            organization?: string | null;
+            /**
+             * @description Site başında sıfır olmadan 10 hane gönderir, ama uç ham metni de
+             *     kabul eder (dahili no, uluslararası numara). **`telephone` ve
+             *     `email`'den en az biri dolu olmalıdır**; ikisi de boşsa firma
+             *     teklifi kimseye gönderemez ve kayıt yalnızca kişisel veri
+             *     biriktirir.
+             */
+            telephone?: string | null;
+            email?: string | null;
+            /**
+             * @description `website/content/services.ts` slug'ı. **Enum DEĞİL** — aşağıdaki
+             *     liste bilgi amaçlıdır.
+             * @example kurumsal-toplu-yemek
+             * @example tasima-yemek
+             * @example yerinde-uretim
+             * @example okul-yemek-hizmeti
+             * @example saglik-kuruluslari
+             * @example santiye-yemek
+             * @example davet-organizasyon
+             * @example toplanti-ikram
+             */
+            service_type?: string | null;
+            /**
+             * @description Rakam olmayan değer `null` olarak kaydedilir, talebi düşürmez.
+             *     Tavanı aşan değer tavana çekilir; gerçek sayı zaten `message`
+             *     alanına yazılır.
+             */
+            headcount?: number | null;
+            /**
+             * @description Tek seferlik hizmetlerde (davet, toplantı ikramı) sorulmaz.
+             *     **Enum değil.**
+             * @example gunluk
+             * @example haftaici
+             * @example haftalik-birkac
+             * @example donemsel
+             */
+            frequency?: string | null;
+            /**
+             * @description Tek seferlik hizmetlerde etkinlik tarihi, sürekli hizmetlerde
+             *     başlangıç tercihi. `YYYY-MM-DD` beklenir; **çözümlenemeyen değer
+             *     `null` olarak kaydedilir**, talep yine durur.
+             * @example 2026-09-01
+             */
+            start_date?: string | null;
+            location?: string | null;
+            /**
+             * @description **Enum değil**, örnek değerler.
+             * @example siz-onerin
+             * @example dort-kap
+             * @example uc-kap
+             * @example kahvalti-ikram
+             * @example ozel-beslenme
+             */
+            menu_preference?: string | null;
+            /** @description Yalnızca yerinde üretim hizmetinde sorulan mutfak altyapısı notu. */
+            kitchen_note?: string | null;
+            message?: string | null;
+            /**
+             * @description **`true` DEĞİLSE TALEP KAYDEDİLMEZ ve `422` döner.** Onaysız
+             *     kişisel veri saklamak hukuki sorundur; bu, ucun kaybı göze aldığı
+             *     iki durumdan biridir. Onay anı sunucuda damgalanır — istemcinin
+             *     bildirdiği bir zaman hukuki kayıt için delil değildir.
+             * @constant
+             */
+            kvkk_accepted: true;
+            /**
+             * Format: date-time
+             * @description Sitenin bildirdiği gönderim anı. `created_at` ile aynı olmak
+             *     zorunda değil: site kuyruğa alıp gecikmeli iletebilir.
+             */
+            submitted_at?: string | null;
+        };
     };
     responses: {
         /** @description Token yok veya geçersiz (`UNAUTHENTICATED`) */
@@ -1469,10 +2688,26 @@ export type SchemaPaginationMeta = components['schemas']['PaginationMeta'];
 export type SchemaRegisterRequest = components['schemas']['RegisterRequest'];
 export type SchemaAuthResponse = components['schemas']['AuthResponse'];
 export type SchemaCustomer = components['schemas']['Customer'];
+export type SchemaAccountSummary = components['schemas']['AccountSummary'];
+export type SchemaAccountEntry = components['schemas']['AccountEntry'];
+export type SchemaAccountStatement = components['schemas']['AccountStatement'];
+export type SchemaSubscription = components['schemas']['Subscription'];
+export type SchemaSubscriptionLine = components['schemas']['SubscriptionLine'];
+export type SchemaSubscriptionDeliveryPoint = components['schemas']['SubscriptionDeliveryPoint'];
+export type SchemaSubscriptionCreate = components['schemas']['SubscriptionCreate'];
+export type SchemaSubscriptionExceptionInput = components['schemas']['SubscriptionExceptionInput'];
 export type SchemaLocation = components['schemas']['Location'];
 export type SchemaLocationEta = components['schemas']['LocationEta'];
 export type SchemaEtaWindow = components['schemas']['EtaWindow'];
 export type SchemaKitchenSettings = components['schemas']['KitchenSettings'];
+export type SchemaBbdOrderRequest = components['schemas']['BbdOrderRequest'];
+export type SchemaBbdQueuedReceipt = components['schemas']['BbdQueuedReceipt'];
+export type SchemaSubscriptionPlanDay = components['schemas']['SubscriptionPlanDay'];
+export type SchemaEditableOrder = components['schemas']['EditableOrder'];
+export type SchemaOrderRevision = components['schemas']['OrderRevision'];
+export type SchemaOrderRevisionResult = components['schemas']['OrderRevisionResult'];
+export type SchemaKitchenOrdering = components['schemas']['KitchenOrdering'];
+export type SchemaKitchenMenuItem = components['schemas']['KitchenMenuItem'];
 export type SchemaKitchenCommand = components['schemas']['KitchenCommand'];
 export type SchemaSavedAddress = components['schemas']['SavedAddress'];
 export type SchemaSavedAddressInput = components['schemas']['SavedAddressInput'];
@@ -1490,6 +2725,7 @@ export type SchemaStatusHistoryEntry = components['schemas']['StatusHistoryEntry
 export type SchemaOrderDetail = components['schemas']['OrderDetail'];
 export type SchemaKitchenOrderItem = components['schemas']['KitchenOrderItem'];
 export type SchemaKitchenOrder = components['schemas']['KitchenOrder'];
+export type SchemaKitchenSubscriptionOrders = components['schemas']['KitchenSubscriptionOrders'];
 export type SchemaReceiptLine = components['schemas']['ReceiptLine'];
 export type SchemaKitchenReceipt = components['schemas']['KitchenReceipt'];
 export type SchemaCustomerReceipt = components['schemas']['CustomerReceipt'];
@@ -1499,6 +2735,8 @@ export type SchemaSiteContact = components['schemas']['SiteContact'];
 export type SchemaSiteService = components['schemas']['SiteService'];
 export type SchemaSitePost = components['schemas']['SitePost'];
 export type SchemaSiteContent = components['schemas']['SiteContent'];
+export type SchemaQuoteStatus = components['schemas']['QuoteStatus'];
+export type SchemaQuoteRequestInput = components['schemas']['QuoteRequestInput'];
 export type ResponseUnauthenticated = components['responses']['Unauthenticated'];
 export type ResponseForbiddenOrRevoked = components['responses']['ForbiddenOrRevoked'];
 export type ResponseNotFound = components['responses']['NotFound'];
@@ -2054,6 +3292,266 @@ export interface operations {
             422: components["responses"]["InvalidTransition"];
         };
     };
+    getAccountSummary: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Güncel bakiye */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    getAccountStatement: {
+        parameters: {
+            query?: {
+                /** @description Başlangıç tarihi (varsayılan 3 ay önce). */
+                from?: string;
+                /** @description Bitiş tarihi (varsayılan bugün). */
+                to?: string;
+            };
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ekstre */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountStatement"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    listSubscriptions: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Abonelik listesi */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Subscription"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    createSubscription: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionCreate"];
+            };
+        };
+        responses: {
+            /** @description Oluşturulan abonelik */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Subscription"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    getSubscription: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Abonelik */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Subscription"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    pauseSubscription: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Güncel abonelik */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Subscription"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    resumeSubscription: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Güncel abonelik */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Subscription"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    cancelSubscription: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Güncel abonelik */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Subscription"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    addSubscriptionException: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionExceptionInput"];
+            };
+        };
+        responses: {
+            /** @description Güncel abonelik */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Subscription"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
     registerPushToken: {
         parameters: {
             query?: never;
@@ -2173,6 +3671,32 @@ export interface operations {
                          */
                         max_id: number;
                     };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["ForbiddenOrRevoked"];
+        };
+    };
+    listKitchenSubscriptionOrders: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bugün ve yarının abonelik siparişleri */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KitchenSubscriptionOrders"];
                 };
             };
             401: components["responses"]["Unauthenticated"];
@@ -2362,6 +3886,451 @@ export interface operations {
             };
         };
     };
+    receiveBbdOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-BBD-Signature": string;
+                /** @description `external_id` ile aynı olmalı; tekilleştirme gövdeye bakar. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BbdOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Alındı (yeni ya da tekrar) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        external_id: string;
+                        /** @description `false` = bu `external_id` zaten kayıtlıydı. */
+                        accepted: boolean;
+                        /** Format: date-time */
+                        server_time: string;
+                    };
+                };
+            };
+            /** @description İmza doğrulanamadı ya da sır yapılandırılmamış */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Şema hatası — tekrar denemek işe yaramaz */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    listBbdOrders: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bekleyen fişler */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["BbdQueuedReceipt"][];
+                        /** Format: date-time */
+                        server_time: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["ForbiddenOrRevoked"];
+        };
+    };
+    ackBbdReceipt: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                receipt: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Kaydedildi */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["ForbiddenOrRevoked"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getSubscriptionPlan: {
+        parameters: {
+            query?: {
+                /**
+                 * @description `today` = bugün + yarın. `week` yalnız istendiğinde
+                 *     hesaplanır — mutfağın bakmadığı altı gün için boşuna sorgu
+                 *     olmasın.
+                 */
+                days?: "today" | "tomorrow" | "week";
+            };
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Plan */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        days: components["schemas"]["SubscriptionPlanDay"][];
+                        /** Format: date-time */
+                        server_time: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["ForbiddenOrRevoked"];
+        };
+    };
+    getEditableOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Düzenlenebilir sipariş */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EditableOrder"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["ForbiddenOrRevoked"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listOrderRevisions: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revizyonlar */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["OrderRevision"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["ForbiddenOrRevoked"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createOrderRevision: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: string;
+                    note?: string | null;
+                    items: {
+                        /** Format: int64 */
+                        menu_id: number;
+                        quantity: number;
+                        option_value_ids?: number[];
+                        note?: string | null;
+                    }[];
+                    /** Format: date-time */
+                    requested_at?: string | null;
+                    customer_note?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Revizyon uygulandı */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        order: components["schemas"]["KitchenOrder"];
+                        revision: components["schemas"]["OrderRevisionResult"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["ForbiddenOrRevoked"];
+            404: components["responses"]["NotFound"];
+            /** @description Düzenlenemez sipariş ya da doğrulama hatası */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getKitchenMenu: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ürünler */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["KitchenMenuItem"][];
+                        /** Format: date-time */
+                        server_time: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["ForbiddenOrRevoked"];
+        };
+    };
+    getKitchenOrdering: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Şalter durumu */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KitchenOrdering"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["ForbiddenOrRevoked"];
+        };
+    };
+    setKitchenOrdering: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    enabled: boolean;
+                    reason?: string | null;
+                    minutes?: number | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Yeni durum */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KitchenOrdering"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["ForbiddenOrRevoked"];
+            /** @description Doğrulama hatası */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getKitchenMenuAvailability: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ürün listesi */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["KitchenMenuItem"][];
+                        /** Format: date-time */
+                        server_time: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["ForbiddenOrRevoked"];
+        };
+    };
+    setKitchenMenuAvailability: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: int64 */
+                    menu_id: number;
+                    sold_out: boolean;
+                    reason?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Güncel ürün listesi */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["KitchenMenuItem"][];
+                        /** Format: date-time */
+                        server_time: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["ForbiddenOrRevoked"];
+            404: components["responses"]["NotFound"];
+            /** @description Doğrulama hatası */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     reportKitchenHealth: {
         parameters: {
             query?: never;
@@ -2492,6 +4461,57 @@ export interface operations {
                     "application/json": components["schemas"]["SiteContent"];
                 };
             };
+        };
+    };
+    createQuoteRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuoteRequestInput"];
+            };
+        };
+        responses: {
+            /**
+             * @description Talep kaydedildi.
+             *
+             *     **Yanıt kaydın kendisini ve `id`'sini DÖNMEZ.** Uç herkese açık;
+             *     artan bir kimlik döndürmek, formu iki kez dolduran herkese
+             *     firmanın aldığı talep sayısını sızdırırdı.
+             */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status: components["schemas"]["QuoteStatus"];
+                        /** Format: date-time */
+                        received_at: string;
+                    };
+                };
+            };
+            /**
+             * @description KVKK onayı yok (`kvkk_accepted` `true` değil), ad boş, ya da
+             *     telefon ve e-postanın ikisi birden boş.
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
         };
     };
     getAppVersion: {

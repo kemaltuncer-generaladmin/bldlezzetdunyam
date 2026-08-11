@@ -7,7 +7,8 @@ import 'package:bld_api_client/bld_api_client.dart';
 
 /// Kuyruk satırı.
 ///
-/// İş kimliği `(orderId, type)` çiftidir; [id] yalnızca satır numarasıdır.
+/// İş kimliği `(orderId, type, revision)` üçlüsüdür; [id] yalnızca satır
+/// numarasıdır.
 class PrintJob {
   const PrintJob({
     required this.id,
@@ -17,11 +18,18 @@ class PrintJob {
     required this.createdAt,
     this.payload,
     this.printedAt,
+    this.revision = 0,
   });
 
   final int id;
   final int orderId;
   final ReceiptType type;
+
+  /// Siparişin kaçıncı revizyonu için basılıyor (K-14). 0 = düzenlenmemiş.
+  ///
+  /// Tekilliğe dahil: revize fiş, ilk fişin üstüne yazmak yerine yeni bir
+  /// iş olarak girer ve ayrıca basılır.
+  final int revision;
 
   /// Basılacak ESC/POS baytları.
   ///

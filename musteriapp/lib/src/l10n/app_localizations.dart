@@ -1803,6 +1803,12 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'Düzeltme'**
   String get accountSourceAdjustment;
+
+  /// Mutfağın günlük tükendi işareti (K-11).
+  ///
+  /// In tr, this message translates to:
+  /// **'Bugünlük tükendi'**
+  String get productSoldOutToday;
 }
 
 class _AppLocalizationsDelegate

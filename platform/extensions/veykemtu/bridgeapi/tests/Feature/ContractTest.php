@@ -12,7 +12,10 @@ use Veykemtu\BridgeApi\Models\ApiCustomer;
 use Veykemtu\BridgeApi\Models\KitchenCommand;
 use Veykemtu\BridgeApi\Models\KitchenDevice;
 use Veykemtu\BridgeApi\Models\PrintJob;
+use Igniter\Local\Models\Location;
 use Veykemtu\BridgeApi\Services\KitchenDeviceSettings;
+use Veykemtu\BridgeApi\Services\LocationGate;
+use Veykemtu\BridgeApi\Services\MenuAvailability;
 use Veykemtu\BridgeApi\Services\OrderStatusTransition;
 
 /**
@@ -243,6 +246,244 @@ class ContractTest extends TestCase
         ], self::HEADERS)->assertForbidden();
     }
 
+    // ── Satış kontrolü (K-11) ─────────────────────────────────────────────
+
+    public function test_mutfak_siparis_almayi_durdurabilir(): void
+    {
+        // `docs/03` §3'teki "mutfak cirosu kapatamaz" kuralı kaldırıldı
+        // (11.08.2026): sahada mutfak sipariş almaya devam edip gelenleri
+        // telefonla iptal ediyordu — müşteri için çok daha kötü.
+        $this->asKitchen()->postJson('/api/kitchen/ordering', [
+            'enabled' => false,
+            'reason' => 'Yoğunluk',
+            'minutes' => 30,
+        ], self::HEADERS)
+            ->assertOk()
+            ->assertJsonPath('ordering_enabled', false)
+            ->assertJsonPath('reason', 'Yoğunluk');
+
+        // Müşteri artık sipariş veremez.
+        $this->asCustomer()->postJson('/api/orders', [
+            'location_id' => $this->locationId(),
+            'items' => [['menu_id' => $this->menuId('Tavuk Sote'), 'quantity' => 1]],
+            'delivery_type' => 'pickup',
+            'payment_method' => 'cash',
+        ], self::HEADERS)->assertStatus(422);
+    }
+
+    public function test_durdurma_sebebi_musteriye_gider(): void
+    {
+        // "Şu anda sipariş alınmıyor" tek başına müşteriyi tekrar tekrar
+        // denemeye itiyor; sebep ve saat beklemeyi bilinçli kılıyor.
+        $this->asKitchen()->postJson('/api/kitchen/ordering', [
+            'enabled' => false,
+            'reason' => 'Fırın arızalandı',
+            'minutes' => 60,
+        ], self::HEADERS)->assertOk();
+
+        $payload = $this->getJson('/api/locations', self::HEADERS)->json('data.0');
+
+        $this->assertFalse($payload['ordering_enabled']);
+        $this->assertSame('Fırın arızalandı', $payload['ordering_pause_reason']);
+        $this->assertNotNull($payload['ordering_resumes_at']);
+    }
+
+    public function test_sure_dolunca_siparis_KENDILIGINDEN_acilir(): void
+    {
+        // Cron YOK: süre okuma anında değerlendiriliyor. Zamanlayıcıya
+        // bağlansaydı, kuyruk durduğunda dükkân kapalı kalırdı.
+        $gate = app(LocationGate::class);
+        $location = Location::where('location_status', true)->firstOrFail();
+
+        $gate->pauseOrdering($location, now()->subMinute(), 'Yoğunluk');
+
+        $this->assertTrue(
+            $gate->orderingEnabled($location),
+            'Süresi dolmuş durdurma kendiliğinden kalkmalı.',
+        );
+        $this->assertNull($gate->pauseReason($location));
+    }
+
+    public function test_suresiz_durdurma_kendiliginden_acilmaz(): void
+    {
+        $gate = app(LocationGate::class);
+        $location = Location::where('location_status', true)->firstOrFail();
+
+        $gate->pauseOrdering($location, null, 'Ben açana kadar');
+
+        $this->assertFalse($gate->orderingEnabled($location));
+    }
+
+    public function test_tukenen_urun_siparise_eklenemez(): void
+    {
+        $menuId = $this->menuId('Tavuk Sote');
+
+        $this->asKitchen()->postJson('/api/kitchen/menu-availability', [
+            'menu_id' => $menuId,
+            'sold_out' => true,
+            'reason' => 'Malzeme bitti',
+        ], self::HEADERS)->assertOk();
+
+        $this->asCustomer()->postJson('/api/orders', [
+            'location_id' => $this->locationId(),
+            'items' => [['menu_id' => $menuId, 'quantity' => 1]],
+            'delivery_type' => 'pickup',
+            'payment_method' => 'cash',
+        ], self::HEADERS)
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'ITEM_UNAVAILABLE');
+    }
+
+    public function test_tukendi_isareti_menude_gorunur(): void
+    {
+        $menuId = $this->menuId('Tavuk Sote');
+
+        $this->asKitchen()->postJson('/api/kitchen/menu-availability', [
+            'menu_id' => $menuId,
+            'sold_out' => true,
+        ], self::HEADERS)->assertOk();
+
+        $menu = $this->getJson(
+            '/api/locations/'.$this->locationId().'/menu',
+            self::HEADERS,
+        )->json('data');
+
+        $item = collect($menu)
+            ->flatMap(fn(array $category): array => $category['items'])
+            ->firstWhere('id', $menuId);
+
+        $this->assertFalse($item['is_available']);
+        $this->assertTrue($item['sold_out_today']);
+    }
+
+    public function test_tukendi_isareti_KALDIRILABILIR(): void
+    {
+        $menuId = $this->menuId('Tavuk Sote');
+        $availability = app(MenuAvailability::class);
+
+        $availability->markSoldOut($menuId);
+        $this->assertTrue($availability->isSoldOut($menuId));
+
+        $this->asKitchen()->postJson('/api/kitchen/menu-availability', [
+            'menu_id' => $menuId,
+            'sold_out' => false,
+        ], self::HEADERS)->assertOk();
+
+        $this->assertFalse($availability->isSoldOut($menuId));
+    }
+
+    public function test_ayni_urun_iki_kez_isaretlenince_tek_satir_olur(): void
+    {
+        $menuId = $this->menuId('Tavuk Sote');
+        $availability = app(MenuAvailability::class);
+
+        $availability->markSoldOut($menuId, 'İlk sebep');
+        $availability->markSoldOut($menuId, 'İkinci sebep');
+
+        $this->assertSame(
+            1,
+            DB::table('veykemtu_menu_soldout')->where('menu_id', $menuId)->count(),
+        );
+        // İlk sebep korunur: `insertOrIgnore` ikinciyi yutar ve "kim ne
+        // zaman ne yazdı" izi bulanmaz.
+        $this->assertSame('İlk sebep', $availability->reasonFor($menuId));
+    }
+
+    public function test_mutfak_urun_listesinde_FIYAT_YOKTUR(): void
+    {
+        // ADR-08 korunuyor: mutfak kapsamı para görmez.
+        $items = $this->asKitchen()
+            ->getJson('/api/kitchen/menu-availability', self::HEADERS)
+            ->assertOk()
+            ->json('data');
+
+        $this->assertNotEmpty($items);
+        foreach ($items as $item) {
+            $this->assertArrayNotHasKey('price', $item);
+            $this->assertArrayHasKey('sold_out', $item);
+        }
+    }
+
+    public function test_musteri_satis_salterini_ceviremez(): void
+    {
+        $this->asCustomer()->postJson('/api/kitchen/ordering', [
+            'enabled' => false,
+        ], self::HEADERS)->assertForbidden();
+    }
+
+    // ── Geri alma penceresi (K-10) ────────────────────────────────────────
+
+    public function test_tek_adim_geri_alinabilir(): void
+    {
+        // Dokunmatik monitörde yanlışlıkla kaydırma gerçek; geri alınamayan
+        // bir dokunuş siparişi yanlış sütuna gönderiyor.
+        $order = $this->orderInStatus(OrderStatusTransition::PREPARING);
+
+        $this->asKitchen()->postJson(
+            "/api/kitchen/orders/{$order->order_id}/status",
+            ['status' => OrderStatusTransition::CONFIRMED],
+            self::HEADERS,
+        )->assertOk()->assertJsonPath('status', OrderStatusTransition::CONFIRMED);
+    }
+
+    public function test_iki_adim_geri_alinamaz(): void
+    {
+        // Geri alma bir kaçış kapısı, serbest gezinme değil. `hazir`dan
+        // `onaylandi`ya atlamak, `hazirlaniyor` adımını hiç yaşanmamış
+        // gösterir ve üretim süresi ölçümünü bozar.
+        $order = $this->orderInStatus(OrderStatusTransition::READY);
+
+        $this->asKitchen()->postJson(
+            "/api/kitchen/orders/{$order->order_id}/status",
+            ['status' => OrderStatusTransition::CONFIRMED],
+            self::HEADERS,
+        )->assertStatus(422)->assertJsonPath('error.code', 'INVALID_TRANSITION');
+    }
+
+    public function test_pencere_dolunca_geri_alinamaz(): void
+    {
+        $order = $this->orderInStatus(OrderStatusTransition::PREPARING);
+
+        // Durum değişimini pencerenin dışına taşı.
+        $order->forceFill([
+            'status_updated_at' => now()->subSeconds(
+                OrderStatusTransition::UNDO_WINDOW_SECONDS + 60,
+            ),
+        ])->saveQuietly();
+
+        $this->asKitchen()->postJson(
+            "/api/kitchen/orders/{$order->order_id}/status",
+            ['status' => OrderStatusTransition::CONFIRMED],
+            self::HEADERS,
+        )->assertStatus(422);
+    }
+
+    public function test_yeni_durumuna_geri_donulemez(): void
+    {
+        // Mutfak fişi `onaylandi`da basıldı; `yeni`ye dönmek basılı fişi
+        // geçersiz kılardı ve kâğıt geri alınamaz.
+        $order = $this->orderInStatus(OrderStatusTransition::CONFIRMED);
+
+        $this->asKitchen()->postJson(
+            "/api/kitchen/orders/{$order->order_id}/status",
+            ['status' => OrderStatusTransition::NEW],
+            self::HEADERS,
+        )->assertStatus(422);
+    }
+
+    public function test_terminal_durumdan_geri_donulemez(): void
+    {
+        // İptal cari hesaba ters kayıt yazıyor; geri alması muhasebe
+        // düzeltmesi olur ve bu ekranın işi değil.
+        $order = $this->orderInStatus(OrderStatusTransition::CANCELLED);
+
+        $this->asKitchen()->postJson(
+            "/api/kitchen/orders/{$order->order_id}/status",
+            ['status' => OrderStatusTransition::READY],
+            self::HEADERS,
+        )->assertStatus(422);
+    }
+
     // ── Sunucudan yönetilen kasa ayarları ─────────────────────────────────
 
     public function test_dokunulmamis_ayarlar_null_doner(): void
@@ -258,10 +499,82 @@ class ContractTest extends TestCase
 
         foreach (['poll_seconds', 'sound_enabled', 'printer_device_path',
             'warning_after_minutes', 'late_after_minutes', 'printer_code_page',
-            'health_seconds', 'connection_alarm_seconds', 'alarm_silenceable'] as $alan) {
+            'health_seconds', 'connection_alarm_seconds', 'alarm_silenceable',
+            'volume_percent', 'audio_sink', 'tts_enabled', 'tts_rate_percent',
+            'alarm_repeat_seconds', 'alarm_max_repeats', 'touch_mode'] as $alan) {
             $this->assertArrayHasKey($alan, $settings);
             $this->assertNull($settings[$alan], "$alan dokunulmamışken null olmalı.");
         }
+    }
+
+    public function test_ses_ayarlari_kasaya_gider(): void
+    {
+        // K-09: sahada "ses çalmıyor" arızası, seviyenin ve çıkışın
+        // uzaktan denenememesi yüzünden günlerce sürdü.
+        $device = $this->pairedDevice();
+
+        app(KitchenDeviceSettings::class)->update($device['model'], [
+            'volume_percent' => 45,
+            'audio_sink' => 'alsa_output.analog-stereo',
+            'tts_enabled' => true,
+            'tts_rate_percent' => 120,
+            'alarm_repeat_seconds' => 15,
+            'alarm_max_repeats' => 6,
+            'touch_mode' => true,
+        ]);
+
+        $settings = $this->withToken($device['token'])->postJson('/api/kitchen/health', [
+            'printer_ok' => true,
+            'print_queue_pending' => 0,
+            'print_queue_failed' => 0,
+        ], self::HEADERS)->json('settings');
+
+        $this->assertSame(45, $settings['volume_percent']);
+        $this->assertSame('alsa_output.analog-stereo', $settings['audio_sink']);
+        $this->assertTrue($settings['tts_enabled']);
+        $this->assertSame(120, $settings['tts_rate_percent']);
+        $this->assertSame(15, $settings['alarm_repeat_seconds']);
+        $this->assertSame(6, $settings['alarm_max_repeats']);
+        $this->assertTrue($settings['touch_mode']);
+    }
+
+    public function test_bos_ses_cikisi_varsayilana_dondurur(): void
+    {
+        // `null` bu alanda da "dokunulmadı" demek; yöneticinin seçimini
+        // geri almasının tek yolu boş dize. Boş dize `null`'a düşseydi
+        // seçilen çıkış hiç geri alınamazdı.
+        $device = $this->pairedDevice();
+        $settings = app(KitchenDeviceSettings::class);
+
+        $settings->update($device['model'], ['audio_sink' => 'hdmi-0']);
+        $device['model']->refresh();
+        $this->assertSame('hdmi-0', $device['model']->audio_sink);
+
+        $settings->update($device['model'], ['audio_sink' => '']);
+        $device['model']->refresh();
+        $this->assertSame('', $device['model']->audio_sink);
+    }
+
+    public function test_ses_seviyesi_sinir_disina_tasamaz(): void
+    {
+        $device = $this->pairedDevice();
+
+        app(KitchenDeviceSettings::class)->update($device['model'], [
+            'volume_percent' => 900,
+            'tts_rate_percent' => 5,
+            'alarm_repeat_seconds' => 9999,
+        ]);
+        $device['model']->refresh();
+
+        $this->assertSame(100, $device['model']->volume_percent);
+        $this->assertSame(
+            KitchenDeviceSettings::MIN_TTS_RATE_PERCENT,
+            $device['model']->tts_rate_percent,
+        );
+        $this->assertSame(
+            KitchenDeviceSettings::MAX_ALARM_REPEAT_SECONDS,
+            $device['model']->alarm_repeat_seconds,
+        );
     }
 
     public function test_yoneticinin_yazdigi_ayar_kasaya_gider(): void
@@ -1245,6 +1558,37 @@ class ContractTest extends TestCase
         return $this->asCustomer()->postJson('/api/orders', $payload, self::HEADERS)
             ->assertCreated()
             ->json();
+    }
+
+    /**
+     * Verilen duruma kadar ilerletilmiş bir sipariş üretir.
+     *
+     * Ara adımlar gerçek uçtan geçiyor: `status_updated_at` ve
+     * `status_history` doğrudan yazılsaydı geri alma penceresi testi
+     * gerçekte olmayan bir zaman damgasıyla çalışırdı.
+     */
+    private function orderInStatus(string $status): Order
+    {
+        $order = $this->placeOrder();
+        $orderId = (int) $order['id'];
+
+        $path = [
+            OrderStatusTransition::CONFIRMED => [OrderStatusTransition::CONFIRMED],
+            OrderStatusTransition::PREPARING => [
+                OrderStatusTransition::CONFIRMED,
+                OrderStatusTransition::PREPARING,
+            ],
+            OrderStatusTransition::READY => [
+                OrderStatusTransition::CONFIRMED,
+                OrderStatusTransition::PREPARING,
+                OrderStatusTransition::READY,
+            ],
+            OrderStatusTransition::CANCELLED => [OrderStatusTransition::CANCELLED],
+        ];
+
+        $this->advance($orderId, $path[$status]);
+
+        return Order::findOrFail($orderId);
     }
 
     /** @param list<string> $statuses */

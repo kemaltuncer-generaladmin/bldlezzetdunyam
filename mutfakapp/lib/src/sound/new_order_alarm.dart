@@ -16,6 +16,7 @@ library;
 import 'package:bld_api_client/bld_api_client.dart';
 
 import 'alarm_player.dart';
+import 'tts_announcer.dart';
 
 /// Alarmın dışarıdan görünen durumu. Arayüz bunu çizer.
 class NewOrderAlarmState {
@@ -24,6 +25,7 @@ class NewOrderAlarmState {
     required this.sounding,
     required this.silenced,
     required this.muted,
+    this.muteReason,
   });
 
   static const NewOrderAlarmState idle = NewOrderAlarmState(
@@ -48,6 +50,12 @@ class NewOrderAlarmState {
   /// olmadığını bilmemekten iyidir.
   final bool muted;
 
+  /// Ses neden çıkmıyor? Sessiz değilse `null`.
+  ///
+  /// "Ses yok" demek personele yetmiyor; ne yapacağını bilmiyor. Sebep
+  /// uyarı şeridine ve tanılama ekranına kadar taşınır.
+  final String? muteReason;
+
   /// Bekleyen sipariş varken hiç ses çıkmıyor mu? Uyarı şeridinin koşulu.
   bool get silentWhileWaiting => pendingCount > 0 && muted;
 
@@ -56,11 +64,13 @@ class NewOrderAlarmState {
     bool? sounding,
     bool? silenced,
     bool? muted,
+    String? muteReason,
   }) => NewOrderAlarmState(
     pendingCount: pendingCount ?? this.pendingCount,
     sounding: sounding ?? this.sounding,
     silenced: silenced ?? this.silenced,
     muted: muted ?? this.muted,
+    muteReason: muteReason ?? this.muteReason,
   );
 
   @override
@@ -69,15 +79,17 @@ class NewOrderAlarmState {
       other.pendingCount == pendingCount &&
       other.sounding == sounding &&
       other.silenced == silenced &&
-      other.muted == muted;
+      other.muted == muted &&
+      other.muteReason == muteReason;
 
   @override
-  int get hashCode => Object.hash(pendingCount, sounding, silenced, muted);
+  int get hashCode =>
+      Object.hash(pendingCount, sounding, silenced, muted, muteReason);
 
   @override
   String toString() =>
       'NewOrderAlarmState(pending: $pendingCount, sounding: $sounding, '
-      'silenced: $silenced, muted: $muted)';
+      'silenced: $silenced, muted: $muted, reason: $muteReason)';
 }
 
 /// Sipariş listesini alarm kararına çeviren saf durum makinesi.
@@ -134,10 +146,27 @@ class NewOrderAlarmPolicy {
 /// Ayrı bir sınıf olması bilinçli: karar (saf, senkron) ile çalma (asenkron,
 /// süreç açan) birbirine karışmasın. Riverpod bu sınıfı sarar, mantığı değil.
 class NewOrderAlarm {
-  NewOrderAlarm(this._player);
+  NewOrderAlarm(
+    this._player, {
+    TtsAnnouncer? announcer,
+    String Function(KitchenOrder order)? announcementFor,
+  }) : _announcer = announcer,
+       _announcementFor = announcementFor ?? defaultAnnouncement;
 
   final AlarmPlayer _player;
+  final TtsAnnouncer? _announcer;
+  final String Function(KitchenOrder order) _announcementFor;
   final NewOrderAlarmPolicy _policy = NewOrderAlarmPolicy();
+
+  /// Anonsu yapılmış sipariş kimlikleri — aynı sipariş iki kez okunmasın.
+  final Set<int> _announced = <int>{};
+
+  /// İlk sipariş listesi geldi mi?
+  ///
+  /// Açılışta bekleyen siparişlerin hepsini arka arkaya okumak (elektrik
+  /// kesintisinden sonra 12 sipariş) anons değil gürültüdür. İlk liste
+  /// yalnızca "biliniyor" olarak işaretlenir; alarm sesi yine çalar.
+  bool _primed = false;
 
   NewOrderAlarmState _state = NewOrderAlarmState.idle;
 
@@ -146,8 +175,31 @@ class NewOrderAlarm {
   /// Sipariş listesi değişti. Dönen değer yeni durumdur.
   NewOrderAlarmState onOrders(List<KitchenOrder> orders) {
     final sound = _policy.apply(orders);
+    _announce(orders);
     _sync(sound);
     return _state;
+  }
+
+  /// Yeni düşen siparişleri sesli okur.
+  void _announce(List<KitchenOrder> orders) {
+    final pending = orders.where((order) => order.status == OrderStatus.yeni);
+
+    if (!_primed) {
+      _primed = true;
+      _announced.addAll(pending.map((order) => order.id));
+      return;
+    }
+
+    final announcer = _announcer;
+    for (final order in pending) {
+      if (!_announced.add(order.id)) continue;
+      if (announcer == null) continue;
+
+      announcer.announce(_announcementFor(order)).ignore();
+    }
+
+    // Küme sonsuza dek büyümesin: `yeni`den çıkan sipariş geri dönemez.
+    _announced.retainWhere(_policy.pendingIds.contains);
   }
 
   /// "Sesi sustur" düğmesi.
@@ -186,6 +238,19 @@ class NewOrderAlarm {
       sounding: shouldSound && !_player.isMuted,
       silenced: _policy.isSilenced,
       muted: _player.isMuted,
+      muteReason: _player.muteReason,
     );
   }
+}
+
+/// Sipariş için varsayılan Türkçe anons metni.
+///
+/// KISA TUTULUYOR: mutfakta anons ne kadar uzunsa, ikinci sipariş
+/// düştüğünde birincinin üstüne binme ihtimali o kadar yüksek. Sipariş
+/// numarası ve kalem sayısı, ekrana bakma kararını vermeye yeter.
+String defaultAnnouncement(KitchenOrder order) {
+  final items = order.items.fold<int>(0, (sum, item) => sum + item.quantity);
+  final number = order.orderNumber.replaceAll(RegExp(r'^[A-Za-z]-'), '');
+
+  return '$number numaralı yeni sipariş, $items ürün';
 }

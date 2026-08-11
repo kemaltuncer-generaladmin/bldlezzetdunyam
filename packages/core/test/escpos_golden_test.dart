@@ -120,6 +120,129 @@ final CustomerReceiptData customerPickup = CustomerReceiptData(
   paymentStatus: ReceiptPaymentStatus.pending,
 );
 
+/// Kurye fişi — düzenlenmiş, kapıda ödemeli, haritalı sipariş (K-14).
+///
+/// EN ZOR VAKA BİLİNÇLİ SEÇİLDİ: revizyon başlığı, değişiklik listesi,
+/// harita QR'ı ve tahsilat satırı bir arada. Kolay vakayı sabitlemek,
+/// asıl kırılgan yolu korumasız bırakırdı.
+final CourierReceiptData courierRevised = CourierReceiptData(
+  orderNumber: 'S-5012',
+  deliveryType: DeliveryType.delivery,
+  printedAt: printedAt,
+  requestedAt: requestedAt,
+  customerName: 'Ayşe Yılmaz',
+  customerPhone: '0555 123 45 67',
+  customerNote: 'Zili çalmayın',
+  revisionNo: 1,
+  revisionSummary: const ['Mercimek Çorbası: 20 → 10', 'ÇIKARILDI: Ayran ×5'],
+  collectAmount: 41000,
+  total: 41000,
+  paymentMethod: ReceiptPaymentMethod.cash,
+  paymentStatus: ReceiptPaymentStatus.pending,
+  lines: const [
+    CustomerReceiptLine(quantity: 10, name: 'Mercimek Çorbası', lineTotal: 85000),
+  ],
+  address: const ReceiptAddress(
+    line1: 'Örnek Mah. 12. Sk No:3',
+    district: 'Selçuklu',
+    city: 'Konya',
+    latitude: 37.8901234,
+    longitude: 32.4876543,
+  ),
+);
+
+/// Ödenmiş, düzenlenmemiş sipariş — tahsilat satırı basılmamalı.
+final CourierReceiptData courierPaid = CourierReceiptData(
+  orderNumber: 'S-5014',
+  deliveryType: DeliveryType.delivery,
+  printedAt: printedAt,
+  customerName: 'Mehmet Demir',
+  customerPhone: '0532 987 65 43',
+  total: 49500,
+  paymentMethod: ReceiptPaymentMethod.online,
+  paymentStatus: ReceiptPaymentStatus.paid,
+  lines: const [
+    CustomerReceiptLine(quantity: 2, name: 'Tavuk Sote', lineTotal: 37000),
+  ],
+  address: const ReceiptAddress(
+    line1: 'Örnek Mah. 12. Sk No:3',
+    district: 'Selçuklu',
+    city: 'Konya',
+  ),
+);
+
+/// Üretim planı — uyarılı, dolu bir gün (K-15).
+///
+/// UYARILI VAKA SEÇİLDİ: uyarısız plan kolay yol. "Üretim koşmamış"
+/// satırının kâğıda gerçekten bastığını sabitlemek, ekranda görünüp
+/// kâğıtta görünmeyen bir uyarının sessizce doğmasını engelliyor.
+final ProductionPlanData productionPlan = ProductionPlanData(
+  date: DateTime.utc(2026, 8, 12, 3),
+  printedAt: printedAt,
+  totals: const [
+    ProductionPlanTotal(name: 'Mercimek Çorbası', quantity: 120),
+    ProductionPlanTotal(name: 'Tavuk Sote', quantity: 85),
+  ],
+  deliveries: const [
+    ProductionPlanDelivery(label: 'Konya Sanayi A.Ş.', time: '11:30', itemCount: 60),
+    ProductionPlanDelivery(label: 'Meram Belediyesi', time: '12:00', itemCount: 45),
+  ],
+  warnings: const [
+    'Abonelik #7 — bugün atlanıyor (istisna).',
+  ],
+);
+
+/// Boş gün — "ÜRETİM YOK" satırı.
+final ProductionPlanData productionPlanEmpty = ProductionPlanData(
+  date: DateTime.utc(2026, 8, 12, 3),
+  printedAt: printedAt,
+  totals: const [],
+  warnings: const [
+    'Bu gün için 3 abonelik bekleniyor ama hiç sipariş üretilmemiş.',
+  ],
+);
+
+/// BBD Store fişi (K-16) — **kitap** siparişi, kargolu, kapıda ödemeli.
+///
+/// UZUN KİTAP ADI BİLİNÇLİ SEÇİLDİ: şablonun ürün adını çift boyda
+/// basmadığını ve satıra sardığını sabitliyor. Çift boyda 80 mm kâğıt
+/// 24 sütun demek ve bu başlık üç satıra bölünürdü.
+final BbdReceiptData bbdDelivery = BbdReceiptData(
+  orderNumber: 'BBD-123',
+  printedAt: printedAt,
+  createdAt: DateTime.utc(2026, 8, 4, 11, 28),
+  customerLabel: 'Ayşe Yılmaz',
+  customerPhone: '0555 123 45 67',
+  address: 'Örnek Mah. 12. Sk No:3, Selçuklu / Konya',
+  deliveryType: 'delivery',
+  cargoCompany: 'Yurtiçi Kargo',
+  trackingNumber: '1234567890123',
+  paymentLabel: 'Kapıda ödeme',
+  note: 'Hediye paketi yapılsın',
+  amount: 18500,
+  lines: const [
+    BbdReceiptLine(
+      quantity: 2,
+      name: "Türkiye'nin Yakın Tarihi — Cilt II",
+      sku: '9789750718533',
+      attributes: ['Ahmet Yılmaz', 'Ciltli, 3. baskı'],
+      note: 'Kapağı çizik olmasın',
+    ),
+    BbdReceiptLine(quantity: 1, name: 'Sessiz Ev', sku: '9789750802942'),
+  ],
+);
+
+/// Mağazadan teslim, tutarsız — BBD tutar göndermediğinde satır
+/// basılmamalı ve adres bloğu hiç çıkmamalı.
+final BbdReceiptData bbdPickup = BbdReceiptData(
+  orderNumber: 'BBD-124',
+  printedAt: printedAt,
+  deliveryType: 'pickup',
+  address: 'Basılmamalı Mah.',
+  customerLabel: 'Mehmet Demir',
+  lines: const [BbdReceiptLine(quantity: 1, name: 'Kürk Mantolu Madonna')],
+);
+
 void main() {
   // Golden klasörü çalışma dizininden yukarı doğru aranarak bulunur.
   //
@@ -190,6 +313,234 @@ void main() {
         'receipt_musteri_delivery_qr',
         buildCustomerReceipt(customerDeliveryWithPin),
       );
+    });
+  });
+
+  group('Golden — kurye fişi', () {
+    test('revize edilmiş, kapıda ödemeli', () {
+      expectGolden('receipt_kurye_revize', buildCourierReceipt(courierRevised));
+    });
+
+    test('ödenmiş sipariş', () {
+      expectGolden('receipt_kurye_odenmis', buildCourierReceipt(courierPaid));
+    });
+  });
+
+  group('Kurye fişi kuralları', () {
+    test('REVİZE başlığı yalnız düzenlenmiş siparişte basılır', () {
+      // Kuryenin elinde eski bir fiş olabilir; başlık yanlış tutar
+      // tahsil edilmesinin önündeki tek engel.
+      expect(
+        _contains(buildCourierReceipt(courierRevised), 'REVİZE'.codeUnits),
+        isFalse,
+        reason: 'Türkçe harfler PC857 ile kodlanır; ham ASCII eşleşmemeli.',
+      );
+
+      final revised = buildCourierReceipt(courierRevised);
+      final plain = buildCourierReceipt(courierPaid);
+
+      expect(revised.length, greaterThan(plain.length));
+    });
+
+    test('ÖDENMİŞ SİPARİŞTE tahsilat satırı YOKTUR', () {
+      // Sıfırlık bir "tahsil edilecek" satırı, kuryenin bir sonraki
+      // fişte gerçek tutarı gözden kaçırmasına yol açıyor.
+      final bytes = buildCourierReceipt(courierPaid);
+
+      expect(_contains(bytes, Money.formatForReceipt(0).codeUnits), isFalse);
+    });
+
+    test('adres iğnesi varsa QR basılır', () {
+      expect(
+        _contains(buildCourierReceipt(courierRevised), EscPosCommands.qrPrint),
+        isTrue,
+      );
+    });
+
+    test('iğne yoksa QR basılmaz', () {
+      expect(
+        _contains(buildCourierReceipt(courierPaid), EscPosCommands.qrPrint),
+        isFalse,
+      );
+    });
+  });
+
+  group('Golden — üretim planı fişi', () {
+    test('dolu gün, uyarılı', () {
+      expectGolden(
+        'receipt_uretim_plani',
+        buildProductionPlanReceipt(productionPlan),
+      );
+    });
+
+    test('boş gün', () {
+      expectGolden(
+        'receipt_uretim_plani_bos',
+        buildProductionPlanReceipt(productionPlanEmpty),
+      );
+    });
+  });
+
+  group('Üretim planı kuralları', () {
+    test('UYARILAR listeden ÖNCE basılır', () {
+      // Alta konsaydı, listeyi okuyup üstünü çizen personel oraya hiç
+      // bakmazdı.
+      // ASCII parçalarla aranıyor: Türkçe harfler PC857 ile kodlanıyor
+      // ve Dart'ın UTF-16 kod birimleriyle eşleşmiyor.
+      final bytes = buildProductionPlanReceipt(productionPlan);
+      final warningAt = _indexOf(bytes, 'KKAT'.codeUnits);
+      final firstItemAt = _indexOf(bytes, 'MERC'.codeUnits);
+
+      expect(warningAt, greaterThanOrEqualTo(0));
+      expect(firstItemAt, greaterThan(warningAt));
+    });
+
+    test('boş günde ÜRETİM YOK yazar, sessiz kalmaz', () {
+      // Boş bir kâğıt "yazıcı bozuk mu" sorusunu doğurur.
+      expect(
+        _contains(
+          buildProductionPlanReceipt(productionPlanEmpty),
+          'YOK'.codeUnits,
+        ),
+        isTrue,
+      );
+    });
+
+    test('teslimatı olmayan planda TESLİMAT bloğu basılmaz', () {
+      expect(
+        _contains(
+          buildProductionPlanReceipt(productionPlanEmpty),
+          'TESL'.codeUnits,
+        ),
+        isFalse,
+      );
+    });
+
+    test('plan fişi MÜŞTERİ ve FİYAT taşımaz', () {
+      // Sipariş fişi değil, üretim raporu.
+      final bytes = buildProductionPlanReceipt(productionPlan);
+
+      expect(_contains(bytes, 'Tel'.codeUnits), isFalse);
+      expect(_contains(bytes, 'TOPLAM'.codeUnits), isFalse);
+    });
+  });
+
+  group('Golden — BBD Store fişi', () {
+    test('adrese gönderim, tutarlı', () {
+      expectGolden('receipt_bbd_delivery', buildBbdReceipt(bbdDelivery));
+    });
+
+    test('gel-al, tutarsız', () {
+      expectGolden('receipt_bbd_pickup', buildBbdReceipt(bbdPickup));
+    });
+  });
+
+  group('BBD fişi kuralları', () {
+    test('BLD fişinden AYIRT EDİLEBİLİR — başlıkta BBD STORE yazar', () {
+      // Bu sipariş KDS panosunda YOK. Kâğıdı BLD fişiyle karıştıran
+      // personel, panoda olmayan bir siparişi arar ve bulamaz.
+      expect(
+        _contains(buildBbdReceipt(bbdDelivery), 'BBD STORE'.codeUnits),
+        isTrue,
+      );
+    });
+
+    test('panoda görünmediği fişin üstünde YAZAR', () {
+      expect(
+        _contains(buildBbdReceipt(bbdDelivery), 'panosunda'.codeUnits),
+        isTrue,
+      );
+    });
+
+    test('KİTAP ADI ÇİFT BOY BASILMAZ — uzun başlık satıra sarılır', () {
+      // Mutfak fişinde ürün adı çift boydur (bir metreden okunuyor).
+      // Kitap adları uzun ve 80 mm kâğıtta çift boy 24 sütun demek;
+      // başlık üç satıra bölünür ve fiş okunmaz hâle gelir.
+      //
+      // ASCII bir başlık aranıyor: Türkçe harfler PC857 ile kodlanıyor ve
+      // Dart'ın kod birimleriyle eşleşmiyor.
+      final bytes = buildBbdReceipt(bbdDelivery);
+      final titleAt = _indexOf(bytes, 'Sessiz Ev'.codeUnits);
+
+      expect(titleAt, greaterThan(0));
+
+      // Başlıktan ÖNCEKİ son boyut komutu "kapat" olmalı: açıksa ad çift
+      // boyda basılıyor demektir.
+      final head = bytes.sublist(0, titleAt);
+      expect(
+        _lastIndexOf(head, EscPosCommands.doubleSizeOff),
+        greaterThan(_lastIndexOf(head, EscPosCommands.doubleSizeOn)),
+        reason: 'Kitap adı çift boyda basılmamalı.',
+      );
+    });
+
+    test('ADET ÇİFT BOY BASILIR — okunması gereken sayı odur', () {
+      final bytes = buildBbdReceipt(bbdDelivery);
+      final qtyAt = _indexOf(bytes, '2x'.codeUnits);
+
+      expect(qtyAt, greaterThan(0));
+
+      final head = bytes.sublist(0, qtyAt);
+      expect(
+        _lastIndexOf(head, EscPosCommands.doubleSizeOn),
+        greaterThan(_lastIndexOf(head, EscPosCommands.doubleSizeOff)),
+      );
+    });
+
+    test('STOK KODU basılır — raftan bulmanın en hızlı yolu', () {
+      expect(
+        _contains(buildBbdReceipt(bbdDelivery), '9789750718533'.codeUnits),
+        isTrue,
+      );
+    });
+
+    test('KARGO TAKİP NUMARASI basılır', () {
+      // Paketin üstündeki etiketle elle karşılaştırılıyor.
+      expect(
+        _contains(buildBbdReceipt(bbdDelivery), '1234567890123'.codeUnits),
+        isTrue,
+      );
+    });
+
+    test('MAĞAZADAN TESLİMDE adres bloğu BASILMAZ', () {
+      // Basılan adres, paketin yanlışlıkla kargoya verilmesine yol açar.
+      final bytes = buildBbdReceipt(bbdPickup);
+
+      expect(_contains(bytes, 'Bas'.codeUnits), isFalse);
+      expect(_contains(bytes, 'MA'.codeUnits), isTrue);
+    });
+
+    test('kargo bilgisi yoksa boş "Kargo:" satırı basılmaz', () {
+      // Boş bir başlık, paketleyene bir şeyin eksik olduğunu düşündürür.
+      expect(
+        _contains(buildBbdReceipt(bbdPickup), 'Kargo'.codeUnits),
+        isFalse,
+      );
+    });
+
+    test('TUTAR gönderilmediyse satır BASILMAZ', () {
+      // Uydurulmuş ya da sıfır bir tutar, kapıda ödemede yanlış
+      // tahsilata yol açar.
+      expect(
+        _contains(buildBbdReceipt(bbdPickup), 'TUTAR'.codeUnits),
+        isFalse,
+      );
+      expect(
+        _contains(buildBbdReceipt(bbdDelivery), 'TUTAR'.codeUnits),
+        isTrue,
+      );
+    });
+
+    test('satır bazında FİYAT basılmaz', () {
+      // BBD'nin fiyatlandırması bizim değil; yanlış kaynaktan alınmış
+      // bir sayı, paketleyene güvenilmez bilgi vermek olurdu.
+      final bytes = buildBbdReceipt(bbdDelivery);
+      final text = String.fromCharCodes(
+        bytes.where((b) => b >= 32 && b < 127),
+      );
+
+      // Tek para tutarı toplam satırındaki olmalı.
+      expect(',00'.allMatches(text).length, 1);
     });
   });
 
@@ -434,6 +785,43 @@ List<int> _parseHexDump(String content) => content
 ///
 /// Kontrol dizileri (`ESC ...`, `GS ...`) atılır, satır beslemesi `\n` olur,
 /// PC857 baytları Unicode'a döner. Yalnızca teşhis içindir.
+/// [bytes] içinde [pattern] SON nerede geçiyor? Yoksa `-1`.
+///
+/// "Bu metinden önceki son boyut komutu hangisiydi" sorusu için.
+int _lastIndexOf(List<int> bytes, List<int> pattern) {
+  for (var i = bytes.length - pattern.length; i >= 0; i--) {
+    var eslesti = true;
+    for (var j = 0; j < pattern.length; j++) {
+      if (bytes[i + j] != pattern[j]) {
+        eslesti = false;
+        break;
+      }
+    }
+    if (eslesti) return i;
+  }
+  return -1;
+}
+
+/// [bytes] içinde [pattern] ilk nerede geçiyor? Yoksa `-1`.
+///
+/// Sıra sınamak için: "uyarı listeden önce mi basılıyor" sorusunun cevabı
+/// iki konumun karşılaştırılmasıdır.
+int _indexOf(List<int> bytes, List<int> pattern) {
+  if (pattern.isEmpty || pattern.length > bytes.length) return -1;
+
+  for (var i = 0; i <= bytes.length - pattern.length; i++) {
+    var eslesti = true;
+    for (var j = 0; j < pattern.length; j++) {
+      if (bytes[i + j] != pattern[j]) {
+        eslesti = false;
+        break;
+      }
+    }
+    if (eslesti) return i;
+  }
+  return -1;
+}
+
 /// [bytes] içinde [pattern] dizisi geçiyor mu?
 ///
 /// Metne çevirip aramıyoruz: QR komutları yazdırılabilir olmayan baytlar

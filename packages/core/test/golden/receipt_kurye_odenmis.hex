@@ -1,0 +1,60 @@
+# receipt_kurye_odenmis — beklenen ESC/POS baytları (512 bayt)
+# Üreten: packages/core/test/escpos_golden_test.dart
+# Yenileme: BLD_UPDATE_GOLDEN=1 dart test
+#
+# Okunabilir karşılığı (kontrol baytları noktayla gösterilir):
+#   KURYE
+#   Sipariş: S-5014
+#   04.08.2026 14:32
+#   ------------------------------------------------
+#   MEHMET DEMİR
+#   Tel: 0532 987 65 43
+#   ------------------------------------------------
+#   Örnek Mah. 12. Sk No:3
+#   Selçuklu / Konya
+#   ------------------------------------------------
+#   2× Tavuk Sote
+#   ------------------------------------------------
+#   Ödeme: Online (Ödendi)
+#   TAHSİLAT YOK
+#   ------------------------------------------------
+#   Bu belge bilgi fişidir,
+#   mali değeri yoktur.
+#   
+#   
+#   
+#   
+#   
+
+1B 40 1B 74 1D 1B 61 01 1D 21 11 1B 45 01 4B 55
+52 59 45 0A 1D 21 00 53 69 70 61 72 69 9F 3A 20
+53 2D 35 30 31 34 0A 1B 45 00 30 34 2E 30 38 2E
+32 30 32 36 20 31 34 3A 33 32 0A 1B 61 00 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 0A 1B
+45 01 4D 45 48 4D 45 54 20 44 45 4D 98 52 0A 1B
+45 00 1D 21 11 1B 45 01 54 65 6C 3A 20 30 35 33
+32 20 39 38 37 20 36 35 20 34 33 0A 1D 21 00 1B
+45 00 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 0A 99 72 6E 65 6B 20 4D 61 68 2E 20 31 32
+2E 20 53 6B 20 4E 6F 3A 33 0A 53 65 6C 87 75 6B
+6C 75 20 2F 20 4B 6F 6E 79 61 0A 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 0A 32 E8 20 54
+61 76 75 6B 20 53 6F 74 65 0A 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 0A 99 64 65 6D 65
+3A 20 4F 6E 6C 69 6E 65 20 28 99 64 65 6E 64 69
+29 0A 1B 61 01 1B 45 01 54 41 48 53 98 4C 41 54
+20 59 4F 4B 0A 1B 45 00 1B 61 00 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 0A 42 75 20 62
+65 6C 67 65 20 62 69 6C 67 69 20 66 69 9F 69 64
+69 72 2C 0A 6D 61 6C 69 20 64 65 A7 65 72 69 20
+79 6F 6B 74 75 72 2E 0A 0A 0A 0A 0A 1D 56 42 00

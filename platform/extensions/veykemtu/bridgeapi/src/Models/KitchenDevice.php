@@ -36,6 +36,13 @@ use Laravel\Sanctum\HasApiTokens;
  * @property int|null $health_seconds
  * @property int|null $connection_alarm_seconds
  * @property bool|null $alarm_silenceable
+ * @property int|null $volume_percent
+ * @property string|null $audio_sink
+ * @property bool|null $tts_enabled
+ * @property int|null $tts_rate_percent
+ * @property int|null $alarm_repeat_seconds
+ * @property int|null $alarm_max_repeats
+ * @property bool|null $touch_mode
  * @property Carbon|null $settings_updated_at
  */
 class KitchenDevice extends Model
@@ -80,6 +87,12 @@ class KitchenDevice extends Model
         'health_seconds' => 'integer',
         'connection_alarm_seconds' => 'integer',
         'alarm_silenceable' => 'boolean',
+        'volume_percent' => 'integer',
+        'tts_enabled' => 'boolean',
+        'tts_rate_percent' => 'integer',
+        'alarm_repeat_seconds' => 'integer',
+        'alarm_max_repeats' => 'integer',
+        'touch_mode' => 'boolean',
     ];
 
     /**

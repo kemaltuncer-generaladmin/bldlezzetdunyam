@@ -115,6 +115,17 @@ class FakeKitchenService implements KitchenService {
     return receipt;
   }
 
+  /// Kurye fişleri (K-14).
+  final Map<int, CourierReceipt> courierReceipts = <int, CourierReceipt>{};
+
+  @override
+  Future<CourierReceipt> courierReceipt(int orderId) async {
+    receiptCalls++;
+    final receipt = courierReceipts[orderId];
+    if (receipt == null) throw _notFound(orderId);
+    return receipt;
+  }
+
   @override
   Future<void> ackPrint(int orderId, PrintAckRequest request) async {
     if (ackFails) throw const ApiException.network();
@@ -147,6 +158,7 @@ KitchenOrder makeOrder({
   DateTime? createdAt,
   String? customerNote,
   DateTime? requestedAt,
+  int revisionNo = 0,
 }) => KitchenOrder(
   id: id,
   orderNumber: 'S-$id',
@@ -157,6 +169,7 @@ KitchenOrder makeOrder({
   updatedAt: createdAt ?? DateTime.utc(2026, 8, 4, 10),
   customerNote: customerNote,
   requestedAt: requestedAt,
+  revisionNo: revisionNo,
 );
 
 KitchenOrderPage makePage(List<KitchenOrder> orders, {DateTime? serverTime}) =>

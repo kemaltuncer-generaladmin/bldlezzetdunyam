@@ -572,3 +572,443 @@ yalnızca sürtünme üretiyordu. Ayarlar doğrudan açılır.
 - PC857 karakter çevirisi testi (tüm Türkçe karakterler)
 - Kuyruk davranışı: yazıcı yokken iş birikir, sahte yazıcı gelince sırayla basılır, idempotentlik korunur
 - Polling kaynağı: ağ hatası → geri çekilme → kurtarma senaryosu
+
+---
+
+## 11. Ses ve hoparlör — K-09 (11.08.2026)
+
+### SAHA HATASI: `pw-play -q <dosya>` — alarm hiç çalmadı
+
+Mutfaktan gelen "sipariş geliyor ama ses çıkmıyor" şikâyetinin sebebi tek
+bir argümandı:
+
+```
+$ pw-play -q /tmp/bld_yeni_siparis.wav
+error: filename or - argument missing
+exit=1
+```
+
+`aplay` için `-q` "sessiz kip" demek. `pw-play` için `-q` = `--quality`
+ve **bir değer bekliyor**; dosya yolunu kendi değeri sanıp yutuyor,
+geriye oynatılacak dosya kalmıyor. Ubuntu 24.04 PipeWire ile geliyor,
+`pw-play` tercih listesinde ilk sırada — yani kasada alarm **hiç
+çalmadı**.
+
+Hatanın günlerce yaşamasının sebebi, çalmamasının **görünmemesiydi**:
+eski kod yalnız istisna yakalıyordu, süreç başlayıp hata koduyla
+çıktığında istisna atılmıyor, `isMuted` `false` kalıyordu. Arayüz "ses
+açık" gösterirken hoparlör susuyor, döngü de sıkı biçimde yeni süreç
+açmaya devam ediyordu.
+
+**Alınan önlemler:**
+
+* argümanlar `AudioPlayerCommand` içinde ve **testli** — `pw-play`'in
+  `-q` almadığı bir regresyon testiyle sabitlendi,
+* **çıkış kodu denetleniyor**: süreç başlamış olması sesin çıktığı
+  anlamına gelmiyor,
+* sessizliğin **sebebi** taşınıyor (`AlarmPlayer.muteReason`) ve uyarı
+  şeridi ile ayarlardaki "Ses tanılama" bloğunda yazıyor,
+* ardışık hatada döngü **geri çekiliyor** (sıkı döngü yok),
+* ses dosyaları `/tmp` yerine uygulama destek klasörüne çıkarılıyor —
+  systemd `PrivateTmp` ya da dolu `/tmp` sessizce çalmamaya yol açıyordu.
+
+### Hoparlör denetimi
+
+Uygulama seviyesi (`--volume`) yalnız kendi akışını kısıyor. Hoparlörün
+kendisi kısıksa ya da yanlış çıkışa (HDMI monitör hoparlörü) yönlenmişse
+hiçbir şey duyulmuyor ve uygulama bunu bilemiyor. Ayarlar ekranı artık:
+
+* uygulama ses seviyesi (0–100, ±5 düğmeleriyle — kaydırıcı yok,
+  `docs/05` §8'deki gerekçe),
+* **sistem** hoparlör seviyesi (`wpctl` / `amixer`, sessize alınmışsa
+  aynı çağrıda açılıyor),
+* çıkış cihazı seçimi (`pactl list short sinks`, yoksa `wpctl status`),
+* "Ses tanılama": bulunan ikili, ses klasörü, anons aracı, son hata.
+
+### Olay bazlı sesler
+
+Tek bir "bip" hangi olayın olduğunu söylemiyor; personel yeni sipariş
+sanıp ekrana koşuyor, bir şey bulamıyor ve zamanla sesi ciddiye almayı
+bırakıyor. Altı olay, altı ses — her biri **farklı bir boyutta** ayrışıyor
+(perde değil; ritim, tını ve yön de):
+
+| Olay | Ses | Karakter |
+|---|---|---|
+| Yeni sipariş | `yeni_siparis.wav` | ısrarcı, tekrar eden |
+| Bağlantı koptu | `baglanti_yok.wav` | alçalan iki ton, aralıklı, **susturulamaz** |
+| Geciken sipariş | `gecikme.wav` | sert, yükselen üç bip |
+| Yazıcı sorunu | `yazici_hatasi.wav` | alçak, titreşimli iki vuruş |
+| Abonelik | `abonelik.wav` | yumuşak çan, majör üçlü |
+| BBD Store (K-16) | `bbd_siparis.wav` | dört notalı motif |
+
+Sesler `tool/ses_uret.py` ile **üretiliyor**, indirilmiyor: telifsiz,
+yeniden üretilebilir ve ayırt edilebilirlikleri gerekçeli.
+
+### Sesli anons (TTS)
+
+`spd-say` (yoksa `espeak-ng`) alt süreci — yeni Dart bağımlılığı yok,
+`ProcessAlarmPlayer` kalıbının aynısı. "12 numaralı yeni sipariş, 4 ürün".
+Açılışta bekleyen siparişler **okunmuyor**: elektrik kesintisinden sonra
+12 siparişi arka arkaya okumak anons değil gürültü.
+
+### Sunucudan yönetim
+
+`KitchenSettings` 9 alandan 16'ya çıktı. Aynı turda, **hâlihazırda
+sözleşmede olup hiçbir yere bağlanmamış** dört alan da bağlandı:
+`printer_code_page`, `health_seconds`, `connection_alarm_seconds`,
+`alarm_silenceable`. Yönetici panelden değiştiriyor, kasada hiçbir şey
+olmuyordu.
+
+`audio_sink` alanında **boş dize = varsayılan çıkışa dön**; `null` bu
+alanda da "yönetici dokunmadı" demek ve seçimi geri almanın başka yolu
+yok.
+
+---
+
+## 12. Dokunmatik monitör — K-10 (11.08.2026)
+
+`KdsSettings.touchMode` kapalıyken bugünkü klavye öncelikli düzen **bit
+bit** aynı kalıyor; regresyon riski sıfır. Açıkken:
+
+* dokunma hedefleri büyüyor (tema düzeyinde — her widget'a bayrak
+  geçirmek yerine tek yerden, gözden kaçan küçük hedef kalmasın diye),
+* açılır menüler **alt sayfaya** dönüyor: `PopupMenuButton` küçük satırlar
+  çiziyor ve menü parmağın altında kalıyor,
+* **Türkçe ekran klavyesi** (`lib/src/input/onscreen_keyboard.dart`):
+  kilit ekranı, arama, sebep metni ve şifre alanları. Kasada masaüstü
+  ortamı yok, sistem klavyesi açılmıyor; harici klavye yoksa uygulama
+  **hiç açılamıyordu** — kurtarılamaz bir kilitlenme,
+* kartta kaydırma jestleri: sağa = ilerlet, sola/uzun bas = işlem sayfası.
+
+### GERİ ALMA — "geri alma yoktur" kuralı daraltıldı
+
+§3 "geri alma yoktur" diyordu ve dokunmatik monitör gelene kadar
+doğruydu: klavyeyle yanlış kartı ilerletmek zordu. Dokunmatikte kartlar
+parmağın altında ve yanlışlıkla kaydırma gerçek.
+
+Kural kaldırılmadı, **dar bir pencereye** çevrildi
+(`OrderStatusTransition::UNDO_WINDOW_SECONDS = 120`):
+
+* yalnız **tek adım** geri (`hazir` → `hazirlaniyor`),
+* yalnız son durum değişikliğinden sonraki 120 saniye içinde,
+* `yeni`ye dönüş **yok**: mutfak fişi `onaylandi`da basıldı ve basılı
+  kâğıt geri alınamaz,
+* terminal durumlardan (`teslim_edildi`, `iptal`) **yok**: iptal cari
+  hesaba ters kayıt yazıyor, geri alması muhasebe düzeltmesi olur.
+
+Kararı **sunucu** veriyor; şerit ekranda unutulursa istek `422` ile
+reddediliyor ve personel uyarıyı görüyor.
+
+---
+
+## 13. Satış kontrolü — K-11 (11.08.2026)
+
+### KURAL DEĞİŞTİ: mutfak sipariş almayı durdurabiliyor
+
+`docs/03` §3 "mutfak personeli tek tuşla cirosu kapatabilmemeli" diyordu.
+Sahada kural **tersine işledi**: yazıcı bozulduğunda, malzeme bittiğinde
+ya da ekip yetişemediğinde mutfak sipariş almaya devam ediyor, gelenleri
+tek tek telefonla iptal ediyordu. Müşteri için "siparişim alındı, sonra
+arandı ve iptal edildi", kapalı bir dükkândan **çok daha kötü**.
+
+Şalter mutfaktan da çevriliyor ama **tek tuşla değil** — dört adım:
+
+1. süre seçimi (30 dk / 1 sa / gün sonu / süresiz),
+2. sebep seçimi (müşteriye gösteriliyor),
+3. kasanın **açılış şifresi** (ayrı bir şifre yok — ikinci şifre, iki
+   şifrenin de duvara yazılmasıyla sonuçlanırdı, §7.5'teki PIN kararının
+   aynısı),
+4. onay.
+
+**Açmak da şifre istiyor:** yanlışlıkla açılan bir dükkân, yanlışlıkla
+kapanan kadar zararlı (mutfak hazır değilken sipariş akmaya başlar).
+
+Süreli durdurma var çünkü "kapattım, açmayı unuttum" en olası hata.
+Sürenin dolması **tembel** değerlendiriliyor — cron yok; zamanlayıcıya
+bağlansaydı kuyruk durduğunda dükkân kapalı kalırdı.
+
+Kapalıyken panonun en üstünde kalıcı kırmızı şerit, sebep ve kalan süre
+sayacıyla duruyor: kapalı bir günde pano boşalıyor ve boş pano "sakin
+gün" gibi görünüyor.
+
+### Ürün bazında "bugün tükendi"
+
+`menus.menu_status` **kullanılmıyor**: o alan yöneticinin KALICI kararı
+("artık satmıyoruz"), mutfağınki GÜNLÜK ("bugünlük bitti"). Aynı alanı
+paylaşsalardı akşam tükenen ürünü sabah yöneticinin elle geri açması
+gerekirdi ve bir sabah unutulduğunda ürün sessizce menüden düşerdi.
+
+`veykemtu_menu_soldout.sold_out_on` bir **tarih**; gün dönümünde
+kendiliğinden geçersizleşiyor. Temizleyecek cron yok, dolayısıyla cron
+durduğunda ürünlerin kapalı kalması gibi bir arıza da yok.
+
+**Abonelik muaftır.** Abonelik bir sözleşmedir; günlük stok kararı onu
+iptal edemez. Bir günü atlamak için `veykemtu_subscription_exceptions`
+kaydı girilir — ayrı ve bilinçli bir karardır.
+
+---
+
+## 14. Sipariş düzenleme ve iade — K-12/K-13/K-14 (11.08.2026)
+
+### Akış
+
+Mutfak personeli müşteriyle **telefonda konuşur**, anlaşır, sonra
+değişikliği sisteme yazar. Onay beklenmez; onay zaten alınmıştır. Bu
+yüzden uç bir "talep" değil, bir **kayıt** ucudur.
+
+### Panoda telefon — gizlilik kuralı daraltıldı
+
+`docs/03` §5 üç ayrı yerde "mutfak listesinde telefon GÖRÜNMEZ" diyordu
+ve sipariş düzenleme gelene kadar doğruydu: mutfağın telefona ihtiyacı
+yoktu. Artık personel müşteriyi **arayıp** anlaşmak zorunda ve numarayı
+görmek için fiş basmak (ya da basılmış fişi aramak) saçma.
+
+**Fiyat ve adres hâlâ gizli** — ADR-08 duruyor. Değişen tek şey telefon;
+kural kaldırılmadı, daraltıldı.
+
+### En riskli tek detay: `orders.updated_at`
+
+KDS artımlı yoklaması `since` ile **`orders.updated_at`** üzerinden
+çalışıyor. Yalnız `order_menus` değişip `orders` dokunulmasaydı,
+düzenleme mutfak ekranına **hiç düşmezdi** — personel eski adedi
+hazırlamaya devam ederdi. `OrderEditor` bu yüzden `save()` sonrası
+ayrıca `touch()` çağırıyor ve testi zorunlu.
+
+### İkinci düzenlemenin sessizce yutulması (önlendi)
+
+Cari defterdeki `UNIQUE(source, reference_type, reference_id,
+entry_type)` kısıtı **sipariş kimliğine** bağlansaydı, aynı siparişin
+ikinci düzenlemesi `insertOrIgnore` tarafından yutulur ve müşteri fazla
+borçlu kalırdı. Referans bu yüzden **revizyona** bağlı
+(`reference_type = 'order_revision'`).
+
+### `order_totals` iki katına çıkıyordu (önlendi)
+
+`order_totals` tablosunda `(order_id, code)` tekilliği **yok** ve eski
+`storeTotals()` yalnız `insert` yapıyordu. İkinci kez çağrılsa sipariş
+iki "Ara Toplam" satırı taşır, admin panelde toplam iki katı görünürdü.
+`LineResolver::rewriteTotals()` önce siliyor.
+
+### İade
+
+Gerçek sanal POS henüz seçilmedi (`docs/11` §10 açık madde). Sağlayıcı
+bağımsız katman kuruldu: `RefundGateway` arayüzü + `RefundManager`.
+Sürücü **ödeme yönteminden** türüyor, yapılandırmadan değil — bir
+siparişin parası nasıl alındıysa öyle iade edilir:
+
+| Ödeme | Sürücü | Davranış |
+|---|---|---|
+| `account` | `AccountRefund` | Para hareketi yok; cari defterde ters kayıt |
+| `online` | `SimulatedRefund` (bugün) | Üretimde `POS_ALLOW_SIMULATION` olmadan `failed` |
+| `cash` / diğer | `ManualRefund` | Kayıt `manual` kalır; insan tamamlar |
+
+**Başarısız iade de kayıt açar.** Kaydetmemek onu görünmez kılardı:
+müşteri parasını bekler, kimse bir şey bilmez.
+
+**Ek tahsilat otomatik alınmaz.** Müşterinin kartından habersiz ek çekim
+kabul edilemez; fark kurye fişine yazılır.
+
+### Kurye fişi — üçüncü fiş tipi
+
+Kurye üç bilgiye ihtiyaç duyuyor ve hiçbiri tek bir mevcut fişte birlikte
+yok: **kime** (ad + telefon), **nereye** (adres + harita QR), **ne kadar
+tahsil edilecek**. Mutfak fişinde adres yok (mutfak teslimat yapmıyor);
+müşteri fişi ise müşteride kalıyor.
+
+* Yalnız `delivery` siparişte basılır — gel-al'da kurye yok.
+* Tahsilat satırı **en altta ve çift boy**; ödenmiş siparişte hiç
+  basılmaz (sıfırlık bir satır, sonraki fişte gerçek tutarı gözden
+  kaçırtıyor).
+* Sipariş düzenlendiyse başlıkta çift boy `REVİZE #N` ve değişiklik
+  listesi.
+
+### Fiş tekilliği revizyon bazlı
+
+Kuyruk tekilliği `(order_id, type)` idi; sipariş düzenlendiğinde revize
+fiş `INSERT OR IGNORE` tarafından **sessizce yutuluyordu**. Artık
+`(order_id, type, revision)`. SQLite `ALTER TABLE` ile tekilliği
+değiştiremediği için tablo yeniden kuruluyor ve veri kopyalanıyor —
+kuyrukta bekleyen fiş kaybolmuyor.
+
+**Müşteri fişi yeniden basılmaz:** o fiş müşterinin eline geçti, ikinci
+kopya yalnız kafa karıştırır. Mutfağın ve kuryenin elindeki kâğıt ise
+güncel olmak zorunda.
+
+### KDS düzenleme ekranı (12.08.2026)
+
+Karttaki kalem ikonu → tam ekran düzenleme.
+
+**SIRALAMA ÖNEMLİ:** ekranın en üstünde telefon ve "kaydetmeden ÖNCE
+müşteriyi arayın" uyarısı duruyor. Tersine çevirmek, müşteriye haber
+verilmeden değişmiş bir sipariş demek.
+
+* Kalem satırında büyük `−` / adet / `+`; **adet sıfıra inince kalem
+  kalkıyor** (eksiye basa basa sıfıra inen personelin beklentisi bu).
+* Ürün ekleme: aranabilir alt sayfa, **fiyatsız** (ADR-08). Aynı ürün
+  ikinci kez eklenirse adet artıyor, ikinci satır açılmıyor — iki satır
+  fişte de iki satır olur ve mutfak aynı yemeği iki kez hazırlar.
+* **Sebep zorunlu**, sabit listeden (müşteri talebi / malzeme yetmedi /
+  personel hatası / diğer + metin). Herkesin kendi cümlesini yazdığı bir
+  alan, "neden düzenleniyor" sorusunu cevaplanamaz kılar.
+* **Değişiklik yokken kaydedilemiyor:** boş revizyon fişleri yeniden
+  bastırır ve mutfakta kâğıt paradır.
+* Onay penceresi **ne değiştiğini** gösteriyor; **tutar farkını değil**.
+  Fiyatı istemci bilmiyor (ADR-08) ve sunucudan "ne kadar olurdu" diye
+  sormak, kaydetmeden önce ikinci bir uç ve ikinci bir hesap demekti.
+  Para sonucu kaydettikten sonra bildiriliyor.
+
+**TEK BİLDİRİM, İKİ DEĞİL.** İlk sürüm önce "kaydedildi" sonra "iade
+başlatılamadı" gösteriyordu; ikisi kuyruğa giriyor, personel ilkini görüp
+gidiyor ve ikincisi kimseye ulaşmıyordu. Para uyarısı artık başarı
+mesajının **yerine** geçiyor ve daha uzun duruyor. Testte yakalandı.
+
+---
+
+## 15. Abonelik üretim planı — K-15 (12.08.2026)
+
+Önceki hâli tek bir banner ve salt-okunur bir pencereydi: kaç sipariş
+olduğunu söylüyor, **ne pişeceğini** söylemiyordu. Mutfak sabah "40
+abonelik var" bilgisiyle hiçbir şey yapamıyor; ihtiyacı olan "120
+mercimek, 85 tavuk".
+
+Ekran üç soruya **bu sırayla** cevap veriyor:
+
+1. **Ne EKSİK?** Uyarılar en üstte. Alta konsaydı, listeyi okuyup işine
+   dönen personel oraya hiç bakmazdı.
+2. **Ne pişecek?** Ürün bazında toplam, büyük punto.
+3. **Nereye, kaçta?** Teslimat çizelgesi + **durum ilerletme**. Panoya
+   dönüp aynı siparişi orada bulmak zorunda kalmak, ekranı yalnız
+   "bakılan" bir yer yapardı.
+
+### En sinsi durum: üretim koşmamış
+
+Sipariş yok ama olması gerekiyor. Mutfak "bugün abonelik yok" sanıp
+hazırlık yapmıyor, oysa akşam 22:00'deki `veykemtu:abonelik-uret`
+çalışmamış. `SubscriptionKitchenPlan` o günü çalışması beklenen abonelik
+sayısını `Subscription::runsOnDate()` ile hesaplıyor ve sipariş yoksa
+`not_generated` uyarısı üretiyor. Bu uyarı **kırmızı**; diğerleri (kapalı
+gün, duraklatma, istisna) sarı — ikisi aynı renkte olsaydı kırmızının
+anlamı kalmazdı.
+
+### Üretim planı fişi
+
+Mutfak akşam kapatırken yarının listesini **kâğıda** basıp tezgâha
+asıyor. Ekrana bakmak için elini yıkayıp kasaya gitmek gerekir; kâğıt
+tezgâhın üstünde durur.
+
+* Kuyruğa **girmiyor**: sipariş kimliği yok ve `UNIQUE(order_id, type,
+  revision)` kısıtına takılırdı; ikinci kez basılamazdı. Açılış test
+  fişiyle aynı yol — `printDiagnostic`.
+* Uyarılar **fişe de basılıyor** ve listeden önce: ekranda görünüp
+  kâğıtta görünmezse, tezgâhtaki kâğıda bakan kişi eksik bilgiyle
+  çalışır.
+* Boş günde "ÜRETİM YOK" yazıyor — boş bir kâğıt "yazıcı bozuk mu"
+  sorusunu doğurur.
+
+---
+
+## 16. BBD Store köprüsü — K-16 (12.08.2026)
+
+### BBD Store nedir, ne değildir
+
+**BBD Store bir KİTAP e-ticaret sitesidir**, catering değil. Ayrı bir
+sunucuda, ayrı bir proje olarak yaşıyor.
+
+**KÖPRÜNÜN TEK VARLIK SEBEBİ TERMAL YAZICIYI PAYLAŞMAK.** İşletme tek
+mekânda ve tek 80 mm termal yazıcı var. BBD'de bir sipariş onaylandığında
+buradaki kasa BBD'ye özel bir **ses** çalıyor ve aynı yazıcıdan bir
+**paketleme fişi** basıyor. Başka hiçbir şey yok — geri bildirim yok,
+durum senkronizasyonu yok, ortak veri yok.
+
+Bu siparişler BLD'nin `orders` tablosuna **girmez**, panoda görünmez,
+üretim listesine / vardiya istatistiğine / `orders_today` sayacına / cari
+hesaba **karışmaz**.
+
+**NEDEN `orders`'A YAZILMIYOR:** BBD kitap satıyor. Ürünleri BLD
+menüsünde yok, fiyatları BLD fiyat listesinde değil, müşterisi BLD
+müşterisi değil ve **iş akışı bile farklı** — biri pişiriliyor, diğeri
+raftan alınıp kutulanıyor. Zorla `orders`'a sokmak ciro raporunu, üretim
+listesini ve cari hesabı bir gecede yanlış yapardı.
+
+### Fiş: mutfak fişi değil, paketleme fişi
+
+Kâğıdı alan kişi yemek hazırlamıyor; raftan kitap toplayıp kutuluyor.
+Mutfak fişinden **üç tasarım farkı** var, üçü de iş akışından:
+
+| | Mutfak fişi | BBD paketleme fişi |
+|---|---|---|
+| Ürün adı | **Çift boy** — bir metreden okunuyor | **Normal**, satıra sarılıyor |
+| Kimlik | yok | **Stok kodu / ISBN** — raftan bulmanın en hızlı yolu |
+| Teslimat | kurye, adres + harita QR | **kargo firması + takip numarası** |
+
+Ürün adının çift boy basılmaması bir ayrıntı değil, ölçülmüş bir sorun:
+80 mm kâğıtta çift boy **24 sütun** demek ve `"Türkiye'nin Yakın Tarihi —
+Cilt II"` üç satıra bölünür, fiş uzar ve okunmaz hâle gelir. Burada
+**adet** çift boy, ad normal. Golden testi bunu bayt düzeyinde sabitliyor
+(başlıktan önceki son boyut komutunun "kapat" olduğunu doğruluyor).
+
+Diğer kurallar:
+
+* Takip numarası **çift genişlik**: paketin üstündeki etiketle elle
+  karşılaştırılıyor ve tek yanlış hane yanlış pakete gider.
+* `pickup` ise **adres bloğu hiç basılmıyor** — basılan adres, paketin
+  yanlışlıkla kargoya verilmesine yol açar.
+* Kargo bilgisi yoksa boş bir "Kargo:" başlığı basılmıyor: eksik başlık,
+  paketleyene bir şeyin kayıp olduğunu düşündürür.
+* Satır bazında **fiyat yok** — BBD'nin fiyatlandırması bizim değil.
+  Toplam tutar yalnız BBD gönderdiyse basılıyor; uydurulmuş ya da sıfır
+  bir tutar kapıda ödemede yanlış tahsilata yol açar.
+
+### MEVCUT BLD FİŞLERİ DEĞİŞMEDİ
+
+Mutfak, müşteri ve kurye fişlerinin golden dosyaları **bayt bayt aynı**
+kaldı (`git diff` boş). BBD şablonu ayrı bir fonksiyon
+(`buildBbdReceipt`) ve ayrı veri tipleri kullanıyor; ortak bir tipe
+zorlamak, iki sistemin fişini birbirine bağlar ve birinde yapılan
+değişiklik diğerini bozardı.
+
+### Kimlik: HMAC imzası, token değil
+
+Arada paylaşılan tek şey bir sır (`BBD_WEBHOOK_SECRET`). Sabit bir Bearer
+token, her istekte ağdan geçen ve loglara düşen bir parola demekti; HMAC
+imzası sırrı hiç göndermez ve gövdenin de değişmediğini kanıtlar.
+
+* İmza **ham gövde** üzerinde: JSON yeniden serileştirilirse boşluk ve
+  anahtar sırası imzayı değiştirir ve iki taraf asla tutturamaz.
+* `hash_equals` kullanılıyor, `===` değil: eşitlik karşılaştırması ilk
+  farklı baytta duruyor ve süre farkından imza tahmin edilebiliyor.
+* **Sır tanımsızsa uç kapalı** (401): boş sırla imza doğrulamak,
+  herkesin geçebildiği bir kapı olurdu.
+* Reddetme sebebi ayrıntılandırılmıyor ("sır yok" ile "imza yanlış"
+  ayrımı saldırgana yapılandırma bilgisi verir).
+
+### Kuyruk sunucuda, kasada değil
+
+Yerel SQLite kuyruğunun tekilliği `(order_id, type, revision)` üçlüsüne
+dayanıyor ve BBD fişinin BLD sipariş kimliği yok. Dördüncü bir
+`ReceiptType` değeri eklemek gerekirdi; o enum veritabanı kısıtında,
+tetikleyicilerde, ayarlar ekranında ve sözleşmede geçiyor — küçük bir iş
+için geniş bir yüzey.
+
+Sunucu zaten `printed_at IS NULL` ile kuyruk tutuyor:
+
+* kasa **yalnız basım başarılıysa** ack gönderiyor,
+* başarısızsa fiş kuyrukta kalıyor ve bir sonraki turda geri geliyor,
+* yazıcı kapalıyken kasa yeniden başlasa bile fiş kaybolmuyor.
+
+Yerel kuyruğun verdiği garantinin aynısı, fazladan şema olmadan.
+
+### Ses ve fiş
+
+* **Ses bir kez çalıyor, fiş başına değil:** beş fiş birden geldiğinde
+  beş kez üst üste ses çalmak, mutfağı sesi kapatmaya iter.
+* **Ses önce, fiş sonra:** basım saniyeler sürebiliyor ve personelin
+  kâğıdı almak için yazıcıya gitmesi o sesle başlıyor.
+* Fiş başlığı çift boy **"BBD STORE"** ve altında "BLD panosunda
+  görünmez" satırı: kâğıdı BLD fişiyle karıştıran personel, panoda
+  olmayan bir siparişi arar ve bulamaz.
+* **Satır bazında fiyat basılmıyor** — BBD'nin fiyatlandırması bizim
+  değil. Toplam tutar, BBD gönderdiyse, tek satır olarak basılıyor;
+  göndermediyse hiç basılmıyor (uydurulmuş bir tutar yanlış tahsilat
+  demek).
+* Durum çubuğunda "BBD: n" çipi; hiç fiş gelmediyse çizilmiyor.

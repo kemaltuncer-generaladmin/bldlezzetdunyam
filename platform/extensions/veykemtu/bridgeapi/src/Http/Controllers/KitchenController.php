@@ -4,22 +4,28 @@ declare(strict_types=1);
 
 namespace Veykemtu\BridgeApi\Http\Controllers;
 
+use Igniter\Cart\Models\Menu;
 use Igniter\Cart\Models\Order;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Veykemtu\BridgeApi\Support\BusinessTime;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
+use Veykemtu\BridgeApi\Models\BbdReceipt;
 use Veykemtu\BridgeApi\Models\KitchenCommand;
 use Veykemtu\BridgeApi\Models\KitchenDevice;
 use Veykemtu\BridgeApi\Models\PrintJob;
 use Igniter\Local\Models\Location;
 use Veykemtu\BridgeApi\Services\KitchenDeviceSettings;
 use Veykemtu\BridgeApi\Services\LocationGate;
+use Veykemtu\BridgeApi\Services\MenuAvailability;
+use Veykemtu\BridgeApi\Services\OrderEditor;
 use Veykemtu\BridgeApi\Services\OrderPresenter;
 use Veykemtu\BridgeApi\Services\OrderStatusTransition;
 use Veykemtu\BridgeApi\Services\ProductionListService;
+use Veykemtu\BridgeApi\Services\SubscriptionKitchenPlan;
 use Veykemtu\BridgeApi\Services\ReceiptBuilder;
 
 /**
@@ -165,6 +171,29 @@ class KitchenController extends ApiController
         ]);
     }
 
+    /**
+     * Abonelik üretim planı — mutfağın sabah baktığı ekran (K-15).
+     *
+     * `subscription-orders` ucundan farkı: ürün toplamları, teslimat
+     * saatleri ve **uyarılar** taşıyor. Uyarılar en önemlisi ve en kolay
+     * atlananı: üretim koşmamışsa mutfak "bugün abonelik yok" sanıp
+     * hazırlık yapmıyor.
+     *
+     * `days` parametresi: `today` (varsayılan, bugün+yarın), `tomorrow`,
+     * `week`. Hafta her yoklamada hesaplanmıyor — mutfağın bakmadığı altı
+     * gün için boşuna sorgu.
+     */
+    public function subscriptionPlan(
+        Request $request,
+        SubscriptionKitchenPlan $plan,
+    ): JsonResponse {
+        $data = $request->validate([
+            'days' => ['sometimes', Rule::in(['today', 'tomorrow', 'week'])],
+        ]);
+
+        return $this->json($plan->plan($data['days'] ?? 'today'));
+    }
+
     public function setStatus(Request $request, int $order): JsonResponse
     {
         $data = $request->validate([
@@ -191,6 +220,7 @@ class KitchenController extends ApiController
 
         return $this->json(match ($data['type']) {
             PrintJob::TYPE_KITCHEN => $this->receipts->kitchen($model),
+            PrintJob::TYPE_COURIER => $this->receipts->courier($model),
             default => $this->receipts->customer($model),
         });
     }
@@ -394,8 +424,8 @@ class KitchenController extends ApiController
      *
      * Sipariş almayı DURDURMAZ. Açıkken müşteri arayüzlerinde "hazırlanması
      * uzun sürebilir" uyarısı çıkar, admin panelde de görünür. Siparişi
-     * gerçekten kesmek `ordering_enabled` şalteridir ve yöneticinindir —
-     * mutfak personeli tek tuşla cirosu kapatabilmemeli.
+     * gerçekten kesen şalter ayrıdır: `setOrdering` (K-11) — ve o şalter
+     * onay, sebep, süre ve kasanın açılış şifresini ister.
      *
      * Durum vitrine yazılır, cihaza değil: iki kasa olsa ikisi de aynı
      * şeyi göstermeli ve müşteri tarafı zaten vitrini okuyor.
@@ -404,6 +434,288 @@ class KitchenController extends ApiController
     {
         $data = $request->validate(['busy' => ['required', 'boolean']]);
 
+        $location = $this->defaultLocation();
+
+        $gate->setBusy($location, (bool) $data['busy']);
+
+        return $this->json([
+            'busy' => $gate->isBusy($location),
+            'busy_message' => $gate->busyMessage($location),
+            'server_time' => Carbon::now()->utc()->toIso8601ZuluString(),
+        ]);
+    }
+
+    /**
+     * Satış şalteri — sipariş almayı gerçekten durdurur (K-11).
+     *
+     * NEDEN MUTFAKTA: sahada yazıcı bozulduğunda, malzeme bittiğinde ya da
+     * ekip yetişemediğinde mutfak sipariş almaya devam ediyor, gelenleri
+     * tek tek telefonla iptal ediyordu. Müşteri için "siparişim alındı,
+     * sonra arandı ve iptal edildi", kapalı bir dükkândan çok daha kötü.
+     *
+     * NEDEN TEK TUŞ DEĞİL: bu şalter ciroyu kapatıyor. Kasa tarafında onay
+     * + sebep + süre + açılış şifresi isteniyor (`docs/05` §11); sunucu
+     * tarafında ise sebep ve süre kayda geçiyor ki "kim kapattı, neden,
+     * ne zamana kadar" sorusu cevapsız kalmasın.
+     *
+     * SÜRE ZORUNLU DEĞİL ama şiddetle önerilir: "kapattım, açmayı unuttum"
+     * en olası hata ve süreli durdurma onu kendiliğinden çözüyor.
+     */
+    public function setOrdering(Request $request, LocationGate $gate): JsonResponse
+    {
+        $data = $request->validate([
+            'enabled' => ['required', 'boolean'],
+            'reason' => ['nullable', 'string', 'max:160'],
+            // `null` = süresiz, `0` = gün sonuna kadar, >0 = dakika.
+            'minutes' => ['nullable', 'integer', 'min:0', 'max:1440'],
+        ]);
+
+        $location = $this->defaultLocation();
+
+        if ((bool) $data['enabled']) {
+            $gate->resumeOrdering($location);
+        } else {
+            $minutes = array_key_exists('minutes', $data) ? $data['minutes'] : null;
+
+            $until = match (true) {
+                $minutes === null => null,
+                // 0 = "bugünün sonuna kadar". Mutfağın en sık istediği
+                // seçenek bu: yarın sabah dükkân kendiliğinden açılmalı.
+                $minutes === 0 => BusinessTime::now()->endOfDay(),
+                default => BusinessTime::now()->addMinutes($minutes),
+            };
+
+            $gate->pauseOrdering($location, $until, $data['reason'] ?? null);
+        }
+
+        return $this->json($this->orderingPayload($gate, $location));
+    }
+
+    /** Şalterin o anki durumu. */
+    public function ordering(LocationGate $gate): JsonResponse
+    {
+        return $this->json($this->orderingPayload($gate, $this->defaultLocation()));
+    }
+
+    /** @return array<string, mixed> */
+    private function orderingPayload(LocationGate $gate, Location $location): array
+    {
+        return [
+            // `orderingEnabled` süresi dolmuş durdurmayı kendiliğinden
+            // kaldırıyor; yanıt bu yüzden HER ZAMAN gerçeği söyler.
+            'ordering_enabled' => $gate->orderingEnabled($location),
+            'reason' => $gate->pauseReason($location),
+            'resumes_at' => $gate->pauseEndsAt($location)?->toIso8601ZuluString(),
+            'busy' => $gate->isBusy($location),
+            'server_time' => Carbon::now()->utc()->toIso8601ZuluString(),
+        ];
+    }
+
+    /**
+     * Mutfağın ürün listesi ve "bugün tükendi" işaretleri (K-11).
+     *
+     * FİYAT YOK — ADR-08 korunuyor. Mutfak neyin bittiğine karar verirken
+     * fiyata bakmıyor; para bilgisi bu ekranda yalnızca sızıntı riski.
+     */
+    public function menuAvailability(MenuAvailability $availability): JsonResponse
+    {
+        return $this->json([
+            'data' => $availability->kitchenCatalog(),
+            'server_time' => Carbon::now()->utc()->toIso8601ZuluString(),
+        ]);
+    }
+
+    /** Ürünü bugünlük tükendi işaretler ya da işareti kaldırır. */
+    public function setMenuAvailability(
+        Request $request,
+        MenuAvailability $availability,
+    ): JsonResponse {
+        $device = $request->user();
+        $data = $request->validate([
+            'menu_id' => ['required', 'integer', 'min:1'],
+            'sold_out' => ['required', 'boolean'],
+            'reason' => ['nullable', 'string', 'max:160'],
+        ]);
+
+        $menuId = (int) $data['menu_id'];
+
+        if (Menu::where('menu_id', $menuId)->doesntExist()) {
+            throw ApiException::notFound('Ürün bulunamadı.');
+        }
+
+        if ((bool) $data['sold_out']) {
+            $availability->markSoldOut(
+                $menuId,
+                $data['reason'] ?? null,
+                deviceId: $device instanceof KitchenDevice ? (int) $device->id : null,
+            );
+        } else {
+            $availability->clearSoldOut($menuId);
+        }
+
+        return $this->json([
+            'data' => $availability->kitchenCatalog(),
+            'server_time' => Carbon::now()->utc()->toIso8601ZuluString(),
+        ]);
+    }
+
+    // ── Sipariş düzenleme (K-12) ──────────────────────────────────────────
+
+    /**
+     * Düzenlenebilir sipariş görüntüsü — fiyatsız (ADR-08).
+     */
+    public function editable(int $order, OrderPresenter $presenter): JsonResponse
+    {
+        return $this->json(['data' => $presenter->editable($this->findOrder($order))]);
+    }
+
+    /**
+     * Ürün ekleme için sadeleşmiş menü — fiyatsız.
+     *
+     * `menu-availability` ucundan AYRI: bu, düzenleme ekranının ürün
+     * seçicisi ve yalnız **eklenebilir** ürünleri döndürür. Diğeri satış
+     * kontrolü ekranının listesi ve kapalıları da gösterir, çünkü orada
+     * amaç kapatmak/açmak.
+     */
+    public function menu(MenuAvailability $availability): JsonResponse
+    {
+        $data = array_values(array_filter(
+            $availability->kitchenCatalog(),
+            static fn(array $item): bool => $item['listed'] === true,
+        ));
+
+        return $this->json([
+            'data' => $data,
+            'server_time' => Carbon::now()->utc()->toIso8601ZuluString(),
+        ]);
+    }
+
+    /**
+     * Yeni revizyon — mutfak müşteriyle konuştuktan sonra uygular.
+     *
+     * ONAY BEKLENMEZ: personel değişikliği sisteme girmeden ÖNCE
+     * telefonda anlaşıyor (`docs/05` §12). Bu uç bir talep değil, bir
+     * kayıt ucudur.
+     */
+    public function storeRevision(
+        int $order,
+        Request $request,
+        OrderEditor $editor,
+        OrderPresenter $presenter,
+    ): JsonResponse {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:160'],
+            'note' => ['nullable', 'string', 'max:1000'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.menu_id' => ['required', 'integer', 'min:1'],
+            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:999'],
+            'items.*.option_value_ids' => ['sometimes', 'array'],
+            'items.*.option_value_ids.*' => ['integer', 'min:1'],
+            'items.*.note' => ['nullable', 'string', 'max:255'],
+            'requested_at' => ['nullable', 'date'],
+            'customer_note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $model = $this->findOrder($order);
+        $device = $request->user();
+
+        $revision = $editor->apply(
+            $model,
+            $data['items'],
+            $data['reason'],
+            $data['note'] ?? null,
+            isset($data['requested_at']) ? Carbon::parse($data['requested_at']) : null,
+            $data['customer_note'] ?? null,
+            $device instanceof KitchenDevice ? (int) $device->id : null,
+        );
+
+        return $this->json([
+            'order' => $presenter->kitchen($model->refresh()),
+            'revision' => $revision,
+        ]);
+    }
+
+    /** Revizyon geçmişi — "ne oldu" sorusunun cevabı. */
+    public function revisions(int $order): JsonResponse
+    {
+        $this->findOrder($order);
+
+        $rows = DB::table('veykemtu_order_revisions')
+            ->where('order_id', $order)
+            ->orderBy('revision_no')
+            ->get()
+            ->map(static fn($row): array => [
+                'revision_no' => (int) $row->revision_no,
+                'reason' => (string) $row->reason,
+                'note' => $row->note,
+                'refund_kurus' => (int) $row->refund_kurus,
+                'extra_charge_kurus' => (int) $row->extra_charge_kurus,
+                'created_at' => $row->created_at,
+            ])
+            ->all();
+
+        return $this->json(['data' => $rows]);
+    }
+
+    // ── BBD Store köprüsü (K-16) ──────────────────────────────────────────
+
+    /**
+     * Basılmayı bekleyen BBD fişleri.
+     *
+     * `since` YOK, `printed_at IS NULL` VAR: BBD fişleri bir "liste"
+     * değil, bir **kuyruk**. Zaman damgasıyla artımlı çekmek, ağ
+     * kesintisinde basılmamış bir fişi sonsuza dek atlayabilirdi.
+     * Kasa bastıkça işaretliyor ve kuyruk boşalıyor.
+     *
+     * Sınır 20: kasa uzun süre kapalı kalmışsa 200 fişi tek seferde
+     * basmaya kalkmamalı; sıradaki yoklamada kalanlar gelir.
+     */
+    public function bbdOrders(): JsonResponse
+    {
+        $rows = BbdReceipt::query()
+            ->whereNull('printed_at')
+            ->orderBy('id')
+            ->limit(20)
+            ->get()
+            ->map(static fn(BbdReceipt $row): array => [
+                'id' => (int) $row->id,
+                'external_id' => (string) $row->external_id,
+                'received_at' => $row->received_at?->utc()->toIso8601ZuluString(),
+                'payload' => $row->payload_json,
+            ])
+            ->all();
+
+        return $this->json([
+            'data' => $rows,
+            'server_time' => Carbon::now()->utc()->toIso8601ZuluString(),
+        ]);
+    }
+
+    /**
+     * Fiş basıldı bildirimi — idempotent.
+     *
+     * İlk `printed_at` korunuyor: ağ hatasında kasa tekrar gönderirse
+     * "ne zaman basıldı" cevabı değişmemeli.
+     */
+    public function ackBbd(int $receipt): JsonResponse
+    {
+        $row = BbdReceipt::find($receipt);
+
+        if ($row === null) {
+            throw ApiException::notFound('BBD fişi bulunamadı.');
+        }
+
+        if (!$row->isPrinted()) {
+            $row->printed_at = BusinessTime::now();
+            $row->save();
+        }
+
+        return $this->noContent();
+    }
+
+    /** @throws ApiException */
+    private function defaultLocation(): Location
+    {
         $location = Location::query()
             ->where('location_status', true)
             ->orderByDesc('is_default')
@@ -413,13 +725,7 @@ class KitchenController extends ApiController
             throw ApiException::notFound('Vitrin bulunamadı.');
         }
 
-        $gate->setBusy($location, (bool) $data['busy']);
-
-        return $this->json([
-            'busy' => $gate->isBusy($location),
-            'busy_message' => $gate->busyMessage($location),
-            'server_time' => Carbon::now()->utc()->toIso8601ZuluString(),
-        ]);
+        return $location;
     }
 
     /** @throws ApiException */

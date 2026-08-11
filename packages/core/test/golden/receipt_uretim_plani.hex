@@ -1,0 +1,59 @@
+# receipt_uretim_plani — beklenen ESC/POS baytları (511 bayt)
+# Üreten: packages/core/test/escpos_golden_test.dart
+# Yenileme: BLD_UPDATE_GOLDEN=1 dart test
+#
+# Okunabilir karşılığı (kontrol baytları noktayla gösterilir):
+#   ÜRETİM PLANI
+#   12.08.2026
+#   Basım: 04.08.2026 14:32
+#   ------------------------------------------------
+#   !! DİKKAT
+#   * Abonelik #7 - bugün atlanıyor (istisna).
+#   ------------------------------------------------
+#   120x MERCİMEK ÇORBASI
+#   85x TAVUK SOTE
+#   ------------------------------------------------
+#   TESLİMAT
+#   11:30 Konya Sanayi A.Ş. (60)
+#   12:00 Meram Belediyesi (45)
+#   ------------------------------------------------
+#   Bu belge bilgi fişidir,
+#   mali değeri yoktur.
+#   
+#   
+#   
+#   
+#   
+
+1B 40 1B 74 1D 1B 61 01 1D 21 11 1B 45 01 9A 52
+45 54 98 4D 20 50 4C 41 4E 49 0A 31 32 2E 30 38
+2E 32 30 32 36 0A 1D 21 00 1B 45 00 42 61 73 8D
+6D 3A 20 30 34 2E 30 38 2E 32 30 32 36 20 31 34
+3A 33 32 0A 1B 61 00 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 0A 1B 45 01 21 21 20 44 98
+4B 4B 41 54 0A 1B 45 00 2A 20 41 62 6F 6E 65 6C
+69 6B 20 23 37 20 2D 20 62 75 67 81 6E 20 61 74
+6C 61 6E 8D 79 6F 72 20 28 69 73 74 69 73 6E 61
+29 2E 0A 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 0A 1D 21 11 1B 45 01 31 32 30 78 20 4D
+45 52 43 98 4D 45 4B 20 80 4F 52 42 41 53 49 0A
+1D 21 00 1B 45 00 1D 21 11 1B 45 01 38 35 78 20
+54 41 56 55 4B 20 53 4F 54 45 0A 1D 21 00 1B 45
+00 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 0A 1B 45 01 54 45 53 4C 98 4D 41 54 0A 1B 45
+00 31 31 3A 33 30 20 4B 6F 6E 79 61 20 53 61 6E
+61 79 69 20 41 2E 9E 2E 20 28 36 30 29 0A 31 32
+3A 30 30 20 4D 65 72 61 6D 20 42 65 6C 65 64 69
+79 65 73 69 20 28 34 35 29 0A 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 0A 42 75 20 62 65
+6C 67 65 20 62 69 6C 67 69 20 66 69 9F 69 64 69
+72 2C 0A 6D 61 6C 69 20 64 65 A7 65 72 69 20 79
+6F 6B 74 75 72 2E 0A 0A 0A 0A 0A 1D 56 42 00

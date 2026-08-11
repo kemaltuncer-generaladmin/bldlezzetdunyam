@@ -10,6 +10,7 @@ use Veykemtu\BridgeApi\Exceptions\ApiException;
 use Veykemtu\BridgeApi\Models\AccountLedgerEntry;
 use Veykemtu\BridgeApi\Support\BusinessTime;
 use Veykemtu\BridgeApi\Support\Money;
+use Veykemtu\Payment\Refunds\RefundManager;
 
 /**
  * Sipariş durum makinesi — `docs/02-veri-modeli.md` §3.
@@ -23,6 +24,7 @@ class OrderStatusTransition
 {
     public function __construct(
         private readonly AccountLedger $ledger,
+        private readonly RefundManager $refunds,
     ) {}
 
     public const string NEW = 'yeni';
@@ -62,6 +64,37 @@ class OrderStatusTransition
     ];
 
     /**
+     * GERİ ALMA PENCERESİ (K-10, 11.08.2026).
+     *
+     * `docs/05` §3 "geri alma yoktur" diyordu ve dokunmatik monitör
+     * gelene kadar doğruydu: klavyeyle yanlış kartı ilerletmek zordu.
+     * Dokunmatikte kartlar parmağın altında ve yanlışlıkla kaydırma
+     * gerçek — geri alınamayan bir dokunuş, siparişi yanlış sütuna
+     * gönderip mutfağı gereksiz fiş basmaya zorluyor.
+     *
+     * KURALLAR (dar tutuldu, çünkü geri alma bir kaçış kapısıdır):
+     *   * yalnız TEK ADIM geri (`hazir` -> `hazirlaniyor`),
+     *   * yalnız bu pencere içinde (`status_updated_at`'ten itibaren),
+     *   * terminal durumlardan (`teslim_edildi`, `iptal`) ASLA — iptal
+     *     cari hesaba ters kayıt yazıyor, geri alması muhasebe düzeltmesi
+     *     olurdu ve bu ekranın işi değil,
+     *   * `yeni`ye geri dönülemez: mutfak fişi `onaylandi`da basıldı,
+     *     `yeni`ye dönmek basılı fişi geçersiz kılardı.
+     */
+    public const int UNDO_WINDOW_SECONDS = 120;
+
+    /**
+     * Geri alma haritası: her durumun tek bir önceki adımı.
+     *
+     * @var array<string, string>
+     */
+    private const array UNDO = [
+        self::PREPARING => self::CONFIRMED,
+        self::READY => self::PREPARING,
+        self::ON_THE_WAY => self::READY,
+    ];
+
+    /**
      * Sipariş durumunu ilerletir.
      *
      * @throws ApiException geçersiz geçişte
@@ -83,6 +116,7 @@ class OrderStatusTransition
 
         if ($to === self::CANCELLED) {
             $this->reverseAccountDebitOnCancel($order);
+            $this->openRefundOnCancel($order);
         }
 
         return $order->refresh();
@@ -124,6 +158,35 @@ class OrderStatusTransition
         );
     }
 
+    /**
+     * İptal edilen siparişin parası için iade kaydı açar (K-13).
+     *
+     * `account` HARİÇ: orada zaten ters defter kaydı yazıldı ve para
+     * hareketi yok. Diğerlerinde iade kaydı `pending`/`manual` olarak
+     * açılır ve admin panelde biri tamamlayana kadar açık durur —
+     * kaydetmemek, müşterinin parasını görünmez biçimde beklemesi
+     * demekti.
+     *
+     * ÖDENMEMİŞ SİPARİŞ İADE ÜRETMEZ: kapıda ödeme henüz tahsil
+     * edilmediyse iade edilecek bir şey yok.
+     */
+    private function openRefundOnCancel(Order $order): void
+    {
+        if ((string) $order->payment === 'account') {
+            return;
+        }
+
+        if (!(bool) $order->processed) {
+            return;
+        }
+
+        $this->refunds->refund(
+            $order,
+            Money::toKurus($order->order_total),
+            'Sipariş iptal edildi',
+        );
+    }
+
     /** @throws ApiException */
     public function assertAllowed(Order $order, string $from, string $to): void
     {
@@ -142,6 +205,14 @@ class OrderStatusTransition
         }
 
         if (!in_array($to, self::MATRIX[$from] ?? [], true)) {
+            // Geri alma, matriste olmayan tek istisnadır. Matrise
+            // eklenmedi: eklenseydi `allowedFrom()` geri adımı normal bir
+            // seçenek gibi sunar ve arayüzde kalıcı bir "GERİ" düğmesi
+            // olurdu. Geri alma kalıcı bir yol değil, dar bir penceredir.
+            if ($this->canUndoTo($order, $from, $to)) {
+                return;
+            }
+
             throw ApiException::invalidTransition(
                 $from,
                 $to,
@@ -220,6 +291,44 @@ class OrderStatusTransition
                 default => true,
             },
         ));
+    }
+
+    /**
+     * Bu geçiş bir geri alma mı ve süresi geçmemiş mi?
+     *
+     * Süre `status_updated_at` üzerinden ölçülüyor: çekirdek bu alanı
+     * `updateOrderStatus()` içinde yazıyor, yani "son durum değişikliğinin
+     * üstünden ne kadar geçti" sorusunun doğru cevabı orada.
+     */
+    public function canUndoTo(Order $order, string $from, string $to): bool
+    {
+        if ((self::UNDO[$from] ?? null) !== $to) {
+            return false;
+        }
+
+        $changedAt = $order->status_updated_at;
+
+        // Zaman damgası yoksa geri almaya İZİN VERİLMEZ. "Bilinmiyorsa
+        // serbest" demek, eski bir siparişin günler sonra geri alınabilmesi
+        // olurdu.
+        if ($changedAt === null) {
+            return false;
+        }
+
+        return $changedAt->diffInSeconds(BusinessTime::now()) <= self::UNDO_WINDOW_SECONDS;
+    }
+
+    /**
+     * Şu an geri alınabilecek durum — yoksa `null`.
+     *
+     * Arayüz "Geri al" şeridini yalnız bu doluyken gösterir.
+     */
+    public function undoTargetFor(Order $order): ?string
+    {
+        $from = $this->codeOf($order);
+        $to = self::UNDO[$from] ?? null;
+
+        return $to !== null && $this->canUndoTo($order, $from, $to) ? $to : null;
     }
 
     /** Müşteri iptal edebilir mi? — `docs/03` §4. */

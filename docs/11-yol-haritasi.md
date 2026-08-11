@@ -379,6 +379,15 @@ Bunlar Faz 1'in açık uçlarıdır ve yeni özellik eklemeden önce kapanmalı:
 
 - [ ] `POS_ALLOW_SIMULATION` kaldırılacak, gerçek sanal POS bağlanacak —
       **açık kaldığı sürece her sipariş bedava**
+
+      > **BAĞLANMA NOKTASI HAZIR (K-13, 11.08.2026).** Sağlayıcı-bağımsız
+      > `Veykemtu\Payment\Refunds\RefundGateway` arayüzü ve
+      > `RefundManager` yazıldı; sipariş düzenleme iadeleri buradan
+      > geçiyor. Gerçek POS seçildiğinde yapılacak tek iş: arayüzü
+      > uygulayan bir sınıf eklemek ve `.env`'deki `BLD_REFUND_DRIVER`
+      > değerine adını yazmak. Sürücü seçimi **ödeme yönteminden**
+      > türüyor (`account` → cari defter, `cash` → manuel iade); yalnız
+      > `online` bu değişkeni okuyor.
 - [ ] GitHub Actions hesap düzeyinde çalışmıyor (18 koşu, hiçbiri
       runner'a atanmadı) — Faz 2'ye CI'sız girilmez
 - [ ] `BACKUP_REMOTE` tanımsız; yedekler yalnızca aynı sunucuda

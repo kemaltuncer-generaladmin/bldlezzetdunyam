@@ -7,6 +7,7 @@ library;
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:bld_api_client/bld_api_client.dart';
 import 'package:bld_core/escpos.dart';
@@ -33,11 +34,19 @@ import 'managed_settings.dart';
 import '../sound/alarm_asset.dart';
 import '../sound/alarm_player.dart';
 import '../sound/connection_alarm.dart';
+import '../sound/kds_sound_event.dart';
 import '../sound/new_order_alarm.dart';
+import '../sound/system_audio.dart';
+import '../sound/tts_announcer.dart';
+import 'bbd_monitor.dart';
+import 'bbd_source.dart';
 import 'device_session.dart';
 import 'kitchen_health.dart';
+import 'order_edit.dart';
 import 'polling_order_source.dart';
 import 'printer_probe.dart';
+import 'sales_control.dart';
+import 'subscription_plan.dart';
 
 final appConfigProvider = Provider<AppConfig>(
   (ref) => AppConfig.fromEnvironment(),
@@ -116,6 +125,29 @@ final clockProvider = StreamProvider<DateTime>((ref) async* {
   ).map((_) => DateTime.now().toUtc());
 });
 
+/// Seyrek tazeleme için ikinci bir tik kaynağı — dakikada bir.
+///
+/// NEDEN AYRI SAAT: [clockProvider] 5 saniyede bir tikliyor ve **arayüz
+/// çizimi** için doğru (bekleme süresi saniye saniye büyümeli). Ama onu
+/// bir `FutureProvider` izlediğinde her tikte YENİ BİR AĞ İSTEĞİ doğuyor.
+///
+/// SAHADA ÖLÇÜLDÜ (12.08.2026): satış şalteri ve abonelik listesi pano
+/// saatine bağlıydı; ikisi 720'şer istek/saat üretiyordu. Sipariş
+/// yoklaması (720) ve BBD kuyruğu (180) ile birlikte toplam ~2460
+/// istek/saat — sunucudaki `bld-kitchen` sınırı **1200/saat**. Kasa
+/// yarım vardiyada `429` almaya başlardı.
+///
+/// Bu saati izleyen veri, 60 saniyeye kadar bayat olabilir. Satış
+/// şalteri ve abonelik listesi için bu fazlasıyla taze: ikisi de dakikada
+/// bir değişen şeyler değil ve personel kendi değiştirdiğinde sağlayıcı
+/// zaten `invalidate` ediliyor.
+final slowClockProvider = StreamProvider<DateTime>((ref) async* {
+  yield DateTime.now().toUtc();
+  yield* Stream<void>.periodic(
+    const Duration(minutes: 1),
+  ).map((_) => DateTime.now().toUtc());
+});
+
 /// Zamanı okumanın kısa yolu; akış henüz değer üretmediyse gerçek saate düşer.
 DateTime _now(Ref ref) =>
     ref.watch(clockProvider).value ?? DateTime.now().toUtc();
@@ -135,9 +167,7 @@ final commandRunnerProvider = Provider<CommandRunner>((ref) {
               buildTestReceipt(
                 devicePath: config.printerDevicePath,
                 printedAt: DateTime.now(),
-                style: ReceiptStyle(
-                  codePage: ref.read(appConfigProvider).printerCodePage,
-                ),
+                style: ref.read(receiptStyleProvider),
               ),
             );
         return null;
@@ -182,17 +212,50 @@ final unlockStoreProvider = Provider<UnlockStore>(
 
 // ─────────────────────────── Yeni sipariş alarmı ───────────────────────────
 
+/// Kasanın hoparlör denetimi — çıkış listesi ve sistem ses seviyesi.
+final systemAudioProvider = Provider<SystemAudio>((ref) => SystemAudio());
+
+/// Kasada bulunan ses çıkışları. Ayar ekranı bunu listeler.
+final audioSinksProvider = FutureProvider.autoDispose<List<AudioSink>>(
+  (ref) => ref.watch(systemAudioProvider).listSinks(),
+);
+
 /// Alarm sesini çalan oynatıcı. Ayardaki ses şalteri burada uygulanır.
 ///
 /// Ses kapalıyken [SilentAlarmPlayer] döner ve `isMuted` doğru olur; arayüz
 /// bunu görünür kılar — sessiz bir alarm, alarm olmadığını bilmemekten iyidir.
+///
+/// NEDEN `select` LİSTESİ UZUN: seviye ya da çıkış cihazı değiştiğinde
+/// oynatıcının yeniden kurulması gerekir; ayarların tamamını izleseydik
+/// alakasız bir ayar (yazıcı yolu) da alarmı sıfırlardı.
 final alarmPlayerProvider = Provider<AlarmPlayer>((ref) {
   final enabled = ref.watch(
-    kdsSettingsProvider.select((settings) => settings.soundEnabled),
+    kdsSettingsProvider.select(
+      (settings) => settings.soundEnabledFor(KdsSoundEvent.newOrder),
+    ),
+  );
+  final volume = ref.watch(
+    kdsSettingsProvider.select((settings) => settings.volumePercent),
+  );
+  final sink = ref.watch(
+    kdsSettingsProvider.select((settings) => settings.audioSinkName),
+  );
+  final repeatDelay = ref.watch(
+    kdsSettingsProvider.select((settings) => settings.alarmRepeatDelay),
+  );
+  final maxRepeats = ref.watch(
+    kdsSettingsProvider.select((settings) => settings.alarmMaxRepeats),
   );
 
   final player = enabled
-      ? ProcessAlarmPlayer(materialize: copyAlarmAssetToTempFile)
+      ? ProcessAlarmPlayer(
+          assetPath: KdsSoundEvent.newOrder.assetPath,
+          materialize: copyAlarmAsset,
+          volumePercent: volume,
+          sink: sink,
+          repeatDelay: repeatDelay,
+          maxRepeats: maxRepeats,
+        )
       : SilentAlarmPlayer();
 
   // Şalter kapatılırsa bu sağlayıcı yeniden kurulur ve ESKİ oynatıcı elden
@@ -216,13 +279,37 @@ final connectionAlarmPlayerProvider = Provider<AlarmPlayer>((ref) {
   // almak, tek uyarıyı kapatıp mutfağı kör bırakmaktır.
   //
   // Sesi durduran tek şey bağlantının geri gelmesidir.
+  //
+  // Seviye ve çıkış cihazı yine de uygulanır: "susturulamaz" demek
+  // "yanlış hoparlörden çalsın" demek değil.
   final player = ProcessAlarmPlayer(
-    assetPath: connectionAlarmAssetPath,
-    materialize: copyAlarmAssetToTempFile,
+    assetPath: KdsSoundEvent.connectionLost.assetPath,
+    materialize: copyAlarmAsset,
+    volumePercent: ref.watch(
+      kdsSettingsProvider.select((settings) => settings.volumePercent),
+    ),
+    sink: ref.watch(
+      kdsSettingsProvider.select((settings) => settings.audioSinkName),
+    ),
   );
 
   ref.onDispose(() => player.stop().ignore());
   return player;
+});
+
+/// Türkçe sesli anons. Ayardan kapalıysa sessiz sürüm döner.
+final ttsAnnouncerProvider = Provider<TtsAnnouncer>((ref) {
+  final enabled = ref.watch(
+    kdsSettingsProvider.select((settings) => settings.ttsEnabled),
+  );
+
+  if (!enabled) return const SilentTtsAnnouncer();
+
+  return ProcessTtsAnnouncer(
+    ratePercent: ref.watch(
+      kdsSettingsProvider.select((settings) => settings.ttsRatePercent),
+    ),
+  );
 });
 
 /// Bağlantı kopma uyarısı.
@@ -240,7 +327,14 @@ class ConnectionAlarmController extends Notifier<ConnectionAlarmState> {
 
   @override
   ConnectionAlarmState build() {
-    final alarm = ConnectionAlarm(ref.watch(connectionAlarmPlayerProvider));
+    final alarm = ConnectionAlarm(
+      ref.watch(connectionAlarmPlayerProvider),
+      interval: ref.watch(
+        kdsSettingsProvider.select(
+          (settings) => settings.connectionAlarmInterval,
+        ),
+      ),
+    );
     _alarm = alarm;
     ref.onDispose(() {
       _alarm = null;
@@ -300,7 +394,10 @@ class NewOrderAlarmController extends Notifier<NewOrderAlarmState> {
 
   @override
   NewOrderAlarmState build() {
-    final alarm = NewOrderAlarm(ref.watch(alarmPlayerProvider));
+    final alarm = NewOrderAlarm(
+      ref.watch(alarmPlayerProvider),
+      announcer: ref.watch(ttsAnnouncerProvider),
+    );
     _alarm = alarm;
     ref.onDispose(() {
       _alarm = null;
@@ -339,7 +436,13 @@ class NewOrderAlarmController extends Notifier<NewOrderAlarmState> {
   }
 
   /// "Sesi sustur" düğmesi — yalnızca o anki alarmı susturur.
+  ///
+  /// Yönetici susturmayı tamamen kapatabilir (`alarm_silenceable`):
+  /// susturmanın refleks hâline geldiği bir mutfakta alarmın hiç
+  /// çalmamasıyla aynı sonuç doğuyor.
   void silence() {
+    if (!ref.read(kdsSettingsProvider).alarmSilenceable) return;
+
     final alarm = _alarm;
     if (alarm != null) state = alarm.silence();
   }
@@ -489,9 +592,17 @@ final kitchenServiceProvider = Provider<KitchenService>(
 /// siparişleri panoyla aynı ritimde güncellenir, fazladan timer olmaz.
 final subscriptionOrdersProvider =
     FutureProvider.autoDispose<KitchenSubscriptionOrders>((ref) {
-      // Pano akışı değiştikçe (yoklama) yeniden çalışır — tetikleyici olarak
-      // izlenir, değeri kullanılmaz.
-      ref.watch(kitchenOrdersProvider);
+      // YAVAŞ SAATLE, pano akışıyla DEĞİL (12.08.2026 düzeltmesi).
+      //
+      // Önceki sürüm `kitchenOrdersProvider`'ı izliyordu; o akış HER
+      // YOKLAMADA yayın yapıyor (`_applyPage` her seferinde `_snapshot`
+      // ekliyor), yani 5 saniyede bir. Sonuç: saatte 720 ekstra istek ve
+      // `bld-kitchen` sınırının aşılması.
+      //
+      // Abonelik siparişleri gece 22:00'de bir kez üretiliyor; durum
+      // değişimleri zaten ana panodan geliyor. Dakikada bir tazelemek
+      // fazlasıyla taze.
+      ref.watch(slowClockProvider);
       return ref.watch(kitchenServiceProvider).subscriptionOrders();
     });
 
@@ -574,11 +685,224 @@ final kitchenHealthApiProvider = Provider<KitchenHealthApi>((ref) {
   return api;
 });
 
-/// Sağlık bildiriminin sıklığı.
+// ─────────────────────────── Satış kontrolü (K-11) ──────────────────────────
+
+final salesControlApiProvider = Provider<SalesControlApi>((ref) {
+  final session = ref.watch(deviceSessionProvider);
+  final store = ref.watch(deviceSessionStoreProvider);
+
+  // Somut tip yerel değişkende tutuluyor: sağlayıcının açtığı tip
+  // arayüz olmalı (testler sahte veriyor), ama `close()` yalnız somut
+  // sınıfta var ve soket sızdırmamak için çağrılması şart.
+  final api = HttpSalesControlApi(
+    baseUrl: session.baseUrl,
+    appId: AppConfig.appId,
+    appVersion: AppConfig.appVersion,
+    readToken: store.tokens.read,
+  );
+  ref.onDispose(api.close);
+  return api;
+});
+
+/// Satış şalterinin durumu.
+///
+/// YAVAŞ SAATLE TAZELENİYOR (dakikada bir), pano saatiyle değil.
+/// Durdurma başka bir kasadan ya da admin panelden de yapılabiliyor, o
+/// yüzden yoklanması gerekiyor — ama 5 saniyede bir yoklamak saatte 720
+/// istek demekti ve `bld-kitchen` sınırını tek başına yarılıyordu
+/// ([slowClockProvider] yorumundaki hesap).
+///
+/// Personel kendisi açıp kapattığında sağlayıcı zaten `invalidate`
+/// ediliyor; gecikme yalnız BAŞKA bir yerden yapılan değişiklikte
+/// hissediliyor ve orada bir dakika kabul edilebilir.
+///
+/// Kırmızı şeritteki geri sayım bundan ETKİLENMEZ: kalan süre
+/// `resumesAt`'ten yerel olarak hesaplanıyor ve şerit hızlı saati
+/// izliyor.
+final orderingStateProvider = FutureProvider<OrderingState>((ref) {
+  ref.watch(slowClockProvider);
+
+  return ref.watch(salesControlApiProvider).ordering();
+});
+
+/// Mutfağın ürün listesi ve "bugün tükendi" işaretleri.
+///
+/// `autoDispose`: yalnızca satış kontrolü ekranı açıkken gerekiyor ve
+/// 80 kalemlik bir listeyi bellekte tutmanın anlamı yok.
+final kitchenMenuProvider = FutureProvider.autoDispose<List<KitchenMenuItem>>(
+  (ref) => ref.watch(salesControlApiProvider).menuAvailability(),
+);
+
+// ─────────────────────── BBD Store köprüsü (K-16) ───────────────────────────
+
+final bbdApiProvider = Provider<BbdApi>((ref) {
+  final session = ref.watch(deviceSessionProvider);
+  final store = ref.watch(deviceSessionStoreProvider);
+
+  final api = HttpBbdApi(
+    baseUrl: session.baseUrl,
+    appId: AppConfig.appId,
+    appVersion: AppConfig.appVersion,
+    readToken: store.tokens.read,
+  );
+  ref.onDispose(api.close);
+  return api;
+});
+
+/// BBD fişlerinin çalınacağı oynatıcı.
+///
+/// AYRI OYNATICI: BBD sesi yeni sipariş alarmıyla aynı anda çalabilir ve
+/// tek oynatıcıyı paylaşsalardı biri diğerinin sesini keserdi — panoda
+/// olmayan bir siparişin fişi sessizce çıkardı.
+final bbdAlarmPlayerProvider = Provider<AlarmPlayer>((ref) {
+  final enabled = ref.watch(
+    kdsSettingsProvider.select(
+      (settings) => settings.soundEnabledFor(KdsSoundEvent.bbdOrder),
+    ),
+  );
+
+  if (!enabled) return SilentAlarmPlayer();
+
+  final player = ProcessAlarmPlayer(
+    assetPath: KdsSoundEvent.bbdOrder.assetPath,
+    materialize: copyAlarmAsset,
+    volumePercent: ref.watch(
+      kdsSettingsProvider.select((settings) => settings.volumePercent),
+    ),
+    sink: ref.watch(
+      kdsSettingsProvider.select((settings) => settings.audioSinkName),
+    ),
+  );
+
+  ref.onDispose(() => player.stop().ignore());
+  return player;
+});
+
+/// BBD kuyruğunun yoklama aralığı.
+///
+/// Sipariş yoklamasından SEYREK: BBD hacmi mutfağınkinden küçük ve fiş
+/// birkaç saniye geç çıkması sorun değil. Her 5 saniyede bir ikinci bir
+/// istek atmak, kasa başına saatlik istek sayısını iki katına çıkarırdı.
+const Duration bbdPollInterval = Duration(seconds: 20);
+
+final bbdMonitorProvider =
+    NotifierProvider<BbdMonitorController, BbdMonitorState>(
+      BbdMonitorController.new,
+    );
+
+/// [BbdMonitor]'ü zamanlayıcıya ve yazıcıya bağlar.
+///
+/// Karar mantığı burada DEĞİL: sıralama (ses → fiş → ack) ve "başarısızsa
+/// ack gönderme" kuralı `BbdMonitor` içinde ve testleri orada.
+class BbdMonitorController extends Notifier<BbdMonitorState> {
+  BbdMonitor? _monitor;
+
+  @override
+  BbdMonitorState build() {
+    final player = ref.watch(bbdAlarmPlayerProvider);
+
+    final monitor = BbdMonitor(
+      api: ref.watch(bbdApiProvider),
+      print: (bytes) => ref
+          .read(printServiceProvider)
+          .printDiagnostic(Uint8List.fromList(bytes)),
+      playSound: player.playOnce,
+      style: ref.watch(receiptStyleProvider),
+    );
+    _monitor = monitor;
+
+    final timer = Timer.periodic(
+      bbdPollInterval,
+      (_) => unawaited(poll()),
+    );
+    ref.onDispose(() {
+      timer.cancel();
+      _monitor = null;
+    });
+
+    // İlk tur beklenmez: `build` senkron kalmalı ve pano bir ağ çağrısı
+    // için gecikmemeli.
+    unawaited(poll());
+
+    return monitor.state;
+  }
+
+  Future<void> poll() async {
+    final monitor = _monitor;
+    if (monitor == null) return;
+
+    final next = await monitor.poll();
+    if (ref.mounted) state = next;
+  }
+}
+
+// ────────────────────── Abonelik üretim planı (K-15) ────────────────────────
+
+final subscriptionPlanApiProvider = Provider<SubscriptionPlanApi>((ref) {
+  final session = ref.watch(deviceSessionProvider);
+  final store = ref.watch(deviceSessionStoreProvider);
+
+  final api = HttpSubscriptionPlanApi(
+    baseUrl: session.baseUrl,
+    appId: AppConfig.appId,
+    appVersion: AppConfig.appVersion,
+    readToken: store.tokens.read,
+  );
+  ref.onDispose(api.close);
+  return api;
+});
+
+/// Seçili gün aralığının planı.
+///
+/// `family` ile aralık başına ayrı istek: hafta her açılışta değil,
+/// yalnız sekmeye dokunulduğunda hesaplanıyor — mutfağın bakmadığı altı
+/// gün için boşuna sorgu olmasın.
+final subscriptionPlanProvider = FutureProvider.autoDispose
+    .family<List<PlanDay>, PlanRange>(
+      (ref, range) => ref.watch(subscriptionPlanApiProvider).plan(range),
+    );
+
+// ────────────────────────── Sipariş düzenleme (K-14) ────────────────────────
+
+final orderEditApiProvider = Provider<OrderEditApi>((ref) {
+  final session = ref.watch(deviceSessionProvider);
+  final store = ref.watch(deviceSessionStoreProvider);
+
+  final api = HttpOrderEditApi(
+    baseUrl: session.baseUrl,
+    appId: AppConfig.appId,
+    appVersion: AppConfig.appVersion,
+    readToken: store.tokens.read,
+  );
+  ref.onDispose(api.close);
+  return api;
+});
+
+/// Düzenleme ekranı açılırken çekilen sipariş görüntüsü.
+///
+/// `autoDispose` + `family`: ekran kapanınca bellekte kalmıyor ve her
+/// sipariş için ayrı istek. Panodaki kartın kopyası KULLANILMIYOR —
+/// düzenleme, verinin en tazesiyle başlamak zorunda; kart 5 saniye eski
+/// olabilir ve yanlış adet üstüne yazmak siparişi bozar.
+final editableOrderProvider = FutureProvider.autoDispose
+    .family<EditableOrder, int>(
+      (ref, orderId) => ref.watch(orderEditApiProvider).editable(orderId),
+    );
+
+/// Ürün ekleme listesi — fiyatsız.
+final kitchenAddableMenuProvider = FutureProvider
+    .autoDispose<List<({int menuId, String name})>>(
+      (ref) => ref.watch(orderEditApiProvider).menu(),
+    );
+
+/// Sağlık bildiriminin varsayılan sıklığı.
 ///
 /// Yoklama aralığından **bağımsız**: personel yoklamayı 2 saniyeye
 /// indirdiğinde sunucuya dakikada 30 sağlık isteği gitmemeli. Dakikada bir,
 /// "bugün kaç sipariş" sayacı için fazlasıyla taze.
+///
+/// Yönetici bunu panelden değiştirebilir (`health_seconds`); ayar geldiğinde
+/// zamanlayıcı yeniden kurulur.
 const Duration kitchenHealthInterval = Duration(minutes: 1);
 
 final kitchenHealthProvider =
@@ -601,7 +925,9 @@ class KitchenHealthController extends Notifier<KitchenHealthState> {
     // Yoklama aralığından BAĞIMSIZ kendi zamanlayıcısı var: personel yoklamayı
     // 2 saniyeye indirdiğinde sunucuya dakikada 30 sağlık isteği gitmemeli.
     final timer = Timer.periodic(
-      kitchenHealthInterval,
+      ref.watch(
+        kdsSettingsProvider.select((settings) => settings.healthInterval),
+      ),
       (_) => unawaited(poll()),
     );
     ref.onDispose(() {
@@ -705,13 +1031,27 @@ final printerDeviceProvider = Provider<PrinterDevice>(
   ),
 );
 
+/// Fiş biçimi — kod sayfası önce SUNUCU ayarından, yoksa derlemeden.
+///
+/// Yanlış kod sayfası Türkçe karakterleri bozar ve doğru değer donanıma
+/// özgüdür (`docs/05` §5.2'de sahada `29` ölçüldü). Yeni bir kasada
+/// değeri bulmak için `.deb` beklemek yerine yönetici panelden denesin.
+final receiptStyleProvider = Provider<ReceiptStyle>(
+  (ref) => ReceiptStyle(
+    codePage:
+        ref.watch(
+          kdsSettingsProvider.select((settings) => settings.printerCodePage),
+        ) ??
+        ref.watch(appConfigProvider).printerCodePage,
+  ),
+);
+
 final printServiceProvider = Provider<PrintService>((ref) {
-  final config = ref.watch(appConfigProvider);
   final service = PrintService(
     queue: ref.watch(printQueueProvider),
     device: ref.watch(printerDeviceProvider),
     kitchen: ref.watch(kitchenServiceProvider),
-    style: ReceiptStyle(codePage: config.printerCodePage),
+    style: ref.watch(receiptStyleProvider),
   )..start();
   ref.onDispose(() => unawaited(service.dispose()));
   return service;
@@ -767,7 +1107,9 @@ class PrintTriggerRunner extends Notifier<int> {
     final service = ref.read(printServiceProvider);
     var queued = 0;
     for (final job in _triggers.jobsFor(orders)) {
-      if (service.enqueue(job.orderId, job.type)) queued++;
+      if (service.enqueue(job.orderId, job.type, revision: job.revision)) {
+        queued++;
+      }
     }
     if (queued > 0) state = state + queued;
   }
@@ -903,6 +1245,35 @@ class OrderActionController extends Notifier<Set<int>> {
       return OrderAdvanceOutcome(OrderAdvanceResult.failed, '$error');
     } finally {
       // Sağlayıcı bu arada elden çıkarılmış olabilir (eşleme iptali).
+      if (ref.mounted) state = {...state}..remove(orderId);
+    }
+  }
+
+  /// Bir adım geri alır (K-10).
+  ///
+  /// PENCERE SUNUCUDA: burada süre saymıyoruz. İstemcinin saati yanlışsa
+  /// ya da şerit ekranda unutulmuşsa geri alma sessizce geçmemeli;
+  /// sunucu `UNDO_WINDOW_SECONDS` dışındaki isteği `422` ile reddeder ve
+  /// personel bunu bir uyarı olarak görür.
+  Future<OrderAdvanceOutcome> undo(int orderId, OrderStatus previous) async {
+    if (state.contains(orderId)) {
+      return const OrderAdvanceOutcome(OrderAdvanceResult.ignored);
+    }
+
+    state = {...state, orderId};
+    try {
+      await ref.read(kitchenServiceProvider).setStatus(orderId, previous);
+      await ref.read(orderSourceProvider).refresh();
+      return const OrderAdvanceOutcome(OrderAdvanceResult.ok);
+    } on ApiException catch (error) {
+      if (error.code == ApiErrorCode.invalidTransition) {
+        await _refreshQuietly();
+        return const OrderAdvanceOutcome(OrderAdvanceResult.conflict);
+      }
+      return OrderAdvanceOutcome(OrderAdvanceResult.failed, error.message);
+    } on Object catch (error) {
+      return OrderAdvanceOutcome(OrderAdvanceResult.failed, '$error');
+    } finally {
       if (ref.mounted) state = {...state}..remove(orderId);
     }
   }

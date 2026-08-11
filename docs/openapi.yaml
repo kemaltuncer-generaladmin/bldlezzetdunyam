@@ -1044,8 +1044,9 @@ paths:
         çıkar ve admin panelde görünür.
 
         **Sipariş almayı DURDURMAZ.** Siparişi gerçekten kesen şalter
-        `ordering_enabled`'dır ve yalnızca yönetici değiştirebilir —
-        mutfak personeli tek tuşla cirosu kapatabilmemeli.
+        `ordering_enabled`'dır; onun mutfak ucu `POST /kitchen/ordering`
+        (K-11) ve orada onay + sebep + süre + kasanın açılış şifresi
+        isteniyor. Bu uç yalnızca uyarır.
 
         Durum vitrine yazılır, cihaza değil: iki kasa olsa ikisi de aynı
         şeyi gösterir ve müşteri tarafı zaten vitrini okur.
@@ -1075,6 +1076,488 @@ paths:
                   server_time: { type: string, format: date-time }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/ForbiddenOrRevoked' }
+        '422':
+          description: Doğrulama hatası
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /partner/bbd/orders:
+    post:
+      tags: [Ortak]
+      summary: BBD Store siparişi (webhook)
+      description: |
+        **BBD Store bir KİTAP e-ticaret sitesidir**, catering değil; ayrı
+        bir sunucuda ayrı bir projedir.
+
+        **KÖPRÜNÜN TEK VARLIK SEBEBİ TERMAL YAZICIYI PAYLAŞMAK (K-16).**
+        BBD'de bir sipariş onaylandığında mutfaktaki kasa BBD'ye özel bir
+        ses çalıyor ve aynı yazıcıdan bir **paketleme fişi** basıyor.
+        Başka hiçbir şey yok.
+
+        Bu siparişler BLD'nin `orders` tablosuna **girmez**, KDS
+        panosunda görünmez, üretim listesine / vardiya istatistiğine /
+        `orders_today` sayacına / cari hesaba **karışmaz**. Tek bağ ses
+        ve kâğıttır; geri bildirim, durum senkronizasyonu yoktur.
+
+        **Kimlik doğrulama HMAC imzasıyla, token'la değil.** Arada
+        paylaşılan tek şey bir sır; sabit bir Bearer token her istekte
+        ağdan geçen ve loglara düşen bir parola olurdu.
+
+        ```
+        imza = HMAC_SHA256(BBD_WEBHOOK_SECRET, ham istek gövdesi)
+        X-BBD-Signature: sha256=<hex>
+        ```
+
+        İmza **ham gövde** üzerinde hesaplanır; JSON yeniden
+        serileştirilmez (boşluk ve anahtar sırası imzayı değiştirir).
+
+        **İDEMPOTENT:** aynı `external_id` ikinci kez gelirse yeni satır
+        açılmaz, fiş iki kez basılmaz ve yanıt yine `200` olur
+        (`accepted: false`). `409` dönmek, karşı tarafı sonsuz yeniden
+        denemeye sokardı.
+
+        `X-App-Id` / `X-App-Version` başlıkları **istenmez**: BBD bizim
+        istemcimiz değil, ortak bir sistem.
+      operationId: receiveBbdOrder
+      security: []
+      parameters:
+        - name: X-BBD-Signature
+          in: header
+          required: true
+          schema: { type: string, pattern: '^sha256=[0-9a-f]{64}$' }
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema: { type: string, maxLength: 128 }
+          description: '`external_id` ile aynı olmalı; tekilleştirme gövdeye bakar.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BbdOrderRequest' }
+      responses:
+        '200':
+          description: Alındı (yeni ya da tekrar)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [external_id, accepted, server_time]
+                properties:
+                  external_id: { type: string }
+                  accepted:
+                    type: boolean
+                    description: '`false` = bu `external_id` zaten kayıtlıydı.'
+                  server_time: { type: string, format: date-time }
+        '401':
+          description: İmza doğrulanamadı ya da sır yapılandırılmamış
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: Şema hatası — tekrar denemek işe yaramaz
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /kitchen/bbd-orders:
+    parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
+    get:
+      tags: [Mutfak]
+      summary: Basılmayı bekleyen BBD fişleri
+      description: |
+        `since` YOK, `printed_at IS NULL` VAR: BBD fişleri bir liste
+        değil, bir **kuyruk**. Zaman damgasıyla artımlı çekmek, ağ
+        kesintisinde basılmamış bir fişi sonsuza dek atlayabilirdi.
+
+        Kasa **yalnız basım başarılıysa** ack gönderiyor; başarısızsa fiş
+        kuyrukta kalıyor ve bir sonraki turda geri geliyor.
+
+        En fazla 20 satır döner: kasa uzun süre kapalı kalmışsa 200 fişi
+        tek seferde basmaya kalkmamalı.
+      operationId: listBbdOrders
+      security: [{ KitchenToken: [] }]
+      responses:
+        '200':
+          description: Bekleyen fişler
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, server_time]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/BbdQueuedReceipt' }
+                  server_time: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenOrRevoked' }
+
+  /kitchen/bbd-orders/{receipt}/ack:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: receipt
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      tags: [Mutfak]
+      summary: BBD fişi basıldı
+      description: |
+        İdempotent: ilk `printed_at` korunur. Ağ hatasında kasa tekrar
+        gönderirse "ne zaman basıldı" cevabı değişmemeli.
+      operationId: ackBbdReceipt
+      security: [{ KitchenToken: [] }]
+      responses:
+        '204': { description: Kaydedildi }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenOrRevoked' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /kitchen/subscription-plan:
+    parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
+    get:
+      tags: [Mutfak]
+      summary: Abonelik üretim planı
+      description: |
+        Mutfağın sabah baktığı ekran (K-15). `subscription-orders`
+        ucundan farkı: **ürün bazında toplamlar**, teslimat saatleri ve
+        **uyarılar** taşır.
+
+        Uyarılar en önemli parçadır ve en kolay atlanandır: üretim
+        koşmamışsa (`not_generated`) mutfak "bugün abonelik yok" sanıp
+        hazırlık yapmıyor. Diğerleri kapalı gün, duraklatılmış abonelik
+        ve tek-gün istisnaları.
+      operationId: getSubscriptionPlan
+      security: [{ KitchenToken: [] }]
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [today, tomorrow, week]
+            default: today
+          description: |
+            `today` = bugün + yarın. `week` yalnız istendiğinde
+            hesaplanır — mutfağın bakmadığı altı gün için boşuna sorgu
+            olmasın.
+      responses:
+        '200':
+          description: Plan
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [days, server_time]
+                properties:
+                  days:
+                    type: array
+                    items: { $ref: '#/components/schemas/SubscriptionPlanDay' }
+                  server_time: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenOrRevoked' }
+
+  /kitchen/orders/{id}/editable:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      tags: [Mutfak]
+      summary: Düzenlenebilir sipariş görüntüsü
+      description: |
+        **FİYAT YOKTUR** (ADR-08). Personel adet değiştirirken fiyata
+        bakmıyor; iade/fark tutarı kaydetme onayında tek bir sayı olarak
+        gösteriliyor ve o cari bakiye değil.
+      operationId: getEditableOrder
+      security: [{ KitchenToken: [] }]
+      responses:
+        '200':
+          description: Düzenlenebilir sipariş
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/EditableOrder' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenOrRevoked' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /kitchen/orders/{id}/revisions:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      tags: [Mutfak]
+      summary: Revizyon geçmişi
+      operationId: listOrderRevisions
+      security: [{ KitchenToken: [] }]
+      responses:
+        '200':
+          description: Revizyonlar
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/OrderRevision' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenOrRevoked' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Mutfak]
+      summary: Siparişi düzenle (yeni revizyon)
+      description: |
+        **AKIŞ (K-12).** Mutfak personeli müşteriyle **telefonda konuşur**,
+        anlaşır, sonra değişikliği buraya yazar. Onay beklenmez; onay zaten
+        alınmıştır. Bu uç bir talep değil, bir **kayıt** ucudur.
+
+        Sunucu tek işlemde: satırları yeniden yazar, toplamları yeniden
+        hesaplar, `orders.updated_at`'i **dokunur** (KDS'in değişikliği
+        görmesi buna bağlı), revizyon belgesini yazar, cari hesabı düzeltir
+        ve gerekiyorsa iade başlatır.
+
+        `items` **tam listedir**, fark değil: eksik gönderilen kalem
+        siparişten çıkarılır. Boş liste `422` — tümünü kaldırmak "iptal"
+        demektir ve o ayrı bir durum geçişidir.
+
+        Teslim edilmiş ya da iptal edilmiş sipariş düzenlenemez (`422`).
+
+        Abonelikten doğan sipariş düzenlenebilir ama **yalnız o günü**
+        etkiler; abonelik tanımı değişmez.
+      operationId: createOrderRevision
+      security: [{ KitchenToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason, items]
+              properties:
+                reason: { type: string, maxLength: 160 }
+                note: { type: [string, 'null'], maxLength: 1000 }
+                items:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [menu_id, quantity]
+                    properties:
+                      menu_id: { type: integer, format: int64 }
+                      quantity: { type: integer, minimum: 1, maximum: 999 }
+                      option_value_ids:
+                        type: array
+                        items: { type: integer }
+                      note: { type: [string, 'null'], maxLength: 255 }
+                requested_at: { type: [string, 'null'], format: date-time }
+                customer_note: { type: [string, 'null'], maxLength: 1000 }
+      responses:
+        '200':
+          description: Revizyon uygulandı
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [order, revision]
+                properties:
+                  order: { $ref: '#/components/schemas/KitchenOrder' }
+                  revision: { $ref: '#/components/schemas/OrderRevisionResult' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenOrRevoked' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          description: Düzenlenemez sipariş ya da doğrulama hatası
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /kitchen/menu:
+    parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
+    get:
+      tags: [Mutfak]
+      summary: Ürün ekleme için menü (fiyatsız)
+      description: |
+        Düzenleme ekranının ürün seçicisi. Yalnız **eklenebilir** ürünleri
+        döndürür; `menu-availability` ucundan farkı bu — orada amaç
+        kapatmak/açmak olduğu için kapalı ürünler de listelenir.
+      operationId: getKitchenMenu
+      security: [{ KitchenToken: [] }]
+      responses:
+        '200':
+          description: Ürünler
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, server_time]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/KitchenMenuItem' }
+                  server_time: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenOrRevoked' }
+
+  /kitchen/ordering:
+    parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
+    get:
+      tags: [Mutfak]
+      summary: Satış şalterinin durumu
+      description: |
+        Süresi dolmuş bir durdurma bu uçta **kendiliğinden kalkar** —
+        yanıt her zaman gerçeği söyler. Tembel değerlendirme bilinçli:
+        zamanlayıcıya bağlansaydı, kuyruk durduğunda dükkân kapalı
+        kalırdı.
+      operationId: getKitchenOrdering
+      security: [{ KitchenToken: [] }]
+      responses:
+        '200':
+          description: Şalter durumu
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KitchenOrdering' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenOrRevoked' }
+    post:
+      tags: [Mutfak]
+      summary: Sipariş almayı durdur / aç
+      description: |
+        **KURAL DEĞİŞİKLİĞİ (K-11, 11.08.2026).** `ordering_enabled`
+        eskiden yalnız yöneticinindi (`docs/03` §3: "mutfak personeli tek
+        tuşla cirosu kapatabilmemeli"). Sahada kural tersine işledi:
+        yazıcı bozulduğunda ya da malzeme bittiğinde mutfak sipariş
+        almaya devam ediyor, gelenleri tek tek telefonla iptal ediyordu.
+        Müşteri için "siparişim alındı, sonra arandı ve iptal edildi",
+        kapalı bir dükkândan çok daha kötü.
+
+        Şalter artık mutfaktan da çevriliyor ama **tek tuşla değil**: kasa
+        onay, sebep, süre ve açılış şifresi istiyor (`docs/05` §11).
+
+        `minutes` anlamları:
+        * yok / `null` — süresiz (elle açılana kadar),
+        * `0` — bugünün sonuna kadar (yarın sabah kendiliğinden açılır),
+        * `>0` — o kadar dakika.
+
+        `reason` müşteriye gösterilir (`Location.ordering_pause_reason`).
+      operationId: setKitchenOrdering
+      security: [{ KitchenToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled: { type: boolean }
+                reason: { type: [string, 'null'], maxLength: 160 }
+                minutes: { type: [integer, 'null'], minimum: 0, maximum: 1440 }
+      responses:
+        '200':
+          description: Yeni durum
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KitchenOrdering' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenOrRevoked' }
+        '422':
+          description: Doğrulama hatası
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /kitchen/menu-availability:
+    parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
+    get:
+      tags: [Mutfak]
+      summary: Ürünler ve "bugün tükendi" işaretleri
+      description: |
+        **FİYAT YOKTUR** — ADR-08 korunuyor. Mutfak neyin bittiğine karar
+        verirken fiyata bakmıyor; para bilgisi bu ekranda yalnızca
+        sızıntı riski.
+
+        `listed` yöneticinin KALICI kararı (`menus.menu_status`),
+        `sold_out` mutfağın GÜNLÜK kararı. İkisi ayrı tutuluyor: aynı
+        alanı paylaşsalardı akşam tükenen ürünü sabah yöneticinin elle
+        geri açması gerekirdi.
+      operationId: getKitchenMenuAvailability
+      security: [{ KitchenToken: [] }]
+      responses:
+        '200':
+          description: Ürün listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, server_time]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/KitchenMenuItem' }
+                  server_time: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenOrRevoked' }
+    post:
+      tags: [Mutfak]
+      summary: Ürünü bugünlük tükendi işaretle / işareti kaldır
+      description: |
+        İşaret **gün dönümünde kendiliğinden geçersizleşir**; temizleyecek
+        bir cron yoktur, dolayısıyla cron durduğunda ürünlerin kapalı
+        kalması gibi bir arıza da yoktur.
+
+        **Abonelik siparişleri bu işaretten etkilenmez**: abonelik bir
+        sözleşmedir, günlük stok kararı onu iptal edemez. Bir abonelik
+        gününü atlamak için `veykemtu_subscription_exceptions` kaydı
+        girilir — ayrı ve bilinçli bir karardır.
+      operationId: setKitchenMenuAvailability
+      security: [{ KitchenToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [menu_id, sold_out]
+              properties:
+                menu_id: { type: integer, format: int64 }
+                sold_out: { type: boolean }
+                reason: { type: [string, 'null'], maxLength: 160 }
+      responses:
+        '200':
+          description: Güncel ürün listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, server_time]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/KitchenMenuItem' }
+                  server_time: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenOrRevoked' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '422':
           description: Doğrulama hatası
           content:
@@ -1445,6 +1928,27 @@ components:
         | `teslim_edildi` | — (terminal) |
         | `iptal` | — (terminal) |
 
+        **GERİ ALMA PENCERESİ (K-10, 11.08.2026).** Matrise ek olarak,
+        mutfak kapsamı **tek adım geri** alabilir — yalnız son durum
+        değişikliğinden sonraki **120 saniye** içinde:
+
+        | Kaynak | Geri alınabilir hedef |
+        |---|---|
+        | `hazirlaniyor` | `onaylandi` |
+        | `hazir` | `hazirlaniyor` |
+        | `yolda` | `hazir` |
+
+        `yeni`ye dönüş ve terminal durumlardan (`teslim_edildi`, `iptal`)
+        geri alma **yoktur**: mutfak fişi `onaylandi`da basılıyor ve basılı
+        kâğıt geri alınamaz; iptal ise cari hesaba ters kayıt yazıyor ve
+        geri alması bir muhasebe düzeltmesi olur.
+
+        Pencere dışındaki ya da iki adımlık bir geri alma isteği
+        `422 INVALID_TRANSITION` döner. Gerekçe: dokunmatik monitörde
+        kartlar parmağın altında ve yanlışlıkla kaydırma gerçek; geri
+        alınamayan bir dokunuş siparişi yanlış sütuna gönderip mutfağı
+        gereksiz fiş basmaya zorluyordu.
+
     DeliveryType:
       type: string
       enum: [delivery, pickup]
@@ -1468,7 +1972,11 @@ components:
 
     ReceiptType:
       type: string
-      enum: [mutfak, musteri]
+      enum: [mutfak, musteri, kurye]
+      description: |
+        `kurye` K-14 ile eklendi: kuryenin eline giden fiş (ad + telefon,
+        adres + harita QR, tahsil edilecek tutar, revizyon özeti).
+        Yalnız `delivery` siparişte basılır — gel-al'da kurye yoktur.
 
     ErrorCode:
       type: string
@@ -1740,8 +2248,21 @@ components:
         ordering_enabled:
           type: boolean
           description: |
-            Yöneticinin admin panelden çevirdiği elle ana şalter. `false` ise saat uygun
-            olsa bile sipariş alınmaz.
+            Elle ana şalter. `false` ise saat uygun olsa bile sipariş alınmaz.
+
+            Yönetici admin panelden, **mutfak da** `POST /kitchen/ordering`
+            ile çevirebilir (K-11). Süreli bir durdurmanın süresi dolduysa
+            bu alan okuma anında kendiliğinden `true` döner.
+        ordering_pause_reason:
+          type: [string, 'null']
+          description: |
+            Durdurma sebebi — müşteriye gösterilir. "Şu anda sipariş
+            alınmıyor" tek başına müşteriyi tekrar tekrar denemeye itiyor;
+            sebep ve saat beklemeyi bilinçli kılıyor.
+        ordering_resumes_at:
+          type: [string, 'null']
+          format: date-time
+          description: Süreli durdurmanın bitişi; süresizse `null`.
         order_cutoff:
           type: [string, 'null']
           pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
@@ -1860,9 +2381,16 @@ components:
       properties:
         poll_seconds:
           type: [integer, 'null']
-          minimum: 2
+          minimum: 3
           maximum: 60
-          description: Sipariş yoklama aralığı.
+          description: |
+            Sipariş yoklama aralığı.
+
+            **Alt sınır 2'den 3'e çıktı (12.08.2026).** 2 saniyelik
+            yoklama saatte 1800 istek demek ve diğer kasa döngüleriyle
+            birlikte `bld-kitchen` oran sınırını (2000/saat) aşıyordu;
+            aşıldığında kasa `429` alıyor ve **mutfak sipariş görmüyor**.
+            Sunucu 3'ün altındaki değeri 3'e çeker.
         sound_enabled:
           type: [boolean, 'null']
           description: |
@@ -1906,7 +2434,297 @@ components:
           description: |
             Mutfak, yeni sipariş alarmını susturabilsin mi? Kapatılırsa
             alarmı durdurmanın tek yolu siparişi onaylamaktır.
+        volume_percent:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 100
+          description: |
+            Uygulamanın kendi ses seviyesi (oynatıcıya `--volume` olarak
+            geçer). Kasanın **hoparlör** seviyesinden ayrıdır; hoparlör
+            kısıksa bu tek başına yetmez.
+        audio_sink:
+          type: [string, 'null']
+          maxLength: 128
+          description: |
+            Ses çıkışı (PipeWire/PulseAudio sink adı ya da düğüm numarası).
+            **Boş dize = varsayılan çıkışa dön.** `null` bu alanda da
+            "yönetici dokunmadı" demek olduğu için, seçimi geri almanın
+            tek yolu boş dizedir.
+        tts_enabled:
+          type: [boolean, 'null']
+          description: |
+            Türkçe sesli anons ("12 numaralı yeni sipariş, 4 ürün").
+            Kasada `spd-say`/`espeak-ng` yoksa sessizce devre dışı kalır.
+        tts_rate_percent:
+          type: [integer, 'null']
+          minimum: 50
+          maximum: 200
+          description: Anons hızı; 100 = aracın varsayılanı.
+        alarm_repeat_seconds:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 120
+          description: |
+            Alarm tekrarları arasındaki bekleme. `0` = aralıksız (varsayılan
+            "onaylayana kadar susmaz" davranışı).
+        alarm_max_repeats:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 60
+          description: |
+            En fazla tekrar sayısı. `0` = sınırsız. Sınır, kimse gelmediğinde
+            personelin hoparlörün fişini çekmesini önlemek içindir.
+        touch_mode:
+          type: [boolean, 'null']
+          description: |
+            Dokunmatik monitör kipi: dokunma hedefleri büyür, açılır menüler
+            alt sayfaya döner, klavye gerektiren alanlarda ekran klavyesi
+            açılır.
         updated_at: { type: [string, 'null'], format: date-time }
+
+    BbdOrderRequest:
+      type: object
+      required: [external_id, items]
+      description: |
+        BBD Store'un gönderdiği **kitap** siparişi. BBD'nin ürünleri BLD
+        menüsünde eşleştirilmez; ad fişe **olduğu gibi** basılır.
+      properties:
+        external_id:
+          type: string
+          maxLength: 128
+          description: BBD'nin kendi kimliği. Tekilleştirmenin dayanağı.
+        order_number: { type: [string, 'null'], maxLength: 64 }
+        created_at: { type: [string, 'null'], format: date-time }
+        customer_label: { type: [string, 'null'], maxLength: 120 }
+        phone: { type: [string, 'null'], maxLength: 32 }
+        delivery_type:
+          type: [string, 'null']
+          enum: [delivery, pickup, null]
+          description: |
+            Kitap satışında `delivery` **kargo** demek (kurye değil),
+            `pickup` mağazadan teslim. `pickup` ise fişe adres bloğu
+            basılmaz — basılan adres paketin yanlışlıkla kargoya
+            verilmesine yol açar.
+        address:
+          type: [string, 'null']
+          maxLength: 255
+          description: |
+            **Serbest metin** — BLD'nin yapılandırılmış adres modeli
+            değil. BBD'nin biçimi bizimkiyle aynı olmak zorunda değil ve
+            ayrıştırmaya çalışmak ilk farklı biçimde yanlış satır basardı.
+        note: { type: [string, 'null'], maxLength: 500 }
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            required: [name, quantity]
+            properties:
+              name:
+                type: string
+                maxLength: 200
+                description: |
+                  Kitap adı. Uzun olabilir; fiş şablonu **çift boyda
+                  basmaz**, satıra sarar. (Mutfak fişinde ürün adı çift
+                  boydur çünkü bir metreden okunuyor; kitap adı çift
+                  boyda 24 sütuna sığmaz ve fiş okunmaz hâle gelir.)
+              quantity: { type: integer, minimum: 1, maximum: 9999 }
+              sku:
+                type: [string, 'null']
+                maxLength: 64
+                description: Stok kodu / ISBN — raftan bulmanın en hızlı yolu.
+              attributes:
+                type: array
+                maxItems: 5
+                items: { type: string, maxLength: 80 }
+                description: 'Yazar, cilt, baskı gibi ek nitelikler.'
+              note: { type: [string, 'null'], maxLength: 255 }
+        amount_kurus:
+          type: [integer, 'null']
+          minimum: 0
+          description: |
+            Kuruş. Gönderilmezse fişe tutar satırı **basılmaz** —
+            uydurulmuş ya da sıfır bir tutar, kapıda ödemede yanlış
+            tahsilata yol açar.
+        cargo_company:
+          type: [string, 'null']
+          maxLength: 60
+          description: Kargo firması — paketleyen kişi doğru poşeti seçsin diye.
+        tracking_number:
+          type: [string, 'null']
+          maxLength: 64
+          description: |
+            Kargo takip numarası. Fişe **çift genişlikte** basılır: paketin
+            üstündeki etiketle elle karşılaştırılıyor ve tek bir yanlış
+            hane yanlış pakete gider.
+        payment_label:
+          type: [string, 'null']
+          maxLength: 60
+          description: |
+            "Ödendi (kredi kartı)" / "Kapıda ödeme" gibi **serbest metin**.
+            Enum değil: BBD'nin ödeme yöntemleri bizimkilerle aynı olmak
+            zorunda değil ve bilinmeyen bir değeri "Bilinmeyen"e düşürmek,
+            paketleyene yanlış bilgi vermek olurdu.
+
+    BbdQueuedReceipt:
+      type: object
+      required: [id, external_id, payload]
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: BLD'deki satır kimliği; ack bununla gönderilir.
+        external_id: { type: string }
+        received_at: { type: [string, 'null'], format: date-time }
+        payload:
+          allOf: [$ref: '#/components/schemas/BbdOrderRequest']
+          description: BBD'nin gönderdiği ham gövde; fiş bundan üretilir.
+
+    SubscriptionPlanDay:
+      type: object
+      required: [date, orders, totals, warnings]
+      properties:
+        date: { type: string, format: date }
+        totals:
+          type: array
+          description: Ürün bazında toplam — mutfağın sabah baktığı tek şey.
+          items:
+            type: object
+            required: [name, quantity]
+            properties:
+              name: { type: string }
+              quantity: { type: integer, minimum: 0 }
+        orders:
+          type: array
+          description: |
+            `KitchenOrder` alanlarına ek olarak `delivery_time` (`HH:mm`)
+            ve `subscription_label` taşır. Bu ikisi `KitchenOrder`
+            şemasına girmez: pano kartının onlara ihtiyacı yok ve her
+            yoklamada taşımak boşuna bant genişliği.
+          items: { type: object, additionalProperties: true }
+        warnings:
+          type: array
+          items:
+            type: object
+            required: [kind, message]
+            properties:
+              kind:
+                type: string
+                enum: [not_generated, closed_day, paused, exception]
+                description: |
+                  `not_generated` **kritiktir** ve arayüzde kırmızı
+                  gösterilir: üretim cron'u koşmamış demektir ve mutfak
+                  bunu bilmezse hazırlık yapmaz. Diğerleri bilgidir.
+              message: { type: string }
+
+    EditableOrder:
+      type: object
+      required: [id, order_number, status, delivery_type, items]
+      description: |
+        Düzenleme ekranının gördüğü sipariş. **Fiyat alanı yoktur**
+        (ADR-08); telefon vardır (K-14).
+      properties:
+        id: { type: integer, format: int64 }
+        order_number: { type: string }
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        delivery_type: { $ref: '#/components/schemas/DeliveryType' }
+        requested_at: { type: [string, 'null'], format: date-time }
+        customer_name: { type: [string, 'null'] }
+        customer_phone: { type: [string, 'null'] }
+        customer_note: { type: [string, 'null'] }
+        revision_no: { type: integer, minimum: 0 }
+        is_subscription:
+          type: boolean
+          description: |
+            Abonelikten doğan sipariş. Düzenleme YALNIZ O GÜNÜ etkiler;
+            abonelik tanımı değişmez.
+        items:
+          type: array
+          items:
+            type: object
+            required: [order_menu_id, menu_id, name, quantity]
+            properties:
+              order_menu_id: { type: integer, format: int64 }
+              menu_id: { type: integer, format: int64 }
+              name: { type: string }
+              quantity: { type: integer, minimum: 1 }
+              options:
+                type: array
+                items: { type: string }
+              note: { type: [string, 'null'] }
+
+    OrderRevision:
+      type: object
+      required: [revision_no, reason]
+      properties:
+        revision_no: { type: integer, minimum: 1 }
+        reason: { type: string }
+        note: { type: [string, 'null'] }
+        refund_kurus: { type: integer, minimum: 0 }
+        extra_charge_kurus: { type: integer, minimum: 0 }
+        created_at: { type: [string, 'null'], format: date-time }
+
+    OrderRevisionResult:
+      type: object
+      required: [revision_no, refund_kurus, extra_charge_kurus]
+      description: |
+        Bir düzenlemenin sonucu. `refund_kurus` ve `extra_charge_kurus`
+        **ikisi de pozitif**; hangisinin dolu olduğu yönü belirler. Tek
+        işaretli alan yerine iki alan: iade ile ek tahsilat muhasebede ayrı
+        kalemler ve raporda ayrı toplanır.
+      properties:
+        id: { type: integer, format: int64 }
+        revision_no: { type: integer, minimum: 1 }
+        reason: { type: string }
+        refund_kurus: { type: integer, minimum: 0 }
+        extra_charge_kurus: { type: integer, minimum: 0 }
+        summary_lines:
+          type: array
+          items: { type: string }
+          description: 'İnsan okuyabilir değişiklik satırları ("Mercimek: 20 → 10").'
+        settlement:
+          type: object
+          description: Para farkının nasıl kapatıldığı.
+          properties:
+            kind: { type: string, enum: [refund, extra_charge, none] }
+            status: { type: string, enum: [succeeded, pending, manual, failed] }
+            message: { type: [string, 'null'] }
+
+    KitchenOrdering:
+      type: object
+      required: [ordering_enabled, server_time]
+      properties:
+        ordering_enabled: { type: boolean }
+        reason:
+          type: [string, 'null']
+          description: Durdurma sebebi; müşteriye de gösterilir.
+        resumes_at:
+          type: [string, 'null']
+          format: date-time
+          description: |
+            Süreli durdurmanın bitişi. `null` = süresiz (elle açılana
+            kadar) ya da şalter zaten açık.
+        busy:
+          type: boolean
+          description: Yoğunluk uyarısı — satışı kesmez, yalnız uyarır.
+        server_time: { type: string, format: date-time }
+
+    KitchenMenuItem:
+      type: object
+      required: [menu_id, name, listed, sold_out]
+      description: |
+        Mutfağın gördüğü ürün. **Fiyat alanı yoktur** (ADR-08).
+      properties:
+        menu_id: { type: integer, format: int64 }
+        name: { type: string }
+        listed:
+          type: boolean
+          description: Yöneticinin kalıcı kararı — ürün menüde mi?
+        sold_out:
+          type: boolean
+          description: Mutfağın günlük kararı — bugün tükendi mi?
+        sold_out_reason: { type: [string, 'null'] }
 
     KitchenCommand:
       type: object
@@ -2002,7 +2820,20 @@ components:
         image_url: { type: [string, 'null'], format: uri }
         is_available:
           type: boolean
-          description: '`false` ürün yanıtta kalır; istemci soluk gösterir, sepete eklemez.'
+          description: |
+            `false` ürün yanıtta kalır; istemci soluk gösterir, sepete eklemez.
+
+            İki sebepten biriyle `false` olur: yöneticinin kalıcı kararı
+            (`menus.menu_status`) ya da mutfağın günlük "bugün tükendi"
+            işareti (`sold_out_today`). Kullanıcı için sonuç aynı; sebep
+            ayrı alanda çünkü farklı beklenti yaratır.
+        sold_out_today:
+          type: boolean
+          default: false
+          description: Mutfak bugünlük tükendi işaretledi mi? (K-11)
+        sold_out_reason:
+          type: [string, 'null']
+          description: '`sold_out_today` doğruyken mutfağın yazdığı sebep.'
         allergens:
           type: array
           items: { type: string }
@@ -2224,8 +3055,15 @@ components:
       type: object
       required: [id, order_number, status, delivery_type, items, created_at, updated_at]
       description: |
-        Fiyat, telefon, adres ve e-posta **içermez**. `customer_label` yalnızca
-        ad + soyad baş harfidir.
+        Fiyat, adres ve e-posta **içermez**.
+
+        **KURAL DEĞİŞTİ (K-14, 11.08.2026):** telefon artık içerir.
+        Önceki sürüm üç ayrı yerde "mutfak listesinde telefon GÖRÜNMEZ"
+        diyordu ve sipariş düzenleme (K-12) gelene kadar doğruydu:
+        mutfağın telefona ihtiyacı yoktu. Artık personel müşteriyi
+        **arayıp** anlaşmak zorunda ve numarayı görmek için fiş basmak
+        (ya da basılmış fişi aramak) saçma. Fiyat ve adres gizliliği
+        aynen duruyor — kural kaldırılmadı, daraltıldı.
       properties:
         id: { type: integer, format: int64 }
         order_number: { type: string }
@@ -2235,6 +3073,23 @@ components:
         customer_label:
           type: [string, 'null']
           examples: ['Ayşe Y.']
+        customer_name:
+          type: [string, 'null']
+          description: Tam ad (K-14). Personel arayacaksa baş harf yetmiyor.
+          examples: ['Ayşe Yılmaz']
+        customer_phone:
+          type: [string, 'null']
+          description: |
+            Müşterinin telefonu (K-14). Personelin düzenleme öncesi
+            arayabilmesi için.
+          examples: ['0555 123 45 67']
+        revision_no:
+          type: integer
+          minimum: 0
+          default: 0
+          description: |
+            Kaçıncı revizyon (K-12). Artması, mutfak ve kurye fişlerinin
+            yeniden basılması gerektiği anlamına gelir.
         items:
           type: array
           minItems: 1

@@ -612,8 +612,14 @@ $EtaWindowCopyWith<$Res>? get pickup {
 mixin _$Location {
 
  int get id; String get name; String get slug;/// Çalışma saatlerinden türetilir — şu an sipariş saati içinde miyiz?
- bool get isOpen;/// Yöneticinin admin panelden çevirdiği elle ana şalter.
- bool get orderingEnabled;/// Kuruş. Altında sipariş `422 VALIDATION_FAILED`.
+ bool get isOpen;/// Elle ana şalter — yönetici ya da mutfak çevirir (K-11).
+ bool get orderingEnabled;/// Sipariş almanın neden durdurulduğu; müşteriye gösterilir.
+///
+/// **İsteğe bağlı ve öyle kalmalı:** alan sözleşmeye sonradan eklendi
+/// ve eski sunucu/önbellek onu içermez. `null` normal bir durumdur —
+/// istemci o zaman genel bir metin gösterir.
+ String? get orderingPauseReason;/// Süreli durdurmanın bitişi; süresizse `null`.
+ DateTime? get orderingResumesAt;/// Kuruş. Altında sipariş `422 VALIDATION_FAILED`.
  int get minOrderTotal;/// Bu vitrinde **açık** olan ödeme yöntemleri. İstemci yalnızca bunları gösterir.
 @PaymentMethodConverter() List<PaymentMethod> get paymentMethods;/// Günlük son sipariş saati (`HH:mm`, Europe/Istanbul) veya `null`.
  String? get orderCutoff;/// Teslim süresi tahminleri.
@@ -635,16 +641,16 @@ $LocationCopyWith<Location> get copyWith => _$LocationCopyWithImpl<Location>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Location&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.slug, slug) || other.slug == slug)&&(identical(other.isOpen, isOpen) || other.isOpen == isOpen)&&(identical(other.orderingEnabled, orderingEnabled) || other.orderingEnabled == orderingEnabled)&&(identical(other.minOrderTotal, minOrderTotal) || other.minOrderTotal == minOrderTotal)&&const DeepCollectionEquality().equals(other.paymentMethods, paymentMethods)&&(identical(other.orderCutoff, orderCutoff) || other.orderCutoff == orderCutoff)&&(identical(other.eta, eta) || other.eta == eta));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Location&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.slug, slug) || other.slug == slug)&&(identical(other.isOpen, isOpen) || other.isOpen == isOpen)&&(identical(other.orderingEnabled, orderingEnabled) || other.orderingEnabled == orderingEnabled)&&(identical(other.orderingPauseReason, orderingPauseReason) || other.orderingPauseReason == orderingPauseReason)&&(identical(other.orderingResumesAt, orderingResumesAt) || other.orderingResumesAt == orderingResumesAt)&&(identical(other.minOrderTotal, minOrderTotal) || other.minOrderTotal == minOrderTotal)&&const DeepCollectionEquality().equals(other.paymentMethods, paymentMethods)&&(identical(other.orderCutoff, orderCutoff) || other.orderCutoff == orderCutoff)&&(identical(other.eta, eta) || other.eta == eta));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,slug,isOpen,orderingEnabled,minOrderTotal,const DeepCollectionEquality().hash(paymentMethods),orderCutoff,eta);
+int get hashCode => Object.hash(runtimeType,id,name,slug,isOpen,orderingEnabled,orderingPauseReason,orderingResumesAt,minOrderTotal,const DeepCollectionEquality().hash(paymentMethods),orderCutoff,eta);
 
 @override
 String toString() {
-  return 'Location(id: $id, name: $name, slug: $slug, isOpen: $isOpen, orderingEnabled: $orderingEnabled, minOrderTotal: $minOrderTotal, paymentMethods: $paymentMethods, orderCutoff: $orderCutoff, eta: $eta)';
+  return 'Location(id: $id, name: $name, slug: $slug, isOpen: $isOpen, orderingEnabled: $orderingEnabled, orderingPauseReason: $orderingPauseReason, orderingResumesAt: $orderingResumesAt, minOrderTotal: $minOrderTotal, paymentMethods: $paymentMethods, orderCutoff: $orderCutoff, eta: $eta)';
 }
 
 
@@ -655,7 +661,7 @@ abstract mixin class $LocationCopyWith<$Res>  {
   factory $LocationCopyWith(Location value, $Res Function(Location) _then) = _$LocationCopyWithImpl;
 @useResult
 $Res call({
- int id, String name, String slug, bool isOpen, bool orderingEnabled, int minOrderTotal,@PaymentMethodConverter() List<PaymentMethod> paymentMethods, String? orderCutoff, LocationEta? eta
+ int id, String name, String slug, bool isOpen, bool orderingEnabled, String? orderingPauseReason, DateTime? orderingResumesAt, int minOrderTotal,@PaymentMethodConverter() List<PaymentMethod> paymentMethods, String? orderCutoff, LocationEta? eta
 });
 
 
@@ -672,14 +678,16 @@ class _$LocationCopyWithImpl<$Res>
 
 /// Create a copy of Location
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? slug = null,Object? isOpen = null,Object? orderingEnabled = null,Object? minOrderTotal = null,Object? paymentMethods = null,Object? orderCutoff = freezed,Object? eta = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? slug = null,Object? isOpen = null,Object? orderingEnabled = null,Object? orderingPauseReason = freezed,Object? orderingResumesAt = freezed,Object? minOrderTotal = null,Object? paymentMethods = null,Object? orderCutoff = freezed,Object? eta = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,slug: null == slug ? _self.slug : slug // ignore: cast_nullable_to_non_nullable
 as String,isOpen: null == isOpen ? _self.isOpen : isOpen // ignore: cast_nullable_to_non_nullable
 as bool,orderingEnabled: null == orderingEnabled ? _self.orderingEnabled : orderingEnabled // ignore: cast_nullable_to_non_nullable
-as bool,minOrderTotal: null == minOrderTotal ? _self.minOrderTotal : minOrderTotal // ignore: cast_nullable_to_non_nullable
+as bool,orderingPauseReason: freezed == orderingPauseReason ? _self.orderingPauseReason : orderingPauseReason // ignore: cast_nullable_to_non_nullable
+as String?,orderingResumesAt: freezed == orderingResumesAt ? _self.orderingResumesAt : orderingResumesAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,minOrderTotal: null == minOrderTotal ? _self.minOrderTotal : minOrderTotal // ignore: cast_nullable_to_non_nullable
 as int,paymentMethods: null == paymentMethods ? _self.paymentMethods : paymentMethods // ignore: cast_nullable_to_non_nullable
 as List<PaymentMethod>,orderCutoff: freezed == orderCutoff ? _self.orderCutoff : orderCutoff // ignore: cast_nullable_to_non_nullable
 as String?,eta: freezed == eta ? _self.eta : eta // ignore: cast_nullable_to_non_nullable
@@ -780,10 +788,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff,  LocationEta? eta)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  String? orderingPauseReason,  DateTime? orderingResumesAt,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff,  LocationEta? eta)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Location() when $default != null:
-return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff,_that.eta);case _:
+return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.orderingPauseReason,_that.orderingResumesAt,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff,_that.eta);case _:
   return orElse();
 
 }
@@ -801,10 +809,10 @@ return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnable
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff,  LocationEta? eta)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  String? orderingPauseReason,  DateTime? orderingResumesAt,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff,  LocationEta? eta)  $default,) {final _that = this;
 switch (_that) {
 case _Location():
-return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff,_that.eta);case _:
+return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.orderingPauseReason,_that.orderingResumesAt,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff,_that.eta);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -821,10 +829,10 @@ return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnable
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff,  LocationEta? eta)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  String? orderingPauseReason,  DateTime? orderingResumesAt,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff,  LocationEta? eta)?  $default,) {final _that = this;
 switch (_that) {
 case _Location() when $default != null:
-return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff,_that.eta);case _:
+return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.orderingPauseReason,_that.orderingResumesAt,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff,_that.eta);case _:
   return null;
 
 }
@@ -836,7 +844,7 @@ return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnable
 @JsonSerializable()
 
 class _Location extends Location {
-  const _Location({required this.id, required this.name, required this.slug, required this.isOpen, required this.orderingEnabled, required this.minOrderTotal, @PaymentMethodConverter() required final  List<PaymentMethod> paymentMethods, this.orderCutoff, this.eta}): _paymentMethods = paymentMethods,super._();
+  const _Location({required this.id, required this.name, required this.slug, required this.isOpen, required this.orderingEnabled, this.orderingPauseReason, this.orderingResumesAt, required this.minOrderTotal, @PaymentMethodConverter() required final  List<PaymentMethod> paymentMethods, this.orderCutoff, this.eta}): _paymentMethods = paymentMethods,super._();
   factory _Location.fromJson(Map<String, dynamic> json) => _$LocationFromJson(json);
 
 @override final  int id;
@@ -844,8 +852,16 @@ class _Location extends Location {
 @override final  String slug;
 /// Çalışma saatlerinden türetilir — şu an sipariş saati içinde miyiz?
 @override final  bool isOpen;
-/// Yöneticinin admin panelden çevirdiği elle ana şalter.
+/// Elle ana şalter — yönetici ya da mutfak çevirir (K-11).
 @override final  bool orderingEnabled;
+/// Sipariş almanın neden durdurulduğu; müşteriye gösterilir.
+///
+/// **İsteğe bağlı ve öyle kalmalı:** alan sözleşmeye sonradan eklendi
+/// ve eski sunucu/önbellek onu içermez. `null` normal bir durumdur —
+/// istemci o zaman genel bir metin gösterir.
+@override final  String? orderingPauseReason;
+/// Süreli durdurmanın bitişi; süresizse `null`.
+@override final  DateTime? orderingResumesAt;
 /// Kuruş. Altında sipariş `422 VALIDATION_FAILED`.
 @override final  int minOrderTotal;
 /// Bu vitrinde **açık** olan ödeme yöntemleri. İstemci yalnızca bunları gösterir.
@@ -880,16 +896,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Location&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.slug, slug) || other.slug == slug)&&(identical(other.isOpen, isOpen) || other.isOpen == isOpen)&&(identical(other.orderingEnabled, orderingEnabled) || other.orderingEnabled == orderingEnabled)&&(identical(other.minOrderTotal, minOrderTotal) || other.minOrderTotal == minOrderTotal)&&const DeepCollectionEquality().equals(other._paymentMethods, _paymentMethods)&&(identical(other.orderCutoff, orderCutoff) || other.orderCutoff == orderCutoff)&&(identical(other.eta, eta) || other.eta == eta));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Location&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.slug, slug) || other.slug == slug)&&(identical(other.isOpen, isOpen) || other.isOpen == isOpen)&&(identical(other.orderingEnabled, orderingEnabled) || other.orderingEnabled == orderingEnabled)&&(identical(other.orderingPauseReason, orderingPauseReason) || other.orderingPauseReason == orderingPauseReason)&&(identical(other.orderingResumesAt, orderingResumesAt) || other.orderingResumesAt == orderingResumesAt)&&(identical(other.minOrderTotal, minOrderTotal) || other.minOrderTotal == minOrderTotal)&&const DeepCollectionEquality().equals(other._paymentMethods, _paymentMethods)&&(identical(other.orderCutoff, orderCutoff) || other.orderCutoff == orderCutoff)&&(identical(other.eta, eta) || other.eta == eta));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,slug,isOpen,orderingEnabled,minOrderTotal,const DeepCollectionEquality().hash(_paymentMethods),orderCutoff,eta);
+int get hashCode => Object.hash(runtimeType,id,name,slug,isOpen,orderingEnabled,orderingPauseReason,orderingResumesAt,minOrderTotal,const DeepCollectionEquality().hash(_paymentMethods),orderCutoff,eta);
 
 @override
 String toString() {
-  return 'Location(id: $id, name: $name, slug: $slug, isOpen: $isOpen, orderingEnabled: $orderingEnabled, minOrderTotal: $minOrderTotal, paymentMethods: $paymentMethods, orderCutoff: $orderCutoff, eta: $eta)';
+  return 'Location(id: $id, name: $name, slug: $slug, isOpen: $isOpen, orderingEnabled: $orderingEnabled, orderingPauseReason: $orderingPauseReason, orderingResumesAt: $orderingResumesAt, minOrderTotal: $minOrderTotal, paymentMethods: $paymentMethods, orderCutoff: $orderCutoff, eta: $eta)';
 }
 
 
@@ -900,7 +916,7 @@ abstract mixin class _$LocationCopyWith<$Res> implements $LocationCopyWith<$Res>
   factory _$LocationCopyWith(_Location value, $Res Function(_Location) _then) = __$LocationCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String name, String slug, bool isOpen, bool orderingEnabled, int minOrderTotal,@PaymentMethodConverter() List<PaymentMethod> paymentMethods, String? orderCutoff, LocationEta? eta
+ int id, String name, String slug, bool isOpen, bool orderingEnabled, String? orderingPauseReason, DateTime? orderingResumesAt, int minOrderTotal,@PaymentMethodConverter() List<PaymentMethod> paymentMethods, String? orderCutoff, LocationEta? eta
 });
 
 
@@ -917,14 +933,16 @@ class __$LocationCopyWithImpl<$Res>
 
 /// Create a copy of Location
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? slug = null,Object? isOpen = null,Object? orderingEnabled = null,Object? minOrderTotal = null,Object? paymentMethods = null,Object? orderCutoff = freezed,Object? eta = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? slug = null,Object? isOpen = null,Object? orderingEnabled = null,Object? orderingPauseReason = freezed,Object? orderingResumesAt = freezed,Object? minOrderTotal = null,Object? paymentMethods = null,Object? orderCutoff = freezed,Object? eta = freezed,}) {
   return _then(_Location(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,slug: null == slug ? _self.slug : slug // ignore: cast_nullable_to_non_nullable
 as String,isOpen: null == isOpen ? _self.isOpen : isOpen // ignore: cast_nullable_to_non_nullable
 as bool,orderingEnabled: null == orderingEnabled ? _self.orderingEnabled : orderingEnabled // ignore: cast_nullable_to_non_nullable
-as bool,minOrderTotal: null == minOrderTotal ? _self.minOrderTotal : minOrderTotal // ignore: cast_nullable_to_non_nullable
+as bool,orderingPauseReason: freezed == orderingPauseReason ? _self.orderingPauseReason : orderingPauseReason // ignore: cast_nullable_to_non_nullable
+as String?,orderingResumesAt: freezed == orderingResumesAt ? _self.orderingResumesAt : orderingResumesAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,minOrderTotal: null == minOrderTotal ? _self.minOrderTotal : minOrderTotal // ignore: cast_nullable_to_non_nullable
 as int,paymentMethods: null == paymentMethods ? _self._paymentMethods : paymentMethods // ignore: cast_nullable_to_non_nullable
 as List<PaymentMethod>,orderCutoff: freezed == orderCutoff ? _self.orderCutoff : orderCutoff // ignore: cast_nullable_to_non_nullable
 as String?,eta: freezed == eta ? _self.eta : eta // ignore: cast_nullable_to_non_nullable
@@ -1231,7 +1249,15 @@ mixin _$MenuItem {
 
  int get id; String get name;/// Kuruş.
  int get price; String get currency;/// `false` ürün listede **kalır**; soluk gösterilir, sepete eklenemez.
- bool get isAvailable; String? get description; String? get imageUrl; List<String> get allergens; List<MenuOption> get options;
+///
+/// İki sebepten biriyle `false` olur: yöneticinin kalıcı kararı ya da
+/// mutfağın günlük [soldOutToday] işareti (K-11).
+ bool get isAvailable;/// Mutfak bugünlük tükendi işaretledi mi?
+///
+/// Varsayılanı `false`: alan sözleşmeye sonradan eklendi ve eski
+/// sunucu/önbellek onu içermiyor.
+ bool get soldOutToday;/// `soldOutToday` doğruyken mutfağın yazdığı sebep.
+ String? get soldOutReason; String? get description; String? get imageUrl; List<String> get allergens; List<MenuOption> get options;
 /// Create a copy of MenuItem
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1244,16 +1270,16 @@ $MenuItemCopyWith<MenuItem> get copyWith => _$MenuItemCopyWithImpl<MenuItem>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is MenuItem&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.price, price) || other.price == price)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.isAvailable, isAvailable) || other.isAvailable == isAvailable)&&(identical(other.description, description) || other.description == description)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&const DeepCollectionEquality().equals(other.allergens, allergens)&&const DeepCollectionEquality().equals(other.options, options));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is MenuItem&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.price, price) || other.price == price)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.isAvailable, isAvailable) || other.isAvailable == isAvailable)&&(identical(other.soldOutToday, soldOutToday) || other.soldOutToday == soldOutToday)&&(identical(other.soldOutReason, soldOutReason) || other.soldOutReason == soldOutReason)&&(identical(other.description, description) || other.description == description)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&const DeepCollectionEquality().equals(other.allergens, allergens)&&const DeepCollectionEquality().equals(other.options, options));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,price,currency,isAvailable,description,imageUrl,const DeepCollectionEquality().hash(allergens),const DeepCollectionEquality().hash(options));
+int get hashCode => Object.hash(runtimeType,id,name,price,currency,isAvailable,soldOutToday,soldOutReason,description,imageUrl,const DeepCollectionEquality().hash(allergens),const DeepCollectionEquality().hash(options));
 
 @override
 String toString() {
-  return 'MenuItem(id: $id, name: $name, price: $price, currency: $currency, isAvailable: $isAvailable, description: $description, imageUrl: $imageUrl, allergens: $allergens, options: $options)';
+  return 'MenuItem(id: $id, name: $name, price: $price, currency: $currency, isAvailable: $isAvailable, soldOutToday: $soldOutToday, soldOutReason: $soldOutReason, description: $description, imageUrl: $imageUrl, allergens: $allergens, options: $options)';
 }
 
 
@@ -1264,7 +1290,7 @@ abstract mixin class $MenuItemCopyWith<$Res>  {
   factory $MenuItemCopyWith(MenuItem value, $Res Function(MenuItem) _then) = _$MenuItemCopyWithImpl;
 @useResult
 $Res call({
- int id, String name, int price, String currency, bool isAvailable, String? description, String? imageUrl, List<String> allergens, List<MenuOption> options
+ int id, String name, int price, String currency, bool isAvailable, bool soldOutToday, String? soldOutReason, String? description, String? imageUrl, List<String> allergens, List<MenuOption> options
 });
 
 
@@ -1281,14 +1307,16 @@ class _$MenuItemCopyWithImpl<$Res>
 
 /// Create a copy of MenuItem
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? price = null,Object? currency = null,Object? isAvailable = null,Object? description = freezed,Object? imageUrl = freezed,Object? allergens = null,Object? options = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? price = null,Object? currency = null,Object? isAvailable = null,Object? soldOutToday = null,Object? soldOutReason = freezed,Object? description = freezed,Object? imageUrl = freezed,Object? allergens = null,Object? options = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,price: null == price ? _self.price : price // ignore: cast_nullable_to_non_nullable
 as int,currency: null == currency ? _self.currency : currency // ignore: cast_nullable_to_non_nullable
 as String,isAvailable: null == isAvailable ? _self.isAvailable : isAvailable // ignore: cast_nullable_to_non_nullable
-as bool,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
+as bool,soldOutToday: null == soldOutToday ? _self.soldOutToday : soldOutToday // ignore: cast_nullable_to_non_nullable
+as bool,soldOutReason: freezed == soldOutReason ? _self.soldOutReason : soldOutReason // ignore: cast_nullable_to_non_nullable
+as String?,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
 as String?,imageUrl: freezed == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
 as String?,allergens: null == allergens ? _self.allergens : allergens // ignore: cast_nullable_to_non_nullable
 as List<String>,options: null == options ? _self.options : options // ignore: cast_nullable_to_non_nullable
@@ -1377,10 +1405,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  int price,  String currency,  bool isAvailable,  String? description,  String? imageUrl,  List<String> allergens,  List<MenuOption> options)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  int price,  String currency,  bool isAvailable,  bool soldOutToday,  String? soldOutReason,  String? description,  String? imageUrl,  List<String> allergens,  List<MenuOption> options)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _MenuItem() when $default != null:
-return $default(_that.id,_that.name,_that.price,_that.currency,_that.isAvailable,_that.description,_that.imageUrl,_that.allergens,_that.options);case _:
+return $default(_that.id,_that.name,_that.price,_that.currency,_that.isAvailable,_that.soldOutToday,_that.soldOutReason,_that.description,_that.imageUrl,_that.allergens,_that.options);case _:
   return orElse();
 
 }
@@ -1398,10 +1426,10 @@ return $default(_that.id,_that.name,_that.price,_that.currency,_that.isAvailable
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  int price,  String currency,  bool isAvailable,  String? description,  String? imageUrl,  List<String> allergens,  List<MenuOption> options)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  int price,  String currency,  bool isAvailable,  bool soldOutToday,  String? soldOutReason,  String? description,  String? imageUrl,  List<String> allergens,  List<MenuOption> options)  $default,) {final _that = this;
 switch (_that) {
 case _MenuItem():
-return $default(_that.id,_that.name,_that.price,_that.currency,_that.isAvailable,_that.description,_that.imageUrl,_that.allergens,_that.options);case _:
+return $default(_that.id,_that.name,_that.price,_that.currency,_that.isAvailable,_that.soldOutToday,_that.soldOutReason,_that.description,_that.imageUrl,_that.allergens,_that.options);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1418,10 +1446,10 @@ return $default(_that.id,_that.name,_that.price,_that.currency,_that.isAvailable
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  int price,  String currency,  bool isAvailable,  String? description,  String? imageUrl,  List<String> allergens,  List<MenuOption> options)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  int price,  String currency,  bool isAvailable,  bool soldOutToday,  String? soldOutReason,  String? description,  String? imageUrl,  List<String> allergens,  List<MenuOption> options)?  $default,) {final _that = this;
 switch (_that) {
 case _MenuItem() when $default != null:
-return $default(_that.id,_that.name,_that.price,_that.currency,_that.isAvailable,_that.description,_that.imageUrl,_that.allergens,_that.options);case _:
+return $default(_that.id,_that.name,_that.price,_that.currency,_that.isAvailable,_that.soldOutToday,_that.soldOutReason,_that.description,_that.imageUrl,_that.allergens,_that.options);case _:
   return null;
 
 }
@@ -1433,7 +1461,7 @@ return $default(_that.id,_that.name,_that.price,_that.currency,_that.isAvailable
 @JsonSerializable()
 
 class _MenuItem extends MenuItem {
-  const _MenuItem({required this.id, required this.name, required this.price, required this.currency, required this.isAvailable, this.description, this.imageUrl, final  List<String> allergens = const <String>[], final  List<MenuOption> options = const <MenuOption>[]}): _allergens = allergens,_options = options,super._();
+  const _MenuItem({required this.id, required this.name, required this.price, required this.currency, required this.isAvailable, this.soldOutToday = false, this.soldOutReason, this.description, this.imageUrl, final  List<String> allergens = const <String>[], final  List<MenuOption> options = const <MenuOption>[]}): _allergens = allergens,_options = options,super._();
   factory _MenuItem.fromJson(Map<String, dynamic> json) => _$MenuItemFromJson(json);
 
 @override final  int id;
@@ -1442,7 +1470,17 @@ class _MenuItem extends MenuItem {
 @override final  int price;
 @override final  String currency;
 /// `false` ürün listede **kalır**; soluk gösterilir, sepete eklenemez.
+///
+/// İki sebepten biriyle `false` olur: yöneticinin kalıcı kararı ya da
+/// mutfağın günlük [soldOutToday] işareti (K-11).
 @override final  bool isAvailable;
+/// Mutfak bugünlük tükendi işaretledi mi?
+///
+/// Varsayılanı `false`: alan sözleşmeye sonradan eklendi ve eski
+/// sunucu/önbellek onu içermiyor.
+@override@JsonKey() final  bool soldOutToday;
+/// `soldOutToday` doğruyken mutfağın yazdığı sebep.
+@override final  String? soldOutReason;
 @override final  String? description;
 @override final  String? imageUrl;
  final  List<String> _allergens;
@@ -1473,16 +1511,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MenuItem&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.price, price) || other.price == price)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.isAvailable, isAvailable) || other.isAvailable == isAvailable)&&(identical(other.description, description) || other.description == description)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&const DeepCollectionEquality().equals(other._allergens, _allergens)&&const DeepCollectionEquality().equals(other._options, _options));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MenuItem&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.price, price) || other.price == price)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.isAvailable, isAvailable) || other.isAvailable == isAvailable)&&(identical(other.soldOutToday, soldOutToday) || other.soldOutToday == soldOutToday)&&(identical(other.soldOutReason, soldOutReason) || other.soldOutReason == soldOutReason)&&(identical(other.description, description) || other.description == description)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&const DeepCollectionEquality().equals(other._allergens, _allergens)&&const DeepCollectionEquality().equals(other._options, _options));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,price,currency,isAvailable,description,imageUrl,const DeepCollectionEquality().hash(_allergens),const DeepCollectionEquality().hash(_options));
+int get hashCode => Object.hash(runtimeType,id,name,price,currency,isAvailable,soldOutToday,soldOutReason,description,imageUrl,const DeepCollectionEquality().hash(_allergens),const DeepCollectionEquality().hash(_options));
 
 @override
 String toString() {
-  return 'MenuItem(id: $id, name: $name, price: $price, currency: $currency, isAvailable: $isAvailable, description: $description, imageUrl: $imageUrl, allergens: $allergens, options: $options)';
+  return 'MenuItem(id: $id, name: $name, price: $price, currency: $currency, isAvailable: $isAvailable, soldOutToday: $soldOutToday, soldOutReason: $soldOutReason, description: $description, imageUrl: $imageUrl, allergens: $allergens, options: $options)';
 }
 
 
@@ -1493,7 +1531,7 @@ abstract mixin class _$MenuItemCopyWith<$Res> implements $MenuItemCopyWith<$Res>
   factory _$MenuItemCopyWith(_MenuItem value, $Res Function(_MenuItem) _then) = __$MenuItemCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String name, int price, String currency, bool isAvailable, String? description, String? imageUrl, List<String> allergens, List<MenuOption> options
+ int id, String name, int price, String currency, bool isAvailable, bool soldOutToday, String? soldOutReason, String? description, String? imageUrl, List<String> allergens, List<MenuOption> options
 });
 
 
@@ -1510,14 +1548,16 @@ class __$MenuItemCopyWithImpl<$Res>
 
 /// Create a copy of MenuItem
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? price = null,Object? currency = null,Object? isAvailable = null,Object? description = freezed,Object? imageUrl = freezed,Object? allergens = null,Object? options = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? price = null,Object? currency = null,Object? isAvailable = null,Object? soldOutToday = null,Object? soldOutReason = freezed,Object? description = freezed,Object? imageUrl = freezed,Object? allergens = null,Object? options = null,}) {
   return _then(_MenuItem(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,price: null == price ? _self.price : price // ignore: cast_nullable_to_non_nullable
 as int,currency: null == currency ? _self.currency : currency // ignore: cast_nullable_to_non_nullable
 as String,isAvailable: null == isAvailable ? _self.isAvailable : isAvailable // ignore: cast_nullable_to_non_nullable
-as bool,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
+as bool,soldOutToday: null == soldOutToday ? _self.soldOutToday : soldOutToday // ignore: cast_nullable_to_non_nullable
+as bool,soldOutReason: freezed == soldOutReason ? _self.soldOutReason : soldOutReason // ignore: cast_nullable_to_non_nullable
+as String?,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
 as String?,imageUrl: freezed == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
 as String?,allergens: null == allergens ? _self._allergens : allergens // ignore: cast_nullable_to_non_nullable
 as List<String>,options: null == options ? _self._options : options // ignore: cast_nullable_to_non_nullable

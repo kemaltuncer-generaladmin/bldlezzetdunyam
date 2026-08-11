@@ -10,13 +10,25 @@ import 'package:bld_design_system/bld_design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../input/onscreen_keyboard.dart';
 import '../l10n/app_localizations.dart';
 import 'unlock_password.dart';
 
 class UnlockScreen extends StatefulWidget {
-  const UnlockScreen({required this.onUnlocked, super.key});
+  const UnlockScreen({
+    required this.onUnlocked,
+    this.showOnscreenKeyboard = false,
+    super.key,
+  });
 
   final VoidCallback onUnlocked;
+
+  /// Dokunmatik kipte ekran klavyesi açılır (K-10).
+  ///
+  /// KİLİT EKRANI ÖZELLİKLE ÖNEMLİ: kasa açıldığında ilk karşılaşılan
+  /// ekran burası. Harici klavye takılı değilse ve ekran klavyesi de
+  /// yoksa mutfak uygulamayı hiç açamaz — kurtarılamaz bir kilitlenme.
+  final bool showOnscreenKeyboard;
 
   @override
   State<UnlockScreen> createState() => _UnlockScreenState();
@@ -54,8 +66,12 @@ class _UnlockScreenState extends State<UnlockScreen> {
     return Scaffold(
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 460),
-          child: Padding(
+          // Ekran klavyesi açıkken içerik 460 px'e sığmıyor; klavye
+          // satırlarının okunur kalması için genişlik iki katına çıkıyor.
+          constraints: BoxConstraints(
+            maxWidth: widget.showOnscreenKeyboard ? 900 : 460,
+          ),
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(BldSpacing.xl),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -103,6 +119,13 @@ class _UnlockScreenState extends State<UnlockScreen> {
                     ),
                   ),
                 ),
+                if (widget.showOnscreenKeyboard) ...[
+                  const SizedBox(height: BldSpacing.lg),
+                  OnscreenKeyboard(
+                    controller: _controller,
+                    onSubmit: _submit,
+                  ),
+                ],
               ],
             ),
           ),

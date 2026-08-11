@@ -73,11 +73,12 @@ class PrintQueue {
           id         INTEGER PRIMARY KEY AUTOINCREMENT,
           order_id   INTEGER NOT NULL,
           type       TEXT    NOT NULL,
+          revision   INTEGER NOT NULL DEFAULT 0,
           payload    BLOB,
           attempts   INTEGER NOT NULL DEFAULT 0,
           created_at TEXT    NOT NULL,
           printed_at TEXT,
-          UNIQUE (order_id, type)
+          UNIQUE (order_id, type, revision)
         )
       ''')
       // Sıradaki işi bulmak her döngüde yapılır; tarama yerine dizin.
@@ -85,22 +86,83 @@ class PrintQueue {
         CREATE INDEX IF NOT EXISTS print_queue_pending
           ON print_queue (printed_at, id)
       ''');
+
+    _migrateRevisionColumn();
   }
 
-  /// İş ekler. Aynı `(orderId, type)` çifti zaten varsa **hiçbir şey yapmaz**
-  /// ve `false` döner — fişin ikinci kez basılmasını engelleyen kural budur.
+  /// K-14 göçü: eski kasalarda `revision` sütunu ve yeni tekillik yok.
+  ///
+  /// NEDEN GÖÇ GEREKİYOR: tekillik `(order_id, type)` idi; sipariş
+  /// düzenlendiğinde revize fiş **sessizce yutuluyordu** (`INSERT OR
+  /// IGNORE`) ve mutfak eski adedi hazırlamaya devam ediyordu.
+  ///
+  /// NEDEN TABLO YENİDEN KURULUYOR: SQLite `ALTER TABLE` ile tekilliği
+  /// değiştiremiyor. Veri kopyalanıyor — kuyrukta bekleyen fiş kaybolmaz.
+  void _migrateRevisionColumn() {
+    final columns = _db
+        .select('PRAGMA table_info(print_queue)')
+        .map((row) => row['name'] as String)
+        .toSet();
+
+    if (columns.contains('revision')) return;
+
+    _db
+      ..execute('BEGIN')
+      ..execute('ALTER TABLE print_queue RENAME TO print_queue_eski')
+      ..execute('''
+        CREATE TABLE print_queue (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          order_id   INTEGER NOT NULL,
+          type       TEXT    NOT NULL,
+          revision   INTEGER NOT NULL DEFAULT 0,
+          payload    BLOB,
+          attempts   INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT    NOT NULL,
+          printed_at TEXT,
+          UNIQUE (order_id, type, revision)
+        )
+      ''')
+      ..execute('''
+        INSERT INTO print_queue
+          (id, order_id, type, revision, payload, attempts, created_at, printed_at)
+        SELECT id, order_id, type, 0, payload, attempts, created_at, printed_at
+        FROM print_queue_eski
+      ''')
+      ..execute('DROP TABLE print_queue_eski')
+      ..execute('''
+        CREATE INDEX IF NOT EXISTS print_queue_pending
+          ON print_queue (printed_at, id)
+      ''')
+      ..execute('COMMIT');
+  }
+
+  /// İş ekler. Aynı `(orderId, type, revision)` üçlüsü zaten varsa
+  /// **hiçbir şey yapmaz** ve `false` döner — fişin ikinci kez basılmasını
+  /// engelleyen kural budur.
+  ///
+  /// [revision] K-14 ile eklendi: sipariş düzenlendiğinde revize fiş yeni
+  /// bir satır olarak girer. Revizyon tekilliğe dahil olmasaydı, revize
+  /// fiş sessizce yutulur ve mutfak eski adedi hazırlamaya devam ederdi.
   bool enqueue({
     required int orderId,
     required ReceiptType type,
     required DateTime createdAt,
     Uint8List? payload,
+    int revision = 0,
   }) {
     _db.execute(
       '''
-      INSERT OR IGNORE INTO print_queue (order_id, type, payload, created_at)
-      VALUES (?, ?, ?, ?)
+      INSERT OR IGNORE INTO print_queue
+        (order_id, type, revision, payload, created_at)
+      VALUES (?, ?, ?, ?, ?)
       ''',
-      [orderId, type.wireName, payload, createdAt.toUtc().toIso8601String()],
+      [
+        orderId,
+        type.wireName,
+        revision,
+        payload,
+        createdAt.toUtc().toIso8601String(),
+      ],
     );
     return _db.updatedRows > 0;
   }
@@ -224,6 +286,7 @@ class PrintQueue {
   static PrintJob _fromRow(Row row) => PrintJob(
     id: row['id'] as int,
     orderId: row['order_id'] as int,
+    revision: (row['revision'] as int?) ?? 0,
     type:
         ReceiptType.tryParse(row['type'] as String) ??
         // Tabloya sözleşme dışı bir tip girmesi imkânsıza yakın; girerse

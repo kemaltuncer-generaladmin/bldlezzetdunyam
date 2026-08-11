@@ -130,12 +130,14 @@ class PrintService {
 
   /// Kuyruğa iş ekler ve işçiyi uyandırır.
   ///
-  /// Aynı `(orderId, type)` çifti zaten kayıtlıysa `false` döner ve hiçbir şey
-  /// olmaz — fiş iki kez basılmaz.
-  bool enqueue(int orderId, ReceiptType type) {
+  /// Aynı `(orderId, type, revision)` üçlüsü zaten kayıtlıysa `false` döner
+  /// ve hiçbir şey olmaz — fiş iki kez basılmaz. Revizyon üçlüye dahil:
+  /// düzenlenen siparişin revize fişi ayrı bir iştir (K-14).
+  bool enqueue(int orderId, ReceiptType type, {int revision = 0}) {
     final added = _queue.enqueue(
       orderId: orderId,
       type: type,
+      revision: revision,
       createdAt: _now(),
     );
     if (added) {
@@ -251,6 +253,13 @@ class PrintService {
       ReceiptType.musteri => buildCustomerReceipt(
         toCustomerReceiptData(
           await _kitchen.customerReceipt(job.orderId),
+          printedAt: printedAt,
+        ),
+        style: _style,
+      ),
+      ReceiptType.kurye => buildCourierReceipt(
+        toCourierReceiptData(
+          await _kitchen.courierReceipt(job.orderId),
           printedAt: printedAt,
         ),
         style: _style,

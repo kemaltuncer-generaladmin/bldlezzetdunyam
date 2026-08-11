@@ -75,6 +75,11 @@ class RecordingAlarmPlayer implements AlarmPlayer {
 
   @override
   bool get isMuted => muted;
+  @override
+  String? get muteReason => muted ? 'test: ses yok' : null;
+
+  @override
+  String? get playerExecutable => muted ? null : 'test-player';
 
   @override
   Future<void> start() async {
@@ -111,6 +116,23 @@ KitchenOrder agedOrder({
   status: status,
   createdAt: DateTime.now().toUtc().subtract(age),
 );
+
+/// Ayarlar listesini [target] görünene kadar kaydırır.
+///
+/// `scrollUntilVisible`'a kaydırılabilir alan AÇIKÇA veriliyor: ağaçta
+/// ayarların altında pano da duruyor ve onun sütunları da kaydırılabilir.
+/// Verilmezse "birden çok Scrollable" hatası alınır.
+Future<void> scrollSettingsTo(WidgetTester tester, Finder target) =>
+    tester.scrollUntilVisible(
+      target,
+      300,
+      scrollable: find
+          .descendant(
+            of: find.byType(SettingsScreen),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
 
 void main() {
   group('Aciliyet', () {
@@ -609,8 +631,18 @@ void main() {
       // `docs/05` §8: PIN kaldırıldı, ayarlar doğrudan açılır.
       expect(find.text('Sunucu'), findsOneWidget);
       expect(find.text('Yazıcı'), findsOneWidget);
-      expect(find.text('Uyarılar ve aciliyet'), findsOneWidget);
-      expect(find.text('Yazdırma kuyruğu'), findsOneWidget);
+
+      // Alttaki bölümler `ListView` içinde tembel kuruluyor; ekrana
+      // getirmeden aranırsa "yok" görünürler.
+      for (final title in const [
+        'Ses ve hoparlör',
+        'Uyarılar ve aciliyet',
+        'Dokunmatik',
+        'Yazdırma kuyruğu',
+      ]) {
+        await scrollSettingsTo(tester, find.text(title));
+        expect(find.text(title), findsOneWidget);
+      }
 
       await tearDownTree(tester);
     });
@@ -622,16 +654,33 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('20 dk'), findsOneWidget);
-      // "Kırmızı gecikme eşiği" satırındaki artırma düğmesi.
-      await tester.tap(
-        find
-            .descendant(
-              of: find.byTooltip('Artır'),
-              matching: find.byIcon(Icons.add),
-            )
-            .last,
+      // "Kırmızı gecikme eşiği" satırındaki artırma düğmesi. Sıra yerine
+      // satırın KENDİ içinden aranıyor: ekranda başka sayısal ayarlar da
+      // var ve `.last` gibi sıraya dayalı bir seçim, araya yeni bir ayar
+      // eklenince sessizce başka düğmeye basardı.
+      //
+      // `.first` = etikete EN YAKIN satır, yani `_NumberSetting`'in kendi
+      // satırı; `.last` ekranın tamamını kapsayan dış satırı seçerdi.
+      final artir = find.descendant(
+        of: find.ancestor(
+          of: find.text('Kırmızı gecikme eşiği'),
+          matching: find.byType(Row),
+        ).first,
+        matching: find.byIcon(Icons.add),
       );
+
+      // İki adım: önce satır ağaca girsin (`ListView` tembel kuruyor),
+      // sonra DÜĞMENİN kendisi görüş alanına alınsın. Yalnız etikete
+      // kaydırmak yetmiyor — etiket görünürken düğme altta kalıyor ve
+      // dokunuş boşa gidiyor (uyarı verir ama testi düşürmez: sessiz bir
+      // yanlış geçme).
+      await scrollSettingsTo(tester, find.text('Kırmızı gecikme eşiği'));
+      await tester.ensureVisible(artir);
+      await tester.pump();
+
+      expect(find.text('20 dk'), findsOneWidget);
+
+      await tester.tap(artir);
       await tester.pump();
 
       expect(find.text('25 dk'), findsOneWidget);

@@ -31,7 +31,18 @@ class PrintJob extends Model
 
     public const string TYPE_CUSTOMER = 'musteri';
 
-    public const array TYPES = [self::TYPE_KITCHEN, self::TYPE_CUSTOMER];
+    /**
+     * Kurye fişi (K-14) — ad, telefon, adres, tahsil edilecek tutar.
+     *
+     * Yalnız `delivery` siparişte basılır; gel-al'da kurye yoktur.
+     */
+    public const string TYPE_COURIER = 'kurye';
+
+    public const array TYPES = [
+        self::TYPE_KITCHEN,
+        self::TYPE_CUSTOMER,
+        self::TYPE_COURIER,
+    ];
 
     protected $table = 'veykemtu_print_jobs';
 

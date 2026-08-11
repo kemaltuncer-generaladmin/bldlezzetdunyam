@@ -945,4 +945,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get accountSourceAdjustment => 'Düzeltme';
+
+  @override
+  String get productSoldOutToday => 'Bugünlük tükendi';
 }

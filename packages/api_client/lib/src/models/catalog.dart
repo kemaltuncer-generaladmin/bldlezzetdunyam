@@ -76,8 +76,18 @@ abstract class Location with _$Location {
     /// Çalışma saatlerinden türetilir — şu an sipariş saati içinde miyiz?
     required bool isOpen,
 
-    /// Yöneticinin admin panelden çevirdiği elle ana şalter.
+    /// Elle ana şalter — yönetici ya da mutfak çevirir (K-11).
     required bool orderingEnabled,
+
+    /// Sipariş almanın neden durdurulduğu; müşteriye gösterilir.
+    ///
+    /// **İsteğe bağlı ve öyle kalmalı:** alan sözleşmeye sonradan eklendi
+    /// ve eski sunucu/önbellek onu içermez. `null` normal bir durumdur —
+    /// istemci o zaman genel bir metin gösterir.
+    String? orderingPauseReason,
+
+    /// Süreli durdurmanın bitişi; süresizse `null`.
+    DateTime? orderingResumesAt,
 
     /// Kuruş. Altında sipariş `422 VALIDATION_FAILED`.
     required int minOrderTotal,
@@ -144,7 +154,19 @@ abstract class MenuItem with _$MenuItem {
     required String currency,
 
     /// `false` ürün listede **kalır**; soluk gösterilir, sepete eklenemez.
+    ///
+    /// İki sebepten biriyle `false` olur: yöneticinin kalıcı kararı ya da
+    /// mutfağın günlük [soldOutToday] işareti (K-11).
     required bool isAvailable,
+
+    /// Mutfak bugünlük tükendi işaretledi mi?
+    ///
+    /// Varsayılanı `false`: alan sözleşmeye sonradan eklendi ve eski
+    /// sunucu/önbellek onu içermiyor.
+    @Default(false) bool soldOutToday,
+
+    /// `soldOutToday` doğruyken mutfağın yazdığı sebep.
+    String? soldOutReason,
     String? description,
     String? imageUrl,
     @Default(<String>[]) List<String> allergens,

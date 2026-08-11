@@ -1238,6 +1238,684 @@ abstract class AppL10n {
   /// In tr, this message translates to:
   /// **'Kapat'**
   String get subscriptionDialogClose;
+
+  /// Ses ayarları bölüm başlığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ses ve hoparlör'**
+  String get settingsSectionSound;
+
+  /// Alarmın kendi akış seviyesi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Uygulama ses seviyesi'**
+  String get settingsSoundVolume;
+
+  /// Uygulama seviyesinin sınırını açıklar.
+  ///
+  /// In tr, this message translates to:
+  /// **'Alarmın kendi seviyesi. Hoparlör kısıksa bu ayar tek başına yetmez.'**
+  String get settingsSoundVolumeHint;
+
+  /// Kasanın genel ses seviyesi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Hoparlör (sistem) seviyesi'**
+  String get settingsSpeakerVolume;
+
+  /// Sistem seviyesinin kapsamını açıklar.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kasanın kendi seviyesi. Değiştirmek tüm sistemi etkiler.'**
+  String get settingsSpeakerVolumeHint;
+
+  /// Sistem seviyesini yazan düğme.
+  ///
+  /// In tr, this message translates to:
+  /// **'Uygula'**
+  String get settingsSpeakerApply;
+
+  /// Sistem ses seviyesi okunamadığında gösterilen değer.
+  ///
+  /// In tr, this message translates to:
+  /// **'Okunamadı'**
+  String get settingsSpeakerUnknown;
+
+  /// wpctl/amixer başarısız olduğunda.
+  ///
+  /// In tr, this message translates to:
+  /// **'Hoparlör seviyesi ayarlanamadı.'**
+  String get settingsSpeakerFailed;
+
+  /// Çıkış cihazı seçimi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ses çıkışı'**
+  String get settingsAudioOutput;
+
+  /// Çıkış cihazı seçilmediğinde.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sistem varsayılanı'**
+  String get settingsAudioOutputDefault;
+
+  /// pactl/wpctl yoksa.
+  ///
+  /// In tr, this message translates to:
+  /// **'Çıkış listesi alınamadı.'**
+  String get settingsAudioOutputEmpty;
+
+  /// Olay bazlı ses şalterlerinin başlığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Hangi olaylarda ses çalsın?'**
+  String get settingsSoundEvents;
+
+  /// Bağlantı uyarısı gibi kapatılamayan sesler için rozet.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kapatılamaz'**
+  String get settingsSoundEventAlways;
+
+  /// Alarm tekrar aralığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Tekrarlar arası bekleme'**
+  String get settingsAlarmRepeat;
+
+  /// Tekrar aralığını açıklar.
+  ///
+  /// In tr, this message translates to:
+  /// **'0 = aralıksız. Alarm sipariş onaylanana kadar çalar.'**
+  String get settingsAlarmRepeatHint;
+
+  /// Alarm tekrar sınırı.
+  ///
+  /// In tr, this message translates to:
+  /// **'En fazla tekrar'**
+  String get settingsAlarmMaxRepeats;
+
+  /// Tekrar sınırını açıklar.
+  ///
+  /// In tr, this message translates to:
+  /// **'0 = sınırsız. Sınır koymak, kimse gelmediğinde hoparlörün fişini çektirmeyi önler.'**
+  String get settingsAlarmMaxRepeatsHint;
+
+  /// Tekrar sayısı biçimi
+  ///
+  /// In tr, this message translates to:
+  /// **'{count} kez'**
+  String settingsTimes(int count);
+
+  /// Yüzde biçimi
+  ///
+  /// In tr, this message translates to:
+  /// **'%{count}'**
+  String settingsPercent(int count);
+
+  /// TTS şalteri.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sesli anons'**
+  String get settingsTts;
+
+  /// TTS davranışını açıklar.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yeni siparişi Türkçe okur: \"12 numaralı yeni sipariş, 4 ürün\".'**
+  String get settingsTtsHint;
+
+  /// TTS hız ayarı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Anons hızı'**
+  String get settingsTtsRate;
+
+  /// TTS deneme düğmesi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Anonsu dene'**
+  String get settingsTtsTest;
+
+  /// spd-say/espeak yoksa.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sesli anons aracı yok. Kurmak için: sudo apt install speech-dispatcher'**
+  String get settingsTtsUnavailable;
+
+  /// Ses sorunlarını gösteren blok.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ses tanılama'**
+  String get settingsSoundDiagnostics;
+
+  /// Seçilen ses ikilisi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Oynatıcı'**
+  String get settingsSoundPlayer;
+
+  /// İkili bulunamadığında değer.
+  ///
+  /// In tr, this message translates to:
+  /// **'bulunamadı'**
+  String get settingsSoundPlayerMissing;
+
+  /// Seslerin çıkarıldığı yol.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ses klasörü'**
+  String get settingsSoundFolder;
+
+  /// Sessizlik sebebi etiketi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sorun'**
+  String get settingsSoundProblem;
+
+  /// Sorun yokken.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ses çalışıyor.'**
+  String get settingsSoundOk;
+
+  /// Oynatıcı henüz seçilmemişken.
+  ///
+  /// In tr, this message translates to:
+  /// **'Henüz denenmedi'**
+  String get settingsSoundNotProbed;
+
+  /// Dokunmatik bölüm başlığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Dokunmatik'**
+  String get settingsSectionTouch;
+
+  /// Dokunmatik kip şalteri.
+  ///
+  /// In tr, this message translates to:
+  /// **'Dokunmatik kip'**
+  String get settingsTouchMode;
+
+  /// Dokunmatik kipin etkisini açıklar.
+  ///
+  /// In tr, this message translates to:
+  /// **'Düğmeler büyür, açılır menüler alt sayfaya döner, klavye gerektiren alanlarda ekran klavyesi açılır.'**
+  String get settingsTouchModeHint;
+
+  /// İlerletme sonrası geri alma şeridi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sipariş ilerletildi. {status} durumuna geri alınsın mı?'**
+  String undoPrompt(String status);
+
+  /// Geri alma düğmesi.
+  ///
+  /// In tr, this message translates to:
+  /// **'GERİ AL'**
+  String get undoAction;
+
+  /// Geri alma reddedildiğinde.
+  ///
+  /// In tr, this message translates to:
+  /// **'Geri alınamadı — süre doldu ya da sipariş başka yerden değiştirildi.'**
+  String get undoFailed;
+
+  /// Satış kontrolü ekranı başlığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Satış kontrolü'**
+  String get salesTitle;
+
+  /// Şalter açıkken.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sipariş alınıyor'**
+  String get salesOpenTitle;
+
+  /// Şalter açıkken açıklama.
+  ///
+  /// In tr, this message translates to:
+  /// **'Web ve mobil uygulamadan sipariş verilebiliyor.'**
+  String get salesOpenBody;
+
+  /// Şalter kapalıyken.
+  ///
+  /// In tr, this message translates to:
+  /// **'SİPARİŞ ALINMIYOR'**
+  String get salesClosedTitle;
+
+  /// Süresiz durdurma.
+  ///
+  /// In tr, this message translates to:
+  /// **'Elle açılana kadar kapalı.'**
+  String get salesClosedIndefinite;
+
+  /// Süreli durdurma.
+  ///
+  /// In tr, this message translates to:
+  /// **'Otomatik açılış: {time} (kalan {remaining})'**
+  String salesClosedUntil(String time, String remaining);
+
+  /// Durdurma düğmesi.
+  ///
+  /// In tr, this message translates to:
+  /// **'SATIŞI DURDUR'**
+  String get salesStop;
+
+  /// Açma düğmesi.
+  ///
+  /// In tr, this message translates to:
+  /// **'SATIŞI AÇ'**
+  String get salesResume;
+
+  /// Sebep adımı başlığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Neden durduruluyor?'**
+  String get salesReasonTitle;
+
+  /// Süre adımı başlığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ne kadar süreyle?'**
+  String get salesDurationTitle;
+
+  /// Şifre adımı başlığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Açılış şifresi'**
+  String get salesPasswordTitle;
+
+  /// Şifre adımı açıklaması.
+  ///
+  /// In tr, this message translates to:
+  /// **'Satışı durdurmak ciroyu keser. Kasanın açılış şifresini girin.'**
+  String get salesPasswordHint;
+
+  /// Yanlış şifre.
+  ///
+  /// In tr, this message translates to:
+  /// **'Şifre yanlış.'**
+  String get salesPasswordWrong;
+
+  /// Sebep seçeneği.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yoğunluk'**
+  String get salesReasonBusy;
+
+  /// Sebep seçeneği.
+  ///
+  /// In tr, this message translates to:
+  /// **'Arıza (yazıcı, ocak, kasa)'**
+  String get salesReasonFault;
+
+  /// Sebep seçeneği.
+  ///
+  /// In tr, this message translates to:
+  /// **'Malzeme bitti'**
+  String get salesReasonStock;
+
+  /// Sebep seçeneği.
+  ///
+  /// In tr, this message translates to:
+  /// **'Diğer'**
+  String get salesReasonOther;
+
+  /// Sebep boş.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sebep seçilmeli.'**
+  String get salesReasonRequired;
+
+  /// Başarı mesajı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Satış durduruldu.'**
+  String get salesStopped;
+
+  /// Başarı mesajı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Satış yeniden açıldı.'**
+  String get salesResumed;
+
+  /// Hata mesajı.
+  ///
+  /// In tr, this message translates to:
+  /// **'İşlem başarısız: {message}'**
+  String salesFailed(String message);
+
+  /// Pano üstündeki kırmızı şerit.
+  ///
+  /// In tr, this message translates to:
+  /// **'SİPARİŞ ALINMIYOR — {detail}'**
+  String salesBannerClosed(String detail);
+
+  /// Ürün listesi başlığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ürünler'**
+  String get salesProducts;
+
+  /// Tükendi anahtarı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bugün tükendi'**
+  String get salesSoldOut;
+
+  /// Kalıcı kapalı ürün.
+  ///
+  /// In tr, this message translates to:
+  /// **'Menüde değil (yönetici kapattı)'**
+  String get salesNotListed;
+
+  /// Ürün arama alanı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ürün ara'**
+  String get salesProductSearch;
+
+  /// Boş liste.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ürün bulunamadı.'**
+  String get salesProductsEmpty;
+
+  /// Kalan süre biçimi.
+  ///
+  /// In tr, this message translates to:
+  /// **'{count} dk'**
+  String salesRemainingMinutes(int count);
+
+  /// Kalan süre biçimi.
+  ///
+  /// In tr, this message translates to:
+  /// **'{hours} sa {minutes} dk'**
+  String salesRemainingHours(int hours, int minutes);
+
+  /// F7 kısayolu açıklaması.
+  ///
+  /// In tr, this message translates to:
+  /// **'Satış kontrolü (durdur/aç, tükendi)'**
+  String get shortcutSales;
+
+  /// Kurye fişi etiketi (K-14).
+  ///
+  /// In tr, this message translates to:
+  /// **'Kurye fişi'**
+  String get receiptTypeCourier;
+
+  /// Kartın fiş menüsündeki kurye seçeneği.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kurye fişini yeniden bas'**
+  String get reprintCourier;
+
+  /// Düzenlenmiş sipariş rozeti (K-12).
+  ///
+  /// In tr, this message translates to:
+  /// **'REVİZE #{count}'**
+  String orderRevised(int count);
+
+  /// Düzenleme ekranı başlığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Siparişi düzenle'**
+  String get editTitle;
+
+  /// Karttaki düzenleme düğmesi.
+  ///
+  /// In tr, this message translates to:
+  /// **'DÜZENLE'**
+  String get editAction;
+
+  /// Ekranın üstündeki uyarı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kaydetmeden ÖNCE müşteriyi arayın ve anlaşın.'**
+  String get editPhoneHint;
+
+  /// Abonelik uyarısı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu bir abonelik siparişi. Değişiklik YALNIZ bugünü etkiler; abonelik tanımı değişmez.'**
+  String get editSubscriptionWarning;
+
+  /// Kalem listesi başlığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kalemler'**
+  String get editItems;
+
+  /// Ürün ekleme düğmesi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ürün ekle'**
+  String get editAddProduct;
+
+  /// Kalem kaldırma.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kaldır'**
+  String get editRemove;
+
+  /// Kaldırma bildirimi.
+  ///
+  /// In tr, this message translates to:
+  /// **'{name} kaldırıldı'**
+  String editRemoved(String name);
+
+  /// Sebep seçimi başlığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Değişiklik sebebi'**
+  String get editReason;
+
+  /// Sebep boş uyarısı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sebep seçmeden kaydedilemez.'**
+  String get editReasonRequired;
+
+  /// Personel notu alanı.
+  ///
+  /// In tr, this message translates to:
+  /// **'İç not (isteğe bağlı)'**
+  String get editNote;
+
+  /// Kaydet düğmesi.
+  ///
+  /// In tr, this message translates to:
+  /// **'KAYDET VE FİŞ BAS'**
+  String get editSave;
+
+  /// Değişiklik yokken.
+  ///
+  /// In tr, this message translates to:
+  /// **'Hiçbir şey değişmedi.'**
+  String get editNoChange;
+
+  /// Onay penceresi başlığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Değişikliği kaydet'**
+  String get editConfirmTitle;
+
+  /// İade tutarı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Müşteriye iade edilecek: {amount}'**
+  String editRefund(String amount);
+
+  /// Ek tahsilat tutarı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Tahsil edilecek fark: {amount}'**
+  String editExtraCharge(String amount);
+
+  /// Para farkı yokken.
+  ///
+  /// In tr, this message translates to:
+  /// **'Tutar değişmiyor.'**
+  String get editNoMoneyChange;
+
+  /// Başarı bildirimi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Revizyon #{count} kaydedildi. Fişler yeniden basılıyor.'**
+  String editSaved(int count);
+
+  /// Hata bildirimi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kaydedilemedi: {message}'**
+  String editFailed(String message);
+
+  /// Manuel iade uyarısı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Para farkı elle tamamlanacak: {message}'**
+  String editSettlementManual(String message);
+
+  /// İade başarısız.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sipariş güncellendi ama iade başlatılamadı. Yönetici panelinden takip edin.'**
+  String get editSettlementFailed;
+
+  /// Ürün ekleme arama alanı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ürün ara'**
+  String get editProductSearch;
+
+  /// Boş kalem listesi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sipariş boş bırakılamaz. Tümünü kaldırmak için siparişi iptal edin.'**
+  String get editEmptyItems;
+
+  /// Teslimat saati alanı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Teslimat saati'**
+  String get editRequestedAt;
+
+  /// Saat değiştirme düğmesi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Saati değiştir'**
+  String get editChangeTime;
+
+  /// Abonelik ekranı başlığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Abonelik üretim planı'**
+  String get planTitle;
+
+  /// Sekme.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bugün'**
+  String get planToday;
+
+  /// Sekme.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yarın'**
+  String get planTomorrow;
+
+  /// Sekme.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu hafta'**
+  String get planWeek;
+
+  /// Üretim toplamları başlığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Hazırlanacak toplam'**
+  String get planTotals;
+
+  /// Teslimat listesi başlığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Teslimat çizelgesi'**
+  String get planDeliveries;
+
+  /// Uyarılar başlığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Dikkat'**
+  String get planWarnings;
+
+  /// Boş gün.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu gün için abonelik siparişi yok.'**
+  String get planEmpty;
+
+  /// Fiş basma düğmesi.
+  ///
+  /// In tr, this message translates to:
+  /// **'ÜRETİM PLANI FİŞİ BAS'**
+  String get planPrint;
+
+  /// Basım bildirimi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Üretim planı yazıcıya gönderildi.'**
+  String get planPrinted;
+
+  /// Basım hatası.
+  ///
+  /// In tr, this message translates to:
+  /// **'Plan fişi basılamadı: {message}'**
+  String planPrintFailed(String message);
+
+  /// Toplam porsiyon.
+  ///
+  /// In tr, this message translates to:
+  /// **'{count} porsiyon'**
+  String planPortions(int count);
+
+  /// Teslimat saati boşken.
+  ///
+  /// In tr, this message translates to:
+  /// **'Saat yok'**
+  String get planNoTime;
+
+  /// Yükleme hatası.
+  ///
+  /// In tr, this message translates to:
+  /// **'Plan alınamadı: {message}'**
+  String planFailed(String message);
+
+  /// Banner ve kısayol etiketi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Abonelik planı'**
+  String get planOpen;
+
+  /// Durum çubuğundaki BBD sayacı (K-16).
+  ///
+  /// In tr, this message translates to:
+  /// **'BBD: {count}'**
+  String bbdPrinted(int count);
+
+  /// BBD çipi ipucu.
+  ///
+  /// In tr, this message translates to:
+  /// **'BBD Store fişleri — bu siparişler panoda görünmez, yalnız fiş basılır.'**
+  String get bbdTooltip;
+
+  /// Basılmayı bekleyen BBD fişi uyarısı.
+  ///
+  /// In tr, this message translates to:
+  /// **'BBD kuyruğunda {count} fiş bekliyor'**
+  String bbdPending(int count);
 }
 
 class _AppL10nDelegate extends LocalizationsDelegate<AppL10n> {

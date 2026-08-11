@@ -58,6 +58,108 @@ void main() {
 
       expect(sonuc.pollSeconds, KdsSettings.maxPollSeconds);
     });
+
+    // ── K-09: eskiden ayrıştırılıp KULLANILMAYAN alanlar ────────────────
+    //
+    // Bu dört alan sözleşmede ve istemci modelinde vardı ama hiçbir yere
+    // bağlanmamıştı: yönetici panelden değiştiriyor, kasada hiçbir şey
+    // olmuyordu. Testleri, bir daha sessizce kopmasınlar diye.
+
+    test('ses seviyesi uygulanır ve 0-100 aralığına kırpılır', () {
+      expect(
+        applyManagedSettings(
+          yerel,
+          const KitchenManagedSettings(volumePercent: 35),
+        ).volumePercent,
+        35,
+      );
+      expect(
+        applyManagedSettings(
+          yerel,
+          const KitchenManagedSettings(volumePercent: 900),
+        ).volumePercent,
+        100,
+      );
+    });
+
+    test('çıkış cihazı uygulanır; BOŞ DİZE varsayılana döndürür', () {
+      // `null` "dokunmadı" anlamına ayrılmış olduğu için, yöneticinin
+      // seçimini geri alabilmesinin tek yolu boş dize.
+      final secili = applyManagedSettings(
+        yerel,
+        const KitchenManagedSettings(audioSink: 'hoparlor-1'),
+      );
+      expect(secili.audioSinkName, 'hoparlor-1');
+
+      final sifirlanmis = applyManagedSettings(
+        secili,
+        const KitchenManagedSettings(audioSink: ''),
+      );
+      expect(sifirlanmis.audioSinkName, isNull);
+    });
+
+    test('kod sayfası uygulanır — yanlış değer Türkçe karakteri bozar', () {
+      final sonuc = applyManagedSettings(
+        yerel,
+        const KitchenManagedSettings(printerCodePage: 13),
+      );
+
+      expect(sonuc.printerCodePage, 13);
+    });
+
+    test('sağlık ve bağlantı uyarısı aralıkları sınırlarına kırpılır', () {
+      final sonuc = applyManagedSettings(
+        yerel,
+        const KitchenManagedSettings(
+          healthSeconds: 5,
+          connectionAlarmSeconds: 9999,
+        ),
+      );
+
+      expect(sonuc.healthSeconds, KdsSettings.minHealthSeconds);
+      expect(
+        sonuc.connectionAlarmSeconds,
+        KdsSettings.maxConnectionAlarmSeconds,
+      );
+    });
+
+    test('susturma yetkisi kapatılabilir', () {
+      final sonuc = applyManagedSettings(
+        yerel,
+        const KitchenManagedSettings(alarmSilenceable: false),
+      );
+
+      expect(sonuc.alarmSilenceable, isFalse);
+    });
+
+    test('anons ve dokunmatik kip sunucudan açılabilir', () {
+      final sonuc = applyManagedSettings(
+        yerel,
+        const KitchenManagedSettings(ttsEnabled: true, touchMode: true),
+      );
+
+      expect(sonuc.ttsEnabled, isTrue);
+      expect(sonuc.touchMode, isTrue);
+    });
+
+    test('yeni alanlara dokunmayan sunucu yereli bozmaz', () {
+      // Eski sunucu sürümü yeni alanları hiç göndermiyor; kasa kendi
+      // ayarlarını korumalı.
+      final ozel = yerel.copyWith(
+        volumePercent: 45,
+        ttsEnabled: true,
+        touchMode: true,
+      );
+
+      final sonuc = applyManagedSettings(
+        ozel,
+        const KitchenManagedSettings(pollSeconds: 7),
+      );
+
+      expect(sonuc.volumePercent, 45);
+      expect(sonuc.ttsEnabled, isTrue);
+      expect(sonuc.touchMode, isTrue);
+    });
   });
 
   group('Komut çalıştırma', () {

@@ -25,6 +25,10 @@ import '../data/providers.dart';
 import '../l10n/app_localizations.dart';
 import '../printing/print_job.dart';
 import '../printing/test_receipt.dart';
+import '../sound/alarm_asset.dart';
+import '../sound/kds_sound_event.dart';
+import '../sound/system_audio.dart';
+import '../sound/tts_announcer.dart';
 import 'kds_settings.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -63,7 +67,11 @@ class SettingsScreen extends ConsumerWidget {
             SizedBox(height: BldSpacing.lg),
             _PrinterSection(),
             SizedBox(height: BldSpacing.lg),
+            _SoundSection(),
+            SizedBox(height: BldSpacing.lg),
             _AlertsSection(),
+            SizedBox(height: BldSpacing.lg),
+            _TouchSection(),
             SizedBox(height: BldSpacing.lg),
             _QueueSection(),
             SizedBox(height: BldSpacing.lg),
@@ -243,19 +251,6 @@ class _AlertsSection extends ConsumerWidget {
       title: l10n.settingsSectionAlerts,
       icon: Icons.notifications_active_outlined,
       children: [
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          value: settings.soundEnabled,
-          onChanged: (value) => unawaited(
-            controller.update(settings.copyWith(soundEnabled: value)),
-          ),
-          title: Text(
-            l10n.settingsSound,
-            style: const TextStyle(fontSize: KdsTextScale.orderNumber),
-          ),
-          secondary: _SoundTestButton(enabled: settings.soundEnabled),
-        ),
-        const Divider(color: Color(KdsColors.surfaceRaised)),
         _NumberSetting(
           label: l10n.settingsPollInterval,
           hint: l10n.settingsPollIntervalHint,
@@ -294,6 +289,449 @@ class _AlertsSection extends ConsumerWidget {
           accent: const Color(BldColors.danger),
           onChanged: (value) => unawaited(
             controller.update(settings.copyWith(lateAfterMinutes: value)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ────────────────────────── Ses ve hoparlör (K-09) ──────────────────────────
+
+/// Sesin tamamı: şalterler, seviye, çıkış cihazı, anons ve tanılama.
+///
+/// NEDEN AYRI BÖLÜM: sahada "ses çalmıyor" en sık bildirilen arıza oldu ve
+/// sebebi tek bir yerden görülemiyordu (`pw-play` argüman hatası, kısık
+/// hoparlör, yanlış çıkış, eksik ikili — dördü de aynı belirtiyi veriyor).
+/// Artık dördü de bu bölümde görünür ve buradan çözülür.
+class _SoundSection extends ConsumerWidget {
+  const _SoundSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppL10n.of(context);
+    final settings = ref.watch(kdsSettingsProvider);
+    final controller = ref.read(kdsSettingsProvider.notifier);
+
+    return _Section(
+      title: l10n.settingsSectionSound,
+      icon: Icons.volume_up_outlined,
+      children: [
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: settings.soundEnabled,
+          onChanged: (value) => unawaited(
+            controller.update(settings.copyWith(soundEnabled: value)),
+          ),
+          title: Text(
+            l10n.settingsSound,
+            style: const TextStyle(fontSize: KdsTextScale.orderNumber),
+          ),
+          secondary: _SoundTestButton(enabled: settings.soundEnabled),
+        ),
+        const Divider(color: Color(KdsColors.surfaceRaised)),
+        _NumberSetting(
+          label: l10n.settingsSoundVolume,
+          hint: l10n.settingsSoundVolumeHint,
+          value: settings.volumePercent,
+          min: 0,
+          max: 100,
+          step: 5,
+          format: l10n.settingsPercent,
+          enabled: settings.soundEnabled,
+          onChanged: (value) => unawaited(
+            controller.update(settings.copyWith(volumePercent: value)),
+          ),
+        ),
+        const Divider(color: Color(KdsColors.surfaceRaised)),
+        const _SpeakerVolumeRow(),
+        const Divider(color: Color(KdsColors.surfaceRaised)),
+        const _AudioOutputRow(),
+        const Divider(color: Color(KdsColors.surfaceRaised)),
+        _SoundEventList(settings: settings),
+        const Divider(color: Color(KdsColors.surfaceRaised)),
+        _NumberSetting(
+          label: l10n.settingsAlarmRepeat,
+          hint: l10n.settingsAlarmRepeatHint,
+          value: settings.alarmRepeatSeconds,
+          min: 0,
+          max: KdsSettings.maxAlarmRepeatSeconds,
+          step: 5,
+          format: l10n.settingsSeconds,
+          onChanged: (value) => unawaited(
+            controller.update(settings.copyWith(alarmRepeatSeconds: value)),
+          ),
+        ),
+        const Divider(color: Color(KdsColors.surfaceRaised)),
+        _NumberSetting(
+          label: l10n.settingsAlarmMaxRepeats,
+          hint: l10n.settingsAlarmMaxRepeatsHint,
+          value: settings.alarmMaxRepeats,
+          min: 0,
+          max: 60,
+          step: 1,
+          format: l10n.settingsTimes,
+          onChanged: (value) => unawaited(
+            controller.update(settings.copyWith(alarmMaxRepeats: value)),
+          ),
+        ),
+        const Divider(color: Color(KdsColors.surfaceRaised)),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: settings.ttsEnabled,
+          onChanged: (value) =>
+              unawaited(controller.update(settings.copyWith(ttsEnabled: value))),
+          title: Text(
+            l10n.settingsTts,
+            style: const TextStyle(fontSize: KdsTextScale.orderNumber),
+          ),
+          subtitle: Text(
+            l10n.settingsTtsHint,
+            style: const TextStyle(
+              fontSize: KdsTextScale.statusBar,
+              color: Color(KdsColors.onSurfaceMuted),
+            ),
+          ),
+          secondary: _TtsTestButton(enabled: settings.ttsEnabled),
+        ),
+        if (settings.ttsEnabled)
+          _NumberSetting(
+            label: l10n.settingsTtsRate,
+            hint: '',
+            value: settings.ttsRatePercent,
+            min: minTtsRatePercent,
+            max: maxTtsRatePercent,
+            step: 10,
+            format: l10n.settingsPercent,
+            onChanged: (value) => unawaited(
+              controller.update(settings.copyWith(ttsRatePercent: value)),
+            ),
+          ),
+        const Divider(color: Color(KdsColors.surfaceRaised)),
+        const _SoundDiagnostics(),
+      ],
+    );
+  }
+}
+
+/// Hangi olayda ses çalacağını seçen liste.
+class _SoundEventList extends ConsumerWidget {
+  const _SoundEventList({required this.settings});
+
+  final KdsSettings settings;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppL10n.of(context);
+    final controller = ref.read(kdsSettingsProvider.notifier);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          l10n.settingsSoundEvents,
+          style: const TextStyle(
+            fontSize: KdsTextScale.statusBar,
+            color: Color(KdsColors.onSurfaceMuted),
+          ),
+        ),
+        for (final event in KdsSoundEvent.values)
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            // Bağlantı uyarısı kapatılamaz: ekran son bilinen listeyi
+            // gösterir ve DOĞRU görünür; tek uyarıyı kapatmak mutfağı
+            // kör bırakır (`docs/05` §5.5).
+            value: settings.soundEnabledFor(event),
+            onChanged: event.canBeDisabled && settings.soundEnabled
+                ? (value) => unawaited(
+                    controller.update(
+                      settings.withSoundEvent(event, enabled: value),
+                    ),
+                  )
+                : null,
+            title: Text(
+              event.label,
+              style: const TextStyle(fontSize: KdsTextScale.statusBar),
+            ),
+            subtitle: event.canBeDisabled
+                ? null
+                : Text(
+                    l10n.settingsSoundEventAlways,
+                    style: const TextStyle(
+                      fontSize: KdsTextScale.statusBar,
+                      color: Color(KdsColors.onSurfaceMuted),
+                    ),
+                  ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Kasanın kendi hoparlör seviyesi — `wpctl` / `amixer`.
+///
+/// AYRI SATIR: uygulama seviyesiyle karıştırılmamalı. Sahada "sesi %100
+/// yaptım hâlâ duyulmuyor" şikâyetinin sebebi, sistem seviyesinin kısık
+/// ya da sessize alınmış olmasıydı.
+class _SpeakerVolumeRow extends ConsumerStatefulWidget {
+  const _SpeakerVolumeRow();
+
+  @override
+  ConsumerState<_SpeakerVolumeRow> createState() => _SpeakerVolumeRowState();
+}
+
+class _SpeakerVolumeRowState extends ConsumerState<_SpeakerVolumeRow> {
+  int? _current;
+  int? _pending;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_read());
+  }
+
+  Future<void> _read() async {
+    final value = await ref.read(systemAudioProvider).currentVolume();
+    if (!mounted) return;
+
+    setState(() {
+      _current = value;
+      _pending = value;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
+    final value = _pending ?? _current;
+
+    // Okunamıyorsa (wpctl/amixer yok) ayarı da sunmuyoruz: çalışmayan bir
+    // düğme, olmayan bir düğmeden kötüdür.
+    if (value == null) {
+      return _ValueRow(
+        label: l10n.settingsSpeakerVolume,
+        value: l10n.settingsSpeakerUnknown,
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _NumberSetting(
+          label: l10n.settingsSpeakerVolume,
+          hint: l10n.settingsSpeakerVolumeHint,
+          value: value,
+          min: 0,
+          max: 100,
+          step: 5,
+          format: l10n.settingsPercent,
+          enabled: !_busy,
+          onChanged: (next) => setState(() => _pending = next),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: FilledButton.tonal(
+            // Anında uygulamıyoruz: her dokunuşta `wpctl` çağırmak, beş
+            // dokunuşta beş süreç açar ve seviye zıplar.
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
+            onPressed: _busy || _pending == null || _pending == _current
+                ? null
+                : _apply,
+            child: Text(l10n.settingsSpeakerApply),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _apply() async {
+    final target = _pending;
+    if (target == null) return;
+
+    setState(() => _busy = true);
+    final ok = await ref.read(systemAudioProvider).setVolume(target);
+    if (!mounted) return;
+
+    setState(() {
+      _busy = false;
+      if (ok) _current = target;
+    });
+
+    if (!ok) {
+      final l10n = AppL10n.of(context);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.settingsSpeakerFailed)));
+    }
+  }
+}
+
+/// Sesin hangi çıkıştan verileceği.
+class _AudioOutputRow extends ConsumerWidget {
+  const _AudioOutputRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppL10n.of(context);
+    final settings = ref.watch(kdsSettingsProvider);
+    final controller = ref.read(kdsSettingsProvider.notifier);
+    final sinks = ref.watch(audioSinksProvider);
+
+    final available = sinks.value ?? const <AudioSink>[];
+
+    // Kayıtlı çıkış artık yoksa (kablo çıkarıldı, HDMI kapandı) seçimi
+    // varsayılana düşürüyoruz: listede olmayan bir değer `DropdownButton`
+    // için hatadır ve ekran çöker.
+    final selected = available.any((s) => s.name == settings.audioSinkName)
+        ? settings.audioSinkName
+        : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          l10n.settingsAudioOutput,
+          style: const TextStyle(fontSize: KdsTextScale.orderNumber),
+        ),
+        const SizedBox(height: BldSpacing.xs),
+        if (available.isEmpty)
+          Text(
+            l10n.settingsAudioOutputEmpty,
+            style: const TextStyle(
+              fontSize: KdsTextScale.statusBar,
+              color: Color(KdsColors.onSurfaceMuted),
+            ),
+          )
+        else
+          DropdownButton<String?>(
+            value: selected,
+            isExpanded: true,
+            dropdownColor: const Color(KdsColors.surfaceRaised),
+            items: [
+              DropdownMenuItem<String?>(
+                child: Text(l10n.settingsAudioOutputDefault),
+              ),
+              for (final sink in available)
+                DropdownMenuItem<String?>(
+                  value: sink.name,
+                  child: Text(
+                    sink.isDefault ? '${sink.label} ★' : sink.label,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+            onChanged: (value) => unawaited(
+              controller.update(
+                settings.copyWith(
+                  audioSinkName: value,
+                  clearAudioSink: value == null,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// "Ses neden çıkmıyor?" sorusunun cevabının yazdığı yer.
+class _SoundDiagnostics extends ConsumerWidget {
+  const _SoundDiagnostics();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppL10n.of(context);
+    final player = ref.watch(alarmPlayerProvider);
+    final announcer = ref.watch(ttsAnnouncerProvider);
+    final reason = player.muteReason;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          l10n.settingsSoundDiagnostics,
+          style: const TextStyle(
+            fontSize: KdsTextScale.statusBar,
+            color: Color(KdsColors.onSurfaceMuted),
+          ),
+        ),
+        const SizedBox(height: BldSpacing.xs),
+        _ValueRow(
+          label: l10n.settingsSoundPlayer,
+          value: player.playerExecutable ?? l10n.settingsSoundNotProbed,
+        ),
+        _ValueRow(
+          label: l10n.settingsSoundFolder,
+          value: lastSoundDirectory ?? l10n.settingsSoundNotProbed,
+        ),
+        _ValueRow(
+          label: l10n.settingsTts,
+          value: announcer.executable ?? l10n.settingsSoundNotProbed,
+        ),
+        const SizedBox(height: BldSpacing.xs),
+        if (reason == null)
+          _StatusRow(ok: true, label: l10n.settingsSoundOk)
+        else
+          _StatusRow(ok: false, label: '${l10n.settingsSoundProblem}: $reason'),
+      ],
+    );
+  }
+}
+
+/// Anonsu dinletir.
+class _TtsTestButton extends ConsumerWidget {
+  const _TtsTestButton({required this.enabled});
+
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppL10n.of(context);
+
+    return TextButton(
+      onPressed: enabled
+          ? () => ref
+                .read(ttsAnnouncerProvider)
+                .announce('12 numaralı yeni sipariş, 4 ürün')
+                .ignore()
+          : null,
+      child: Text(l10n.settingsTtsTest),
+    );
+  }
+}
+
+// ────────────────────────────── Dokunmatik (K-10) ──────────────────────────
+
+class _TouchSection extends ConsumerWidget {
+  const _TouchSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppL10n.of(context);
+    final settings = ref.watch(kdsSettingsProvider);
+    final controller = ref.read(kdsSettingsProvider.notifier);
+
+    return _Section(
+      title: l10n.settingsSectionTouch,
+      icon: Icons.touch_app_outlined,
+      children: [
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: settings.touchMode,
+          onChanged: (value) =>
+              unawaited(controller.update(settings.copyWith(touchMode: value))),
+          title: Text(
+            l10n.settingsTouchMode,
+            style: const TextStyle(fontSize: KdsTextScale.orderNumber),
+          ),
+          subtitle: Text(
+            l10n.settingsTouchModeHint,
+            style: const TextStyle(
+              fontSize: KdsTextScale.statusBar,
+              color: Color(KdsColors.onSurfaceMuted),
+            ),
           ),
         ),
       ],
@@ -474,6 +912,7 @@ class _QueueRow extends StatelessWidget {
 String _receiptTypeLabel(AppL10n l10n, ReceiptType type) => switch (type) {
   ReceiptType.mutfak => l10n.receiptTypeKitchen,
   ReceiptType.musteri => l10n.receiptTypeCustomer,
+  ReceiptType.kurye => l10n.receiptTypeCourier,
 };
 
 // ────────────────────────────── Cihaz ──────────────────────────────
@@ -748,6 +1187,7 @@ class _NumberSetting extends StatelessWidget {
     required this.format,
     required this.onChanged,
     this.accent,
+    this.enabled = true,
   });
 
   final String label;
@@ -759,6 +1199,12 @@ class _NumberSetting extends StatelessWidget {
   final String Function(int value) format;
   final void Function(int value) onChanged;
   final Color? accent;
+
+  /// Kapalıyken düğmeler pasifleşir ama değer okunur kalır.
+  ///
+  /// Gizlemek yerine pasifleştiriyoruz: ayarın var olduğunu bilmek,
+  /// neden görünmediğini aramaktan iyidir.
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -792,7 +1238,7 @@ class _NumberSetting extends StatelessWidget {
           IconButton.filledTonal(
             tooltip: l10n.settingsDecrease,
             iconSize: 28,
-            onPressed: value <= min
+            onPressed: !enabled || value <= min
                 ? null
                 : () => onChanged((value - step).clamp(min, max)),
             icon: const Icon(Icons.remove),
@@ -811,7 +1257,7 @@ class _NumberSetting extends StatelessWidget {
           IconButton.filledTonal(
             tooltip: l10n.settingsIncrease,
             iconSize: 28,
-            onPressed: value >= max
+            onPressed: !enabled || value >= max
                 ? null
                 : () => onChanged((value + step).clamp(min, max)),
             icon: const Icon(Icons.add),

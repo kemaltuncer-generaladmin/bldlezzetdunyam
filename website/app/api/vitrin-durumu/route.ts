@@ -25,6 +25,11 @@ export async function GET() {
         busy: Boolean(location?.busy),
         busy_message: location?.busy_message ?? null,
         ordering_enabled: Boolean(location?.ordering_enabled),
+        // Sebep ve yeniden açılış saati de taze geliyor (K-11): mutfak
+        // "malzeme bitti, 30 dakika" dediğinde müşteri bunu bir dakika
+        // sonra değil hemen görmeli.
+        ordering_pause_reason: location?.ordering_pause_reason ?? null,
+        ordering_resumes_at: location?.ordering_resumes_at ?? null,
         is_open: Boolean(location?.is_open),
       },
       { headers: { 'Cache-Control': 'no-store' } },
@@ -33,7 +38,14 @@ export async function GET() {
     // API'ye ulaşılamıyorsa bant GÖSTERİLMEZ. Yanlış "yoğunuz" uyarısı,
     // uyarı olmamasından daha kötü: müşteri sipariş vermekten vazgeçer.
     return NextResponse.json(
-      { busy: false, busy_message: null, ordering_enabled: true, is_open: true },
+      {
+        busy: false,
+        busy_message: null,
+        ordering_enabled: true,
+        ordering_pause_reason: null,
+        ordering_resumes_at: null,
+        is_open: true,
+      },
       { status: 200, headers: { 'Cache-Control': 'no-store' } },
     );
   }

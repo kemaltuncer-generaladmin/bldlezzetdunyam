@@ -29,6 +29,20 @@ class FakeDeviceSessionStore implements DeviceSessionStore {
   @override
   Future<void> clearToken() => tokens.clear();
 
+  /// Eşleme bekleme süresi — bellekte, gerçek saatten bağımsız.
+  ///
+  /// Testte gerçek zamana bağlanmak, bekleme süresi kadar duran ya da
+  /// makinenin hızına göre bazen geçen bir test demekti.
+  int? cooldownUntilMillis;
+
+  @override
+  Future<void> writePairCooldown(Duration duration) async =>
+      cooldownUntilMillis =
+          DateTime.now().toUtc().millisecondsSinceEpoch + duration.inMilliseconds;
+
+  @override
+  Future<int?> readPairCooldownMillis() async => cooldownUntilMillis;
+
   /// Testin doğrulaması için: kaydedilmiş adres.
   String? get savedBaseUrl => _baseUrl;
 }

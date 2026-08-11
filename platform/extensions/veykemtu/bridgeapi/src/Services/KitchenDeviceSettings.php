@@ -24,14 +24,30 @@ use Veykemtu\BridgeApi\Models\KitchenDevice;
  */
 class KitchenDeviceSettings
 {
-    /** Sözleşmedeki sınırlar — `docs/openapi.yaml` `KitchenSettings`. */
-    public const int MIN_POLL_SECONDS = 2;
+    /**
+     * Sözleşmedeki sınırlar — `docs/openapi.yaml` `KitchenSettings`.
+     *
+     * ALT SINIR 2'DEN 3'E ÇIKTI (12.08.2026): 2 saniyelik yoklama saatte
+     * 1800 istek demek ve diğer döngülerle birlikte `bld-kitchen`
+     * sınırını (2000/saat) aşıyordu. Aşıldığında kasa 429 alıyor ve
+     * mutfak sipariş görmüyor. Hesap `Extension::registerRateLimiters`
+     * yorumunda.
+     */
+    public const int MIN_POLL_SECONDS = 3;
 
     public const int MAX_POLL_SECONDS = 60;
 
     public const int MIN_THRESHOLD_MINUTES = 1;
 
     public const int MAX_THRESHOLD_MINUTES = 480;
+
+    /** Alarm tekrarları arası bekleme; 0 = aralıksız (K-09). */
+    public const int MAX_ALARM_REPEAT_SECONDS = 120;
+
+    /** Anons hızı yüzdesi; ikilinin varsayılanı 100. */
+    public const int MIN_TTS_RATE_PERCENT = 50;
+
+    public const int MAX_TTS_RATE_PERCENT = 200;
 
     /**
      * Cihazın ayarları. Dokunulmamış alanlar `null` döner.
@@ -50,6 +66,13 @@ class KitchenDeviceSettings
             'health_seconds' => $device->health_seconds,
             'connection_alarm_seconds' => $device->connection_alarm_seconds,
             'alarm_silenceable' => $device->alarm_silenceable,
+            'volume_percent' => $device->volume_percent,
+            'audio_sink' => $device->audio_sink,
+            'tts_enabled' => $device->tts_enabled,
+            'tts_rate_percent' => $device->tts_rate_percent,
+            'alarm_repeat_seconds' => $device->alarm_repeat_seconds,
+            'alarm_max_repeats' => $device->alarm_max_repeats,
+            'touch_mode' => $device->touch_mode,
             'updated_at' => $device->settings_updated_at?->utc()->toIso8601ZuluString(),
         ];
     }
@@ -71,6 +94,13 @@ class KitchenDeviceSettings
             'health_seconds',
             'connection_alarm_seconds',
             'alarm_silenceable',
+            'volume_percent',
+            'audio_sink',
+            'tts_enabled',
+            'tts_rate_percent',
+            'alarm_repeat_seconds',
+            'alarm_max_repeats',
+            'touch_mode',
         ];
 
         $degisti = false;
@@ -103,6 +133,14 @@ class KitchenDeviceSettings
 
     private function normalize(string $field, mixed $value): mixed
     {
+        // ÇIKIŞ CİHAZI İSTİSNA: boş dize "varsayılan çıkışa dön" demek ve
+        // korunmalı. Diğer alanlarda `null` ile aynı anlama gelir
+        // ("dokunulmadı"), ama burada yöneticinin seçimini geri almasının
+        // tek yolu bu — `null` zaten "dokunmadı"ya ayrılmış durumda.
+        if ($field === 'audio_sink') {
+            return $value === null ? null : trim((string) $value);
+        }
+
         if ($value === null || $value === '') {
             return null;
         }
@@ -120,7 +158,17 @@ class KitchenDeviceSettings
             // doğrulanan değer 29 ve yanlışı tüm Türkçe harfleri boşluk
             // bastırır (docs/05 §5.2).
             'printer_code_page' => max(0, min(255, (int) $value)),
-            'sound_enabled', 'alarm_silenceable' => (bool) $value,
+            'sound_enabled', 'alarm_silenceable', 'tts_enabled', 'touch_mode' => (bool) $value,
+            // Ses seviyesi hoparlörün kendi seviyesinden AYRI: bu yalnızca
+            // uygulamanın akışını kısar (`pw-play --volume`).
+            'volume_percent' => max(0, min(100, (int) $value)),
+            'tts_rate_percent' => max(
+                self::MIN_TTS_RATE_PERCENT,
+                min(self::MAX_TTS_RATE_PERCENT, (int) $value),
+            ),
+            'alarm_repeat_seconds' => max(0, min(self::MAX_ALARM_REPEAT_SECONDS, (int) $value)),
+            // 0 = sınırsız tekrar ("onaylayana kadar susmaz" varsayılanı).
+            'alarm_max_repeats' => max(0, (int) $value),
             // Sağlık bildirimi komutları da taşıyor; 10 saniyenin altına
             // inmek sunucuyu boşuna yorar, 300'ün üstünde komut "gitmedi"
             // gibi görünür.

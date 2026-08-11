@@ -138,7 +138,7 @@ Faz 1'de tek vitrin döner. Dizi biçimi korunur (ileride vitrin eklenirse kır�
 | `min_order_total` | Kuruş. Altında sipariş `422 VALIDATION_FAILED`. |
 | `delivery_fee` | Kuruş. `delivery` siparişe eklenir, `pickup`'ta uygulanmaz. İstemci toplamı **onaydan önce** gösterebilsin diye ilan edilir; bağlayıcı olan sunucunun sipariş anındaki hesabıdır. |
 | `payment_methods` | Bu vitrinde **açık** olan ödeme yöntemleri. İstemci ödeme ekranında yalnızca bunları gösterir. Listede olmayan bir yöntemle sipariş → `422 VALIDATION_FAILED`. |
-| `busy` | Mutfak yoğun mu? Mutfak ekranındaki tek tuşla açılır (`POST /kitchen/busy`). **Sipariş almayı ENGELLEMEZ** — istemci yalnızca `busy_message` uyarısını gösterir, sipariş düğmeleri açık kalır. Siparişi gerçekten kesen şalter `ordering_enabled`'dır ve yalnızca yönetici değiştirir; mutfak personeli tek tuşla cirosu kapatabilmemeli. |
+| `busy` | Mutfak yoğun mu? Mutfak ekranındaki tek tuşla açılır (`POST /kitchen/busy`). **Sipariş almayı ENGELLEMEZ** — istemci yalnızca `busy_message` uyarısını gösterir, sipariş düğmeleri açık kalır. Siparişi gerçekten kesen şalter `ordering_enabled`'dır. **KURAL DEĞİŞTİ (K-11, 11.08.2026):** o şalter eskiden yalnız yöneticinindi ("mutfak personeli tek tuşla cirosu kapatabilmemeli"). Sahada kural tersine işledi — mutfak sipariş almaya devam edip gelenleri telefonla iptal ediyordu ve bu, kapalı bir dükkândan çok daha kötü. Şalter artık `POST /kitchen/ordering` ile mutfaktan da çevriliyor ama **tek tuşla değil**: süre + sebep + kasanın açılış şifresi isteniyor. Ayrıntı: `docs/05-mutfakapp.md` §13. |
 | `busy_message` | `busy` doğruyken gösterilecek metin. Yönetici değiştirebilir. **İstemciler kendi metnini gömmemelidir**: metin değişince üç uygulamayı birden yayınlamak gerekirdi. |
 | `eta` | Teslim süresi tahmini, teslim türüne göre ayrı: `{ "delivery": {...}, "pickup": {...} }`. Her ikisi de bir `EtaWindow`'dur. Ayrıntı aşağıda. |
 
@@ -401,9 +401,16 @@ Fiş içeriği. Yazdırma verisini sunucu hazırlar, KDS yalnızca biçimlendiri
   "printed_at": null
 }
 ```
-`customer_phone` **yalnızca fişte** vardır: kurye kapıda kaldığında arayacak
-numara elinde olsun diye. `GET /api/kitchen/orders` (KDS kartları) telefon
-döndürmez ve döndürmeyecektir — o ekran mutfakta gün boyu açık durur.
+> **KURAL DEĞİŞTİ (K-14, 11.08.2026).** Bu paragraf eskiden
+> "`GET /api/kitchen/orders` telefon döndürmez ve döndürmeyecektir"
+> diyordu. Sipariş düzenleme (K-12) gelene kadar doğruydu: mutfağın
+> telefona ihtiyacı yoktu. Artık personel müşteriyle **telefonda
+> anlaşıp** siparişi düzenliyor ve numarayı görmek için fiş basmak (ya
+> da basılmış fişi aramak) saçma.
+>
+> `KitchenOrder` artık `customer_phone` ve `customer_name` içeriyor.
+> **Fiyat ve adres gizliliği aynen duruyor** — kural kaldırılmadı,
+> daraltıldı. Ayrıntı: `docs/05-mutfakapp.md` §14.
 
 **Yanıt 200 (type=musteri)** — ayrıca `items` fiyatlı, `subtotal`, `delivery_fee`, `total`, `payment` ve (`delivery_type=delivery` ise) `address` alanları içerir.
 
@@ -431,6 +438,29 @@ Fiş basıldı bildirimi (denetim için). `type`: `mutfak` \| `musteri`.
 ### GET /api/kitchen/heartbeat
 KDS'in canlı olduğunu bildirir; `last_seen_at` güncellenir.
 **Yanıt 200** `{ "server_time": "...", "min_supported_version": "1.0.0" }`
+
+### Mutfak turu uçları (K-11 … K-16, 11–12.08.2026)
+
+Ayrıntı ve gövde şemaları `docs/openapi.yaml`'da (normatif); buradaki
+liste ne işe yaradıklarını özetler.
+
+| Uç | Ne yapar |
+|---|---|
+| `GET/POST /api/kitchen/ordering` | Satış şalteri. Kapatma süre + sebep ister; **kasa ayrıca açılış şifresi soruyor** (K-11) |
+| `GET/POST /api/kitchen/menu-availability` | "Bugün tükendi" işaretleri. **Fiyatsız** ürün listesi (ADR-08) |
+| `GET /api/kitchen/orders/{id}/editable` | Düzenlenebilir sipariş görüntüsü — **fiyatsız**, telefonlu |
+| `GET/POST /api/kitchen/orders/{id}/revisions` | Revizyon geçmişi ve yeni revizyon (K-12) |
+| `GET /api/kitchen/menu` | Düzenleme ekranının ürün seçicisi — **fiyatsız** |
+| `GET /api/kitchen/subscription-plan` | Abonelik üretim planı: toplamlar, saatler, **uyarılar** (K-15) |
+| `GET /api/kitchen/bbd-orders` + `.../{id}/ack` | BBD fiş kuyruğu (K-16) |
+| `POST /api/partner/bbd/orders` | **Ortak uç** — BBD Store webhook'u, HMAC imzalı, token'sız |
+
+**İSTEK BÜTÇESİ.** Kasa başına `bld-kitchen` sınırı **2000/saat**
+(§10). Sürekli döngüler ~1140 istek/saat tutuyor; kalanı kullanıcı
+kaynaklı ve patlamalı. Yeni bir yoklama döngüsü eklemeden önce bütçe
+gözden geçirilmeli — aşıldığında kasa `429` alıyor ve **mutfak sipariş
+görmüyor**. Hesap `platform/.../Extension.php` içinde, testi
+`mutfakapp/test/request_budget_test.dart`.
 
 ---
 

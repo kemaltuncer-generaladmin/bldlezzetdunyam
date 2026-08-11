@@ -44,6 +44,10 @@ _Location _$LocationFromJson(Map<String, dynamic> json) => _Location(
   slug: json['slug'] as String,
   isOpen: json['is_open'] as bool,
   orderingEnabled: json['ordering_enabled'] as bool,
+  orderingPauseReason: json['ordering_pause_reason'] as String?,
+  orderingResumesAt: json['ordering_resumes_at'] == null
+      ? null
+      : DateTime.parse(json['ordering_resumes_at'] as String),
   minOrderTotal: (json['min_order_total'] as num).toInt(),
   paymentMethods: (json['payment_methods'] as List<dynamic>)
       .map((e) => const PaymentMethodConverter().fromJson(e as String))
@@ -60,6 +64,8 @@ Map<String, dynamic> _$LocationToJson(_Location instance) => <String, dynamic>{
   'slug': instance.slug,
   'is_open': instance.isOpen,
   'ordering_enabled': instance.orderingEnabled,
+  'ordering_pause_reason': ?instance.orderingPauseReason,
+  'ordering_resumes_at': ?instance.orderingResumesAt?.toIso8601String(),
   'min_order_total': instance.minOrderTotal,
   'payment_methods': instance.paymentMethods
       .map(const PaymentMethodConverter().toJson)
@@ -92,6 +98,8 @@ _MenuItem _$MenuItemFromJson(Map<String, dynamic> json) => _MenuItem(
   price: (json['price'] as num).toInt(),
   currency: json['currency'] as String,
   isAvailable: json['is_available'] as bool,
+  soldOutToday: json['sold_out_today'] as bool? ?? false,
+  soldOutReason: json['sold_out_reason'] as String?,
   description: json['description'] as String?,
   imageUrl: json['image_url'] as String?,
   allergens:
@@ -110,6 +118,8 @@ Map<String, dynamic> _$MenuItemToJson(_MenuItem instance) => <String, dynamic>{
   'price': instance.price,
   'currency': instance.currency,
   'is_available': instance.isAvailable,
+  'sold_out_today': instance.soldOutToday,
+  'sold_out_reason': ?instance.soldOutReason,
   'description': ?instance.description,
   'image_url': ?instance.imageUrl,
   'allergens': instance.allergens,

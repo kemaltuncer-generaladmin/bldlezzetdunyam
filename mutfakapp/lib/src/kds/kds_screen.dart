@@ -13,6 +13,7 @@ library;
 import 'dart:async';
 
 import 'package:bld_api_client/bld_api_client.dart';
+import 'package:bld_core/bld_core.dart';
 import 'package:bld_design_system/bld_design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -28,8 +29,13 @@ import 'widgets/kds_header_bar.dart';
 import 'widgets/health_panel_dialog.dart';
 import 'widgets/kds_status_bar.dart';
 import 'widgets/keyboard_help_dialog.dart';
+import '../edit/order_edit_screen.dart';
+import '../sales/sales_control_screen.dart';
+import '../subscription/subscription_plan_screen.dart';
+import 'widgets/order_card.dart';
 import 'widgets/order_column.dart';
 import 'widgets/production_strip.dart';
+import 'widgets/sales_closed_banner.dart';
 import 'widgets/shift_summary_dialog.dart';
 
 class KdsScreen extends ConsumerWidget {
@@ -49,6 +55,10 @@ class KdsScreen extends ConsumerWidget {
           body: SafeArea(
             child: Column(
               children: [
+                // Satış kapalıysa EN ÜSTTE: bu bilgi diğer her şeyden
+                // önce görülmeli, çünkü kapalıyken pano boşalmaya başlar
+                // ve boş pano "sakin gün" gibi görünür.
+                const SalesClosedBanner(),
                 ProductionStrip(totals: ref.watch(productionTotalsProvider)),
                 const KdsHeaderBar(),
                 const KdsAlertBanner(),
@@ -101,6 +111,11 @@ class KdsScreen extends ConsumerWidget {
           unawaited(refreshBoard(context, ref)),
       const SingleActivator(LogicalKeyboardKey.f6): () =>
           unawaited(showHealthPanelDialog(context)),
+      const SingleActivator(LogicalKeyboardKey.f7): () =>
+          unawaited(Navigator.of(context).push(SalesControlScreen.route())),
+      const SingleActivator(LogicalKeyboardKey.f8): () => unawaited(
+        Navigator.of(context).push(SubscriptionPlanScreen.route()),
+      ),
     };
   }
 }
@@ -119,10 +134,20 @@ Future<void> advanceOrder(
   final messenger = ScaffoldMessenger.of(context);
   final l10n = AppL10n.of(context);
 
+  // Geri alma şeridi için ilerlemeden ÖNCEKİ durum gerekiyor: istek
+  // döndüğünde sipariş çoktan yeni durumda ve eskisi kayboluyor.
+  final before = ref
+      .read(activeOrdersProvider)
+      .where((order) => order.id == orderId)
+      .firstOrNull
+      ?.status;
+
   final outcome = await ref.read(orderActionProvider.notifier).advance(orderId);
 
   switch (outcome.result) {
     case OrderAdvanceResult.ok:
+      if (before != null) _offerUndo(messenger, l10n, ref, orderId, before);
+      return;
     case OrderAdvanceResult.ignored:
       return;
     case OrderAdvanceResult.conflict:
@@ -149,6 +174,63 @@ Future<void> advanceOrder(
         ),
       );
   }
+}
+
+/// İlerletmeden sonra kısa süreli "Geri al" şeridi (K-10).
+///
+/// NEDEN GEREKLİ: dokunmatik monitörde kartlar parmağın altında ve
+/// yanlışlıkla kaydırma gerçek. Geri alınamayan bir dokunuş siparişi
+/// yanlış sütuna gönderiyor ve mutfağı gereksiz fiş basmaya zorluyor.
+///
+/// NEDEN KISA: şerit uzun kalırsa personel onu bir "geçmiş" sanır ve
+/// dakikalar sonra basar; sunucu penceresi (`UNDO_WINDOW_SECONDS`) zaten
+/// dolmuş olur ve kırmızı bir hata görür. Şerit süresi o pencereden
+/// belirgin biçimde kısa tutuluyor.
+///
+/// Kararı YİNE SUNUCU verir: burada süre saymıyoruz, istek reddedilirse
+/// personel uyarıyı görür.
+void _offerUndo(
+  ScaffoldMessengerState messenger,
+  AppL10n l10n,
+  WidgetRef ref,
+  int orderId,
+  OrderStatus previous,
+) {
+  messenger.hideCurrentSnackBar();
+  messenger.showSnackBar(
+    SnackBar(
+      duration: const Duration(seconds: 10),
+      backgroundColor: const Color(KdsColors.surfaceRaised),
+      content: Text(
+        l10n.undoPrompt(orderStatusLabelsTr[previous] ?? previous.wireName),
+        style: const TextStyle(fontSize: KdsTextScale.statusBar),
+      ),
+      action: SnackBarAction(
+        label: l10n.undoAction,
+        textColor: const Color(BldColors.brand400),
+        onPressed: () async {
+          final outcome = await ref
+              .read(orderActionProvider.notifier)
+              .undo(orderId, previous);
+
+          if (outcome.result == OrderAdvanceResult.ok) return;
+
+          messenger.showSnackBar(
+            SnackBar(
+              backgroundColor: const Color(BldColors.warning),
+              content: Text(
+                l10n.undoFailed,
+                style: const TextStyle(
+                  fontSize: KdsTextScale.statusBar,
+                  color: Color(BldColors.neutral900),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    ),
+  );
 }
 
 /// Elle tam yenileme (`F5` ve durum çubuğundaki düğme).
@@ -203,6 +285,10 @@ class _Board extends ConsumerWidget {
       KdsColumn.hazir: l10n.columnReady,
     };
 
+    final touchMode = ref.watch(
+      kdsSettingsProvider.select((settings) => settings.touchMode),
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: BldSpacing.md),
       child: Row(
@@ -243,12 +329,33 @@ class _Board extends ConsumerWidget {
                     .read(orderItemProgressProvider.notifier)
                     .toggle(order.id, index),
                 onReprint: (order, type) => _reprint(context, ref, order, type),
+                touchMode: touchMode,
+                onEdit: (order) => unawaited(_edit(context, ref, order.id)),
+                // Dokunmatikte uzun bas / sola kaydır: fiş menüsü. K-14'te
+                // "Düzenle" de buraya girecek.
+                onDetails: touchMode
+                    ? (order) => unawaited(
+                        showReprintSheet(
+                          context,
+                          (type) => _reprint(context, ref, order, type),
+                        ),
+                      )
+                    : null,
               ),
             ),
           ],
         ],
       ),
     );
+  }
+
+  /// Sipariş düzenleme ekranını açar (K-14).
+  ///
+  /// Dönüşte listeyi tazelemiyoruz: ekranın kendisi kaydettikten sonra
+  /// `orderSource.refresh()` çağırıyor ve iki tazeleme arka arkaya iki
+  /// istek demek.
+  Future<void> _edit(BuildContext context, WidgetRef ref, int orderId) async {
+    await Navigator.of(context).push(OrderEditScreen.route(orderId));
   }
 
   /// Fişi kuyruğa geri koyar. Basımın kendisi kuyruk işçisinin işidir; bu

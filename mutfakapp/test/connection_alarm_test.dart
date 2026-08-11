@@ -37,6 +37,11 @@ class CountingAlarmPlayer implements AlarmPlayer {
 
   @override
   bool get isMuted => muted;
+  @override
+  String? get muteReason => muted ? 'test: ses yok' : null;
+
+  @override
+  String? get playerExecutable => muted ? null : 'test-player';
 }
 
 /// Elle ilerletilen zamanlayıcı — gerçek 45 saniyeyi beklemeyelim.

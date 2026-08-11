@@ -50,7 +50,41 @@ class OrderPresenter
             'subscription_id' => $order->bld_subscription_id !== null
                 ? (int) $order->bld_subscription_id
                 : null,
+            // ── Revizyonlar (K-12) ────────────────────────────────────
+            //
+            // Müşteri "siparişim neden değişti" sorusunun cevabını
+            // uygulamada görmeli. Takip ekranı zaten 5 saniyede bir bu
+            // ucu çekiyor; adetler kendiliğinden güncelleniyordu ama
+            // SEBEP görünmüyordu — sayının gözünün önünde değişmesi,
+            // açıklamasız olduğunda güven kaybettiriyor.
+            'revision_no' => (int) ($order->bld_revision_no ?? 0),
+            'revisions' => $this->revisions($order),
         ];
+    }
+
+    /**
+     * Müşteriye gösterilen revizyon özeti.
+     *
+     * İç alanlar (kim yaptı, hangi kasa, ham anlık görüntüler) DÖNMEZ:
+     * müşterinin görmesi gereken tek şey ne değiştiği, neden ve para
+     * farkı.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function revisions(Order $order): array
+    {
+        return DB::table('veykemtu_order_revisions')
+            ->where('order_id', $order->order_id)
+            ->orderBy('revision_no')
+            ->get()
+            ->map(static fn($row): array => [
+                'revision_no' => (int) $row->revision_no,
+                'reason' => (string) $row->reason,
+                'refund' => (int) $row->refund_kurus,
+                'extra_charge' => (int) $row->extra_charge_kurus,
+                'created_at' => $row->created_at,
+            ])
+            ->all();
     }
 
     /** @return array<string, mixed> */
@@ -95,14 +129,91 @@ class OrderPresenter
             'requested_at' => $this->requestedAt($order),
             'delivery_type' => $this->deliveryType($order),
             'customer_label' => $this->customerLabel($order),
+            // ── TELEFON PANODA GÖRÜNÜR (K-14, 11.08.2026) ──────────────
+            //
+            // `docs/03` §5 üç ayrı yerde "mutfak listesinde telefon
+            // GÖRÜNMEZ" diyordu ve sipariş düzenleme gelene kadar
+            // doğruydu: mutfağın telefona ihtiyacı yoktu. Artık personel
+            // müşteriyi ARAYIP anlaşmak zorunda ve numarayı görmek için
+            // fişi basmak (ya da basılmış fişi aramak) saçma.
+            //
+            // FİYAT VE ADRES HÂLÂ GİZLİ — ADR-08 duruyor. Değişen tek
+            // şey telefon; kural kaldırılmadı, daraltıldı.
+            'customer_name' => $this->customerName($order),
+            'customer_phone' => $this->customerPhone($order),
             'items' => $this->kitchenItems($order),
             'customer_note' => $order->comment !== null ? (string) $order->comment : null,
             'created_at' => $this->ts($order->created_at),
             'updated_at' => $this->ts($order->updated_at),
+            // Kaçıncı revizyon (K-12). 0 = hiç düzenlenmedi.
+            'revision_no' => (int) ($order->bld_revision_no ?? 0),
             // Abonelikten üretilen sipariş — KDS kartında "abonelik" rozeti.
             // Yeni kolon yok; çekirdek `orders.bld_subscription_id`'den türer.
             'is_subscription' => $order->bld_subscription_id !== null,
         ];
+    }
+
+    /** Mutfağın arayabilmesi için tam ad (K-14). */
+    public function customerName(Order $order): ?string
+    {
+        $name = trim(($order->first_name ?? '').' '.($order->last_name ?? ''));
+
+        return $name === '' ? null : $name;
+    }
+
+    /**
+     * Düzenleme ekranının gördüğü sipariş — **FİYATSIZ** (ADR-08).
+     *
+     * Personel adet değiştirirken fiyata bakmıyor; iade/fark tutarı
+     * kaydetme onayında ayrıca gösteriliyor ve o tek bir sayı, cari
+     * bakiye değil.
+     *
+     * @return array<string, mixed>
+     */
+    public function editable(Order $order): array
+    {
+        $items = DB::table('order_menus')
+            ->where('order_id', $order->order_id)
+            ->orderBy('order_menu_id')
+            ->get()
+            ->map(fn($row): array => [
+                'order_menu_id' => (int) $row->order_menu_id,
+                'menu_id' => (int) $row->menu_id,
+                'name' => (string) $row->name,
+                'quantity' => (int) $row->quantity,
+                'options' => $this->unserializeNames($row->option_values),
+                'note' => $row->comment,
+            ])
+            ->all();
+
+        return [
+            'id' => (int) $order->order_id,
+            'order_number' => $this->number($order),
+            'status' => $this->transitions->codeOf($order),
+            'delivery_type' => $this->deliveryType($order),
+            'requested_at' => $this->requestedAt($order),
+            'customer_name' => $this->customerName($order),
+            'customer_phone' => $this->customerPhone($order),
+            'customer_note' => $order->comment !== null ? (string) $order->comment : null,
+            'revision_no' => (int) ($order->bld_revision_no ?? 0),
+            // Abonelikten doğan sipariş düzenlenebilir ama düzenleme
+            // YALNIZ O GÜNÜ etkiler; abonelik tanımı değişmez. İstemci
+            // bunu personele yazıyor.
+            'is_subscription' => $order->bld_subscription_id !== null,
+            'items' => $items,
+        ];
+    }
+
+    /** @return list<string> */
+    private function unserializeNames(mixed $value): array
+    {
+        if (!is_string($value) || $value === '') {
+            return [];
+        }
+
+        $decoded = @unserialize($value, ['allowed_classes' => false]);
+
+        return is_array($decoded) ? array_values(array_map(strval(...), $decoded)) : [];
     }
 
     public function number(Order $order): string
