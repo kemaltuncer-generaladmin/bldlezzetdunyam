@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Veykemtu\BridgeApi\Tests\Feature;
+namespace Tests;
 
 use Igniter\Cart\Models\Order;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Tests\TestCase;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
 use Veykemtu\BridgeApi\Models\KitchenDevice;
 
@@ -20,6 +19,13 @@ use Veykemtu\BridgeApi\Models\KitchenDevice;
  * paylaşılan taban çıkarıldı. `ContractTest` kendi kopyalarını korumaya
  * devam ediyor — o dosyaya dokunmamak, 100 testlik bir paketi riske
  * atmamak demek.
+ *
+ * NEDEN `platform/tests/` ALTINDA, eklentinin yanında DEĞİL: PHPUnit
+ * paketi eklentilerin `tests` dizinlerini `suffix="Test.php"` ile
+ * tarıyor; `KitchenTestCase.php` o desene uymadığı için toplanmıyor ve
+ * eklenti test dizini composer autoload haritasında olmadığı için
+ * **sınıf hiç yüklenmiyordu** (sunucuda "Class not found" ile patladı).
+ * `tests/` dizini `Tests\` ad alanıyla autoload-dev'de kayıtlı.
  */
 abstract class KitchenTestCase extends TestCase
 {

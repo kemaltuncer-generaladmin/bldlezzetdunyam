@@ -6,6 +6,7 @@ namespace Veykemtu\BridgeApi\Tests\Feature;
 
 use Igniter\Cart\Models\Order;
 use Illuminate\Support\Facades\DB;
+use Tests\KitchenTestCase;
 use Veykemtu\BridgeApi\Models\BbdReceipt;
 
 /**
