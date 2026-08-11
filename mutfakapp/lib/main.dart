@@ -28,7 +28,20 @@ Future<void> main() async {
     await store.tokens.write(config.provisionedToken);
   }
 
-  final session = await store.read(fallbackBaseUrl: config.baseUrl);
+  var session = await store.read(fallbackBaseUrl: config.baseUrl);
+
+  // POC: tek cihazlı kurulumlarda eşlemeyi atlamak için ortamdan izin ver.
+  // Kullanım: derleme ya da çalışma zamanı ortamına `BLD_SKIP_PAIRING=1`
+  // ekleyin. Eğer `BLD_KITCHEN_TOKEN` verilmişse onu kullanır, yoksa
+  // geçici bir token yazar (sahada gerçek token ile değiştirilmeli).
+  final skipPairing = Platform.environment['BLD_SKIP_PAIRING'] == '1';
+  if (skipPairing && !session.isPaired) {
+    final token = config.provisionedToken.isNotEmpty
+        ? config.provisionedToken
+        : 'SKIP-POC-TOKEN';
+    await store.tokens.write(token);
+    session = DeviceSession(baseUrl: config.baseUrl, token: token);
+  }
   final queue = PrintQueue.open(await _queuePath());
 
   // Kayıtlı ayarlar derlemeyi ezer (`docs/05` §8): yazıcı yolu değişince

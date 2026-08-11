@@ -618,7 +618,7 @@ Laravel Reverb. Bağlantı: `wss://api.benimlezzetdunyam.com.tr/app/<key>`
 
 | Uç grubu | Sınır |
 |---|---|
-| `/api/auth/*` | 10 istek / dakika / IP |
+| `/api/auth/*` | 60 istek / dakika / IP |
 | `/api/orders` (POST) | 20 istek / saat / hesap |
 | `/api/kitchen/*` | **1200 istek / saat / cihaz** |
 | `/api/quote-requests` (POST) | 10 istek / saat / IP |

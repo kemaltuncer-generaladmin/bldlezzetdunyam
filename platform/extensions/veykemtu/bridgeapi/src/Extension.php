@@ -211,7 +211,7 @@ class Extension extends BaseExtension
      */
     private function registerRateLimiters(): void
     {
-        RateLimiter::for('bld-auth', static fn(Request $request): Limit => Limit::perMinute(10)
+        RateLimiter::for('bld-auth', static fn(Request $request): Limit => Limit::perMinute(60)
             ->by($request->ip() ?? 'bilinmeyen'));
 
         RateLimiter::for('bld-order', static fn(Request $request): Limit => Limit::perHour(20)
@@ -223,9 +223,9 @@ class Extension extends BaseExtension
         /*
          * Teklif formu — SAATLİK pencere, dakikalık değil.
          *
-         * `bld-auth` (10/dakika) yeniden kullanılmadı: o sınır kaba kuvvet
-         * denemesini yavaşlatmak için var ve saatte 600 gönderime izin
-         * veriyor. Teklif formunda 600 gönderim spam'dir ve hepsi panele
+         * `bld-auth` (60/dakika) yeniden kullanılmadı: o sınır kaba kuvvet
+         * denemesini yavaşlatmak için var ve saatte 3600 gönderime izin
+         * veriyor. Teklif formunda 3600 gönderim spam'dir ve hepsi panele
          * düşerdi; gerçek talepler o yığının içinde kaybolurdu.
          *
          * 10/saat, aynı ofisten (tek NAT arkasından) birkaç kişinin ayrı
