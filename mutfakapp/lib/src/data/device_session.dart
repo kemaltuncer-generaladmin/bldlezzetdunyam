@@ -53,6 +53,19 @@ class DeviceSessionStore {
       _preferences.setString(baseUrlKey, baseUrl);
 
   Future<void> clearToken() => tokens.clear();
+
+  // Pairing cooldown: when server signals rate limiting, we persist a
+  // timestamp (ms since epoch UTC) until which pairing attempts should be
+  // blocked. This prevents the UI from hammering the pair endpoint.
+  static const String _pairCooldownKey = 'kitchen_next_pair_at';
+
+  Future<void> writePairCooldown(Duration duration) async {
+    final until = DateTime.now().toUtc().millisecondsSinceEpoch +
+        duration.inMilliseconds;
+    await _preferences.setInt(_pairCooldownKey, until);
+  }
+
+  Future<int?> readPairCooldownMillis() => _preferences.getInt(_pairCooldownKey);
 }
 
 /// `shared_preferences` üzerinde saklayan [TokenStore].

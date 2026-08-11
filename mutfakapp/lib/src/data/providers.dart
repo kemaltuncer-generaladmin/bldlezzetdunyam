@@ -402,18 +402,40 @@ class DeviceSessionController extends Notifier<DeviceSession> {
     required String deviceName,
   }) async {
     final store = ref.read(deviceSessionStoreProvider);
+    // Respect persisted pairing cooldown (set when server responded 429).
+    final cooldownMs = await store.readPairCooldownMillis();
+    if (cooldownMs != null) {
+      final now = DateTime.now().toUtc().millisecondsSinceEpoch;
+      if (now < cooldownMs) {
+        final wait = ((cooldownMs - now) / 1000).ceil();
+        throw ApiException(
+          code: ApiErrorCode.rateLimited,
+          message:
+              'Sunucu yoğun. Lütfen $wait saniye sonra tekrar deneyin.',
+        );
+      }
+    }
     await store.writeBaseUrl(baseUrl);
     state = DeviceSession(baseUrl: baseUrl);
 
-    final response = await ref
-        .read(kitchenServiceProvider)
-        .pair(PairRequest(pairingCode: pairingCode, deviceName: deviceName));
+    try {
+      final response = await ref
+          .read(kitchenServiceProvider)
+          .pair(PairRequest(pairingCode: pairingCode, deviceName: deviceName));
 
-    // `BldApi.kitchen.pair` token'ı kendi deposuna zaten yazar; burada
-    // açıkça yazmak bu yan etkiye bağımlılığı kaldırır — kaydın olduğundan
-    // emin olmadan durumu "eşlendi"ye çevirmeyiz.
-    await store.tokens.write(response.token);
-    state = DeviceSession(baseUrl: baseUrl, token: response.token);
+      // `BldApi.kitchen.pair` token'ı kendi deposuna zaten yazar; burada
+      // açıkça yazmak bu yan etkiye bağımlılığı kaldırır — kaydın olduğundan
+      // emin olmadan durumu "eşlendi"ye çevirmeyiz.
+      await store.tokens.write(response.token);
+      state = DeviceSession(baseUrl: baseUrl, token: response.token);
+    } on ApiException catch (e) {
+      // If server replied RATE_LIMITED, persist a short cooldown to avoid
+      // repeated immediate retries from the UI.
+      if (e.code == ApiErrorCode.rateLimited) {
+        await store.writePairCooldown(const Duration(seconds: 60));
+      }
+      rethrow;
+    }
   }
 
   /// Ayarlar ekranından sunucu adresini değiştirir.
