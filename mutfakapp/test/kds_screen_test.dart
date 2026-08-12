@@ -421,6 +421,55 @@ void main() {
     await tearDownTree(tester);
   });
 
+  testWidgets('geri alma şeridi dar, yüzer ve büyük hedeflidir', (
+    tester,
+  ) async {
+    final kitchen = FakeKitchenService()
+      ..statusResult = makeOrder(id: 1, status: OrderStatus.hazir);
+    await pumpKds(
+      tester,
+      orders: [makeOrder(id: 1, status: OrderStatus.hazirlaniyor)],
+      kitchen: kitchen,
+    );
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(OrderCard),
+        matching: find.byType(FilledButton),
+      ),
+    );
+    // `pumpAndSettle` kullanılmıyor: panoda sürekli dönen bir animasyon var
+    // (aciliyet nabzı), test asla durulmaz.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // Şerit panonun tamamını kaplamamalı: tam genişlikteki eski çubuk en alt
+    // kartların düğmelerini kapatıyordu.
+    final bar = tester.widget<SnackBar>(find.byType(SnackBar));
+    expect(bar.behavior, SnackBarBehavior.floating);
+    expect(bar.width, isNotNull);
+    expect(bar.width, lessThan(600));
+
+    // Metin kısa, hedef büyük: parmakla basılan şey bir metin bağlantısı değil.
+    expect(find.text('Hazırlanıyor durumuna'), findsOneWidget);
+    final undo = find.widgetWithText(FilledButton, 'GERİ AL');
+    expect(tester.getSize(undo).height, greaterThanOrEqualTo(48));
+
+    // Kapatmak geri alma DEĞİLDİR: sunucuya yalnızca ilerletme gitmiş olmalı.
+    await tester.tap(
+      find.descendant(
+        of: find.byType(SnackBar),
+        matching: find.byIcon(Icons.close),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('GERİ AL'), findsNothing);
+    expect(kitchen.statusCalls, [(1, OrderStatus.hazir)]);
+
+    await tearDownTree(tester);
+  });
+
   testWidgets('yoğunluk tuşu sunucuya yazar ve etiketi değişir', (
     tester,
   ) async {

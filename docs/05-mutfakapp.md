@@ -760,6 +760,16 @@ Kural kaldırılmadı, **dar bir pencereye** çevrildi
 Kararı **sunucu** veriyor; şerit ekranda unutulursa istek `422` ile
 reddediliyor ve personel uyarıyı görüyor.
 
+**Şerit küçültüldü (12.08.2026).** İlk hâli tam genişlikte bir çubuktu ve
+"Sipariş ilerletildi. Hazırlanıyor durumuna geri alınsın mı?" yazıyordu;
+panonun alt kenarını, yani en alttaki kartların ilerletme düğmelerini
+kapatıyordu. Dokunmatikte asıl sorun ikinciydi: geri alma bir metin
+bağlantısıydı, parmakla ıskalanıyordu. Şimdi altta ortalanmış 460 px'lik
+yüzer bir kutu var; içinde kısa bilgi ("Hazırlanıyor durumuna"), **52 px
+yüksekliğinde GERİ AL düğmesi** ve 64 px'lik bir kapatma hedefi. Kapatma
+düğmesi eklendi çünkü şeridi kaydırarak kapatmak dokunmatikte alttaki
+kartı da kaydırıyordu. Ölçüt `test/kds_screen_test.dart` içinde.
+
 ---
 
 ## 13. Satış kontrolü — K-11 (11.08.2026)

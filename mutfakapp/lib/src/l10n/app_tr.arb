@@ -1066,9 +1066,9 @@
   "@settingsTouchModeHint": {
     "description": "Dokunmatik kipin etkisini açıklar."
   },
-  "undoPrompt": "Sipariş ilerletildi. {status} durumuna geri alınsın mı?",
+  "undoPrompt": "{status} durumuna",
   "@undoPrompt": {
-    "description": "İlerletme sonrası geri alma şeridi.",
+    "description": "İlerletme sonrası geri alma şeridi — düğmenin yanındaki kısa bilgi.",
     "placeholders": {
       "status": {
         "type": "String"
@@ -1078,6 +1078,10 @@
   "undoAction": "GERİ AL",
   "@undoAction": {
     "description": "Geri alma düğmesi."
+  },
+  "undoDismiss": "Kapat",
+  "@undoDismiss": {
+    "description": "Geri alma şeridini kapatan düğme."
   },
   "undoFailed": "Geri alınamadı — süre doldu ya da sipariş başka yerden değiştirildi.",
   "@undoFailed": {

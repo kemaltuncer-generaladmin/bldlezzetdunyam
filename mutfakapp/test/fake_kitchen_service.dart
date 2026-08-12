@@ -73,9 +73,16 @@ class FakeKitchenService implements KitchenService {
     );
   }
 
+  /// Ayarlanmışsa `setStatus` başarıyla bunu döndürür. Boş bırakılırsa çağrı
+  /// "bu testte kullanılmıyor" sayılır — durum değiştirmeyen testler yanlışlıkla
+  /// ilerletme yaptıklarında sessiz kalmasın.
+  KitchenOrder? statusResult;
+
   @override
   Future<KitchenOrder> setStatus(int orderId, OrderStatus status) async {
     statusCalls.add((orderId, status));
+    final result = statusResult;
+    if (result != null) return result;
     throw UnsupportedError('Bu testte kullanılmıyor');
   }
 

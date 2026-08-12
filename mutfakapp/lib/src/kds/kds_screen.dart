@@ -113,9 +113,8 @@ class KdsScreen extends ConsumerWidget {
           unawaited(showHealthPanelDialog(context)),
       const SingleActivator(LogicalKeyboardKey.f7): () =>
           unawaited(Navigator.of(context).push(SalesControlScreen.route())),
-      const SingleActivator(LogicalKeyboardKey.f8): () => unawaited(
-        Navigator.of(context).push(SubscriptionPlanScreen.route()),
-      ),
+      const SingleActivator(LogicalKeyboardKey.f8): () =>
+          unawaited(Navigator.of(context).push(SubscriptionPlanScreen.route())),
     };
   }
 }
@@ -189,6 +188,12 @@ Future<void> advanceOrder(
 ///
 /// Kararı YİNE SUNUCU verir: burada süre saymıyoruz, istek reddedilirse
 /// personel uyarıyı görür.
+///
+/// NEDEN DAR VE YÜZER: şerit tam genişlikte bir çubuktu ve panonun alt
+/// kenarını, yani en alttaki kartların düğmelerini kapatıyordu. Şimdi altta
+/// ortalanmış dar bir kutu — sütunların çoğu görünür kalıyor. Metin de kısaldı:
+/// "geri alınsın mı?" cümlesi ekranda soru sorup yer kaplıyordu, oysa
+/// asıl gereken tek şey büyük bir GERİ AL hedefi.
 void _offerUndo(
   ScaffoldMessengerState messenger,
   AppL10n l10n,
@@ -197,18 +202,30 @@ void _offerUndo(
   OrderStatus previous,
 ) {
   messenger.hideCurrentSnackBar();
-  messenger.showSnackBar(
+
+  // Kapatma düğmesi kendi şeridini kapatmalı: `hideCurrentSnackBar` bu
+  // arada sıraya girmiş BAŞKA bir uyarıyı kapatabilirdi.
+  late final ScaffoldFeatureController<SnackBar, SnackBarClosedReason> bar;
+  bar = messenger.showSnackBar(
     SnackBar(
       duration: const Duration(seconds: 10),
       backgroundColor: const Color(KdsColors.surfaceRaised),
-      content: Text(
-        l10n.undoPrompt(orderStatusLabelsTr[previous] ?? previous.wireName),
-        style: const TextStyle(fontSize: KdsTextScale.statusBar),
+      behavior: SnackBarBehavior.floating,
+      // Sabit genişlik, ekran genişliğinin yüzdesi değil: 1920 px'te de
+      // 1366 px'te de aynı kutu, personel hedefi aynı yerde arıyor.
+      width: _undoBarWidth,
+      padding: EdgeInsets.zero,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(BldRadius.md)),
       ),
-      action: SnackBarAction(
-        label: l10n.undoAction,
-        textColor: const Color(BldColors.brand400),
-        onPressed: () async {
+      content: _UndoBarContent(
+        previousLabel:
+            orderStatusLabelsTr[previous] ?? previous.wireName.toUpperCase(),
+        l10n: l10n,
+        onDismiss: () => bar.close(),
+        onUndo: () async {
+          bar.close();
+
           final outcome = await ref
               .read(orderActionProvider.notifier)
               .undo(orderId, previous);
@@ -231,6 +248,83 @@ void _offerUndo(
       ),
     ),
   );
+}
+
+/// Geri alma şeridinin genişliği ve yüksekliği.
+///
+/// Yükseklik parmak hedefi olarak seçildi (`docs/05` §3 dokunmatik asgarisi);
+/// içindeki düğme de bu yüksekliği doldurur, ince bir metin bağlantısı değil.
+const double _undoBarWidth = 460;
+const double _undoBarHeight = 64;
+
+/// Şeridin içi: kısa bilgi + büyük GERİ AL + kapat.
+class _UndoBarContent extends StatelessWidget {
+  const _UndoBarContent({
+    required this.previousLabel,
+    required this.l10n,
+    required this.onUndo,
+    required this.onDismiss,
+  });
+
+  final String previousLabel;
+  final AppL10n l10n;
+  final VoidCallback onUndo;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: _undoBarHeight,
+      child: Row(
+        children: [
+          const SizedBox(width: BldSpacing.md),
+          Expanded(
+            child: Text(
+              l10n.undoPrompt(previousLabel),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: KdsTextScale.statusBar,
+                color: Color(KdsColors.onSurfaceMuted),
+              ),
+            ),
+          ),
+          const SizedBox(width: BldSpacing.sm),
+          FilledButton(
+            onPressed: onUndo,
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(BldColors.brand500),
+              foregroundColor: const Color(BldColors.neutral0),
+              minimumSize: const Size(150, 52),
+              padding: const EdgeInsets.symmetric(horizontal: BldSpacing.md),
+            ),
+            child: Text(
+              l10n.undoAction,
+              style: const TextStyle(
+                fontSize: KdsTextScale.statusBar,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          // Kapatma da tam boy bir hedef: dokunmatikte şeridi kaydırarak
+          // kapatmak kartı da kaydırıyordu.
+          SizedBox(
+            width: _undoBarHeight,
+            height: _undoBarHeight,
+            child: IconButton(
+              onPressed: onDismiss,
+              tooltip: l10n.undoDismiss,
+              icon: const Icon(
+                Icons.close,
+                size: 24,
+                color: Color(KdsColors.onSurfaceMuted),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Elle tam yenileme (`F5` ve durum çubuğundaki düğme).

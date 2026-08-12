@@ -1383,10 +1383,10 @@ abstract class AppL10n {
   /// **'Düğmeler büyür, açılır menüler alt sayfaya döner, klavye gerektiren alanlarda ekran klavyesi açılır.'**
   String get settingsTouchModeHint;
 
-  /// İlerletme sonrası geri alma şeridi.
+  /// İlerletme sonrası geri alma şeridi — düğmenin yanındaki kısa bilgi.
   ///
   /// In tr, this message translates to:
-  /// **'Sipariş ilerletildi. {status} durumuna geri alınsın mı?'**
+  /// **'{status} durumuna'**
   String undoPrompt(String status);
 
   /// Geri alma düğmesi.
@@ -1394,6 +1394,12 @@ abstract class AppL10n {
   /// In tr, this message translates to:
   /// **'GERİ AL'**
   String get undoAction;
+
+  /// Geri alma şeridini kapatan düğme.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kapat'**
+  String get undoDismiss;
 
   /// Geri alma reddedildiğinde.
   ///

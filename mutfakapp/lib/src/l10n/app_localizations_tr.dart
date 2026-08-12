@@ -752,11 +752,14 @@ class AppL10nTr extends AppL10n {
 
   @override
   String undoPrompt(String status) {
-    return 'Sipariş ilerletildi. $status durumuna geri alınsın mı?';
+    return '$status durumuna';
   }
 
   @override
   String get undoAction => 'GERİ AL';
+
+  @override
+  String get undoDismiss => 'Kapat';
 
   @override
   String get undoFailed =>
