@@ -408,6 +408,19 @@ return [
         'help_body_html' => 'Başlık, paragraf, kalın/italik, madde listesi ve bağlantı kullanılabilir. Görsel gömülemez.',
     ],
 
+    /**
+     * Sanal POS simülasyon şeridi (B-12).
+     *
+     * Metin kasten iki parçalı: birincisi durumu ilan eder, ikincisi
+     * SONUCUNU söyler. Yalnız "simülasyon modu" yazsaydı, panele yeni gelen
+     * biri bunu zararsız bir geliştirme etiketi sanabilirdi; asıl bilgi
+     * paranın tahsil edilmediğidir.
+     */
+    'simulation' => [
+        'banner_title' => 'SİMÜLASYON MODU',
+        'banner_detail' => 'Kartla yapılan ödemeler gerçek değildir — sipariş "ödendi" görünür ama kasaya para girmez. Kapıda ödeme ve cari hesap normal çalışır.',
+    ],
+
     'dashboard' => [
         'label' => 'BLD işletme durumu',
         'text_title' => 'BLD işletme durumu',

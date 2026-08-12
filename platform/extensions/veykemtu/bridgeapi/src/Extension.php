@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Veykemtu\BridgeApi;
 
+use Igniter\Admin\Classes\AdminController;
 use Igniter\Admin\Classes\Navigation;
+use Igniter\Admin\Facades\Template;
+use Igniter\Flame\Support\Facades\Igniter;
 use Igniter\System\Classes\BaseExtension;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
@@ -38,7 +42,11 @@ use Veykemtu\BridgeApi\Models\SiteContent;
 use Veykemtu\BridgeApi\Models\SitePost;
 use Veykemtu\BridgeApi\Models\SiteService;
 use Veykemtu\BridgeApi\Observers\SiteContentObserver;
+use Veykemtu\BridgeApi\Services\Sms\LogSmsSender;
+use Veykemtu\BridgeApi\Services\Sms\NetgsmSmsSender;
+use Veykemtu\BridgeApi\Services\Sms\SmsSender;
 use Veykemtu\BridgeApi\Support\BusinessTime;
+use Veykemtu\Payment\Payments\SimulatedPos;
 
 /**
  * BLD Köprü API eklentisi.
@@ -74,6 +82,9 @@ class Extension extends BaseExtension
     #[Override]
     public function register(): void
     {
+        $this->disableStorefrontTheme();
+        $this->registerSmsSender();
+
         $this->registerConsoleCommand('veykemtu.setup', SetupCommand::class);
         $this->registerConsoleCommand('veykemtu.admin', AdminUserCommand::class);
         $this->registerConsoleCommand('veykemtu.kds', KitchenDeviceCommand::class);
@@ -85,6 +96,31 @@ class Extension extends BaseExtension
         $this->registerConsoleCommand('veykemtu.cariHareket', AccountEntryCommand::class);
         $this->registerConsoleCommand('veykemtu.cariDonemOzeti', AccountPeriodCommand::class);
         $this->registerConsoleCommand('veykemtu.abonelikUret', SubscriptionGenerateCommand::class);
+    }
+
+    /**
+     * TastyIgniter'ın kendi vitrin temasını kapatır (I-07).
+     *
+     * SORUN: `IGNITER_URI` tanımsız olduğu için çekirdek, kurulu
+     * `ti-theme-orange` temasının bütün sayfalarını `/` altına bağlıyordu
+     * (`Igniter\Main\Classes\RouteRegistrar::forThemePages`). Sonuç:
+     * api.benimlezzetdunyam.com.tr kökünde, kimsenin bakmadığı ve
+     * güncellenmeyen ikinci bir "BLD sitesi" duruyordu — gerçek müşteri
+     * yüzü ise `website/` (Next.js).
+     *
+     * NEDEN `register()`, `boot()` DEĞİL: rotalar
+     * `Igniter\Main\ServiceProvider::boot()` içinde tanımlanıyor. Eklentiler
+     * `ExtensionServiceProvider::register()` sırasında kaydediliyor, yani
+     * bizim `register()`'ımız çekirdeğin `boot()`'undan önce koşuyor;
+     * `boot()`'a yazsaydık bayrağı rotalar kurulduktan SONRA çevirmiş
+     * olurduk ve hiçbir etkisi olmazdı.
+     *
+     * `_assets` birleştirici rotası ETKİLENMEZ — o `forAssets()` içinde ayrı
+     * kaydediliyor ve admin panelin CSS/JS'i oradan geliyor.
+     */
+    private function disableStorefrontTheme(): void
+    {
+        Igniter::disableThemeRoutes(true);
     }
 
     /**
@@ -155,7 +191,73 @@ class Extension extends BaseExtension
         $this->registerRoutes();
         $this->registerExceptionRenderer();
         $this->trimAdminNavigation();
+        $this->brandAdminPanel();
         $this->observeSiteContent();
+    }
+
+    /**
+     * SMS göndericisini seçer — B-18.
+     *
+     * SAĞLAYICI SIRLARI ORTAM DEĞİŞKENİNDE, VERİTABANINDA DEĞİL. Panelden
+     * girilebilir bir ayar olsaydı sır her veritabanı yedeğine girerdi;
+     * yedekler ise sırlardan çok daha kolay dolaşıyor.
+     *
+     * ÜÇÜ BİRDEN TANIMLI DEĞİLSE GÜNLÜĞE DÜŞER, PATLAMAZ. Yarım
+     * yapılandırmayla ayağa kalkmayı reddetmek, tek bir eksik değişken
+     * yüzünden bütün siteyi indirmek olurdu — oysa SMS yalnızca ikinci bir
+     * giriş yolu; e-posta + şifre çalışmaya devam ediyor. `LogSmsSender`
+     * ayrıca `warning` seviyesinde yazıyor, yani eksiklik günlükte
+     * gözden kaçmıyor.
+     */
+    private function registerSmsSender(): void
+    {
+        $this->app->singleton(SmsSender::class, static function (): SmsSender {
+            $username = (string) env('NETGSM_USERNAME', '');
+            $password = (string) env('NETGSM_PASSWORD', '');
+            $header = (string) env('NETGSM_HEADER', '');
+
+            if ($username === '' || $password === '' || $header === '') {
+                return new LogSmsSender;
+            }
+
+            return new NetgsmSmsSender($username, $password, $header);
+        });
+    }
+
+    /**
+     * Panele BLD kimliğini ve simülasyon uyarısını giydirir (B-12).
+     *
+     * CSS `admin.controller.beforeRemap` ile ekleniyor: olay HER admin
+     * denetleyicisinde (giriş ekranı dahil — `igniter.user::Login` de bir
+     * `AdminController`) ve sayfa çizilmeden önce tetikleniyor. Bir
+     * denetleyiciye tek tek eklemek, ileride yazılan her ekranda
+     * unutulabilecek bir satır olurdu.
+     *
+     * Dosya `public/` altına YAYINLANMIYOR: çekirdeğin varlık
+     * birleştiricisi (`_assets/{hash}`) onu doğrudan eklenti klasöründen
+     * okuyor. Yayınlansaydı, `Dockerfile.web` için ikinci bir kopyalama
+     * adımı daha gerekirdi (bkz. I-08).
+     *
+     * Şerit `startHeader` kancasına bağlı; `ti-ext-user`'ın kimliğe bürünme
+     * şeridi de aynı mekanizmayı kullanıyor.
+     */
+    private function brandAdminPanel(): void
+    {
+        Event::listen(
+            'admin.controller.beforeRemap',
+            static function(AdminController $controller): void {
+                $controller->addCss('veykemtu.bridgeapi::/css/admin.css', 'bld-admin-css');
+            },
+        );
+
+        if (!SimulatedPos::isAllowed()) {
+            return;
+        }
+
+        Template::registerHook(
+            'startHeader',
+            static fn(): View => view('veykemtu.bridgeapi::_partials.admin.simulation_banner'),
+        );
     }
 
     /**

@@ -7,6 +7,7 @@ namespace Veykemtu\Payment;
 use Igniter\System\Classes\BaseExtension;
 use Illuminate\Support\Facades\Route;
 use Override;
+use Veykemtu\Payment\Http\Controllers\AccountSimulationController;
 use Veykemtu\Payment\Http\Controllers\SimulationController;
 use Veykemtu\Payment\Payments\AccountPayment;
 use Veykemtu\Payment\Payments\CashPayment;
@@ -76,6 +77,16 @@ class Extension extends BaseExtension
             Route::get('/odeme-simulasyon/{hash}', [SimulationController::class, 'show'])
                 ->name('veykemtu.payment.simulation');
             Route::post('/odeme-simulasyon/{hash}', [SimulationController::class, 'process']);
+
+            // Cari borç ödemesi (B-14 / W-12) — AYRI ROTA, ÇÜNKÜ AYRI NESNE.
+            // Yukarıdaki akış bir SİPARİŞİN bedelini tahsil eder ve siparişi
+            // "ödendi" işaretler. Bu akışta sipariş yok: ödenen şey birikmiş
+            // bakiye ve sonucu deftere bir alacak satırı olarak düşer. Aynı
+            // rotaya iki anlam yüklemek, dönüş adresinden yazıcı tetiğine
+            // kadar her adımda "bu hangisiydi" sorusunu doğururdu.
+            Route::get('/cari-odeme-simulasyon/{hash}', [AccountSimulationController::class, 'show'])
+                ->name('veykemtu.payment.account_simulation');
+            Route::post('/cari-odeme-simulasyon/{hash}', [AccountSimulationController::class, 'process']);
         });
     }
 }

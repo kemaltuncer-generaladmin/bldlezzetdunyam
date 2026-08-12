@@ -118,6 +118,78 @@ class Subscription extends Model
         ];
     }
 
+    /**
+     * Abonelik açılabilecek müşteriler — yalnızca KURUMSAL.
+     *
+     * Abonelik bir sözleşmedir ve `docs/00` B2B kararına göre sipariş
+     * kurumsal hesaplardan alınır. Bireysel bir kayda abonelik açmak,
+     * hiçbir zaman sipariş üretemeyecek bir kural yaratırdı
+     * (`OrderFactory` o siparişi de aynı kapıdan geçiriyor).
+     *
+     * @return array<int, string>
+     */
+    public static function customerOptions(): array
+    {
+        return ApiCustomer::query()
+            ->where('bld_account_type', 'corporate')
+            ->orderBy('bld_org_name')
+            ->get(['customer_id', 'bld_org_name', 'first_name', 'last_name', 'email'])
+            ->mapWithKeys(static fn(ApiCustomer $c): array => [
+                (int) $c->customer_id => trim(
+                    ($c->bld_org_name ?: trim($c->first_name.' '.$c->last_name))
+                    .' — '.$c->email,
+                ),
+            ])
+            ->all();
+    }
+
+    /**
+     * Önümüzdeki servis günleri — takvim önizlemesi (B-16).
+     *
+     * NEDEN AYRI BİR HESAP DEĞİL DE MEVCUT KURALLARIN ÜSTÜNDE: `runsOnDate()`
+     * ve `quantityForDate()` gece üretim işinin kullandığı metotların ta
+     * kendisi. Takvim kendi mantığını yazsaydı, ekranda görünen gün listesi
+     * ile gerçekte üretilen siparişler zamanla ayrışırdı — ve bu ayrışmanın
+     * fark edileceği yer mutfak olurdu.
+     *
+     * Kapalı günler (`veykemtu_closed_days`) burada da eleniyor; komut
+     * tarafında da eleniyor (`SubscriptionGenerateCommand`). İkisi aynı
+     * tabloyu okuyor, yani tek kaynak.
+     *
+     * @return list<array{date: Carbon, quantity: int, closed: bool, note: string|null}>
+     */
+    public function upcomingServiceDays(Carbon $from, int $days = 30): array
+    {
+        $closed = ClosedDay::query()
+            ->whereBetween('closed_on', [
+                $from->toDateString(),
+                $from->copy()->addDays($days)->toDateString(),
+            ])
+            ->pluck('description', 'closed_on')
+            ->all();
+
+        $result = [];
+        $cursor = $from->copy()->startOfDay();
+
+        for ($i = 0; $i < $days; $i++, $cursor->addDay()) {
+            if (!$this->runsOnDate($cursor)) {
+                continue;
+            }
+
+            $key = $cursor->toDateString();
+            $isClosed = array_key_exists($key, $closed);
+
+            $result[] = [
+                'date' => $cursor->copy(),
+                'quantity' => $this->quantityForDate($cursor),
+                'closed' => $isClosed,
+                'note' => $isClosed ? ($closed[$key] ?? null) : null,
+            ];
+        }
+
+        return $result;
+    }
+
     /** @return array<int, string> */
     public static function menuOptions(): array
     {

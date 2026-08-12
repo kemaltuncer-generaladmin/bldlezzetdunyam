@@ -13,6 +13,7 @@ use Illuminate\Validation\Rule;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
 use Veykemtu\BridgeApi\Services\CustomerGate;
+use Veykemtu\BridgeApi\Services\OtpService;
 
 /**
  * Kimlik uçları — `docs/openapi.yaml` §Kimlik.
@@ -93,6 +94,60 @@ class AuthController extends ApiController
         if ((bool) $customer->status !== true) {
             throw ApiException::forbidden('Hesabınız devre dışı. Bizimle iletişime geçin.');
         }
+
+        return $this->json($this->authPayload($customer));
+    }
+
+    /**
+     * Telefona giriş kodu gönderir — `POST /api/auth/otp/request` (B-18).
+     *
+     * YANIT HER ZAMAN AYNI: numara kayıtlı olsun olmasın 202 döner ve gövde
+     * değişmez. "Bu numara kayıtlı değil" demek, saldırgana müşteri
+     * listesini numara numara taratma imkânı verirdi — üstelik kurumsal
+     * müşteri listesi ticari olarak da hassas.
+     *
+     * SMS gönderimi başarısız olursa istisna fırlar ve kullanıcı açık bir
+     * hata görür; sessizce 202 dönmek, gelmeyecek bir kodu bekleten bir
+     * kullanıcı üretirdi.
+     */
+    public function requestOtp(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            // Biçim GEVŞEK tutuluyor: `0555...`, `+90 555...` ve boşluklu
+            // yazımların hepsi kabul edilip `OtpService::normalize` ile tek
+            // biçime indiriliyor. Katı bir regex, doğru numarayı alışkın
+            // olduğu gibi yazan müşteriyi kapıda çevirirdi.
+            'phone' => ['required', 'string', 'min:10', 'max:20'],
+        ], [
+            'phone.required' => 'Telefon numaranızı girin.',
+        ]);
+
+        resolve(OtpService::class)->request($data['phone']);
+
+        return $this->json([
+            'message' => 'Kod gönderildi. SMS birkaç saniye içinde ulaşır.',
+            'expires_in' => OtpService::TTL_SECONDS,
+            'resend_after' => OtpService::RESEND_COOLDOWN_SECONDS,
+        ], 202);
+    }
+
+    /**
+     * Kodu doğrular ve oturum açar — `POST /api/auth/otp/verify` (B-18).
+     *
+     * Şifreli girişle AYNI gövdeyi döndürüyor (`authPayload`): istemci
+     * tarafında iki ayrı oturum kurma yolu olmasın, token nereden gelirse
+     * gelsin aynı şekilde saklansın.
+     */
+    public function verifyOtp(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'phone' => ['required', 'string', 'min:10', 'max:20'],
+            'code' => ['required', 'string', 'size:6'],
+        ], [
+            'code.size' => 'Kod 6 haneli olmalı.',
+        ]);
+
+        $customer = resolve(OtpService::class)->verify($data['phone'], $data['code']);
 
         return $this->json($this->authPayload($customer));
     }

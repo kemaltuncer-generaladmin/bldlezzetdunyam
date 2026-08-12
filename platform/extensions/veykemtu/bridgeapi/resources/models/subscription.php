@@ -5,12 +5,20 @@ declare(strict_types=1);
 use Veykemtu\BridgeApi\Models\Subscription;
 
 /**
- * Abonelikler listesi ve fiyatlandırma formu —
+ * Abonelikler listesi, oluşturma ve fiyatlandırma formu —
  * `Veykemtu\BridgeApi\Http\Controllers\Admin\Subscriptions`.
  *
- * Admin fiyatı (anlaşmalı porsiyon fiyatı), durumu, adedi ve ödeme modunu
- * düzenler; müşterinin belirlediği takvim ve ürün satırları SALT-OKUNUR
- * (`_details` partial). "Yeni" düğmesi yok — abonelik müşteri talebinden doğar.
+ * İKİ BAĞLAM, İKİ FARKLI ALAN KÜMESİ:
+ *
+ *  * `create` — abonelik masa başında konuşulup panelden açılıyor (B-16).
+ *    Takvim, ürün satırları ve fiyat burada giriliyor.
+ *  * `edit` — abonelik ÜRETİM YAPARKEN düzenleniyor. Yalnız fiyat, durum,
+ *    adet ve ödeme modu açık; takvim ve satırlar salt-okunur (`_details`).
+ *    Çalışan bir kuralın gün listesini değiştirmek, o güne ait üretilmiş
+ *    siparişlerle kuralın ayrışması demek olurdu.
+ *
+ * `context` anahtarı alanların hangi bağlamda görüneceğini belirler;
+ * yazılmayan alan HER İKİSİNDE de görünür.
  */
 $config['list']['filter'] = [
     'search' => [
@@ -80,6 +88,16 @@ $config['list']['columns'] = [
     ],
 ];
 
+$config['list']['toolbar'] = [
+    'buttons' => [
+        'create' => [
+            'label' => 'lang:veykemtu.bridgeapi::subscription.button_create',
+            'class' => 'btn btn-primary',
+            'href' => 'veykemtu/bridgeapi/subscriptions/create',
+        ],
+    ],
+];
+
 $config['form']['toolbar'] = [
     'buttons' => [
         'back' => [
@@ -92,7 +110,7 @@ $config['form']['toolbar'] = [
             'class' => 'btn btn-primary',
             'data-request' => 'onSave',
             'data-progress-indicator' => 'admin::lang.text_saving',
-            'context' => ['edit'],
+            'context' => ['create', 'edit'],
         ],
         'saveClose' => [
             'label' => 'lang:admin::lang.button_save_close',
@@ -100,7 +118,7 @@ $config['form']['toolbar'] = [
             'data-request' => 'onSave',
             'data-request-data' => 'close:1',
             'data-progress-indicator' => 'admin::lang.text_saving',
-            'context' => ['edit'],
+            'context' => ['create', 'edit'],
         ],
         'delete' => [
             'label' => 'lang:admin::lang.button_icon_delete',
@@ -115,6 +133,110 @@ $config['form']['toolbar'] = [
 ];
 
 $config['form']['fields'] = [
+    /*
+     * ── Yalnızca OLUŞTURMA bağlamı ───────────────────────────────────
+     *
+     * Bu alanlar aboneliğin kim için, hangi günlerde ve neyi ürettiğini
+     * belirler. Bir kez yazılır; sonra değişmez (gerekçe dosya başlığında).
+     */
+    'setup_section' => [
+        'type' => 'section',
+        'label' => 'lang:veykemtu.bridgeapi::subscription.section_setup',
+        'comment' => 'lang:veykemtu.bridgeapi::subscription.section_setup_comment',
+        'context' => ['create'],
+    ],
+    'customer_id' => [
+        'label' => 'lang:veykemtu.bridgeapi::subscription.column_customer',
+        'type' => 'select',
+        'span' => 'left',
+        'options' => [Subscription::class, 'customerOptions'],
+        'comment' => 'lang:veykemtu.bridgeapi::subscription.help_customer',
+        'context' => ['create'],
+    ],
+    'delivery_type' => [
+        'label' => 'lang:veykemtu.bridgeapi::subscription.label_delivery_type',
+        'type' => 'select',
+        'span' => 'right',
+        'options' => [
+            'delivery' => 'lang:veykemtu.bridgeapi::subscription.delivery',
+            'pickup' => 'lang:veykemtu.bridgeapi::subscription.pickup',
+        ],
+        'context' => ['create'],
+    ],
+    'start_date' => [
+        'label' => 'lang:veykemtu.bridgeapi::subscription.column_start',
+        'type' => 'datepicker',
+        'mode' => 'date',
+        'span' => 'left',
+        'context' => ['create'],
+    ],
+    'end_date' => [
+        'label' => 'lang:veykemtu.bridgeapi::subscription.column_end',
+        'type' => 'datepicker',
+        'mode' => 'date',
+        'span' => 'right',
+        'comment' => 'lang:veykemtu.bridgeapi::subscription.help_end_date',
+        'context' => ['create'],
+    ],
+    'service_days' => [
+        'label' => 'lang:veykemtu.bridgeapi::subscription.detail_days',
+        'type' => 'checkboxlist',
+        'options' => [Subscription::class, 'dayOptions'],
+        'comment' => 'lang:veykemtu.bridgeapi::subscription.help_service_days',
+        'context' => ['create'],
+    ],
+    'delivery_time_from' => [
+        'label' => 'lang:veykemtu.bridgeapi::subscription.label_time_from',
+        'type' => 'text',
+        'span' => 'left',
+        'comment' => 'lang:veykemtu.bridgeapi::subscription.help_time_from',
+        'context' => ['create'],
+    ],
+    'delivery_time_to' => [
+        'label' => 'lang:veykemtu.bridgeapi::subscription.label_time_to',
+        'type' => 'text',
+        'span' => 'right',
+        'context' => ['create'],
+    ],
+    'lines_section' => [
+        'type' => 'section',
+        'label' => 'lang:veykemtu.bridgeapi::subscription.section_lines',
+        'comment' => 'lang:veykemtu.bridgeapi::subscription.section_lines_comment',
+        'context' => ['create'],
+    ],
+    /*
+     * `line_items` GERÇEK BİR SÜTUN DEĞİL. Satırlar
+     * `veykemtu_subscription_lines` tablosunda yaşıyor; bu alan yalnızca
+     * formun taşıyıcısı. `Subscriptions::formValidate` onu kayıt verisinden
+     * çıkarıyor ve `formAfterCreate` ilişkili tabloya yazıyor — aksi hâlde
+     * kayıt "böyle bir sütun yok" ile düşerdi.
+     */
+    'line_items' => [
+        'label' => 'lang:veykemtu.bridgeapi::subscription.detail_lines',
+        'type' => 'repeater',
+        'prompt' => 'lang:veykemtu.bridgeapi::subscription.prompt_line',
+        'emptyMessage' => 'lang:veykemtu.bridgeapi::subscription.empty_lines',
+        'context' => ['create'],
+        'form' => [
+            'fields' => [
+                'menu_id' => [
+                    'label' => 'lang:veykemtu.bridgeapi::subscription.label_line_menu',
+                    'type' => 'select',
+                    'options' => [Subscription::class, 'menuOptions'],
+                ],
+                'quantity' => [
+                    'label' => 'lang:veykemtu.bridgeapi::subscription.label_line_quantity',
+                    'type' => 'number',
+                    'default' => 1,
+                ],
+                'label' => [
+                    'label' => 'lang:veykemtu.bridgeapi::subscription.label_line_label',
+                    'type' => 'text',
+                ],
+            ],
+        ],
+    ],
+
     'pricing_section' => [
         'type' => 'section',
         'label' => 'lang:veykemtu.bridgeapi::subscription.section_pricing',
@@ -151,14 +273,72 @@ $config['form']['fields'] = [
         'type' => 'section',
         'label' => 'lang:veykemtu.bridgeapi::subscription.section_details',
         'comment' => 'lang:veykemtu.bridgeapi::subscription.section_details_comment',
+        'context' => ['edit'],
     ],
     '_details' => [
         'type' => 'partial',
         'path' => 'subscription_details',
+        'context' => ['edit'],
+    ],
+    'calendar_section' => [
+        'type' => 'section',
+        'label' => 'lang:veykemtu.bridgeapi::subscription.section_calendar',
+        'comment' => 'lang:veykemtu.bridgeapi::subscription.section_calendar_comment',
+        'context' => ['edit'],
+    ],
+    '_calendar' => [
+        'type' => 'partial',
+        'path' => 'subscription_calendar',
+        'context' => ['edit'],
     ],
 ];
 
 $config['form']['rules'] = [
+    /*
+     * Oluşturma alanları `sometimes` ile: düzenleme bağlamında formda hiç
+     * bulunmuyorlar ve `required` yazılsaydı her kaydetme "müşteri zorunlu"
+     * diye düşerdi.
+     */
+    [
+        'customer_id',
+        'lang:veykemtu.bridgeapi::subscription.column_customer',
+        'sometimes|required|integer|exists:customers,customer_id',
+    ],
+    [
+        'start_date',
+        'lang:veykemtu.bridgeapi::subscription.column_start',
+        'sometimes|required|date',
+    ],
+    [
+        'end_date',
+        'lang:veykemtu.bridgeapi::subscription.column_end',
+        'sometimes|nullable|date|after_or_equal:start_date',
+    ],
+    [
+        'service_days',
+        'lang:veykemtu.bridgeapi::subscription.detail_days',
+        'sometimes|required|array|min:1',
+    ],
+    [
+        'service_days.*',
+        'lang:veykemtu.bridgeapi::subscription.detail_days',
+        'integer|between:1,7',
+    ],
+    [
+        'delivery_type',
+        'lang:veykemtu.bridgeapi::subscription.label_delivery_type',
+        'sometimes|required|string|in:delivery,pickup',
+    ],
+    [
+        'delivery_time_from',
+        'lang:veykemtu.bridgeapi::subscription.label_time_from',
+        'sometimes|nullable|date_format:H:i',
+    ],
+    [
+        'delivery_time_to',
+        'lang:veykemtu.bridgeapi::subscription.label_time_to',
+        'sometimes|nullable|date_format:H:i',
+    ],
     [
         'status',
         'lang:veykemtu.bridgeapi::subscription.column_status',

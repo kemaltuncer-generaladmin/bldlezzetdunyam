@@ -35,6 +35,20 @@ Route::prefix('api')
         Route::middleware('throttle:bld-auth')->group(function (): void {
             Route::post('auth/register', [AuthController::class, 'register']);
             Route::post('auth/login', [AuthController::class, 'login']);
+
+            /*
+             * TELEFONLA GİRİŞ (B-18) — şifre yolunun yanında ikinci bir kapı.
+             *
+             * Aynı `bld-auth` sınırının içinde: ikisi de kimlik doğrulama
+             * denemesi ve aynı bütçeyi paylaşmaları doğru.
+             *
+             * Asıl koruma bu sınırda DEĞİL — sınır IP başına ve saldırgan IP
+             * değiştirebilir. Gerçek kapılar `OtpService` içinde: koda bağlı
+             * deneme sayacı, 60 saniyelik yeniden gönderim beklemesi ve
+             * kayıtlı olmayan numarada sessiz çıkış.
+             */
+            Route::post('auth/otp/request', [AuthController::class, 'requestOtp']);
+            Route::post('auth/otp/verify', [AuthController::class, 'verifyOtp']);
         });
 
         Route::get('locations', [CatalogController::class, 'locations']);
@@ -99,6 +113,11 @@ Route::prefix('api')
             // Yalnız istek sahibinin verisi döner (controller `$request->user()`).
             Route::get('account/summary', [AccountController::class, 'summary']);
             Route::get('account/statement', [AccountController::class, 'statement']);
+            // Cari borç ödemesi başlatır (B-14). `bld-order` sınırı yeniden
+            // kullanılıyor: para hareketi başlatan bir uç, katalog okumakla
+            // aynı bütçeyi paylaşmamalı.
+            Route::post('account/payments', [AccountController::class, 'startPayment'])
+                ->middleware('throttle:bld-order');
 
             // Abonelik (self-servis): müşteri kendi aboneliğini görür, TALEP
             // açar (fiyatı admin belirler), duraklatır/devam/iptal, tek-gün

@@ -51,6 +51,38 @@ final class NavigationTrimmer
         // Faz 2'de (F2-07) geri gelecek; şimdi açık durması yöneticiye
         // çalışmayan bir ekran göstermek olurdu.
         'coupons' => 'Kuponlar — docs/11 F2-07 ile geri gelecek',
+
+        // ── v2.0 sadeleştirmesi (B-11) ───────────────────────────────────
+        //
+        // Buradan aşağısı, panelin "kurulum" yüzeyidir: yılda birkaç kez
+        // ya da hiç kullanılmaz, ama her gün menüde yer kaplar ve yanlış
+        // tıklandığında zarar verir. `extensions` KASTEN LİSTEDE DEĞİL —
+        // kendi ayar sayfalarımız (`BLD Ayarları`, `Site İçeriği`)
+        // `admin/extensions/edit/...` adresinde duruyor ve yeni bir
+        // eklentiyi açıp kapatmanın tek arayüzü orası.
+
+        // Vitrin teması artık hiç kayıtlı değil (I-07,
+        // `BridgeApi\Extension::disableStorefrontTheme`). Tema seçmek
+        // görünmeyen bir siteyi biçimlendirmek olurdu.
+        'themes' => 'Vitrin teması — I-07 ile vitrin tamamen kapatıldı',
+
+        // `MAIL_MAILER=log` (docker-compose.coolify.yml). Şablon düzenleme
+        // ekranı, gönderilmeyen postaların metnini düzenletirdi.
+        'mail_templates' => 'E-posta şablonları — posta sürücüsü `log`, gönderim yok',
+
+        // ti-ext-api'nin kendi anahtar yönetimi. Bizim API'miz kendi
+        // token'ıyla çalışıyor (`bld.auth`); bu ekrandan üretilen anahtarın
+        // hiçbir ucumuzda karşılığı yok.
+        'api' => 'TastyIgniter API anahtarları — kendi token akışımız var (bld.auth)',
+
+        // Sürüm/pazar yeri ekranı. Güncelleme imaj yeniden derlenerek
+        // yapılıyor (infra/platform/Dockerfile.prod); panelden tetiklenen
+        // bir güncelleme imajla veritabanını ayrıştırırdı.
+        'updates' => 'Güncelleme/pazar yeri — sürüm imajla gelir, panelden değil',
+
+        // Günlükler `docker logs` ve `storage/logs` üzerinden okunuyor;
+        // panel kopyası hem eksik hem de kişisel veri sızdırabiliyor.
+        'system_logs' => 'Sistem günlükleri — sunucu günlüğünden okunuyor',
     ];
 
     private function __construct() {}

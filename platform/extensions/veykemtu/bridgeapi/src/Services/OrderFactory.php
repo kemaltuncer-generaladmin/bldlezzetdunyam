@@ -37,10 +37,12 @@ class OrderFactory
         private readonly OrderStatusTransition $transitions,
         private readonly AccountLedger $ledger,
         private readonly LineResolver $lines,
+        private readonly CreditLimit $creditLimit,
     ) {}
 
     /**
      * @param  array<int, array{menu_id:int, quantity:int, option_value_ids?:list<int>, note?:string|null}>  $items
+     * @param  bool  $adminContext  Panelden telefonla giriliyorsa `true` (B-13).
      */
     public function create(
         ApiCustomer $customer,
@@ -51,22 +53,53 @@ class OrderFactory
         ?Carbon $requestedAt,
         string $paymentMethod,
         ?string $customerNote,
+        bool $adminContext = false,
+        ?int $subscriptionId = null,
     ): Order {
-        $this->gate->assertAcceptsOrder($location, $requestedAt);
+        /*
+         * VİTRİN KAPILARI PANELDE UYGULANMAZ (B-13).
+         *
+         * `assertAcceptsOrder` üç şeye bakıyor: sipariş alım şalteri, kesim
+         * saati ve vitrinin açık olması. Üçü de MÜŞTERİNİN kendi kendine
+         * sipariş vermesini düzenler. Telefonla arayan müşteriye "sipariş
+         * alımı kapalı" demek, siparişi zaten kabul etmiş olan yöneticiye
+         * kendi sistemini kullandırmamak olurdu — o kararı insan verdi.
+         *
+         * Asgari sepet tutarı da aynı sebeple atlanıyor: yönetici 200 TL'lik
+         * asgariyi bilerek esnetebilir, sistem onu engellemez.
+         *
+         * ATLANMAYANLAR — ve neden:
+         *   ödeme yöntemi : vitrinde tanımlı olmayan bir yöntemle sipariş,
+         *                   tahsilat tarafında karşılıksız kalır;
+         *   cari limiti   : limitin amacı zaten insanı korumak, insanın
+         *                   telefonda unutmasına karşı duruyor.
+         */
+        if (!$adminContext) {
+            $this->gate->assertAcceptsOrder($location, $requestedAt);
+        }
+
         $this->gate->assertPaymentMethodAllowed($location, $paymentMethod);
 
         $lines = $this->lines->resolve($items);
         $subtotal = array_sum(array_column($lines, 'line_total'));
 
-        $this->gate->assertMeetsMinimum($location, $subtotal);
+        if (!$adminContext) {
+            $this->gate->assertMeetsMinimum($location, $subtotal);
+        }
 
         $deliveryFee = $deliveryType === Order::DELIVERY
             ? $this->gate->deliveryFee($location)
             : 0;
 
+        // Cari hesapla ödemede limit kontrolü — borç deftere düşmeden ÖNCE.
+        if ($paymentMethod === 'account') {
+            $this->creditLimit->assertAllows($customer, $subtotal + $deliveryFee);
+        }
+
         return DB::transaction(function () use (
             $customer, $location, $deliveryType, $lines, $address,
             $requestedAt, $paymentMethod, $customerNote, $subtotal, $deliveryFee,
+            $subscriptionId,
         ): Order {
             $addressId = $deliveryType === Order::DELIVERY
                 ? $this->storeAddress($customer, $address)
@@ -94,6 +127,11 @@ class OrderFactory
             // `cart` çekirdeğin sepet serileştirmesi içindir; API siparişinde
             // sepet nesnesi yoktur, boş dizi yazıyoruz (kolon NOT NULL).
             $order->cart = serialize([]);
+            // Panelden bir aboneliğe bağlanan sipariş (B-13). Mutfak, abonelik
+            // üretim planında bu siparişi de görsün diye işaretleniyor; gece
+            // üretimiyle aynı alan kullanılıyor ki KDS iki ayrı kaynak
+            // ayırt etmek zorunda kalmasın.
+            $order->bld_subscription_id = $subscriptionId;
             $order->status_id = $this->transitions->statusByCode(
                 OrderStatusTransition::NEW,
             )->status_id;

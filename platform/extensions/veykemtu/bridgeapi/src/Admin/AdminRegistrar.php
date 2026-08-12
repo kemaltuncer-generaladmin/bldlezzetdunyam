@@ -80,8 +80,28 @@ final class AdminRegistrar
      */
     public const string PERMISSION_SUBSCRIPTIONS = 'Veykemtu.Subscriptions';
 
+    /**
+     * Telefon siparişi ekranına erişim yetkisi — YEDİNCİ kutu (B-13).
+     *
+     * Bu ekran SİPARİŞ YARATIR ve müşteri kaydı açar; üstelik vitrin
+     * kapılarını (şalter, kesim saati, asgari tutar) atlar. Yani panelde
+     * sipariş listesini görüntülemekten çok daha geniş bir yetki. Sipariş
+     * görüntüleme yetkisiyle aynı kutuya konsaydı, telefonu açan herkes
+     * kapalı saatte sipariş açabilir ve cari hesaba borç yazabilirdi.
+     */
+    public const string PERMISSION_PHONE_ORDERS = 'Veykemtu.PhoneOrders';
+
     /** Mutfak kasaları ekranının admin paneldeki adresi. */
     public const string DEVICES_URI = 'veykemtu/bridgeapi/kitchen_devices';
+
+    /** Telefon siparişi ekranının admin paneldeki adresi. */
+    public const string PHONE_ORDERS_URI = 'veykemtu/bridgeapi/phone_orders';
+
+    /** Sipariş düzenleme geçmişi ekranının admin paneldeki adresi. */
+    public const string REVISIONS_URI = 'veykemtu/bridgeapi/order_revisions';
+
+    /** Tükenen ürünler geçmişi ekranının admin paneldeki adresi. */
+    public const string SOLDOUT_URI = 'veykemtu/bridgeapi/menu_sold_outs';
 
     /** Hizmetler ekranının admin paneldeki adresi. */
     public const string SERVICES_URI = 'veykemtu/bridgeapi/site_services';
@@ -106,6 +126,9 @@ final class AdminRegistrar
 
     /** Kapalı günler ekranının admin paneldeki adresi. */
     public const string CLOSED_DAYS_URI = 'veykemtu/bridgeapi/closed_days';
+
+    /** İade takibi ekranının admin paneldeki adresi. */
+    public const string REFUNDS_URI = 'veykemtu/bridgeapi/refunds';
 
     /** Kurumsal (cari/abonelik) ekranların ortak üst menü grubu kodu. */
     public const string CORPORATE_MENU = 'bld_corporate';
@@ -164,6 +187,20 @@ final class AdminRegistrar
         return [
             'restaurant' => [
                 'child' => [
+                    /*
+                     * EN ÜSTTE (89) VE "Restoran" ALTINDA: telefon siparişi
+                     * günün en sık yapılan işlerinden biri ve müşteri hatta
+                     * beklerken açılıyor. Kendi grubuna konsaydı bir tık
+                     * daha uzakta olurdu; ayarların altında kalsaydı hiç
+                     * bulunamazdı.
+                     */
+                    'bld_phone_orders' => [
+                        'priority' => 89,
+                        'class' => 'bld_phone_orders',
+                        'href' => admin_url(self::PHONE_ORDERS_URI),
+                        'title' => lang('veykemtu.bridgeapi::phoneorder.side_menu'),
+                        'permission' => self::PERMISSION_PHONE_ORDERS,
+                    ],
                     'bld_settings' => [
                         'priority' => 90,
                         'class' => 'bld_settings',
@@ -180,6 +217,29 @@ final class AdminRegistrar
                         'href' => admin_url(self::DEVICES_URI),
                         'title' => lang('veykemtu.bridgeapi::default.side_menu_devices'),
                         'permission' => self::PERMISSION_DEVICES,
+                    ],
+                    /*
+                     * İZLEME EKRANLARI EN ALTTA (92-93) VE BİLEREK.
+                     *
+                     * İkisi de salt okunur ve günlük işin parçası değil:
+                     * bir şey ters gittiğinde ("tutar neden değişmiş",
+                     * "humus yine mi bitti") bakılıyorlar. Sipariş girme ve
+                     * ayar ekranlarının üstünde dursalardı, her gün
+                     * kullanılan iki girdiyi aşağı iterlerdi.
+                     */
+                    'bld_order_revisions' => [
+                        'priority' => 92,
+                        'class' => 'bld_order_revisions',
+                        'href' => admin_url(self::REVISIONS_URI),
+                        'title' => lang('veykemtu.bridgeapi::monitor.revisions_side_menu'),
+                        'permission' => self::PERMISSION,
+                    ],
+                    'bld_menu_soldout' => [
+                        'priority' => 93,
+                        'class' => 'bld_menu_soldout',
+                        'href' => admin_url(self::SOLDOUT_URI),
+                        'title' => lang('veykemtu.bridgeapi::monitor.soldout_side_menu'),
+                        'permission' => self::PERMISSION,
                     ],
                 ],
             ],
@@ -231,13 +291,21 @@ final class AdminRegistrar
                         'title' => lang('veykemtu.bridgeapi::default.side_menu.services'),
                         'permission' => self::PERMISSION_CONTENT,
                     ],
-                    'bld_site_posts' => [
-                        'priority' => 20,
-                        'class' => 'bld_site_posts',
-                        'href' => admin_url(self::POSTS_URI),
-                        'title' => lang('veykemtu.bridgeapi::default.side_menu.posts'),
-                        'permission' => self::PERMISSION_CONTENT,
-                    ],
+                    /*
+                     * BİLGİ MERKEZİ (blog) MENÜDEN ÇIKARILDI — W-08.
+                     *
+                     * Site v2.0'da `/bilgi-merkezi` kaldırıldı: yazıların
+                     * hiçbiri artık yayınlanmıyor. Menüde kalsaydı, girilen
+                     * her yazı hiçbir yerde görünmediği hâlde emek isteyen
+                     * bir ekran olurdu.
+                     *
+                     * DENETLEYİCİ, MODEL VE TABLO DURUYOR (`SitePosts`,
+                     * `SitePost`, `veykemtu_site_posts`): eklemeli şema
+                     * kuralı gereği veri silinmez ve blog geri gelirse
+                     * yalnızca bu girdinin geri konması yeter. Adres hâlâ
+                     * çalışıyor: admin/veykemtu/bridgeapi/site_posts
+                     */
+
                     /*
                      * EN ALTTA VE AYRI YETKİYLE. Üstündeki üç girdi içerik
                      * ÜRETİR, bu girdi içeriğin GETİRDİĞİNİ toplar; yönü
@@ -280,6 +348,20 @@ final class AdminRegistrar
                         'class' => 'bld_customer_accounts',
                         'href' => admin_url(self::ACCOUNTS_URI),
                         'title' => lang('veykemtu.bridgeapi::accountledger.side_menu_accounts'),
+                        'permission' => self::PERMISSION_ACCOUNT,
+                    ],
+                    /*
+                     * İADELER, cari hareketlerin ÜSTÜNDE (15). Hareketler
+                     * bir arşivdir — geriye dönüp bakılır. İadeler ise bir
+                     * gelen kutusudur: `manual` durumdaki her satır birinin
+                     * para göndermesini bekliyor. Bekleyen iş, arşivin
+                     * altında kalmamalı.
+                     */
+                    'bld_refunds' => [
+                        'priority' => 15,
+                        'class' => 'bld_refunds',
+                        'href' => admin_url(self::REFUNDS_URI),
+                        'title' => lang('veykemtu.bridgeapi::refund.side_menu'),
                         'permission' => self::PERMISSION_ACCOUNT,
                     ],
                     'bld_account_entries' => [
@@ -332,6 +414,10 @@ final class AdminRegistrar
             ],
             self::PERMISSION_SUBSCRIPTIONS => [
                 'label' => 'lang:veykemtu.bridgeapi::subscription.permission',
+                'group' => 'igniter::admin.permissions.name',
+            ],
+            self::PERMISSION_PHONE_ORDERS => [
+                'label' => 'lang:veykemtu.bridgeapi::phoneorder.permission',
                 'group' => 'igniter::admin.permissions.name',
             ],
         ];
