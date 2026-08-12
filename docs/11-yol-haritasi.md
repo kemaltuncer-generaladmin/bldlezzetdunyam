@@ -380,6 +380,18 @@ Bunlar Faz 1'in açık uçlarıdır ve yeni özellik eklemeden önce kapanmalı:
 - [ ] `POS_ALLOW_SIMULATION` kaldırılacak, gerçek sanal POS bağlanacak —
       **açık kaldığı sürece her sipariş bedava**
 
+      > **AÇIK BIRAKILMASI KARARLAŞTIRILDI (12.08.2026).** Sağlayıcı
+      > sözleşmesi yapılana kadar kart ödemesi simülasyon kalıyor; işletme
+      > sahibinin bilinçli kararı. Risk görünür kılındı: admin panelin her
+      > ekranının tepesinde "SİMÜLASYON MODU — kart ödemeleri gerçek
+      > değildir" şeridi duruyor (`_partials/admin/simulation_banner`) ve
+      > yalnızca `SimulatedPos::isAllowed()` true iken çiziliyor, yani
+      > gerçek POS bağlandığı gün kendiliğinden kayboluyor.
+      >
+      > v2.0'da simülasyonun ikinci bir kullanıcısı doğdu: **cari borç
+      > ödemesi** (`/cari-odeme-simulasyon/{hash}`). Gerçek POS'a geçerken
+      > iki akış birden taşınacak — sipariş ödemesi ve cari ödeme.
+
       > **BAĞLANMA NOKTASI HAZIR (K-13, 11.08.2026).** Sağlayıcı-bağımsız
       > `Veykemtu\Payment\Refunds\RefundGateway` arayüzü ve
       > `RefundManager` yazıldı; sipariş düzenleme iadeleri buradan

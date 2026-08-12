@@ -195,6 +195,228 @@ app.post('/api/me/push-token', requireCustomer, (req, res) => {
   return res.status(204).end();
 });
 
+// ─────────────────────── Kurumsal site içeriği ─────────────────────────────
+//
+// Uç sözleşmede var ama mock'ta yoktu: site her sayfa çiziminde 404 alıp
+// paketlenmiş yedek içeriğe düşüyordu. Yedek çalıştığı için kimse fark
+// etmiyordu — ama sunucu günlüğü her istekte hata basıyor ve gerçek bir
+// arıza bu gürültünün içinde kaybolurdu.
+//
+// İçerik MİNİMUM: site zaten yedeğe sahip; buradaki amaç 404'ü kesmek ve
+// panelden gelen alanların (marka, iletişim) yolunu doğrulamak.
+app.get('/api/site-content', (_req, res) =>
+  res.json({
+    brand: {
+      name: 'Benim Lezzet Dünyam',
+      short_name: 'BLD',
+      description: 'Kurumsal catering ve toplu yemek hizmeti.',
+      logo_url: null,
+      color: '#EA580C',
+    },
+    contact: {
+      phone: '05551112233',
+      whatsapp: '905551112233',
+      email: 'bilgi@ornek.com',
+      address: 'Selçuklu / Konya',
+    },
+    services: [],
+    posts: [],
+  }),
+);
+
+// ──────────────────────── Telefonla giriş (B-18 / W-11) ────────────────────
+//
+// GERÇEK SUNUCUYLA AYNI DAVRANIŞ: kayıtlı olmayan numara da 202 alır ve SMS
+// gitmez (numara sayımına kapı bırakmamak için). Test kodu okumak zorunda
+// olduğu için `/__mock/otp/:phone` ucu var — üretimde böyle bir şey yok.
+
+function normalizePhone(input) {
+  const digits = String(input ?? '').replace(/\D+/g, '');
+  if (digits.startsWith('90') && digits.length === 12) return digits.slice(2);
+  if (digits.startsWith('0') && digits.length === 11) return digits.slice(1);
+  return digits;
+}
+
+app.post('/api/auth/otp/request', (req, res) => {
+  const phone = normalizePhone(req.body?.phone);
+
+  if (phone.length !== 10) {
+    return fail(res, 'VALIDATION_FAILED', 'Telefon numarası geçersiz.', {
+      phone: 'On hane olmalı.',
+    });
+  }
+
+  const customer = state.customers.find((c) => normalizePhone(c.telephone) === phone);
+  if (customer) {
+    // Sabit kod DEĞİL: rastgele üretiliyor ki test "kodu tahmin etme"
+    // yoluna sapmasın ve gerçek akışı (kodu oku, gir) izlesin.
+    state.otpCodes.set(phone, String(Math.floor(100000 + Math.random() * 900000)));
+  }
+
+  return res.status(202).json({
+    message: 'Kod gönderildi. SMS birkaç saniye içinde ulaşır.',
+    expires_in: 300,
+    resend_after: 60,
+  });
+});
+
+app.post('/api/auth/otp/verify', (req, res) => {
+  const phone = normalizePhone(req.body?.phone);
+  const code = String(req.body?.code ?? '');
+  const expected = state.otpCodes.get(phone);
+
+  if (!expected || expected !== code) {
+    return fail(res, 'VALIDATION_FAILED', 'Kod hatalı.', { code: 'Doğrulanamadı.' });
+  }
+
+  const customer = state.customers.find((c) => normalizePhone(c.telephone) === phone);
+  if (!customer) {
+    return fail(res, 'VALIDATION_FAILED', 'Kod geçersiz ya da süresi dolmuş.', {
+      code: 'Yeni bir kod isteyin.',
+    });
+  }
+
+  // Tek kullanımlık: doğrulanan kod hemen tüketilir.
+  state.otpCodes.delete(phone);
+
+  return res.json({
+    token: state.issueCustomerToken(customer.id),
+    customer: { id: customer.id, first_name: customer.first_name },
+  });
+});
+
+// ──────────────────────────── Cari hesap (W-12) ────────────────────────────
+
+app.get('/api/account/summary', requireCustomer, (req, res) =>
+  res.json({
+    balance: state.balanceOf(req.customerId),
+    currency: 'TRY',
+    as_of: nowIso(),
+  }),
+);
+
+app.get('/api/account/statement', requireCustomer, (req, res) => {
+  const rows = state.ledger.get(req.customerId) ?? [];
+
+  let running = 0;
+  const entries = rows.map((row) => {
+    running += row.entry_type === 'debit' ? row.amount : -row.amount;
+    return { ...row, running_balance: running };
+  });
+
+  return res.json({
+    opening_balance: 0,
+    closing_balance: running,
+    currency: 'TRY',
+    from: rows[0]?.date ?? nowIso().slice(0, 10),
+    to: nowIso().slice(0, 10),
+    entries,
+  });
+});
+
+app.post('/api/account/payments', requireCustomer, (req, res) => {
+  const balance = state.balanceOf(req.customerId);
+
+  if (balance <= 0) {
+    return fail(res, 'VALIDATION_FAILED', 'Ödenecek borç bulunmuyor.', { balance });
+  }
+
+  const full = req.body?.full === true;
+  const amount = full ? balance : Number(req.body?.amount ?? 0);
+
+  if (!Number.isInteger(amount) || amount <= 0) {
+    return fail(res, 'VALIDATION_FAILED', 'Ödenecek tutar belirtilmeli.', {
+      amount: 'Tutar girin veya borcun tamamını seçin.',
+    });
+  }
+  if (amount > balance) {
+    return fail(res, 'VALIDATION_FAILED', 'Tutar borcunuzdan büyük olamaz.', {
+      amount,
+      balance,
+    });
+  }
+
+  const id = state.nextAccountPaymentId++;
+  const hash = `mockpay${id}`;
+  state.accountPayments.set(hash, { id, customerId: req.customerId, amount, status: 'pending' });
+
+  return res.status(201).json({
+    payment_id: id,
+    amount,
+    balance,
+    currency: 'TRY',
+    status: 'pending',
+    redirect_url: `${req.protocol}://${req.get('host')}/__mock/cari-odeme/${hash}`,
+  });
+});
+
+// ──────────────────────────── Abonelik (W-13) ──────────────────────────────
+
+app.get('/api/subscriptions', requireCustomer, (req, res) =>
+  res.json({
+    data: state.subscriptions.filter((s) => s.customer_id === req.customerId),
+  }),
+);
+
+app.get('/api/subscriptions/:id', requireCustomer, (req, res) => {
+  const found = state.subscriptions.find(
+    (s) => s.id === Number(req.params.id) && s.customer_id === req.customerId,
+  );
+  if (!found) return fail(res, 'NOT_FOUND', 'Abonelik bulunamadı.');
+  return res.json(found);
+});
+
+function transitionSubscription(req, res, from, to, message) {
+  const found = state.subscriptions.find(
+    (s) => s.id === Number(req.params.id) && s.customer_id === req.customerId,
+  );
+  if (!found) return fail(res, 'NOT_FOUND', 'Abonelik bulunamadı.');
+  if (from && found.status !== from) {
+    return fail(res, 'VALIDATION_FAILED', message, { status: found.status });
+  }
+  found.status = to;
+  return res.json(found);
+}
+
+app.post('/api/subscriptions/:id/pause', requireCustomer, (req, res) =>
+  transitionSubscription(req, res, 'active', 'paused', 'Yalnızca aktif abonelik duraklatılabilir.'),
+);
+
+app.post('/api/subscriptions/:id/resume', requireCustomer, (req, res) =>
+  transitionSubscription(
+    req,
+    res,
+    'paused',
+    'active',
+    'Yalnızca duraklatılmış abonelik devam ettirilebilir.',
+  ),
+);
+
+app.post('/api/subscriptions/:id/cancel', requireCustomer, (req, res) =>
+  transitionSubscription(req, res, null, 'cancelled', 'Abonelik zaten iptal.'),
+);
+
+app.post('/api/subscriptions/:id/exceptions', requireCustomer, (req, res) => {
+  const found = state.subscriptions.find(
+    (s) => s.id === Number(req.params.id) && s.customer_id === req.customerId,
+  );
+  if (!found) return fail(res, 'NOT_FOUND', 'Abonelik bulunamadı.');
+
+  const date = String(req.body?.service_date ?? '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return fail(res, 'VALIDATION_FAILED', 'Tarih geçersiz.', { service_date: 'YYYY-AA-GG' });
+  }
+
+  found.exceptions = (found.exceptions ?? []).filter((e) => e.service_date !== date);
+  found.exceptions.push({
+    service_date: date,
+    skip: req.body?.skip === true,
+    quantity_override: req.body?.quantity_override ?? null,
+  });
+
+  return res.json(found);
+});
+
 // ─────────────────────────────── Katalog ───────────────────────────────────
 
 app.get('/api/locations', (_req, res) =>
@@ -476,6 +698,87 @@ app.get('/api/app-version', (req, res) => {
 // Bu uçlar gerçek sunucuda YOKTUR. İstemci hatlarının kabul senaryolarını
 // (docs/10) elle koşabilmesi için var: yeni sipariş düşürmek, şalteri
 // kapatmak, cihaz iptal etmek.
+
+/*
+ * ── v2.0 test kancaları ────────────────────────────────────────────────
+ * `/__mock/*` uçları sözleşmenin parçası DEĞİL; yalnızca Playwright'ın
+ * gerçek akışı izleyebilmesi için var (kodu oku, borç kur, ödemeyi bitir).
+ */
+
+/** Son üretilen giriş kodunu okur — SMS'in test karşılığı. */
+app.get('/__mock/otp/:phone', (req, res) => {
+  const phone = normalizePhone(req.params.phone);
+  const code = state.otpCodes.get(phone);
+
+  return code ? res.json({ code }) : res.status(404).json({ code: null });
+});
+
+/** Bir müşteriye borç yazar; cari ekranını test etmenin tek yolu. */
+app.post('/__mock/ledger/:customerId', (req, res) => {
+  const customerId = Number(req.params.customerId);
+  state.addLedgerEntry(customerId, {
+    date: nowIso().slice(0, 10),
+    entry_type: req.body?.entry_type ?? 'debit',
+    amount: Number(req.body?.amount ?? 0),
+    source: 'order',
+    description: req.body?.description ?? 'Test siparişi',
+  });
+
+  return res.json({ balance: state.balanceOf(customerId) });
+});
+
+/** Abonelik ekler. */
+app.post('/__mock/subscriptions', (req, res) => {
+  const subscription = {
+    id: state.nextSubscriptionId++,
+    customer_id: Number(req.body?.customer_id ?? 1),
+    status: req.body?.status ?? 'active',
+    location_id: state.location.id,
+    delivery_type: 'delivery',
+    start_date: nowIso().slice(0, 10),
+    end_date: null,
+    service_days: [1, 2, 3, 4, 5],
+    delivery_time_from: '12:00',
+    delivery_time_to: '13:00',
+    default_quantity: Number(req.body?.default_quantity ?? 25),
+    agreed_unit_price: 9500,
+    payment_mode: 'account',
+    menu_mode: 'fixed_list',
+    lines: [{ menu_id: 1, quantity: 1, label: 'Günün menüsü' }],
+    delivery_points: [],
+    exceptions: [],
+    created_at: nowIso(),
+  };
+  state.subscriptions.push(subscription);
+
+  return res.status(201).json(subscription);
+});
+
+/**
+ * Cari ödemeyi tamamlar — gerçek sanal POS sayfasının yerini tutar.
+ *
+ * Deftere ALACAK yazıp siteye geri yönlendiriyor; böylece Playwright
+ * "ödedim, bakiye düştü" zincirini uçtan uca izleyebiliyor.
+ */
+app.get('/__mock/cari-odeme/:hash', (req, res) => {
+  const intent = state.accountPayments.get(req.params.hash);
+  if (!intent) return res.status(404).send('Ödeme bulunamadı.');
+
+  if (intent.status === 'pending') {
+    intent.status = 'succeeded';
+    state.addLedgerEntry(intent.customerId, {
+      date: nowIso().slice(0, 10),
+      entry_type: 'credit',
+      amount: intent.amount,
+      source: 'payment',
+      description: `Online cari ödeme #${intent.id}`,
+    });
+  }
+
+  const target = req.query.return ?? '/';
+
+  return res.redirect(`${target}?durum=odendi`);
+});
 
 app.post('/__mock/reset', (_req, res) => {
   state.reset();

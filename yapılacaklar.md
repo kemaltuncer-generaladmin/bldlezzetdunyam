@@ -19,10 +19,12 @@
       durum ilerletme, "üretim koşmadı" uyarısı ve üretim planı fişi.
 
 # Web-Admin
-[] api subdomaininde farklı bir bld sitesi yatıyor bu site kaldırılacak. orijinal anadomain olacak
-[] kullanıcı ana domaine ilk girdiği anda sisteme giriş yapabilşecek ve hızlıca sipariş verebileek
-[] menülere tıklayınca kaybolmuyıor kalıyor üst header bar gömzden geçirilecek
-[] abonelik-abonelik takibi gibi işlemler işte cari hesapta istenen ya da total tutara göre ödeme simülasyonu olacak.
+[x] api subdomaininde farklı bir bld sitesi yatıyor bu site kaldırılacak. orijinal anadomain olacak
+[x] kullanıcı ana domaine ilk girdiği anda sisteme giriş yapabilşecek ve hızlıca sipariş verebileek
+[x] menülere tıklayınca kaybolmuyıor kalıyor üst header bar gömzden geçirilecek
+[x] abonelik-abonelik takibi gibi işlemler işte cari hesapta istenen ya da total tutara göre ödeme simülasyonu olacak.
+[x] admin panelde çoğu icon görünmüyordu
+[x] admin panelden telefonla gelen siparişlerin eklenmesi, KDS'ye iletilmesi (müşteri seç, ürün seç, abonelik mi değil mi)
 
 # MusteriApp
 [] abonelik-abonelik takibi gibi işlemler işte cari hesapta istenen ya da total tutara göre ödeme simülasyonu olacak.
@@ -431,3 +433,162 @@ yalnız gövde doğrulaması reddediyor (`422`). Köprü canlı.
 takip numarası sipariş anında gönderilmiyor, `delivery_type` her zaman
 `delivery` geliyor, müşteri sipariş notu yok. Üçü de fişte boş alan
 olarak geçiliyor — fiş yine basılıyor.
+
+---
+
+# Web + Admin v2.0 turu KAPANDI (12.08.2026)
+
+Web-Admin başlığındaki dört madde ve tur içinde eklenen iki istek
+karşılandı. Ayrıntılı görev tablosu: `docs/09-gorev-plani.md` §8.6.
+
+## Ne yapıldı
+
+**api.* kökündeki ikinci site.** Ayrı bir deploy değilmiş: TastyIgniter'ın
+kendi Orange vitrin teması, `IGNITER_URI` boş olduğu için `/` altına
+biniyordu. İki kemerle kapatıldı — eklentide `disableThemeRoutes(true)`
+(rota hiç kurulmuyor) ve Caddy'de ana domaine 308. Konteyner çalıştırılıp
+ölçüldü: `/` ve bilinmeyen yollar yönleniyor, `/api/*`, `/admin`,
+`/_assets/*`, `/odeme-simulasyon/*` geçiyor.
+
+**Admin ikonları.** Sebep `infra/platform/Dockerfile.web` idi: derleme
+sırasında `vendor:publish` koşmuyor, Caddy imajında `/vendor/igniter/`
+klasörü hiç bulunmuyordu. Admin CSS'i PHP tarafındaki `_assets`
+birleştiricisinden geldiği için stiller çalışıyor, yalnızca Font
+Awesome'ın webfont'u 404 alıyordu — "stiller yerinde, ikonlar boş kutu"
+tablosunun sebebi buydu. Yayınlama adımı eklendi, arkasına `test -f`
+konuldu: sessizce bozulursa derleme patlar.
+
+**Üst menü kapanmıyordu.** Masaüstünde `<details>` kullanılmış; Next.js
+istemci tarafında gezinince DOM korunuyor ve panel açık kalıyordu. Radix
+`NavigationMenu`'ye geçildi. Mobilde kapanma yalnızca `pathname`
+değişimine bağlıydı ve üç durumda deliniyordu: aynı sayfanın bağlantısı,
+`tel:`/`wa.me` düğmeleri, yavaş RSC geçişi. Her bağlantı `SheetClose` ile
+sarıldı. Üçü de Playwright'ta sabitlendi.
+
+**Hızlı giriş ve sipariş.** `/giris` sekmeli oldu; telefon varsayılan.
+Kod 6 haneli, 5 dk ömürlü, tek kullanımlık, veritabanında bcrypt'li.
+Ana sayfaya hızlı sipariş kutusu geldi: girişliye "geçen siparişi
+tekrarla", girişsize giriş + kurumsal kayıt. Kutu verisini istemciden
+çekiyor, böylece ana sayfa ISR'da kaldı.
+
+**Abonelik ve cari self-servisi.** `docs/06`'daki "yalnız mobil" kararı
+değişti. `/hesabim` dört bölümlü bir merkez oldu; `/hesabim/cari` bakiye,
+90 günlük ekstre ve ödeme (tamamı ya da istenen tutar) sunuyor,
+`/hesabim/abonelikler` duraklat/devam/iptal ve gün atlama yapıyor.
+
+**Telefon siparişi ekranı.** Panelden müşteri seçip (ya da aynı ekranda
+kurumsal müşteri açıp) sipariş giriliyor; sipariş `onaylandi` doğduğu için
+mutfağa anında düşüyor ve fiş basılıyor. Fiyatlama yeniden yazılmadı,
+`OrderFactory` çağrılıyor — panelin kendi hesabını yapması web ile
+zamanla ayrışan iki fiyat demekti.
+
+## Turda yakalanan beş hata
+
+Beşi de yazarken değil, **doğrularken** çıktı:
+
+1. **Admin işleyici imzası.** Çekirdek eylem işleyicilerini
+   `[$action, ...$params]` ile çağırıyor; tek parametreli yazılan
+   `onRecordPayment` `$recordId` olarak `"edit"` alıyordu. Tahsilat ekranı
+   canlıda ilk denemede 406 verirdi.
+2. **Abonelik ek porsiyonu.** `quantity_override` o günün TOPLAMI. Ek
+   porsiyonu oraya doğrudan yazmak 100 kişilik aboneliği 10'a düşürürdü ve
+   belirtisi ancak ertesi sabah mutfakta görülürdü. Ayrıca sipariş +
+   istisna birlikte yazılınca aynı yemek iki kez pişerdi.
+3. **OTP bekleme süresi hiç çalışmıyordu.** `created_at` UTC yazılıp
+   Istanbul olarak okunuyordu; üç saatlik kayma 60 saniyelik sınırı
+   sessizce devre dışı bırakıyordu. Sınırsız SMS gönderilebilirdi.
+4. **Tahsilat makbuzu.** Makbuz numarası CRC32'lenip `reference_id`
+   yapılıyordu; çakışmada `insertOrIgnore` ikinci tahsilatı sessizce
+   yutar, yönetici "kaydedildi" görüp ekstrede bulamazdı.
+5. **Gün atlamada geri bildirim yoktu.** E2E testi yakaladı; kullanıcı
+   kartın değişmediğini görüp işlemin geçtiğini anlayamıyordu.
+
+## Doğrulama
+
+| Ne | Sonuç |
+|---|---|
+| `vendor/bin/phpunit --testsuite Veykemtu` | **276/276** (226 mevcut + 50 yeni) |
+| Playwright (chromium + mobil) | **62/62** |
+| `tsc`, `eslint`, `prettier`, `next build` | temiz |
+| Redocly `docs/openapi.yaml` | geçerli |
+
+**Test komutu tuzağı:** `php artisan test` bu projede bazen yalnızca
+`Unit` paketini koşuyor (bir seferinde 227, sonrakinde 1 test).
+Güvenilir komut `vendor/bin/phpunit --testsuite Veykemtu`.
+
+## Dağıtımdan önce
+
+1. Üç göç: `php artisan igniter:up` (cari limit, cari ödeme niyeti,
+   giriş kodları).
+2. `NETGSM_USERNAME`, `NETGSM_PASSWORD`, `NETGSM_HEADER` Coolify'a
+   girilecek. **Üçü birden dolu değilse SMS gönderilmez** — kod yalnızca
+   sunucu günlüğüne yazılır, e-posta + parola girişi çalışmaya devam eder.
+3. `SITE_PUBLIC_URL` (web konteyneri) ana domaine işaret etmeli.
+4. Her iki imaj da yeniden derlenmeli: `Dockerfile.web` değişti.
+
+## Tur sonu tamamlama (aynı gün)
+
+İlk teslimde eksik kalan ve gözden geçirmede çıkan maddeler:
+
+- **Ana sayfadan sipariş verilebiliyor.** "Bugün mutfakta" bölümü yalnızca
+  vitrindi; kartlar ürün sayfasına bağlanıyordu. Artık seçeneği olmayan
+  ürünler doğrudan sepete ekleniyor, seçeneği olanlar detaya gidiyor.
+- **Sepet rozeti sepet doluyken her sayfada görünüyor.** Önceden yalnızca
+  sipariş rotalarında çiziliyordu; ana sayfadan ürün ekleyen ziyaretçi
+  sepetinin varlığını `/menu`ye gidene kadar göremiyordu. Boş sepette
+  kurumsal sayfalar eskisi gibi rozetsiz.
+- **`/kayit` → `/kurumsal-kayit` (307).** Eski bireysel form unvan ve vergi
+  bilgisi sormuyordu, yani faturalandırılamayan "kurumsal" hesaplar
+  üretiyordu — iki kayıt yolu arasındaki bu tutarsızlık formu doldurduktan
+  sonra fark edilirdi.
+- **`robots.txt` ile `sitemap.xml` çelişkisi giderildi.** `/kurumsal-kayit`
+  haritada ilan ediliyor ama robots onu engelliyordu. Bir dönüşüm sayfası
+  ve boş bir form olduğu için yasak listesinden çıkarıldı; e2e testi ikisinin
+  tutarlılığını bekçiliyor.
+- **Ölü blog yolu temizlendi.** `content/posts.ts` (352 satır) ve
+  `site-content.ts` içindeki `postSchema` / `mergePosts` / `findPost` /
+  yedek girdisi kaldırıldı: hiçbir sayfa yazı basmıyordu ama içerik hâlâ
+  çekilip doğrulanıyordu. Uç `posts` döndürmeye devam ediyor (sözleşme
+  eklemeli); site onu artık görmüyor.
+- **Kullanılmayan `register-form.tsx` ve `registerAction` kaldırıldı.**
+  `registerSchema` duruyor — kurumsal şemanın tabanı.
+- **CI'daki "Playwright yoksa atla" dalı silindi.** `playwright.config.ts`
+  artık var; o dal, testler hiç koşmadan yeşil dönmenin yoluydu ve aylarca
+  öyle kaldı. Hata durumunda iz dosyaları artifact olarak yükleniyor.
+- **Panel giydirmesi doğrulandı.** Marka CSS'i bir olay dinleyicisiyle
+  ekleniyor ve dosya `public/` altına yayınlanmıyor — çekirdeğin
+  birleştiricisi onu doğrudan eklenti klasöründen okuyor. Zincirin bir
+  halkası koparsa panel sessizce stoksuz açılırdı: hata yok, yalnızca
+  giydirme yok. `AdminBrandingTest` hem CSS'in HTML'e düştüğünü hem yol
+  simgesinin çözüldüğünü hem de gizlenen menülerin gerçekten kaybolduğunu
+  ölçüyor.
+- **Dokümanlar tamamlandı:** `docs/03` (OTP + cari ödeme uçları), `docs/08`
+  (api.* yönlendirme, `Dockerfile.web` düzeltmesi, yeni env, göçler, test
+  komutu tuzağı), `docs/10` (S10 kabul senaryoları), `docs/11` (§10
+  simülasyon kararı).
+
+### Bu turda ayrıca iki yanlış test yakalandı
+
+İkisi de **geçiyordu ama yanlış sebeple**:
+
+1. `getByRole('status')` ile ekleme onayı bekleniyordu; `/menu` sayfasında
+   sipariş şalteri banner'ı zaten o role'ü taşıyor, yani test sayfanın en
+   başından beri orada duran bir kutuyu bekliyordu.
+2. Sepet bağlantısının görünürlüğü sinyal sanılmıştı; oysa sipariş
+   rotalarında sepet boşken de duruyor.
+
+İkisi de "Sepette N ürün var" sayacına bağlandı — sepetin gerçekten
+dolduğunun tek işareti o.
+
+## Bilinçli olarak yapılmayanlar
+
+- **`bld-*` kısayol sınıfları silinmedi.** Hepsi zaten v2 jetonlarının
+  üzerine kurulu, yani shadcn'den ayrı bir görsel dil değiller. Altmış
+  kullanımı bileşene çevirmek kullanıcıya hiçbir şey kazandırmaz, on sekiz
+  dosyada gerileme riski açardı. Gerekçe `app/globals.css` içinde yazılı.
+- **Yeni abonelik web'den açılmıyor.** `POST /subscriptions` bir talep
+  açıyor ama içeriği (ürünler, günler, adres, porsiyon) telefonla
+  konuşulan bir anlaşma; formda toplamak yarım bir sözleşme üretirdi.
+- **Simülasyon POS canlıda açık kalıyor** (kullanıcı kararı). Kartla
+  ödenen sipariş fiilen bedava; panelde her ekranın tepesinde uyarı
+  şeridi var.

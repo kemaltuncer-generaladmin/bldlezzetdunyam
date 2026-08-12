@@ -122,7 +122,50 @@ hesaplar sipariş verebilir. Menü/keşif herkese açık kalır; kapı sepet ve
 gömülmez.
 
 Kayıt akışı additive kurumsal alanlar toplar (`company_name`, `contact_person`
-ve opsiyonel vergi bilgileri; `docs/03` §12.1). Website'in mevcut kayıt formu
-kırılmadı: bu alanlar sunucuda opsiyonel, kapsamlı kurumsal doğrulama mobil
-kayıtta zorunlu. Abonelik ve cari hesap self-servisi **mobil uygulamaya**
-özgüdür; web bu turda yalnız sipariş + takip sunar.
+ve opsiyonel vergi bilgileri; `docs/03` §12.1). Alanlar SUNUCUDA hâlâ
+opsiyonel — eski istemciler kırılmasın diye. Sitedeki `/kurumsal-kayit`
+formu ise unvan, vergi dairesi ve vergi numarasını ZORUNLU tutar: unvanı
+olmayan bir "kurumsal" kayıt, faturalandırılamayan bir müşteri demek.
+
+### v2.0 değişikliği: abonelik ve cari self-servisi web'e açıldı (12.08.2026)
+
+Önceki karar bu ikisini **mobil uygulamaya** özgü kılıyordu. Değişti.
+
+**Gerekçe:** kurumsal müşterinin çoğu siparişi masaüstünden veriyor ve
+borcunu görmek için telefon uygulaması indirmek zorunda kalması anlamsızdı.
+Sözleşmede uçlar zaten vardı (`/account/*`, `/subscriptions/*`); iş yalnızca
+arayüz tarafındaydı.
+
+| Sayfa | İçerik |
+|---|---|
+| `/hesabim` | Profil + üç kısayol (siparişler, cari, abonelik). Borç varsa kart uyarı renginde |
+| `/hesabim/cari` | Bakiye, 90 günlük ekstre, ödeme (tamamı ya da istenen tutar) |
+| `/hesabim/abonelikler` | Abonelik kartları: duraklat/devam/iptal, gün atlama ve adet istisnası |
+
+Üçü de `force-dynamic`: ödeme yaptıktan sonra eski bakiyeyi görmek, ikinci
+kez ödemeye kalkmak demekti.
+
+**Yeni abonelik BU EKRANDAN açılmıyor.** `POST /subscriptions` bir talep
+açıyor ama talebin içeriği (ürünler, günler, adres, porsiyon) telefonla
+konuşulan bir anlaşma; formda toplamaya çalışmak yarım bir sözleşme
+üretirdi. Talep "Teklif Al" üzerinden geliyor, aboneliği yönetici kuruyor.
+
+### v2.0 bilgi mimarisi (W-08)
+
+Tanıtım sayfaları 10+ adetten dörde indi: `/`, `/kurumsal`, `/iletisim`,
+`/teklif-al`. Kaldırılanlar (`/hizmetler`, `/hizmetler/[slug]`,
+`/menu-cozumleri`, `/kalite-hijyen`, `/calistigimiz-alanlar`,
+`/bilgi-merkezi`) **308 ile kalıcı olarak yönlendiriliyor** — o adresler
+arama motorlarında kayıtlı ve müşterilere e-postayla gönderildi.
+Yönlendirme tablosu `website/next.config.ts` içinde; `/hizmetler/:slug`
+kuralı `/hizmetler`'den ÖNCE gelmek zorunda, yoksa alt sayfaları da yutar.
+
+### v2.0 giriş akışı (W-11)
+
+`/giris` sekmeli: **telefon** (varsayılan) ve e-posta. Telefon yolu
+`POST /auth/otp/request` → `POST /auth/otp/verify` ile ilerliyor; kod
+6 haneli, 5 dakika ömürlü, tek kullanımlık.
+
+**Arayüz kayıtlı/kayıtsız numarayı AYIRT ETMEZ.** Sunucu ayırt etmiyor
+(numara sayımına karşı) ve arayüzün yapması o korumayı delerdi: kayıtsız
+numara da kod ekranına geçer.

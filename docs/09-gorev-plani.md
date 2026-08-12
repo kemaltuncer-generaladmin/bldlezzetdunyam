@@ -195,6 +195,92 @@ vendor/bin/phpunit --testsuite Veykemtu
 **Yeni `.env` girdileri:** `BBD_WEBHOOK_SECRET` (boşsa BBD ucu kapalı),
 `BLD_REFUND_DRIVER`.
 
+## 8.6 Web + Admin turu — I-07 … I-08, B-11 … B-18, W-07 … W-14 (12.08.2026)
+
+`yapılacaklar.md` içindeki dört **Web-Admin** maddesi ve turda eklenen iki
+istek (panelden telefon siparişi, admin ikonları) karşılandı.
+
+### Altyapı
+
+| Kimlik | İş | Not |
+|---|---|---|
+| I-07 | api.* kökündeki vitrin kaldırıldı | Ayrı bir deploy değildi: `IGNITER_URI` boş olduğu için TastyIgniter'ın Orange teması `/` altına biniyordu. `disableThemeRoutes(true)` + Caddy 308 |
+| I-08 | Admin ikonları düzeltildi | `Dockerfile.web` derlemede `vendor:publish` koşmuyordu; Caddy imajında `/vendor/igniter/fonts/` hiç yoktu. CSS PHP birleştiricisinden geldiği için stiller çalışıyor, yalnız webfont 404 alıyordu |
+
+### Admin paneli
+
+| Kimlik | İş |
+|---|---|
+| B-11 | Menü sadeleştirme: `themes`, `mail_templates`, `api`, `updates`, `system_logs`, blog gizlendi |
+| B-12 | BLD marka CSS'i + her ekranda **SİMÜLASYON MODU** şeridi |
+| B-13 | **Telefon siparişi ekranı** — müşteri seç/oluştur, satırlar, abonelik bağı; sipariş `onaylandi` doğar |
+| B-14 | Cari: borç limiti, tahsilat girişi, 90 günlük ekstre, `POST /api/account/payments` |
+| B-15 | İade takibi (tablo K-13'ten beri vardı, arayüzü yoktu) |
+| B-16 | Abonelik oluşturma + 30 günlük takvim önizlemesi |
+| B-17 | Sipariş revizyonları ve tükenen ürün geçmişi (salt okunur) |
+| B-18 | Kurumsal kayıt alanları + **telefonla giriş (OTP)**, Netgsm |
+
+### Website
+
+| Kimlik | İş |
+|---|---|
+| W-07 | Header: `<details>` → Radix `NavigationMenu`, mobilde `SheetClose`, aşağı kaydırınca gizlenen bar |
+| W-08 | Bilgi mimarisi 10+ → 4 sayfa, 308 yönlendirmeler |
+| W-09 | `cn` yardımcısı tek sürüme indi (`twMerge`'lü olan); `bld-*` kısayolları gerekçeli olarak bırakıldı |
+| W-10 | Ana sayfada hızlı sipariş kutusu + "geçen siparişi tekrarla" |
+| W-11 | Telefonla giriş arayüzü + `/kurumsal-kayit` |
+| W-12 | Cari self-servisi + ödeme (tamamı / istenen tutar) |
+| W-13 | Abonelik self-servisi + `/hesabim` merkezi |
+| W-14 | **Playwright kuruldu** — config ve `e2e/` yoktu, CI adımı sessizce atlanıyordu |
+
+### Turda yakalanan hatalar
+
+1. **Admin eylem işleyicilerinin imzası.** Çekirdek `[$action, ...$params]`
+   ile çağırıyor, yani ilk argüman hep bağlam adı. Tek parametreli yazılan
+   `onRecordPayment` `$recordId` olarak `"edit"` alıyordu → 406.
+2. **Abonelik ek porsiyonu.** `quantity_override` o günün TOPLAMI; ek
+   porsiyonu oraya doğrudan yazmak 100 kişilik aboneliği 10'a düşürürdü.
+   Ayrıca sipariş + istisna birlikte yazılınca aynı yemek iki kez pişerdi —
+   ek porsiyon ayrı bir eyleme alındı, sipariş açmıyor.
+3. **OTP bekleme süresi hiç çalışmıyordu.** `created_at` UTC yazılıp
+   Istanbul olarak okunuyordu; üç saatlik kayma 60 saniyelik sınırı sessizce
+   devre dışı bırakıyordu.
+4. **Tahsilat makbuzu.** İlk tasarımda makbuz numarası CRC32'lenip
+   `reference_id` yapılıyordu; çakışmada `insertOrIgnore` ikinci tahsilatı
+   sessizce yutardı. Numara artık sayısal ve doğrudan kullanılıyor, kayıttan
+   önce `hasEntry` ile bakılıyor.
+5. **Abonelik gün atlamada geri bildirim yoktu.** E2E testi yakaladı;
+   kart artık "Değişiklik kaydedildi" diyor.
+
+### Sunucuda koşturulacak göçler (3 adet)
+
+```bash
+cd platform
+php artisan igniter:up
+vendor/bin/phpunit --testsuite Veykemtu   # 273 test
+```
+
+`2026_08_13_000001` (cari limit), `2026_08_13_000002` (cari ödeme niyeti),
+`2026_08_13_000003` (giriş kodları).
+
+### Yeni `.env` girdileri
+
+`NETGSM_USERNAME`, `NETGSM_PASSWORD`, `NETGSM_HEADER` — **üçü birden dolu
+değilse SMS gönderilmez**, kod yalnızca sunucu günlüğüne yazılır ve
+e-posta + parola girişi çalışmaya devam eder.
+
+`SITE_PUBLIC_URL` (web konteyneri) — api.* köküne düşen isteklerin
+yönlendirileceği adres.
+
+### Test komutu tuzağı
+
+`php artisan test` bu projede bazen yalnızca `Unit` paketini koşuyor (bir
+seferinde 227, sonrakinde 1 test). Güvenilir komut:
+
+```bash
+vendor/bin/phpunit --testsuite Veykemtu
+```
+
 ## 9. Kapsam kesme sırası (takvim sıkışırsa)
 
 Sırayla feda edilir:

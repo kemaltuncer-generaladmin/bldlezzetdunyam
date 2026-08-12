@@ -165,5 +165,11 @@ export function customerOut(customer) {
     email: customer.email,
     telephone: customer.telephone,
     default_location_id: customer.default_location_id,
+    // B2B alanları (docs/00 kararı). `can_order` sipariş kapısını açıyor;
+    // site bu alana bakıp hızlı sipariş kutusunu çiziyor (W-10).
+    account_type: customer.account_type ?? 'corporate',
+    can_order: (customer.account_type ?? 'corporate') === 'corporate',
+    company_name: customer.company_name ?? null,
+    contact_person: customer.contact_person ?? null,
   };
 }

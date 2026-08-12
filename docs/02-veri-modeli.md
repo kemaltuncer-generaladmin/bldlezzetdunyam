@@ -265,3 +265,35 @@ Ay kapanış anlık görüntüsü (fatura değil): `customer_id`, `period` (YYYY
 ### 7.5 `orders` — abonelik bağı (additive)
 
 `bld_subscription_id` (bigint null, index). Üretilen siparişin hangi aboneliğe ait olduğu; normal siparişlerde null. KDS bu kolonu okumaz, `OrderPresenter` `is_subscription = (bld_subscription_id !== null)` türetir (yeni kolon gerekmez).
+
+
+### 7.6 Cari borç limiti ve ödeme niyeti — v2.0 (12.08.2026)
+
+**`customers.bld_credit_limit_kurus`** (nullable, `unsignedInteger`) —
+üç durumu var ve ikisi birbirinin tam zıddı:
+
+| Değer | Anlam |
+|---|---|
+| `NULL` | Sınırsız. Göç öncesinden gelen müşteriler ve bilinçli seçim |
+| `0` | Cari hesap KAPALI. `account` ödeme yöntemi hiç görünmez |
+| `n > 0` | Borç `n` kuruşu aşamaz |
+
+Yeni açılan kurumsal hesaplar `0` alır: sipariş anında açılıyor ama
+veresiye ayrı bir güven kararı. Mevcut satırlar `NULL` kaldı — göç kimseyi
+kırmadı. Kontrol `Services\CreditLimit` içinde tek yerde; sipariş
+oluşurken borç deftere düşmeden ÖNCE bakılıyor.
+
+**`veykemtu_account_payments`** — cari borç ödeme niyeti. Mevcut simülasyon
+POS'u siparişe bağlı (`Order::where('hash', ...)`); "borcumun 2.500 TL'sini
+ödeyeyim" dendiğinde ortada sipariş yok.
+
+Niyet önce `pending` yazılıyor, defter ancak ödeme kesinleşince alacak
+satırı alıyor. İdempotency iki katmanda: `status` alanı ve defterdeki
+`(payment, account_payment, id, credit)` tekil indeksi.
+
+**`veykemtu_otp_codes`** — telefonla giriş kodları. Kod `code_hash` olarak
+bcrypt'le saklanıyor; kısa ömür yetmez, bir yedek sızıntısı o an geçerli
+her kodu aktif anahtara çevirirdi. Satırlar silinmez, `consumed_at` ile
+tüketilir — silinseydi "bu kod kullanıldı mı" sorusu yanıtsız kalırdı.
+`attempts` sayacı KODA bağlı: oran sınırı IP başına ve saldırgan IP
+değiştirebilir.

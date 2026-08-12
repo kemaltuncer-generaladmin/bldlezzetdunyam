@@ -46,6 +46,45 @@ export class MockState {
 
     /** customerId -> fcm token */
     this.pushTokens = new Map();
+
+    /*
+     * ── v2.0 yüzeyleri (W-11 / W-12 / W-13) ────────────────────────────
+     *
+     * Telefonla giriş, cari hesap ve abonelik uçları sözleşmede var ve site
+     * artık onları çağırıyor; mock bunları taşımazsa Playwright akışları
+     * ilk istekte 404 alır.
+     */
+
+    /** phone -> son üretilen kod. Testler bunu `/__mock/otp/:phone` ile okur. */
+    this.otpCodes = new Map();
+
+    /** customerId -> defter satırları (append-only, gerçeğiyle aynı model). */
+    this.ledger = new Map();
+
+    /** hash -> ödeme niyeti. */
+    this.accountPayments = new Map();
+    this.nextAccountPaymentId = 1;
+
+    this.subscriptions = [];
+    this.nextSubscriptionId = 1;
+  }
+
+  // ── Cari hesap ────────────────────────────────────────────────────────
+
+  /** Bakiye runtime toplam — gerçek uygulamayla aynı felsefe (docs/02 §5). */
+  balanceOf(customerId) {
+    const rows = this.ledger.get(customerId) ?? [];
+
+    return rows.reduce(
+      (total, row) => total + (row.entry_type === 'debit' ? row.amount : -row.amount),
+      0,
+    );
+  }
+
+  addLedgerEntry(customerId, entry) {
+    const rows = this.ledger.get(customerId) ?? [];
+    rows.push(entry);
+    this.ledger.set(customerId, rows);
   }
 
   // ── Katalog ───────────────────────────────────────────────────────────

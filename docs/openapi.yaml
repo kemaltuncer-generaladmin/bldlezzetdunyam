@@ -148,6 +148,90 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
 
+  /auth/otp/request:
+    parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
+    post:
+      tags: [Kimlik]
+      summary: Telefona giriş kodu gönder
+      description: |
+        Kurumsal müşteri her sipariş için şifre hatırlamak zorunda kalmasın diye
+        ikinci bir giriş kapısı. E-posta + şifre yolu kapanmıyor.
+
+        **Yanıt numara kayıtlı olsun olmasın AYNIDIR.** "Bu numara kayıtlı
+        değil" demek, müşteri listesinin numara numara taranmasına izin
+        vermek olurdu. Kayıtsız numaraya SMS gönderilmez; bunu yalnızca
+        numaranın gerçek sahibi fark edebilir.
+
+        Telefon biçimi serbesttir: `5551112233`, `05551112233`,
+        `+905551112233` ve boşluklu yazımlar aynı numaraya çözülür.
+      operationId: requestOtp
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone: { type: string, minLength: 10, maxLength: 20, example: '05551112233' }
+      responses:
+        '202':
+          description: İstek alındı (numara kayıtlıysa SMS gönderildi)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, expires_in, resend_after]
+                properties:
+                  message: { type: string }
+                  expires_in: { type: integer, description: 'Kodun ömrü (saniye).', example: 300 }
+                  resend_after: { type: integer, description: 'Yeni kod istenebilmesi için beklenecek süre (saniye).', example: 60 }
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /auth/otp/verify:
+    parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
+    post:
+      tags: [Kimlik]
+      summary: Giriş kodunu doğrula
+      description: |
+        Başarılı doğrulama şifreli girişle AYNI gövdeyi döndürür; istemci
+        tarafında token'ın nereden geldiği fark etmez.
+
+        Kod tek kullanımlıktır ve doğrulandığı anda aynı numaranın diğer açık
+        kodları da tüketilir. Beş yanlış denemeden sonra kod ölür, yeni kod
+        istenmelidir.
+      operationId: verifyOtp
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, code]
+              properties:
+                phone: { type: string, minLength: 10, maxLength: 20, example: '05551112233' }
+                code: { type: string, minLength: 6, maxLength: 6, example: '482913' }
+      responses:
+        '200':
+          description: Giriş başarılı
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '403':
+          description: Hesap devre dışı (`FORBIDDEN`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
   /auth/logout:
     parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
     post:
@@ -570,6 +654,62 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/AccountStatement' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /account/payments:
+    parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
+    post:
+      tags: [Cari hesap]
+      summary: Cari borç ödemesi başlat
+      description: |
+        İki mod, tek uç: `amount` ile istenen tutar, `full: true` ile borcun
+        tamamı.
+
+        **Tutar sunucuda doğrulanır.** `full` modunda istemcinin gönderdiği
+        hiçbir rakam okunmaz; bakiye yeniden hesaplanır. Aksi hâlde
+        istemcinin ekranındaki eski bakiye ile gerçek borç ayrıştığında
+        (arada bir sipariş geçmişse) müşteri eksik ödeyip "kapattım" sanırdı.
+
+        Borcu aşan ödeme reddedilir: fazla ödeme defterde negatif bakiye
+        yaratır ve iadesi elle iş demektir.
+
+        Ödeme BU UÇTA TAMAMLANMAZ. Yanıttaki `redirect_url` sağlayıcının
+        sayfasıdır (bugün simülasyon); defter ancak ödeme kesinleşince
+        yazılır.
+      operationId: startAccountPayment
+      security:
+        - CustomerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: integer
+                  minimum: 1
+                  description: 'Ödenecek tutar (kuruş). `full` true ise yok sayılır.'
+                full:
+                  type: boolean
+                  description: 'true ise o anki borcun tamamı ödenir.'
+      responses:
+        '201':
+          description: Ödeme başlatıldı
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [payment_id, amount, balance, currency, status, redirect_url]
+                properties:
+                  payment_id: { type: integer }
+                  amount: { type: integer, description: 'Ödenecek tutar (kuruş).' }
+                  balance: { type: integer, description: 'İşlem başlatıldığı andaki borç (kuruş).' }
+                  currency: { type: string, example: TRY }
+                  status: { type: string, enum: [pending] }
+                  redirect_url: { type: string, format: uri }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   # ─────────────────────────────── Abonelik ─────────────────────────────
 

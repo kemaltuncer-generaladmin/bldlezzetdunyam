@@ -77,6 +77,67 @@ Coolify yönlendirmeyi ve sertifikayı kendisi kurar.
 `www` kaydı eklendiğinde yapılacak tek şey Coolify'da `site` servisinin
 alan adı alanına virgülle eklemektir; kod ve compose değişmez.
 
+#### api.* kökü ana domaine yönleniyor (I-07, 12.08.2026)
+
+`api.benimlezzetdunyam.com.tr` kökünde ikinci bir "BLD sitesi" duruyordu.
+Ayrı bir deploy değildi: `IGNITER_URI` hiç tanımlanmadığı için TastyIgniter,
+kurulu `ti-theme-orange` temasının bütün sayfalarını `/` altına bağlıyordu
+(`Igniter\Main\Classes\RouteRegistrar::forThemePages`).
+
+**İki kemerle kapatıldı** ve ikisi de gerekli:
+
+1. `BridgeApi\Extension::disableStorefrontTheme()` — `register()` içinde
+   `Igniter::disableThemeRoutes(true)`. Rota hiç kurulmuyor.
+   **`boot()` DEĞİL:** rotalar `Igniter\Main\ServiceProvider::boot()`
+   içinde tanımlanıyor; eklentiler `ExtensionServiceProvider::register()`
+   sırasında kaydedildiği için bizim `register()`'ımız ondan önce koşuyor.
+   `boot()`'a yazılsaydı bayrak rotalar kurulduktan sonra çevrilir ve hiçbir
+   etkisi olmazdı.
+2. `infra/Caddyfile.internal` — `/api/*`, `/admin*`, `/storage/*`,
+   `/vendor/*`, `/_assets/*`, `/odeme-simulasyon/*`, `/robots.txt`,
+   `/favicon.svg` dışındaki her yol `SITE_PUBLIC_URL`'e 308 ile gidiyor.
+   Rota kurulmasa bile o adrese yazan müşteri 404 değil gerçek siteyi görür.
+
+Hedef `SITE_PUBLIC_URL` ortam değişkeninden okunuyor (varsayılan üretim
+adresi); `docker-compose.coolify.yml` içinde `web` servisine veriliyor.
+
+**Doğrulama:**
+
+```bash
+curl -sI https://api.benimlezzetdunyam.com.tr/            # 308 → ana domain
+curl -s  https://api.benimlezzetdunyam.com.tr/api/health  # 200
+curl -sI https://api.benimlezzetdunyam.com.tr/admin       # panel açılır
+```
+
+#### Admin panel ikonları — `Dockerfile.web` varlık yayınlama (I-08)
+
+Panelde ikonların çoğu boş kutu görünüyordu. Sebep `infra/platform/Dockerfile.web`
+idi: derleme aşaması yalnızca `composer install` koşuyor, `vendor:publish`
+koşmuyordu. `platform/public/vendor` gitignore'lu olduğu için Caddy imajının
+`public/` klasöründe `vendor/igniter` dizini **hiç yoktu**.
+
+Belirti kafa karıştırıcıydı: admin CSS'i çalışıyordu, çünkü o PHP tarafındaki
+`_assets` birleştirici rotasından geliyor. Ama Font Awesome'ın `@font-face`
+kuralı `url(../fonts/FontAwesome/fa-solid-900.woff2)` diyor ve tarayıcı bunu
+`/vendor/igniter/fonts/...` altında arıyordu — 404. Stiller yerinde, ikonların
+hepsi boş.
+
+Derleme aşamasına yayınlama adımı eklendi. Geçici bir `.env` (bellek içi
+SQLite) kullanılıyor çünkü `vendor:publish` uygulamayı ayağa kaldırıyor ve
+derleme anında MySQL yok; dosya hemen siliniyor. Arkasındaki `test -f`
+kasıtlı: yayınlama sessizce başarısız olursa **derleme patlar**, aksi hâlde
+hata yalnızca canlıda kırık ikonlar olarak görünürdü.
+
+**Doğrulama:**
+
+```bash
+curl -sI https://api.benimlezzetdunyam.com.tr/vendor/igniter/fonts/FontAwesome/fa-solid-900.woff2
+# 200 beklenir
+```
+
+> **Her iki imaj da yeniden derlenmeli.** `Dockerfile.web` değişti; yalnız
+> `app` konteynerini yenilemek ikonları düzeltmez.
+
 #### Dağıtım akışı
 
 1. Coolify → BLD projesi → yeni **Docker Compose** kaynağı
@@ -305,6 +366,37 @@ oturum hiç açılmasa bile servisi ayakta tutmak içindir.
 - [ ] Uygulama zorla kapatılınca 5 saniyede yeniden başlıyor
 
 ---
+
+### 1.x v2.0 ortam değişkenleri (12.08.2026)
+
+| Değişken | Servis | Boş bırakılırsa |
+|---|---|---|
+| `NETGSM_USERNAME` | `app` | **SMS gönderilmez.** Giriş kodu yalnızca `storage/logs` içine `warning` olarak yazılır; e-posta + parola girişi çalışmaya devam eder |
+| `NETGSM_PASSWORD` | `app` | aynı |
+| `NETGSM_HEADER` | `app` | aynı — Netgsm panelinde **onaylı** gönderici adı olmalı, onaysız başlıkta sağlayıcı `40` döner ve tek mesaj bile ulaşmaz |
+| `SITE_PUBLIC_URL` | `web` | Varsayılan `https://benimlezzetdunyam.com.tr`; api.* kökünün yönleneceği adres |
+
+Üçü birden dolu olmadıkça uygulama **ayağa kalkmayı reddetmez** — tek eksik
+değişken yüzünden bütün siteyi indirmek doğru olmazdı. SMS ikinci bir giriş
+yolu; eksikliğin izi günlükteki uyarı satırıdır.
+
+### 1.y v2.0 göçleri
+
+```bash
+cd platform
+php artisan igniter:up
+vendor/bin/phpunit --testsuite Veykemtu   # 273 test yeşil olmalı
+```
+
+| Göç | Ne ekler |
+|---|---|
+| `2026_08_13_000001` | `customers.bld_credit_limit_kurus` — cari borç limiti (NULL sınırsız, 0 kapalı) |
+| `2026_08_13_000002` | `veykemtu_account_payments` — cari ödeme niyeti |
+| `2026_08_13_000003` | `veykemtu_otp_codes` — telefonla giriş kodları |
+
+> **`php artisan test` KULLANMAYIN.** Bu projede bazen yalnızca `Unit`
+> paketini koşuyor (bir seferinde 227 test, hemen sonrasında 1 test) ve
+> yeşil dönüyor. Güvenilir komut `vendor/bin/phpunit --testsuite Veykemtu`.
 
 ## 3. CI/CD
 

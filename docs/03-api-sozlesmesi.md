@@ -700,7 +700,45 @@ Sistem tamamen B2B'ye geçti. Yeni her kayıt sunucuda `corporate` işaretlenir 
 - **`GET /api/account/summary`** → `AccountSummary`: `{ balance, currency, as_of }`. `balance` işaretli kuruş; pozitif = müşterinin borcu.
 - **`GET /api/account/statement?from=&to=`** → `AccountStatement`: `{ opening_balance, closing_balance, currency, from, to, entries[] }`. `from`/`to` verilmezse sunucu son 3 ayı döner. Her `AccountEntry`: `date`, `entry_type` (`debit`\|`credit`), `amount` (pozitif kuruş), `running_balance` (yürüyen bakiye, işaretli), `source`, `description`. İstek yalnız **istek sahibinin** verisini döndürür (OrderController deseni).
 
+- **`POST /api/account/payments`** (v2.0) → `{ payment_id, amount, balance, currency, status, redirect_url }`. İki mod: `{"amount": 250000}` istenen tutar, `{"full": true}` borcun tamamı.
+
+  **Tutar sunucuda doğrulanır.** `full` modunda istemcinin gönderdiği hiçbir rakam okunmaz; bakiye yeniden hesaplanır. Aksi hâlde istemcinin ekranındaki eski bakiye ile gerçek borç ayrıştığında (arada bir sipariş geçmişse) müşteri eksik ödeyip "kapattım" sanırdı.
+
+  Borcu aşan tutar `422` ile reddedilir: fazla ödeme defterde negatif bakiye yaratır ve iadesi elle iş demektir.
+
+  Ödeme **bu uçta tamamlanmaz**. Niyet `veykemtu_account_payments` tablosuna `pending` yazılır, yanıttaki `redirect_url` sağlayıcının sayfasıdır (bugün simülasyon) ve defter ancak ödeme kesinleşince alacak satırı alır. İdempotency iki katmanda: niyetin `status` alanı ve defterdeki `(payment, account_payment, id, credit)` tekil indeksi.
+
 Fatura kesilmez (bkz. `docs/10` §4); tahsilat deftere ayrı `credit` hareketi olarak girer, `AccountPayment` geçidi bugünkü gibi `pending` kalır.
+
+### 12.4 Telefonla giriş (OTP) — v2.0
+
+Kurumsal müşteri her sipariş için parola hatırlamak zorunda kalmasın diye
+ikinci bir giriş kapısı. E-posta + parola yolu **kapanmıyor**.
+
+| Uç | Ne yapar |
+|---|---|
+| `POST /api/auth/otp/request` | `{ phone }` → `202 { message, expires_in, resend_after }` |
+| `POST /api/auth/otp/verify` | `{ phone, code }` → `200 AuthResponse` (şifreli girişle **aynı** gövde) |
+
+**Yanıt, numara kayıtlı olsun olmasın aynıdır.** "Bu numara kayıtlı değil"
+demek, kurumsal müşteri listesinin numara numara taranmasına izin vermek
+olurdu; kayıtsız numaraya SMS gönderilmez ve bunu yalnızca numaranın gerçek
+sahibi fark edebilir. İstemciler de bu ayrımı yapmamalı.
+
+Telefon biçimi **serbest**: `5551112233`, `05551112233`, `+905551112233` ve
+boşluklu yazımlar aynı numaraya çözülür (`OtpService::normalize`). Katı bir
+biçim, doğru numarayı alışkın olduğu gibi yazan müşteriyi kapıda çevirirdi.
+
+Kod 6 haneli, 5 dakika ömürlü, **tek kullanımlık** ve veritabanında bcrypt'li
+duruyor. Doğrulandığı anda aynı numaranın diğer açık kodları da tüketilir.
+Beş yanlış denemeden sonra kod ölür — sayaç IP'ye değil **koda** bağlı, yani
+IP değiştirmek işe yaramıyor. Yeni kod için 60 saniye beklenir; bu sınır
+sunucudadır, arayüzdeki geri sayım yalnızca onun görünür hâlidir.
+
+SMS sağlayıcısı Netgsm (`NETGSM_USERNAME`, `NETGSM_PASSWORD`,
+`NETGSM_HEADER`). **Üçü birden tanımlı değilse SMS gönderilmez**, kod yalnızca
+sunucu günlüğüne `warning` seviyesinde yazılır ve parola girişi çalışmaya
+devam eder.
 
 ### 12.3 Abonelik — müşteri self-servis
 

@@ -148,6 +148,81 @@ Her senaryo elle koşulur ve sonuç tabloya işlenir. Hepsi geçmeden canlıya a
 | 5 | Uygulamadan ekstre çek | Hareketler + yürüyen bakiye doğru; tutarlar sunucudan |
 | 6 | `veykemtu:cari-donem-ozeti --dry-run` | Açılış/borç/alacak/kapanış doğru; **fatura üretilmez** |
 
+### S10 — Web + Admin v2.0 (12.08.2026)
+
+Otomatik karşılıkları: PHP tarafında `AdminAccountTest`, `AdminPhoneOrderTest`,
+`AdminRefundTest`, `OtpLoginTest`; site tarafında `website/e2e/*.spec.ts`.
+
+**S10.1 — api.* kökü**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `curl -I https://api.benimlezzetdunyam.com.tr/` | 308, hedef ana domain |
+| 2 | `/api/health`, `/admin`, `/_assets/*` | Yönlenmez, normal yanıt |
+| 3 | `/vendor/igniter/fonts/FontAwesome/fa-solid-900.woff2` | 200 — ikonların şartı |
+| 4 | Panelde herhangi bir ekran | İkonlar görünür, ham çeviri anahtarı yok |
+
+**S10.2 — Telefonla giriş**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Kayıtlı numarayla kod iste | 202; SMS gelir |
+| 2 | Kayıtsız numarayla kod iste | **Aynı** 202 ve aynı gövde; SMS gitmez |
+| 3 | Yanlış kodu beş kez gir | Kod ölür; doğru kod da kabul edilmez |
+| 4 | Aynı kodu ikinci kez kullan | Reddedilir |
+| 5 | 60 sn dolmadan yeni kod iste | `422`, kalan süre `retry_after`'da |
+| 6 | `0555 …`, `+90 555 …`, `555 …` | Üçü de aynı hesabı açar |
+
+**S10.3 — Cari hesap self-servisi**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Borçlu müşteri `/hesabim/cari` | Bakiye + 90 günlük ekstre; pozitif = borç |
+| 2 | "Borcun tamamı" ile öde | Sağlayıcıya gider, döner, bakiye sıfırlanır |
+| 3 | Kısmi öde (400 / 1000) | Bakiye 600 kalır |
+| 4 | Borçtan büyük tutar gir | `422`, ödeme başlamaz |
+| 5 | Borcu olmayan müşteri | Ödeme formu hiç çizilmez |
+
+**S10.4 — Abonelik self-servisi**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Aktif aboneliği duraklat, devam ettir | Rozet `Duraklatıldı` ↔ `Aktif` |
+| 2 | İleri bir günü atla | "Değişiklik kaydedildi"; o gün üretilmez |
+| 3 | `pending` abonelik | "Fiyat bekleniyor" + talep bilgilendirmesi |
+| 4 | İptal et | Onay sorulur; geri alınamaz |
+
+**S10.5 — Panelden telefon siparişi**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Kayıtlı müşteri + ürün + kaydet | Sipariş `onaylandi` doğar, **mutfak listesinde görünür** |
+| 2 | Kayıtsız müşteri, unvan + telefon | Kurumsal hesap açılır, cari limiti `0` |
+| 3 | Unvansız yeni müşteri | Reddedilir; ne sipariş ne müşteri oluşur |
+| 4 | Cari limiti aşan sipariş | Reddedilir; sipariş hiç doğmaz |
+| 5 | Başka müşterinin aboneliğine bağla | Reddedilir |
+| 6 | İleri güne ek porsiyon (100 + 10) | İstisna **110** olur, 10 değil |
+| 7 | Bugüne ya da geçmişe ek porsiyon | Reddedilir — o günün üretimi koştu |
+
+**S10.6 — Header ve bilgi mimarisi**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Mobilde menü aç, bağlantıya dokun | Panel kapanır |
+| 2 | Bulunduğun sayfanın bağlantısına dokun | Panel yine kapanır |
+| 3 | Menüdeki `tel:` düğmesine dokun | Panel kapanır |
+| 4 | `/hizmetler`, `/bilgi-merkezi`, `/kayit` … | Yönlenir, 404 yok |
+| 5 | `sitemap.xml` | Kaldırılan sayfaları ilan etmez |
+
+**S10.7 — Ana sayfadan sipariş**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Girişsiz ana sayfa | "Giriş yapın" + kurumsal kayıt |
+| 2 | Girişli, son siparişi olan | "Aynı siparişi tekrarla" çalışır |
+| 3 | Ana sayfadaki menüden sepete ekle | Sepet çubuğu ve header rozeti görünür |
+| 4 | Seçeneği olan ürün | Sepete eklenmez, detay sayfasına gider |
+
 ## 2. Bileşen bazlı kabul ölçütleri
 
 ### Backend (`platform/`)
