@@ -420,6 +420,8 @@ class CustomerReceiptData {
     required this.printedAt,
     this.address,
     this.requestedAt,
+    this.trackUrl,
+    this.payUrl,
   });
 
   final String orderNumber;
@@ -445,4 +447,31 @@ class CustomerReceiptData {
   final ReceiptAddress? address;
 
   final DateTime? requestedAt;
+
+  /// Sipariş takip sayfası — fişe QR olarak basılır (K-18).
+  ///
+  /// Müşteri fişi elden veriliyor ve üstünde sipariş numarası yazıyor; ama
+  /// durumu görmek için o numarayı siteye elle yazmak gerekiyordu.
+  ///
+  /// `null` ise QR basılmaz. Sunucu `FRONTEND_URL` tanımsızken null
+  /// gönderiyor: çalışmayan bir kare basmak, okutup boş sayfa gören
+  /// müşteri üretmekten iyi değil ve kâğıt harcıyor.
+  final String? trackUrl;
+
+  /// Ödeme sayfası — fişe QR olarak basılır (K-19).
+  ///
+  /// Kapıda ödeme seçen müşteri nakit bulundurmak zorunda kalmasın diye.
+  /// YALNIZCA ödenmemiş siparişte dolu; ödenmiş siparişin fişine ödeme
+  /// QR'ı basmak ikinci kez ödemeye davet etmek olurdu.
+  final String? payUrl;
+
+  /// Takip QR'ı basılabilir mi?
+  bool get hasTrackQr => _hasUrl(trackUrl);
+
+  /// Ödeme QR'ı basılabilir mi?
+  bool get hasPayQr => _hasUrl(payUrl);
+
+  /// Boş dize de `null` sayılır: sunucu tarafında bir alan boş string
+  /// olarak gelirse QR yerine kare bir gürültü basılırdı.
+  static bool _hasUrl(String? value) => value != null && value.trim().isNotEmpty;
 }

@@ -1380,6 +1380,78 @@ class ContractTest extends TestCase
         $this->assertSame($order['total'], $musteri['total']);
     }
 
+    /**
+     * Müşteri fişindeki QR bağlantıları — K-18 / K-19.
+     *
+     * Bağlantıları SUNUCU üretiyor: KDS ne site adresini ne de siparişin
+     * ödeme hash'ini biliyor, bilmesi de gerekmiyor.
+     */
+    public function test_musteri_fisi_takip_ve_odeme_baglantisi_tasir(): void
+    {
+        config(['app.frontend_url' => 'https://ornek.test']);
+
+        $order = $this->placeOrder();
+
+        $musteri = $this->asKitchen()
+            ->getJson('/api/kitchen/orders/'.$order['id'].'/receipt?type=musteri', self::HEADERS)
+            ->assertOk()->json();
+
+        $this->assertSame(
+            'https://ornek.test/siparis/'.$order['id'],
+            $musteri['track_url'],
+        );
+
+        // Sipariş ödenmemiş (kapıda ödeme) — ödeme QR'ı basılmalı ve
+        // dönüşte müşteriyi kendi takip sayfasına götürmeli.
+        $this->assertNotNull($musteri['pay_url']);
+        $this->assertStringContainsString('/odeme-simulasyon/', $musteri['pay_url']);
+        $this->assertStringContainsString(
+            rawurlencode('https://ornek.test/siparis/'.$order['id']),
+            $musteri['pay_url'],
+        );
+    }
+
+    /**
+     * `FRONTEND_URL` tanımsızsa QR bağlantısı YOK.
+     *
+     * Çalışmayan bir kare basmak, okutup boş sayfa gören müşteri
+     * üretmekten iyi değil — üstelik kâğıt harcıyor. KDS `null` görünce
+     * QR'ı hiç çizmiyor.
+     */
+    public function test_site_adresi_tanimsizsa_takip_baglantisi_null_doner(): void
+    {
+        config(['app.frontend_url' => '']);
+
+        $order = $this->placeOrder();
+
+        $musteri = $this->asKitchen()
+            ->getJson('/api/kitchen/orders/'.$order['id'].'/receipt?type=musteri', self::HEADERS)
+            ->assertOk()->json();
+
+        $this->assertNull($musteri['track_url']);
+    }
+
+    /**
+     * Ödenmiş siparişin fişine ödeme QR'ı BASILMAZ — ikinci kez ödemeye
+     * davet etmek olurdu.
+     */
+    public function test_odenmis_siparisin_fisinde_odeme_baglantisi_yoktur(): void
+    {
+        config(['app.frontend_url' => 'https://ornek.test']);
+
+        $order = $this->placeOrder();
+
+        \Igniter\Cart\Models\Order::where('order_id', $order['id'])
+            ->update(['processed' => 1]);
+
+        $musteri = $this->asKitchen()
+            ->getJson('/api/kitchen/orders/'.$order['id'].'/receipt?type=musteri', self::HEADERS)
+            ->assertOk()->json();
+
+        $this->assertNull($musteri['pay_url']);
+        $this->assertNotNull($musteri['track_url'], 'takip QR\'ı kalmalı');
+    }
+
     public function test_mutfak_fisi_musteri_telefonunu_tasir(): void
     {
         // Kurye kapıda kaldığında arayacağı numara fişte olmalı.

@@ -197,6 +197,19 @@ abstract class CustomerReceipt with _$CustomerReceipt {
     DateTime? requestedAt,
     String? customerLabel,
     DateTime? printedAt,
+
+    /// Sipariş takip sayfası — fişe QR olarak basılır (K-18).
+    ///
+    /// `null` gelirse QR basılmaz: sunucuda `FRONTEND_URL` tanımsız
+    /// demektir ve çalışmayan bir kare basmak, okutup boş sayfa gören
+    /// müşteri üretmekten iyi değil.
+    String? trackUrl,
+
+    /// Ödeme sayfası — fişe QR olarak basılır (K-19).
+    ///
+    /// YALNIZCA ödenmemiş siparişte dolu. Ödenmiş siparişin fişine ödeme
+    /// QR'ı basmak, ikinci kez ödemeye davet etmek olurdu.
+    String? payUrl,
   }) = _CustomerReceipt;
 
   factory CustomerReceipt.fromJson(Map<String, dynamic> json) =>

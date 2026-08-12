@@ -2305,7 +2305,16 @@ as DateTime?,
 mixin _$CustomerReceipt {
 
  String get orderNumber;@DeliveryTypeConverter() DeliveryType get deliveryType; List<OrderItem> get items; int get subtotal; int get deliveryFee; int get total; String get currency; Payment get payment; String get type;/// `pickup` siparişte `null` — fişte adres bloğu basılmaz.
- Address? get address; DateTime? get requestedAt; String? get customerLabel; DateTime? get printedAt;
+ Address? get address; DateTime? get requestedAt; String? get customerLabel; DateTime? get printedAt;/// Sipariş takip sayfası — fişe QR olarak basılır (K-18).
+///
+/// `null` gelirse QR basılmaz: sunucuda `FRONTEND_URL` tanımsız
+/// demektir ve çalışmayan bir kare basmak, okutup boş sayfa gören
+/// müşteri üretmekten iyi değil.
+ String? get trackUrl;/// Ödeme sayfası — fişe QR olarak basılır (K-19).
+///
+/// YALNIZCA ödenmemiş siparişte dolu. Ödenmiş siparişin fişine ödeme
+/// QR'ı basmak, ikinci kez ödemeye davet etmek olurdu.
+ String? get payUrl;
 /// Create a copy of CustomerReceipt
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -2318,16 +2327,16 @@ $CustomerReceiptCopyWith<CustomerReceipt> get copyWith => _$CustomerReceiptCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CustomerReceipt&&(identical(other.orderNumber, orderNumber) || other.orderNumber == orderNumber)&&(identical(other.deliveryType, deliveryType) || other.deliveryType == deliveryType)&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.subtotal, subtotal) || other.subtotal == subtotal)&&(identical(other.deliveryFee, deliveryFee) || other.deliveryFee == deliveryFee)&&(identical(other.total, total) || other.total == total)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.payment, payment) || other.payment == payment)&&(identical(other.type, type) || other.type == type)&&(identical(other.address, address) || other.address == address)&&(identical(other.requestedAt, requestedAt) || other.requestedAt == requestedAt)&&(identical(other.customerLabel, customerLabel) || other.customerLabel == customerLabel)&&(identical(other.printedAt, printedAt) || other.printedAt == printedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CustomerReceipt&&(identical(other.orderNumber, orderNumber) || other.orderNumber == orderNumber)&&(identical(other.deliveryType, deliveryType) || other.deliveryType == deliveryType)&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.subtotal, subtotal) || other.subtotal == subtotal)&&(identical(other.deliveryFee, deliveryFee) || other.deliveryFee == deliveryFee)&&(identical(other.total, total) || other.total == total)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.payment, payment) || other.payment == payment)&&(identical(other.type, type) || other.type == type)&&(identical(other.address, address) || other.address == address)&&(identical(other.requestedAt, requestedAt) || other.requestedAt == requestedAt)&&(identical(other.customerLabel, customerLabel) || other.customerLabel == customerLabel)&&(identical(other.printedAt, printedAt) || other.printedAt == printedAt)&&(identical(other.trackUrl, trackUrl) || other.trackUrl == trackUrl)&&(identical(other.payUrl, payUrl) || other.payUrl == payUrl));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,orderNumber,deliveryType,const DeepCollectionEquality().hash(items),subtotal,deliveryFee,total,currency,payment,type,address,requestedAt,customerLabel,printedAt);
+int get hashCode => Object.hash(runtimeType,orderNumber,deliveryType,const DeepCollectionEquality().hash(items),subtotal,deliveryFee,total,currency,payment,type,address,requestedAt,customerLabel,printedAt,trackUrl,payUrl);
 
 @override
 String toString() {
-  return 'CustomerReceipt(orderNumber: $orderNumber, deliveryType: $deliveryType, items: $items, subtotal: $subtotal, deliveryFee: $deliveryFee, total: $total, currency: $currency, payment: $payment, type: $type, address: $address, requestedAt: $requestedAt, customerLabel: $customerLabel, printedAt: $printedAt)';
+  return 'CustomerReceipt(orderNumber: $orderNumber, deliveryType: $deliveryType, items: $items, subtotal: $subtotal, deliveryFee: $deliveryFee, total: $total, currency: $currency, payment: $payment, type: $type, address: $address, requestedAt: $requestedAt, customerLabel: $customerLabel, printedAt: $printedAt, trackUrl: $trackUrl, payUrl: $payUrl)';
 }
 
 
@@ -2338,7 +2347,7 @@ abstract mixin class $CustomerReceiptCopyWith<$Res>  {
   factory $CustomerReceiptCopyWith(CustomerReceipt value, $Res Function(CustomerReceipt) _then) = _$CustomerReceiptCopyWithImpl;
 @useResult
 $Res call({
- String orderNumber,@DeliveryTypeConverter() DeliveryType deliveryType, List<OrderItem> items, int subtotal, int deliveryFee, int total, String currency, Payment payment, String type, Address? address, DateTime? requestedAt, String? customerLabel, DateTime? printedAt
+ String orderNumber,@DeliveryTypeConverter() DeliveryType deliveryType, List<OrderItem> items, int subtotal, int deliveryFee, int total, String currency, Payment payment, String type, Address? address, DateTime? requestedAt, String? customerLabel, DateTime? printedAt, String? trackUrl, String? payUrl
 });
 
 
@@ -2355,7 +2364,7 @@ class _$CustomerReceiptCopyWithImpl<$Res>
 
 /// Create a copy of CustomerReceipt
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? orderNumber = null,Object? deliveryType = null,Object? items = null,Object? subtotal = null,Object? deliveryFee = null,Object? total = null,Object? currency = null,Object? payment = null,Object? type = null,Object? address = freezed,Object? requestedAt = freezed,Object? customerLabel = freezed,Object? printedAt = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? orderNumber = null,Object? deliveryType = null,Object? items = null,Object? subtotal = null,Object? deliveryFee = null,Object? total = null,Object? currency = null,Object? payment = null,Object? type = null,Object? address = freezed,Object? requestedAt = freezed,Object? customerLabel = freezed,Object? printedAt = freezed,Object? trackUrl = freezed,Object? payUrl = freezed,}) {
   return _then(_self.copyWith(
 orderNumber: null == orderNumber ? _self.orderNumber : orderNumber // ignore: cast_nullable_to_non_nullable
 as String,deliveryType: null == deliveryType ? _self.deliveryType : deliveryType // ignore: cast_nullable_to_non_nullable
@@ -2370,7 +2379,9 @@ as String,address: freezed == address ? _self.address : address // ignore: cast_
 as Address?,requestedAt: freezed == requestedAt ? _self.requestedAt : requestedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,customerLabel: freezed == customerLabel ? _self.customerLabel : customerLabel // ignore: cast_nullable_to_non_nullable
 as String?,printedAt: freezed == printedAt ? _self.printedAt : printedAt // ignore: cast_nullable_to_non_nullable
-as DateTime?,
+as DateTime?,trackUrl: freezed == trackUrl ? _self.trackUrl : trackUrl // ignore: cast_nullable_to_non_nullable
+as String?,payUrl: freezed == payUrl ? _self.payUrl : payUrl // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 /// Create a copy of CustomerReceipt
@@ -2476,10 +2487,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String orderNumber, @DeliveryTypeConverter()  DeliveryType deliveryType,  List<OrderItem> items,  int subtotal,  int deliveryFee,  int total,  String currency,  Payment payment,  String type,  Address? address,  DateTime? requestedAt,  String? customerLabel,  DateTime? printedAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String orderNumber, @DeliveryTypeConverter()  DeliveryType deliveryType,  List<OrderItem> items,  int subtotal,  int deliveryFee,  int total,  String currency,  Payment payment,  String type,  Address? address,  DateTime? requestedAt,  String? customerLabel,  DateTime? printedAt,  String? trackUrl,  String? payUrl)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CustomerReceipt() when $default != null:
-return $default(_that.orderNumber,_that.deliveryType,_that.items,_that.subtotal,_that.deliveryFee,_that.total,_that.currency,_that.payment,_that.type,_that.address,_that.requestedAt,_that.customerLabel,_that.printedAt);case _:
+return $default(_that.orderNumber,_that.deliveryType,_that.items,_that.subtotal,_that.deliveryFee,_that.total,_that.currency,_that.payment,_that.type,_that.address,_that.requestedAt,_that.customerLabel,_that.printedAt,_that.trackUrl,_that.payUrl);case _:
   return orElse();
 
 }
@@ -2497,10 +2508,10 @@ return $default(_that.orderNumber,_that.deliveryType,_that.items,_that.subtotal,
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String orderNumber, @DeliveryTypeConverter()  DeliveryType deliveryType,  List<OrderItem> items,  int subtotal,  int deliveryFee,  int total,  String currency,  Payment payment,  String type,  Address? address,  DateTime? requestedAt,  String? customerLabel,  DateTime? printedAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String orderNumber, @DeliveryTypeConverter()  DeliveryType deliveryType,  List<OrderItem> items,  int subtotal,  int deliveryFee,  int total,  String currency,  Payment payment,  String type,  Address? address,  DateTime? requestedAt,  String? customerLabel,  DateTime? printedAt,  String? trackUrl,  String? payUrl)  $default,) {final _that = this;
 switch (_that) {
 case _CustomerReceipt():
-return $default(_that.orderNumber,_that.deliveryType,_that.items,_that.subtotal,_that.deliveryFee,_that.total,_that.currency,_that.payment,_that.type,_that.address,_that.requestedAt,_that.customerLabel,_that.printedAt);case _:
+return $default(_that.orderNumber,_that.deliveryType,_that.items,_that.subtotal,_that.deliveryFee,_that.total,_that.currency,_that.payment,_that.type,_that.address,_that.requestedAt,_that.customerLabel,_that.printedAt,_that.trackUrl,_that.payUrl);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -2517,10 +2528,10 @@ return $default(_that.orderNumber,_that.deliveryType,_that.items,_that.subtotal,
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String orderNumber, @DeliveryTypeConverter()  DeliveryType deliveryType,  List<OrderItem> items,  int subtotal,  int deliveryFee,  int total,  String currency,  Payment payment,  String type,  Address? address,  DateTime? requestedAt,  String? customerLabel,  DateTime? printedAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String orderNumber, @DeliveryTypeConverter()  DeliveryType deliveryType,  List<OrderItem> items,  int subtotal,  int deliveryFee,  int total,  String currency,  Payment payment,  String type,  Address? address,  DateTime? requestedAt,  String? customerLabel,  DateTime? printedAt,  String? trackUrl,  String? payUrl)?  $default,) {final _that = this;
 switch (_that) {
 case _CustomerReceipt() when $default != null:
-return $default(_that.orderNumber,_that.deliveryType,_that.items,_that.subtotal,_that.deliveryFee,_that.total,_that.currency,_that.payment,_that.type,_that.address,_that.requestedAt,_that.customerLabel,_that.printedAt);case _:
+return $default(_that.orderNumber,_that.deliveryType,_that.items,_that.subtotal,_that.deliveryFee,_that.total,_that.currency,_that.payment,_that.type,_that.address,_that.requestedAt,_that.customerLabel,_that.printedAt,_that.trackUrl,_that.payUrl);case _:
   return null;
 
 }
@@ -2532,7 +2543,7 @@ return $default(_that.orderNumber,_that.deliveryType,_that.items,_that.subtotal,
 @JsonSerializable()
 
 class _CustomerReceipt implements CustomerReceipt {
-  const _CustomerReceipt({required this.orderNumber, @DeliveryTypeConverter() required this.deliveryType, required final  List<OrderItem> items, required this.subtotal, required this.deliveryFee, required this.total, required this.currency, required this.payment, this.type = 'musteri', this.address, this.requestedAt, this.customerLabel, this.printedAt}): _items = items;
+  const _CustomerReceipt({required this.orderNumber, @DeliveryTypeConverter() required this.deliveryType, required final  List<OrderItem> items, required this.subtotal, required this.deliveryFee, required this.total, required this.currency, required this.payment, this.type = 'musteri', this.address, this.requestedAt, this.customerLabel, this.printedAt, this.trackUrl, this.payUrl}): _items = items;
   factory _CustomerReceipt.fromJson(Map<String, dynamic> json) => _$CustomerReceiptFromJson(json);
 
 @override final  String orderNumber;
@@ -2555,6 +2566,17 @@ class _CustomerReceipt implements CustomerReceipt {
 @override final  DateTime? requestedAt;
 @override final  String? customerLabel;
 @override final  DateTime? printedAt;
+/// Sipariş takip sayfası — fişe QR olarak basılır (K-18).
+///
+/// `null` gelirse QR basılmaz: sunucuda `FRONTEND_URL` tanımsız
+/// demektir ve çalışmayan bir kare basmak, okutup boş sayfa gören
+/// müşteri üretmekten iyi değil.
+@override final  String? trackUrl;
+/// Ödeme sayfası — fişe QR olarak basılır (K-19).
+///
+/// YALNIZCA ödenmemiş siparişte dolu. Ödenmiş siparişin fişine ödeme
+/// QR'ı basmak, ikinci kez ödemeye davet etmek olurdu.
+@override final  String? payUrl;
 
 /// Create a copy of CustomerReceipt
 /// with the given fields replaced by the non-null parameter values.
@@ -2569,16 +2591,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CustomerReceipt&&(identical(other.orderNumber, orderNumber) || other.orderNumber == orderNumber)&&(identical(other.deliveryType, deliveryType) || other.deliveryType == deliveryType)&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.subtotal, subtotal) || other.subtotal == subtotal)&&(identical(other.deliveryFee, deliveryFee) || other.deliveryFee == deliveryFee)&&(identical(other.total, total) || other.total == total)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.payment, payment) || other.payment == payment)&&(identical(other.type, type) || other.type == type)&&(identical(other.address, address) || other.address == address)&&(identical(other.requestedAt, requestedAt) || other.requestedAt == requestedAt)&&(identical(other.customerLabel, customerLabel) || other.customerLabel == customerLabel)&&(identical(other.printedAt, printedAt) || other.printedAt == printedAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CustomerReceipt&&(identical(other.orderNumber, orderNumber) || other.orderNumber == orderNumber)&&(identical(other.deliveryType, deliveryType) || other.deliveryType == deliveryType)&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.subtotal, subtotal) || other.subtotal == subtotal)&&(identical(other.deliveryFee, deliveryFee) || other.deliveryFee == deliveryFee)&&(identical(other.total, total) || other.total == total)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.payment, payment) || other.payment == payment)&&(identical(other.type, type) || other.type == type)&&(identical(other.address, address) || other.address == address)&&(identical(other.requestedAt, requestedAt) || other.requestedAt == requestedAt)&&(identical(other.customerLabel, customerLabel) || other.customerLabel == customerLabel)&&(identical(other.printedAt, printedAt) || other.printedAt == printedAt)&&(identical(other.trackUrl, trackUrl) || other.trackUrl == trackUrl)&&(identical(other.payUrl, payUrl) || other.payUrl == payUrl));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,orderNumber,deliveryType,const DeepCollectionEquality().hash(_items),subtotal,deliveryFee,total,currency,payment,type,address,requestedAt,customerLabel,printedAt);
+int get hashCode => Object.hash(runtimeType,orderNumber,deliveryType,const DeepCollectionEquality().hash(_items),subtotal,deliveryFee,total,currency,payment,type,address,requestedAt,customerLabel,printedAt,trackUrl,payUrl);
 
 @override
 String toString() {
-  return 'CustomerReceipt(orderNumber: $orderNumber, deliveryType: $deliveryType, items: $items, subtotal: $subtotal, deliveryFee: $deliveryFee, total: $total, currency: $currency, payment: $payment, type: $type, address: $address, requestedAt: $requestedAt, customerLabel: $customerLabel, printedAt: $printedAt)';
+  return 'CustomerReceipt(orderNumber: $orderNumber, deliveryType: $deliveryType, items: $items, subtotal: $subtotal, deliveryFee: $deliveryFee, total: $total, currency: $currency, payment: $payment, type: $type, address: $address, requestedAt: $requestedAt, customerLabel: $customerLabel, printedAt: $printedAt, trackUrl: $trackUrl, payUrl: $payUrl)';
 }
 
 
@@ -2589,7 +2611,7 @@ abstract mixin class _$CustomerReceiptCopyWith<$Res> implements $CustomerReceipt
   factory _$CustomerReceiptCopyWith(_CustomerReceipt value, $Res Function(_CustomerReceipt) _then) = __$CustomerReceiptCopyWithImpl;
 @override @useResult
 $Res call({
- String orderNumber,@DeliveryTypeConverter() DeliveryType deliveryType, List<OrderItem> items, int subtotal, int deliveryFee, int total, String currency, Payment payment, String type, Address? address, DateTime? requestedAt, String? customerLabel, DateTime? printedAt
+ String orderNumber,@DeliveryTypeConverter() DeliveryType deliveryType, List<OrderItem> items, int subtotal, int deliveryFee, int total, String currency, Payment payment, String type, Address? address, DateTime? requestedAt, String? customerLabel, DateTime? printedAt, String? trackUrl, String? payUrl
 });
 
 
@@ -2606,7 +2628,7 @@ class __$CustomerReceiptCopyWithImpl<$Res>
 
 /// Create a copy of CustomerReceipt
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? orderNumber = null,Object? deliveryType = null,Object? items = null,Object? subtotal = null,Object? deliveryFee = null,Object? total = null,Object? currency = null,Object? payment = null,Object? type = null,Object? address = freezed,Object? requestedAt = freezed,Object? customerLabel = freezed,Object? printedAt = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? orderNumber = null,Object? deliveryType = null,Object? items = null,Object? subtotal = null,Object? deliveryFee = null,Object? total = null,Object? currency = null,Object? payment = null,Object? type = null,Object? address = freezed,Object? requestedAt = freezed,Object? customerLabel = freezed,Object? printedAt = freezed,Object? trackUrl = freezed,Object? payUrl = freezed,}) {
   return _then(_CustomerReceipt(
 orderNumber: null == orderNumber ? _self.orderNumber : orderNumber // ignore: cast_nullable_to_non_nullable
 as String,deliveryType: null == deliveryType ? _self.deliveryType : deliveryType // ignore: cast_nullable_to_non_nullable
@@ -2621,7 +2643,9 @@ as String,address: freezed == address ? _self.address : address // ignore: cast_
 as Address?,requestedAt: freezed == requestedAt ? _self.requestedAt : requestedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,customerLabel: freezed == customerLabel ? _self.customerLabel : customerLabel // ignore: cast_nullable_to_non_nullable
 as String?,printedAt: freezed == printedAt ? _self.printedAt : printedAt // ignore: cast_nullable_to_non_nullable
-as DateTime?,
+as DateTime?,trackUrl: freezed == trackUrl ? _self.trackUrl : trackUrl // ignore: cast_nullable_to_non_nullable
+as String?,payUrl: freezed == payUrl ? _self.payUrl : payUrl // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

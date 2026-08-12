@@ -51,6 +51,11 @@ CustomerReceiptData toCustomerReceiptData(
   paymentMethod: _paymentMethod(receipt.payment.method),
   paymentStatus: _paymentStatus(receipt.payment.status),
   address: receipt.address == null ? null : _address(receipt.address!),
+  // QR bağlantıları sunucudan geliyor (K-18/K-19): istemci ne site
+  // adresini ne de siparişin ödeme hash'ini biliyor, bilmesi de
+  // gerekmiyor. `null` gelirse QR hiç basılmıyor.
+  trackUrl: receipt.trackUrl,
+  payUrl: receipt.payUrl,
   lines: [
     for (final item in receipt.items)
       CustomerReceiptLine(

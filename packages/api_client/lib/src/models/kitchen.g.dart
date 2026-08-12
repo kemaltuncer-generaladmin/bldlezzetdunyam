@@ -209,6 +209,8 @@ _CustomerReceipt _$CustomerReceiptFromJson(Map<String, dynamic> json) =>
       printedAt: json['printed_at'] == null
           ? null
           : DateTime.parse(json['printed_at'] as String),
+      trackUrl: json['track_url'] as String?,
+      payUrl: json['pay_url'] as String?,
     );
 
 Map<String, dynamic> _$CustomerReceiptToJson(
@@ -227,6 +229,8 @@ Map<String, dynamic> _$CustomerReceiptToJson(
   'requested_at': ?instance.requestedAt?.toIso8601String(),
   'customer_label': ?instance.customerLabel,
   'printed_at': ?instance.printedAt?.toIso8601String(),
+  'track_url': ?instance.trackUrl,
+  'pay_url': ?instance.payUrl,
 };
 
 _CourierReceipt _$CourierReceiptFromJson(Map<String, dynamic> json) =>

@@ -257,6 +257,36 @@ Uint8List buildCustomerReceipt(
       ..align(EscPosAlign.left);
   }
 
+  // ── QR'lar ──────────────────────────────────────────────────────────
+  //
+  // İkisi de fişin SONUNDA ve alt alta: QR'lar yer kaplıyor, araya
+  // girseler tutar satırıyla adres arasını açıp fişi okunmaz hâle
+  // getirirlerdi.
+  //
+  // ÖDEME QR'I ÖNCE, TAKİP SONRA. Müşterinin fişi eline aldığı andaki
+  // sırası bu: önce "borcum var mı", sonra "ne zaman gelecek". Ödeme
+  // QR'ı zaten yalnız ödenmemiş siparişte basılıyor.
+  if (data.hasPayQr) {
+    builder
+      ..feed()
+      ..align(EscPosAlign.center)
+      ..bold(on: true)
+      ..line('KARTLA ÖDE')
+      ..bold(on: false)
+      ..qr(data.payUrl!)
+      ..line('Okutup karttan ödeyebilirsiniz')
+      ..align(EscPosAlign.left);
+  }
+
+  if (data.hasTrackQr) {
+    builder
+      ..feed()
+      ..align(EscPosAlign.center)
+      ..qr(data.trackUrl!)
+      ..line('Siparişinizi takip edin')
+      ..align(EscPosAlign.left);
+  }
+
   builder.rule();
   for (final footer in style.footerLines) {
     for (final row in _wrap(footer, style.columns)) {

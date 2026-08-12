@@ -82,7 +82,71 @@ class ReceiptBuilder
             'address' => $isDelivery ? $this->presenter->address($order) : null,
             'customer_label' => $this->presenter->customerLabel($order),
             'printed_at' => $this->printedAt($order, PrintJob::TYPE_CUSTOMER),
+            'track_url' => $this->trackUrl($order),
+            'pay_url' => $this->payUrl($order),
         ];
+    }
+
+    /**
+     * Sipariş takip bağlantısı — müşteri fişindeki QR (K-18).
+     *
+     * Müşteri fişi elden veriliyor ve üstünde sipariş numarası yazıyor; ama
+     * durumu görmek için o numarayı siteye elle yazmak gerekiyordu. QR o
+     * adımı kaldırıyor.
+     *
+     * `FRONTEND_URL` TANIMSIZSA null döner ve QR HİÇ BASILMAZ. Çalışmayan
+     * bir kare basmak, okutup boş sayfa gören müşteri üretmekten iyi
+     * değil — üstelik kâğıt ve mürekkep harcıyor.
+     */
+    private function trackUrl(Order $order): ?string
+    {
+        $base = $this->frontendUrl();
+
+        return $base === null ? null : $base.'/siparis/'.$order->order_id;
+    }
+
+    /**
+     * Ödeme bağlantısı — yalnızca ÖDENMEMİŞ siparişte (K-19).
+     *
+     * Kapıda ödeme seçen müşteri kapıda nakit bulundurmak zorunda
+     * kalmasın diye: fişteki QR'ı okutup karttan ödeyebiliyor.
+     *
+     * ÖDENMİŞ SİPARİŞTE null: ödenmiş bir siparişin fişine ödeme QR'ı
+     * basmak, ikinci kez ödemeye davet etmek olurdu.
+     *
+     * Bağlantı sanal POS sayfasına gidiyor ve `app.url` üzerinden
+     * kuruluyor (`OrderPresenter::redirectUrl` ile aynı yer); `?return=`
+     * ile müşteri ödeme sonrası kendi sipariş takip sayfasına dönüyor.
+     */
+    private function payUrl(Order $order): ?string
+    {
+        if ((bool) $order->processed) {
+            return null;
+        }
+
+        $hash = (string) ($order->hash ?? '');
+        if ($hash === '') {
+            return null;
+        }
+
+        $url = rtrim((string) config('app.url'), '/').'/odeme-simulasyon/'.$hash;
+        $track = $this->trackUrl($order);
+
+        return $track === null ? $url : $url.'?return='.rawurlencode($track);
+    }
+
+    /**
+     * Müşteri sitesinin kökü. Tanımsızsa `null` — çağıranlar QR basmıyor.
+     *
+     * Aynı değeri ödeme dönüşü de kullanıyor
+     * (`SimulationController::returnUrl`); tek kaynak olması, fişteki
+     * bağlantı ile dönüş adresinin ayrışmamasını sağlıyor.
+     */
+    private function frontendUrl(): ?string
+    {
+        $raw = trim((string) config('app.frontend_url', env('FRONTEND_URL', '')));
+
+        return $raw === '' ? null : rtrim($raw, '/');
     }
 
     /**

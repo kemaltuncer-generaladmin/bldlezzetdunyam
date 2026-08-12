@@ -61,6 +61,11 @@ services:
       # POS bağlanınca buraya onun adı yazılacak.
       BLD_REFUND_DRIVER: ${BLD_REFUND_DRIVER:-simulated}
 
+      # Müşteri sitesinin adresi. Ödeme sağlayıcısından dönüş ve fişlerdeki
+      # QR bağlantıları buradan üretiliyor. TANIMSIZ BIRAKILIRSA ödeme
+      # dönüşü API köküne düşer ve fiş QR'ları hiç basılmaz.
+      FRONTEND_URL: ${SITE_URL:-https://benimlezzetdunyam.com.tr}
+
       # SMS sağlayıcısı — telefonla giriş kodu (B-18).
       #
       # BOŞ BIRAKILIRSA KOD SMS OLARAK GİTMEZ, yalnızca sunucu günlüğüne

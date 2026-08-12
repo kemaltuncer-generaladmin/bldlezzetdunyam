@@ -3348,6 +3348,25 @@ components:
             **tek** yer burasıdır.
         customer_label: { type: [string, 'null'] }
         printed_at: { type: [string, 'null'], format: date-time }
+        track_url:
+          type: [string, 'null']
+          format: uri
+          description: |
+            Sipariş takip sayfası; fişe QR olarak basılır (K-18). Müşteri
+            numarayı elle yazmadan durumu izler.
+
+            `FRONTEND_URL` tanımsızsa `null` gelir ve KDS QR basmaz —
+            çalışmayan bir kare basmak, okutup boş sayfa gören müşteri
+            üretmekten iyi değil.
+        pay_url:
+          type: [string, 'null']
+          format: uri
+          description: |
+            Ödeme sayfası; fişe QR olarak basılır (K-19). Kapıda ödeme seçen
+            müşteri nakit bulundurmak zorunda kalmasın diye.
+
+            **Yalnızca ödenmemiş siparişte dolu.** Ödenmiş siparişin fişine
+            ödeme QR'ı basmak, ikinci kez ödemeye davet etmek olurdu.
 
     # ─────────────────────────── SİTE İÇERİĞİ ───────────────────────────
     #

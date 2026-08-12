@@ -79,6 +79,49 @@ final CustomerReceiptData customerDelivery = CustomerReceiptData(
 );
 
 /// Haritadan iğne bırakılmış sipariş — fişe QR basılmalı.
+/// Takip ve ödeme QR'lı müşteri fişi (K-18/K-19).
+///
+/// `pending` ödeme durumu KASITLI: ödeme QR'ı yalnız ödenmemiş siparişte
+/// basılıyor ve golden bu kuralı da sabitliyor.
+final CustomerReceiptData customerDeliveryWithQrs = CustomerReceiptData(
+  orderNumber: 'S-5015',
+  deliveryType: DeliveryType.delivery,
+  printedAt: printedAt,
+  lines: const [
+    CustomerReceiptLine(quantity: 2, name: 'Tavuk Sote', lineTotal: 37000),
+  ],
+  subtotal: 37000,
+  deliveryFee: 4000,
+  total: 41000,
+  paymentMethod: ReceiptPaymentMethod.cash,
+  paymentStatus: ReceiptPaymentStatus.pending,
+  address: const ReceiptAddress(
+    line1: 'Örnek Mah. 12. Sk No:3',
+    district: 'Selçuklu',
+    city: 'Konya',
+  ),
+  trackUrl: 'https://benimlezzetdunyam.com.tr/siparis/5015',
+  payUrl:
+      'https://api.benimlezzetdunyam.com.tr/odeme-simulasyon/abc123'
+      '?return=https%3A%2F%2Fbenimlezzetdunyam.com.tr%2Fsiparis%2F5015',
+);
+
+/// Ödenmiş sipariş: takip QR'ı var, ödeme QR'ı YOK.
+final CustomerReceiptData customerPaidWithTrackQr = CustomerReceiptData(
+  orderNumber: 'S-5016',
+  deliveryType: DeliveryType.pickup,
+  printedAt: printedAt,
+  lines: const [
+    CustomerReceiptLine(quantity: 1, name: 'Mercimek Çorbası', lineTotal: 8500),
+  ],
+  subtotal: 8500,
+  deliveryFee: 0,
+  total: 8500,
+  paymentMethod: ReceiptPaymentMethod.online,
+  paymentStatus: ReceiptPaymentStatus.paid,
+  trackUrl: 'https://benimlezzetdunyam.com.tr/siparis/5016',
+);
+
 final CustomerReceiptData customerDeliveryWithPin = CustomerReceiptData(
   orderNumber: 'S-5014',
   deliveryType: DeliveryType.delivery,
@@ -313,6 +356,79 @@ void main() {
         'receipt_musteri_delivery_qr',
         buildCustomerReceipt(customerDeliveryWithPin),
       );
+    });
+
+    test('takip ve ödeme QR\'lı (K-18/K-19)', () {
+      expectGolden(
+        'receipt_musteri_qr_takip_odeme',
+        buildCustomerReceipt(customerDeliveryWithQrs),
+      );
+    });
+
+    test('ödenmiş siparişte ödeme QR\'ı basılmaz', () {
+      expectGolden(
+        'receipt_musteri_qr_yalniz_takip',
+        buildCustomerReceipt(customerPaidWithTrackQr),
+      );
+    });
+  });
+
+  /// QR'ların KURALI — golden baytlardan bağımsız, okunabilir doğrulama.
+  ///
+  /// Golden dosyası "bayt bayt aynı mı" diye bakıyor ve şablon bilinçli
+  /// değiştiğinde yenileniyor. Bu testler ise kuralın kendisini sabitliyor:
+  /// ödenmiş siparişe ödeme QR'ı basılmaması bir tasarım kararı, bayt
+  /// dizisinin yan etkisi değil.
+  group('Fiş QR kuralları', () {
+    test('bağlantı yoksa QR hiç basılmaz', () {
+      final data = CustomerReceiptData(
+        orderNumber: 'S-1',
+        deliveryType: DeliveryType.pickup,
+        printedAt: printedAt,
+        lines: const [
+          CustomerReceiptLine(quantity: 1, name: 'Çorba', lineTotal: 8500),
+        ],
+        subtotal: 8500,
+        deliveryFee: 0,
+        total: 8500,
+        paymentMethod: ReceiptPaymentMethod.cash,
+        paymentStatus: ReceiptPaymentStatus.pending,
+      );
+
+      expect(data.hasTrackQr, isFalse);
+      expect(data.hasPayQr, isFalse);
+    });
+
+    test('boş dize bağlantı sayılmaz', () {
+      final data = CustomerReceiptData(
+        orderNumber: 'S-1',
+        deliveryType: DeliveryType.pickup,
+        printedAt: printedAt,
+        lines: const [
+          CustomerReceiptLine(quantity: 1, name: 'Çorba', lineTotal: 8500),
+        ],
+        subtotal: 8500,
+        deliveryFee: 0,
+        total: 8500,
+        paymentMethod: ReceiptPaymentMethod.cash,
+        paymentStatus: ReceiptPaymentStatus.pending,
+        trackUrl: '   ',
+        payUrl: '',
+      );
+
+      // Boş dize geçseydi QR yerine kare bir gürültü basılırdı.
+      expect(data.hasTrackQr, isFalse);
+      expect(data.hasPayQr, isFalse);
+    });
+
+    test('ödeme QR\'ı olan fiş takip QR\'ını da taşır', () {
+      expect(customerDeliveryWithQrs.hasPayQr, isTrue);
+      expect(customerDeliveryWithQrs.hasTrackQr, isTrue);
+    });
+
+    test('ödenmiş siparişte yalnız takip QR\'ı kalır', () {
+      expect(customerPaidWithTrackQr.hasPayQr, isFalse);
+      expect(customerPaidWithTrackQr.hasTrackQr, isTrue);
     });
   });
 
