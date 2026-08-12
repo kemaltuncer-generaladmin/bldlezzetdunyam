@@ -66,6 +66,32 @@ services:
       # dönüşü API köküne düşer ve fiş QR'ları hiç basılmaz.
       FRONTEND_URL: ${SITE_URL:-https://benimlezzetdunyam.com.tr}
 
+      # Fişteki QR bağlantılarının imza sırrı (K-20).
+      #
+      # Müşteri fişine iki imzalı bağlantı basılıyor: takip sayfası (müşteri
+      # okutur) ve teslim onayı (kurye okutur). İkisini de giriş yapmamış
+      # biri açıyor; yetki oturumda değil, URL'deki HMAC imzasında.
+      #
+      # BOŞ BIRAKILIRSA `APP_KEY`'e DÜŞÜLÜR ve özellik çalışmaya devam eder.
+      # BBD'nin aksine burada kapanmak doğru değil: kapanmak yalnızca fişten
+      # iki QR'ı sessizce silerdi ve sebebi kimseye görünmezdi.
+      #
+      # YİNE DE ÜRETİMDE AYRI TANIMLAYIN: `APP_KEY` döndürüldüğünde
+      # oturumlar ve şifrelenmiş sütunlar da geçersiz olur. Ayrı sır,
+      # bağlantıları tek başına döndürebilmeyi sağlar. Sır değişince
+      # BASILI FİŞLERDEKİ QR'LAR ÖLÜR.
+      BLD_LINK_SECRET: ${BLD_LINK_SECRET:-}
+
+      # Sanal POS simülasyonu (K-19 ödeme QR'ı buna bağlı).
+      #
+      # ÜRETİMDE VARSAYILAN OLARAK KAPALI ve öyle kalmalı: açmak, gerçek
+      # tahsilat yapmayan bir sayfayı müşteriye açmak demek. Kapalıyken
+      # `veykemtu/payment` rotaları hiç kaydedilmiyor ve fişe ödeme QR'ı
+      # BASILMIYOR (K-20 öncesi ölü bir adrese giden kare basılıyordu).
+      #
+      # Gerçek sanal POS bağlanana kadar fişte ödeme QR'ı görünmeyecek.
+      POS_ALLOW_SIMULATION: ${POS_ALLOW_SIMULATION:-}
+
       # SMS sağlayıcısı — telefonla giriş kodu (B-18).
       #
       # BOŞ BIRAKILIRSA KOD SMS OLARAK GİTMEZ, yalnızca sunucu günlüğüne

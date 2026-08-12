@@ -53,6 +53,24 @@ HTTP sunucusu şart; Caddy o rolde, dışarı açık değil.
 değişkenlerini kullanır — parolaları Coolify üretir ve saklar. `APP_KEY`
 Coolify ortam değişkenlerinde elle tanımlanır.
 
+> **ORTAM DEĞİŞKENİ COMPOSE'DA SAYILI DEĞİLSE KONTEYNERE ULAŞMAZ.**
+> `app` servisinin `environment:` bloğu anahtarları **tek tek** listeliyor.
+> Coolify arayüzüne yazılan bir değişken, compose'da karşılığı
+> (`FOO: ${FOO:-}`) yoksa uygulamaya hiç geçmez — ve hata sessizdir:
+> "tanımladım ama çalışmıyor" diye görünür, sebebi görünmez.
+>
+> K-20'de yaşandı: `BLD_LINK_SECRET` compose'a eklenmeden Coolify'a
+> yazılsaydı sessizce yok sayılır, kod `APP_KEY`'e düşer ve fişteki QR'lar
+> çalışmaya devam ederdi — yani yanlış yapılandırma hiçbir belirti
+> vermezdi. Yeni bir değişken eklerken **önce compose'a** eklenir.
+
+**Fiş QR'larıyla ilgili iki değişken (K-20):**
+
+| Değişken | Boşsa ne olur |
+|---|---|
+| `BLD_LINK_SECRET` | `APP_KEY`'e düşülür, **özellik çalışır**. Üretimde yine de ayrı tanımlanmalı: `APP_KEY` döndürüldüğünde oturumlar da geçersiz olur. Sır değişince **basılı fişlerdeki QR'lar ölür**. |
+| `POS_ALLOW_SIMULATION` | Üretimde sanal POS rotaları hiç kaydedilmez ve fişe **ödeme QR'ı basılmaz**. Gerçek sanal POS bağlanana kadar doğru davranış budur; açmak, tahsilat yapmayan bir sayfayı müşteriye açmak demek. |
+
 **Traefik etiketi elle yazılmaz.** `SERVICE_FQDN_WEB_80` değişkenini gören
 Coolify yönlendirmeyi ve sertifikayı kendisi kurar.
 
