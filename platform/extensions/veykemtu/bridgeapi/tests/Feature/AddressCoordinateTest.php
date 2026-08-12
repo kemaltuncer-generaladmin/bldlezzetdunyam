@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Veykemtu\BridgeApi\Tests\Feature;
 
+use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
@@ -31,10 +33,7 @@ use Veykemtu\BridgeApi\Models\ApiCustomer;
  */
 class AddressCoordinateTest extends TestCase
 {
-    // `refreshTestDatabase` bir trait metodudur; `parent::` ile çağrılamaz.
-    use RefreshDatabase {
-        refreshTestDatabase as private laravelRefreshTestDatabase;
-    }
+    use RefreshDatabase;
 
     private const array HEADERS = [
         'X-App-Id' => 'musteriapp',
@@ -42,17 +41,41 @@ class AddressCoordinateTest extends TestCase
         'Accept' => 'application/json',
     ];
 
-    /** Konya Selçuklu civarı — hizmet alanının içinde gerçekçi bir nokta. */
-    private const float LAT = 37.8901234;
-
-    private const float LNG = 32.4876543;
-
-    /** Gerekçe `ContractTest::refreshTestDatabase` üzerinde. */
+    /**
+     * Şema kurulumu: `migrate:fresh` + `igniter:up`, İŞLEM AÇILMADAN ÖNCE.
+     *
+     * `migrate:fresh` TastyIgniter'ın tablolarını KURMAZ; çekirdek göçler
+     * eklenti sisteminden gelir ve yalnızca `igniter:up` ile koşar.
+     *
+     * NEDEN LARAVEL'İN METODUNU ÇAĞIRMIYORUZ: o metot şemayı kurduktan
+     * sonra **işlemi de başlatıyor** (`beginDatabaseTransaction`). Önceki
+     * hâlde `igniter:up` o çağrıdan SONRA koşuyordu, yani açık bir işlemin
+     * içinde DDL çalışıyordu. MySQL'de DDL **örtük commit** yapar:
+     * savepoint yok olur, `DB::transaction()` kullanan her uç
+     * `SAVEPOINT trans2 does not exist` ile 500 döner ve testler arası
+     * geri alma çalışmaz — demo menü her testte üstüne yüklenirdi.
+     * Sahada 25 testi tek başına düşürüyordu (12.08.2026).
+     *
+     * Şema yenilemesi koşum başına bir kez; sonrası işlemle geri alınır.
+     */
     protected function refreshTestDatabase(): void
     {
         $this->assertTestDatabase();
-        $this->laravelRefreshTestDatabase();
-        $this->artisan('igniter:up');
+
+        if (!RefreshDatabaseState::$migrated) {
+            $this->artisan('migrate:fresh', [
+                '--drop-views' => $this->shouldDropViews(),
+                '--drop-types' => $this->shouldDropTypes(),
+            ]);
+
+            $this->app[ConsoleKernel::class]->setArtisan(null);
+
+            $this->artisan('igniter:up');
+
+            RefreshDatabaseState::$migrated = true;
+        }
+
+        $this->beginDatabaseTransaction();
     }
 
     /** Gerekçe `ContractTest::assertTestDatabase` üzerinde — aynı koruma. */

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Veykemtu\BridgeApi\Tests\Feature;
 
 use Igniter\Cart\Models\Order;
+use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
@@ -28,10 +30,7 @@ use Veykemtu\BridgeApi\Services\OrderStatusTransition;
 class ContractTest extends TestCase
 {
     // `refreshTestDatabase` bir trait metodudur; `parent::` ile çağrılamaz.
-    // Takma ad verip özgün hâlini koruyoruz.
-    use RefreshDatabase {
-        refreshTestDatabase as private laravelRefreshTestDatabase;
-    }
+    use RefreshDatabase;
 
     private const array HEADERS = [
         'X-App-Id' => 'website',
@@ -40,21 +39,40 @@ class ContractTest extends TestCase
     ];
 
     /**
-     * `migrate:fresh` TastyIgniter'ın tablolarını KURMAZ.
+     * Şema kurulumu: `migrate:fresh` + `igniter:up`, İŞLEM AÇILMADAN ÖNCE.
      *
-     * Çekirdek göçler eklenti sisteminden gelir ve yalnızca `igniter:up`
-     * ile koşar; düz `migrate` yalnızca Laravel'in 5 tablosunu yaratır.
-     * Bu yüzden `settings` yoktu ve `veykemtu:setup` ilk satırında
-     * patlıyordu. Şema yenilemesi test koşumu başına bir kez yapılır,
-     * her test değil — sonrası işlem (transaction) ile geri alınır.
+     * `migrate:fresh` TastyIgniter'ın tablolarını KURMAZ; çekirdek göçler
+     * eklenti sisteminden gelir ve yalnızca `igniter:up` ile koşar.
+     *
+     * NEDEN LARAVEL'İN METODUNU ÇAĞIRMIYORUZ: o metot şemayı kurduktan
+     * sonra **işlemi de başlatıyor** (`beginDatabaseTransaction`). Önceki
+     * hâlde `igniter:up` o çağrıdan SONRA koşuyordu, yani açık bir işlemin
+     * içinde DDL çalışıyordu. MySQL'de DDL **örtük commit** yapar:
+     * savepoint yok olur, `DB::transaction()` kullanan her uç
+     * `SAVEPOINT trans2 does not exist` ile 500 döner ve testler arası
+     * geri alma çalışmaz — demo menü her testte üstüne yüklenirdi.
+     * Sahada 25 testi tek başına düşürüyordu (12.08.2026).
+     *
+     * Şema yenilemesi koşum başına bir kez; sonrası işlemle geri alınır.
      */
     protected function refreshTestDatabase(): void
     {
         $this->assertTestDatabase();
 
-        $this->laravelRefreshTestDatabase();
+        if (!RefreshDatabaseState::$migrated) {
+            $this->artisan('migrate:fresh', [
+                '--drop-views' => $this->shouldDropViews(),
+                '--drop-types' => $this->shouldDropTypes(),
+            ]);
 
-        $this->artisan('igniter:up');
+            $this->app[ConsoleKernel::class]->setArtisan(null);
+
+            $this->artisan('igniter:up');
+
+            RefreshDatabaseState::$migrated = true;
+        }
+
+        $this->beginDatabaseTransaction();
     }
 
     /**

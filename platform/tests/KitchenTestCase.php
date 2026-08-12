@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests;
 
 use Igniter\Cart\Models\Order;
+use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\DB;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
 use Veykemtu\BridgeApi\Models\KitchenDevice;
@@ -29,9 +31,7 @@ use Veykemtu\BridgeApi\Models\KitchenDevice;
  */
 abstract class KitchenTestCase extends TestCase
 {
-    use RefreshDatabase {
-        refreshTestDatabase as private laravelRefreshTestDatabase;
-    }
+    use RefreshDatabase;
 
     protected const array HEADERS = [
         'X-App-Id' => 'website',
@@ -40,11 +40,50 @@ abstract class KitchenTestCase extends TestCase
     ];
 
     /**
-     * `migrate:fresh` TastyIgniter tablolarını KURMAZ; `igniter:up` şart.
+     * Şema kurulumu: `migrate:fresh` + `igniter:up`, İŞLEM AÇILMADAN ÖNCE.
      *
-     * Gerekçe `ContractTest` içinde ayrıntılı yazılı.
+     * `migrate:fresh` TastyIgniter'ın tablolarını KURMAZ; çekirdek göçler
+     * eklenti sisteminden gelir ve yalnızca `igniter:up` ile koşar.
+     *
+     * NEDEN LARAVEL'İN METODUNU ÇAĞIRMIYORUZ: o metot şemayı kurduktan
+     * sonra **işlemi de başlatıyor** (`beginDatabaseTransaction`). Önceki
+     * hâlde `igniter:up` o çağrıdan SONRA koşuyordu, yani açık bir işlemin
+     * içinde DDL çalışıyordu. MySQL'de DDL **örtük commit** yapar:
+     * savepoint yok olur, `DB::transaction()` kullanan her uç
+     * `SAVEPOINT trans2 does not exist` ile 500 döner ve testler arası
+     * geri alma çalışmaz — demo menü her testte üstüne yüklenirdi.
+     * Sahada 25 testi tek başına düşürüyordu (12.08.2026).
+     *
+     * Şema yenilemesi koşum başına bir kez; sonrası işlemle geri alınır.
      */
     protected function refreshTestDatabase(): void
+    {
+        $this->assertTestDatabase();
+
+        if (!RefreshDatabaseState::$migrated) {
+            $this->artisan('migrate:fresh', [
+                '--drop-views' => $this->shouldDropViews(),
+                '--drop-types' => $this->shouldDropTypes(),
+            ]);
+
+            $this->app[ConsoleKernel::class]->setArtisan(null);
+
+            $this->artisan('igniter:up');
+
+            RefreshDatabaseState::$migrated = true;
+        }
+
+        $this->beginDatabaseTransaction();
+    }
+
+    /**
+     * Test veritabanına bağlı olduğumuzu ŞEMA DÜŞÜRÜLMEDEN ÖNCE doğrular.
+     *
+     * Bir sonraki satır `migrate:fresh` koşuyor, yani bağlı olduğu
+     * veritabanının bütün tablolarını düşürüyor. Yanlış veritabanına
+     * bağlıysak veri gider ve bunu ancak sonradan fark ederiz.
+     */
+    private function assertTestDatabase(): void
     {
         $name = (string) DB::connection()->getDatabaseName();
 
@@ -55,9 +94,6 @@ abstract class KitchenTestCase extends TestCase
                 .'bitmelidir.',
             );
         }
-
-        $this->laravelRefreshTestDatabase();
-        $this->artisan('igniter:up');
     }
 
     protected function setUp(): void
@@ -66,6 +102,25 @@ abstract class KitchenTestCase extends TestCase
 
         $this->artisan('veykemtu:setup');
         $this->artisan('veykemtu:demo-menu');
+    }
+
+    /**
+     * Kayıt gövdesi — `asCustomer()` bunu kullanıyor.
+     *
+     * TABANI ÇIKARIRKEN UNUTULDU ve `asCustomer()` çağıran 13 testin
+     * tamamı "undefined method" ile düştü. `ContractTest`'teki kopyası
+     * `private` olduğu için miras da çözmüyordu.
+     */
+    protected function registerPayload(array $overrides = []): array
+    {
+        return array_merge([
+            'first_name' => 'Test',
+            'last_name' => 'Müşteri',
+            'email' => 'test@ornek.com',
+            'telephone' => '5551234567',
+            'password' => 'parola123',
+            'kvkk_accepted' => true,
+        ], $overrides);
     }
 
     protected function locationId(): int

@@ -323,4 +323,47 @@ class OrderFactory
         return (int) $model->address_id;
     }
 
+    /**
+     * Adrese gönderim siparişi için adres defterine satır açar.
+     *
+     * K-12 refaktörü (`LineResolver` ayrıştırması) bu metodu yanlışlıkla
+     * SİLDİ ama 72. satırdaki çağrısı yerinde kaldı: `POST /api/orders`
+     * adrese gönderimde ölümcül hatayla 500 dönüyordu. Testlerde 36 test
+     * birden bunun üzerine düştü (12.08.2026).
+     *
+     * @param array<string, mixed>|null $address
+     */
+    private function storeAddress(ApiCustomer $customer, ?array $address): int
+    {
+        if ($address === null || blank($address['line1'] ?? null)) {
+            throw ApiException::validationFailed('Teslimat adresi zorunludur.', [
+                'address' => 'Adrese gönderim için adres girilmeli.',
+            ]);
+        }
+
+        $model = new Address;
+        $model->customer_id = $customer->customer_id;
+        $model->address_1 = (string) $address['line1'];
+        $model->address_2 = $address['note'] ?? null;
+        $model->city = (string) ($address['city'] ?? '');
+        $model->state = (string) ($address['district'] ?? '');
+
+        // Koordinat siparişin ANLIK GÖRÜNTÜSÜNE yazılıyor, adres defterine
+        // bakılarak değil. Müşteri sipariş verdikten sonra kayıtlı adresinin
+        // iğnesini taşırsa, mutfaktaki fiş ve kuryenin gideceği nokta
+        // değişmemeli; sipariş verildiği andaki yer neredeyse orası kalır.
+        //
+        // Çift olarak yazılıyor: yarısı dolu bir kayıt haritada gösterilemez.
+        $lat = $address['latitude'] ?? null;
+        $lng = $address['longitude'] ?? null;
+        if ($lat !== null && $lng !== null) {
+            $model->bld_latitude = $lat;
+            $model->bld_longitude = $lng;
+        }
+
+        $model->save();
+
+        return (int) $model->address_id;
+    }
+
 }
