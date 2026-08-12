@@ -231,6 +231,10 @@ return [
         'help_reprint' => '"Fişi yeniden bas" için sipariş numarası ve fiş tipi zorunludur.',
         'receipt_type_mutfak' => 'Mutfak fişi',
         'receipt_type_musteri' => 'Müşteri fişi',
+        // K-14 üçüncü fiş tipini ekledi; bu satır atlanınca admin paneli
+        // ham anahtarı ("…::default.kds.receipt_type_kurye") basıyordu.
+        // Blade anahtarı tipten TÜRETİYOR, o yüzden derleme uyarmıyor.
+        'receipt_type_kurye' => 'Kurye fişi',
         'panel_command_log' => 'Gönderilen komutlar',
         'text_no_commands' => 'Bu kasaya henüz komut gönderilmedi.',
         'column_command_sent' => 'Gönderildi',

@@ -41,6 +41,11 @@ class AddressCoordinateTest extends TestCase
         'Accept' => 'application/json',
     ];
 
+    /** Konya Selçuklu civarı — hizmet alanının içinde gerçekçi bir nokta. */
+    private const float LAT = 37.8901234;
+
+    private const float LNG = 32.4876543;
+
     /**
      * Şema kurulumu: `migrate:fresh` + `igniter:up`, İŞLEM AÇILMADAN ÖNCE.
      *

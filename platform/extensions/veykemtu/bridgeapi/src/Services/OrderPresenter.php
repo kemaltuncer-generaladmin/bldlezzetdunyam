@@ -112,6 +112,16 @@ class OrderPresenter
             'subscription_id' => $order->bld_subscription_id !== null
                 ? (int) $order->bld_subscription_id
                 : null,
+            // ── Revizyonlar (K-12) ────────────────────────────────────
+            //
+            // BURAYA DA GEREKİYOR: alan `summary()` ve `kitchen()`'a
+            // eklenmişti ama **takip ekranının çektiği uç bu**
+            // (`GET /api/orders/{id}`). Eksik kalınca müşteri adetlerin
+            // değiştiğini görüyor, sebebini göremiyordu; mobildeki
+            // "siparişiniz güncellendi" bildirimi de `revision_no`
+            // değişimine bakıyor ve hiç tetiklenmiyordu.
+            'revision_no' => (int) ($order->bld_revision_no ?? 0),
+            'revisions' => $this->revisions($order),
         ];
     }
 

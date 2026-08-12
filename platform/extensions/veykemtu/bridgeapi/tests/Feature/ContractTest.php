@@ -1382,9 +1382,13 @@ class ContractTest extends TestCase
 
     public function test_mutfak_fisi_musteri_telefonunu_tasir(): void
     {
-        // Kurye kapıda kaldığında arayacağı numara fişte olmalı. KDS
-        // KARTINDA telefon yok ve olmayacak (ekran gün boyu açık duruyor);
-        // fiş tek bir sipariş için basılıp pakete gidiyor.
+        // Kurye kapıda kaldığında arayacağı numara fişte olmalı.
+        //
+        // KURAL DEĞİŞTİ (12.08.2026, K-14): telefon artık KDS KARTINDA da
+        // görünüyor. Eski kural "ekran gün boyu açık duruyor" gerekçesiyle
+        // gizliyordu; ama mutfak siparişi düzenlemeden önce müşteriyi
+        // ARAMAK zorunda ve numarayı fişten okumak için fiş basmak
+        // gerekiyordu. Fiyat ve adres hâlâ gizli — `docs/03` §5.
         $order = $this->placeOrder();
 
         $mutfak = $this->asKitchen()
@@ -1398,7 +1402,12 @@ class ContractTest extends TestCase
             ->getJson('/api/kitchen/orders', self::HEADERS)
             ->assertOk()->json('data.0');
 
-        $this->assertArrayNotHasKey('customer_phone', $kart);
+        $this->assertSame('5551234567', $kart['customer_phone']);
+
+        // Gizlilik daralması TELEFONLA SINIRLI: fiyat ve adres panoda
+        // hâlâ yok (ADR-08).
+        $this->assertArrayNotHasKey('total', $kart);
+        $this->assertArrayNotHasKey('address', $kart);
     }
 
     public function test_teslim_fisi_tipi_kaldirildi(): void

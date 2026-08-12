@@ -3036,6 +3036,34 @@ components:
           type: [integer, 'null']
           format: int64
           description: Abonelikten üretildiyse abonelik kimliği; elle siparişte null.
+        revision_no:
+          type: integer
+          minimum: 0
+          default: 0
+          description: |
+            Kaçıncı revizyon (K-12). Sipariş mutfakta düzenlendiğinde
+            artar. İstemciler "Revize edildi" rozetini ve "siparişiniz
+            güncellendi" bildirimini bu alanın DEĞİŞMESİNE bağlar —
+            yalnız duruma bakan bir tekilleştirme, içerik değiştiğinde
+            müşteriyi hiç uyarmaz.
+        revisions:
+          type: array
+          description: |
+            Revizyon özeti, eskiden yeniye. İç alanlar (kim yaptı, hangi
+            kasa, ham anlık görüntüler) **dönmez**.
+          items:
+            type: object
+            required: [revision_no, reason, refund, extra_charge, created_at]
+            properties:
+              revision_no: { type: integer, minimum: 1 }
+              reason: { type: string }
+              refund:
+                allOf: [$ref: '#/components/schemas/Money']
+                description: Müşteriye iade edilen tutar; yoksa 0.
+              extra_charge:
+                allOf: [$ref: '#/components/schemas/Money']
+                description: Ek tahsil edilecek fark; yoksa 0.
+              created_at: { type: string, format: date-time }
 
     # ── Mutfak ──────────────────────────────────────────────────────────
 
