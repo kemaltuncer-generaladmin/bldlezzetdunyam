@@ -941,6 +941,15 @@ class AppL10nTr extends AppL10n {
   String get editNote => 'İç not (isteğe bağlı)';
 
   @override
+  String get editNoRequestedAt => 'Saat belirtilmemiş';
+
+  @override
+  String get editChangeNote => 'Notu düzenle';
+
+  @override
+  String get editNoNote => 'Not yok';
+
+  @override
   String get editSave => 'KAYDET VE FİŞ BAS';
 
   @override
@@ -1058,4 +1067,10 @@ class AppL10nTr extends AppL10n {
   String bbdPending(int count) {
     return 'BBD kuyruğunda $count fiş bekliyor';
   }
+
+  @override
+  String get keyboardTitle => 'Metin girin';
+
+  @override
+  String get actionsTitle => 'İşlemler';
 }

@@ -16,6 +16,7 @@ import '../../l10n/app_localizations.dart';
 import '../../settings/settings_screen.dart';
 import '../../window/kiosk_window.dart';
 import '../kds_screen.dart';
+import 'actions_sheet.dart';
 import 'health_panel_dialog.dart';
 import 'keyboard_help_dialog.dart';
 
@@ -107,6 +108,17 @@ class KdsStatusBar extends ConsumerWidget {
             iconSize: 22,
             icon: const Icon(Icons.keyboard_outlined),
             onPressed: () => unawaited(showKeyboardHelpDialog(context)),
+          ),
+          // HER KISAYOLUN DOKUNMATİK KARŞILIĞI OLMALI (12.08.2026).
+          // Vardiya özeti (F3), satış kontrolü (F7) ve abonelik planı
+          // (F8) yalnız klavyeden ya da koşullu bir şeritten
+          // açılabiliyordu: satış şeridi ancak satış KAPALIYKEN çıktığı
+          // için dokunmatik kasada satışı kapatmanın hiçbir yolu yoktu.
+          IconButton(
+            tooltip: l10n.actionsTitle,
+            iconSize: 22,
+            icon: const Icon(Icons.apps),
+            onPressed: () => unawaited(showActionsSheet(context)),
           ),
           TextButton.icon(
             onPressed: () =>

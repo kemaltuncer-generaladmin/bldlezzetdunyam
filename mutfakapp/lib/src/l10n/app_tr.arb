@@ -1338,6 +1338,18 @@
     "description": "Sebep boş uyarısı."
   },
   "editNote": "İç not (isteğe bağlı)",
+  "editNoRequestedAt": "Saat belirtilmemiş",
+  "@editNoRequestedAt": {
+    "description": "Teslimat saati boşsa gösterilen metin"
+  },
+  "editChangeNote": "Notu düzenle",
+  "@editChangeNote": {
+    "description": "Müşteri notunu düzenleme düğmesi"
+  },
+  "editNoNote": "Not yok",
+  "@editNoNote": {
+    "description": "Müşteri notu boşsa gösterilen metin"
+  },
   "@editNote": {
     "description": "Personel notu alanı."
   },
@@ -1518,5 +1530,13 @@
         "type": "int"
       }
     }
+  },
+  "keyboardTitle": "Metin girin",
+  "@keyboardTitle": {
+    "description": "Ekran klavyesi penceresinin varsayılan başlığı"
+  },
+  "actionsTitle": "İşlemler",
+  "@actionsTitle": {
+    "description": "Durum çubuğundaki dokunmatik işlem menüsünün başlığı"
   }
 }

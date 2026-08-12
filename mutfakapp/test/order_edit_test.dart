@@ -263,6 +263,11 @@ void main() {
 
   group('Kaydetme', () {
     Future<void> saveWithReason(WidgetTester tester) async {
+      // ENSURE VISIBLE ŞART: liste kaydırıldıysa (saat/not düzenlemesi
+      // için oluyor) sebep çipi görünür ama dokunulabilir alanın dışında
+      // kalıyor ve `tap` sessizce ıskalıyor.
+      await tester.ensureVisible(find.text('Müşteri talebi'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Müşteri talebi'));
       await tester.pump();
       await tester.tap(find.widgetWithText(FilledButton, 'KAYDET VE FİŞ BAS'));
@@ -340,6 +345,136 @@ void main() {
       await saveWithReason(tester);
 
       expect(find.textContaining('iade başlatılamadı'), findsOneWidget);
+    });
+
+    testWidgets('TESLİMAT SAATİ değiştirilip gönderilir', (tester) async {
+      // Kullanıcı isteği: "Teslimat bilgisi değiştirme". Alan gövdede
+      // hazırdı ama onu değiştirecek arayüz yoktu — saat hiç
+      // gönderilemiyordu.
+      final api = FakeOrderEditApi();
+      await pumpEdit(tester, api);
+
+      await tester.ensureVisible(
+        find.widgetWithText(FilledButton, 'Saati değiştir'),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Saati değiştir'));
+      await tester.pumpAndSettle();
+      // Kendi seçicimiz: büyük ± düğmeleri (K-10).
+      await tester.tap(find.widgetWithText(FilledButton, '+1 sa'));
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, '+5 dk'));
+      await tester.pump();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.widgetWithText(FilledButton, 'Kaydet'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await saveWithReason(tester);
+
+      final sent = api.lastRevision!.requestedAt;
+      expect(sent, isNotNull);
+      // Başlangıç "şimdi"; bir saat beş dakika ileri alındı. Dakika 5'in
+      // katına yuvarlandığı için mutlak değer yerine FARK sınanıyor.
+      final base = DateTime.now();
+      final expected = DateTime(
+        base.year,
+        base.month,
+        base.day,
+        base.hour,
+        (base.minute ~/ 5) * 5,
+      ).add(const Duration(hours: 1, minutes: 5));
+      expect(sent!.toLocal().hour, expected.hour);
+      expect(sent.toLocal().minute, expected.minute);
+    });
+
+    testWidgets('MÜŞTERİ NOTU değiştirilip gönderilir', (tester) async {
+      final api = FakeOrderEditApi();
+      await pumpEdit(tester, api);
+
+      await tester.ensureVisible(
+        find.widgetWithText(FilledButton, 'Notu düzenle'),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Notu düzenle'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(TextField),
+        ),
+        'Zili çalmayın, bebek uyuyor',
+      );
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.widgetWithText(FilledButton, 'Kaydet'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await saveWithReason(tester);
+
+      expect(api.lastRevision!.customerNote, 'Zili çalmayın, bebek uyuyor');
+    });
+
+    testWidgets('YALNIZ SAAT değişse bile kaydedilebilir', (tester) async {
+      // Kalem değişmeden saat değişmesi tek başına bir revizyon sebebi:
+      // "yarım saat geç gelsin" diyen müşteri için fiş yeniden basılmalı.
+      final api = FakeOrderEditApi();
+      await pumpEdit(tester, api);
+
+      // Değişiklik yokken düğme hem kapalı hem de etiketi farklı.
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Hiçbir şey değişmedi.'),
+            )
+            .onPressed,
+        isNull,
+      );
+
+      await tester.ensureVisible(
+        find.widgetWithText(FilledButton, 'Saati değiştir'),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Saati değiştir'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, '+5 dk'));
+      await tester.pump();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.widgetWithText(FilledButton, 'Kaydet'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'KAYDET VE FİŞ BAS'),
+            )
+            .onPressed,
+        isNotNull,
+      );
+    });
+
+    testWidgets('DOKUNULMAYAN alanlar gövdeye GİRMEZ', (tester) async {
+      // Değişmeyen alanı göndermek, sunucuda gereksiz bir revizyon farkı
+      // ve fişte gereksiz bir "*" işareti üretir.
+      final api = FakeOrderEditApi();
+      await pumpEdit(tester, api);
+
+      await tester.tap(rowButton('Mercimek Çorbası', Icons.remove));
+      await tester.pump();
+      await saveWithReason(tester);
+
+      expect(api.lastRevision!.requestedAt, isNull);
+      expect(api.lastRevision!.customerNote, isNull);
     });
 
     testWidgets('İADE TUTARI kaydedildi mesajında görünür', (tester) async {

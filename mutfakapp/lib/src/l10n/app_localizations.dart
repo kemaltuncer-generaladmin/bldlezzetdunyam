@@ -1719,6 +1719,24 @@ abstract class AppL10n {
   /// **'İç not (isteğe bağlı)'**
   String get editNote;
 
+  /// Teslimat saati boşsa gösterilen metin
+  ///
+  /// In tr, this message translates to:
+  /// **'Saat belirtilmemiş'**
+  String get editNoRequestedAt;
+
+  /// Müşteri notunu düzenleme düğmesi
+  ///
+  /// In tr, this message translates to:
+  /// **'Notu düzenle'**
+  String get editChangeNote;
+
+  /// Müşteri notu boşsa gösterilen metin
+  ///
+  /// In tr, this message translates to:
+  /// **'Not yok'**
+  String get editNoNote;
+
   /// Kaydet düğmesi.
   ///
   /// In tr, this message translates to:
@@ -1910,6 +1928,18 @@ abstract class AppL10n {
   /// In tr, this message translates to:
   /// **'BBD kuyruğunda {count} fiş bekliyor'**
   String bbdPending(int count);
+
+  /// Ekran klavyesi penceresinin varsayılan başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'Metin girin'**
+  String get keyboardTitle;
+
+  /// Durum çubuğundaki dokunmatik işlem menüsünün başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'İşlemler'**
+  String get actionsTitle;
 }
 
 class _AppL10nDelegate extends LocalizationsDelegate<AppL10n> {

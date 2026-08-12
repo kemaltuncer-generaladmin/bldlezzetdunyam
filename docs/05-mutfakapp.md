@@ -680,6 +680,47 @@ bit** aynı kalıyor; regresyon riski sıfır. Açıkken:
   **hiç açılamıyordu** — kurtarılamaz bir kilitlenme,
 * kartta kaydırma jestleri: sağa = ilerlet, sola/uzun bas = işlem sayfası.
 
+### SIFIR KLAVYE / FARE KURALI (12.08.2026)
+
+Dokunmatik kip açıkken kasada **klavye ve fare takılı olmayacak.**
+Bu, "büyük düğme" meselesinden fazlası: kipin açık olması, o kasada
+klavyeyle yapılabilen her işin dokunuşla da yapılabildiğinin **garantisi**.
+İki somut şart:
+
+**1. Her metin alanı kendi klavyesini getirir.** Ortak
+`lib/src/input/keyboard_text_field.dart` — dokunmatikte alan salt okunur
+oluyor ve dokununca tam ekran klavye penceresi açılıyor; klasik kipte
+sıradan bir `TextField` olarak kalıyor.
+
+Açık kalan alanlar kapatıldı: ayarlar ekranındaki iki metin alanı
+(hiç klavyesi yoktu), satış kontrolündeki ürün araması, düzenleme
+ekranındaki ürün araması.
+
+Pencerenin İÇİNDEKİ alan da salt okunur: yazının tek kaynağı alttaki
+tuşlar olmalı, yoksa imleç konumu iki yerden değişip karışıyor.
+`onChanged` elle çağrılıyor — denetleyiciye programla yazmak alanın geri
+çağrısını tetiklemiyor ve arama alanları buna bağlı.
+
+**2. Her klavye kısayolunun dokunmatik karşılığı var.** Durum çubuğuna
+**İşlemler** menüsü eklendi (`kds/widgets/actions_sheet.dart`).
+
+Kapatılan üç açık: vardiya özeti (F3) hiçbir yerden dokunuşla
+açılmıyordu; **satış kontrolü (F7) yalnız satış KAPALIYKEN çıkan kırmızı
+şeritten açılıyordu — yani dokunmatik kasada satışı kapatmanın hiçbir
+yolu yoktu, kapatmak için önce kapalı olması gerekiyordu**; abonelik
+planı (F8) yalnız abonelik siparişi varken görünen şeritten açılıyordu.
+
+Kısayollar kaldırılmadı: klavyeli bir kasada F7 hâlâ çalışıyor. Alt sayfa
+onların yerine değil yanına eklendi.
+
+**Teslimat saati seçicisi Material'in `showTimePicker`'ı DEĞİL**
+(`_TimePrompt`): kadran ve küçük metin alanları yağlı elle çalışmıyor ve
+yazma kipi donanım klavyesi istiyor. Kendi penceremiz `-1 sa / -5 dk /
++5 dk / +1 sa` düğmeleriyle çalışıyor. Dakika beşer adım ilerliyor —
+mutfak "16:47"ye teslim sözü vermiyor.
+
+Kural `test/touch_only_test.dart` ile sabitlendi.
+
 ### GERİ ALMA — "geri alma yoktur" kuralı daraltıldı
 
 §3 "geri alma yoktur" diyordu ve dokunmatik monitör gelene kadar
@@ -821,6 +862,11 @@ müşteri fişi ise müşteride kalıyor.
   kaçırtıyor).
 * Sipariş düzenlendiyse başlıkta çift boy `REVİZE #N` ve değişiklik
   listesi.
+* **Karttan elle yeniden bastırılabilir** (12.08.2026). Tetikleyici fişi
+  otomatik basıyor, ama kâğıt sıkışırsa personelin onu geri getirecek bir
+  yolu olmalı. Menü siparişten türüyor: gel-al siparişte kurye seçeneği
+  hiç görünmüyor — boş adresli bir kâğıt, personeli olmayan bir teslimatı
+  aramaya iter.
 
 ### Fiş tekilliği revizyon bazlı
 
@@ -856,6 +902,12 @@ verilmeden değişmiş bir sipariş demek.
   Fiyatı istemci bilmiyor (ADR-08) ve sunucudan "ne kadar olurdu" diye
   sormak, kaydetmeden önce ikinci bir uç ve ikinci bir hesap demekti.
   Para sonucu kaydettikten sonra bildiriliyor.
+* **Fark tutarı kaydetme mesajında görünüyor** (12.08.2026): "Revizyon #1
+  kaydedildi — Müşteriye iade edilecek: 180,00 ₺". Personel bu
+  değişikliği müşteriyle telefonda konuşarak giriyor; kapatmadan önce
+  rakamı teyit edebilmeli. Gösterilen yalnızca **fark**, cari bakiye
+  değil — ADR-08 duruyor. Fark sıfırsa satır hiç eklenmiyor: "0,00 ₺"
+  yazmak personeli boşuna kasaya yollar.
 
 **TEK BİLDİRİM, İKİ DEĞİL.** İlk sürüm önce "kaydedildi" sonra "iade
 başlatılamadı" gösteriyordu; ikisi kuyruğa giriyor, personel ilkini görüp

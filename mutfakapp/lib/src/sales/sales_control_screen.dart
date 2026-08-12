@@ -28,6 +28,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/providers.dart';
 import '../data/sales_control.dart';
+import '../input/keyboard_text_field.dart';
 import '../input/onscreen_keyboard.dart';
 import '../l10n/app_localizations.dart';
 import '../lock/unlock_password.dart';
@@ -506,16 +507,15 @@ class _ProductListState extends ConsumerState<_ProductList> {
               ),
             ),
             const SizedBox(height: BldSpacing.md),
-            TextField(
+            KeyboardTextField(
               controller: _search,
-              onChanged: (_) => setState(() {}),
-              style: const TextStyle(fontSize: KdsTextScale.statusBar),
-              decoration: InputDecoration(
-                isDense: true,
-                prefixIcon: const Icon(Icons.search),
-                labelText: l10n.salesProductSearch,
-                border: const OutlineInputBorder(),
+              touchMode: ref.watch(
+                kdsSettingsProvider.select((settings) => settings.touchMode),
               ),
+              isDense: true,
+              label: l10n.salesProductSearch,
+              prefixIcon: Icons.search,
+              onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: BldSpacing.md),
             items.when(

@@ -22,6 +22,7 @@ import '../config/app_config.dart';
 import '../data/device_session.dart';
 import '../data/printer_probe.dart';
 import '../data/providers.dart';
+import '../input/keyboard_text_field.dart';
 import '../l10n/app_localizations.dart';
 import '../printing/print_job.dart';
 import '../printing/test_receipt.dart';
@@ -1145,14 +1146,17 @@ class _TextSettingState extends State<_TextSetting> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
-          child: TextField(
-            controller: _controller,
-            style: const TextStyle(fontSize: KdsTextScale.statusBar),
-            onSubmitted: widget.onSaved,
-            decoration: InputDecoration(
+          // `Consumer` — bu widget `ref` taşımıyor ve yalnız dokunmatik
+          // bayrağı için sınıf hiyerarşisini değiştirmek gereksiz.
+          child: Consumer(
+            builder: (context, ref, _) => KeyboardTextField(
+              controller: _controller,
+              touchMode: ref.watch(
+                kdsSettingsProvider.select((settings) => settings.touchMode),
+              ),
               isDense: true,
-              labelText: widget.label,
-              border: const OutlineInputBorder(),
+              label: widget.label,
+              onSubmitted: widget.onSaved,
             ),
           ),
         ),
@@ -1371,12 +1375,15 @@ class _TextPromptDialogState extends State<_TextPromptDialog> {
             ),
           ),
           const SizedBox(height: BldSpacing.md),
-          TextField(
-            controller: _controller,
-            autofocus: true,
-            style: const TextStyle(fontSize: KdsTextScale.statusBar),
-            decoration: const InputDecoration(border: OutlineInputBorder()),
-            onSubmitted: (value) => Navigator.of(context).pop(value),
+          Consumer(
+            builder: (context, ref, _) => KeyboardTextField(
+              controller: _controller,
+              touchMode: ref.watch(
+                kdsSettingsProvider.select((settings) => settings.touchMode),
+              ),
+              autofocus: true,
+              onSubmitted: (value) => Navigator.of(context).pop(value),
+            ),
           ),
         ],
       ),

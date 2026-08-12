@@ -118,7 +118,13 @@ class FakeOrderEditApi implements OrderEditApi {
   final List<({int menuId, String name})> menuItems;
 
   /// Son gönderilen revizyon — testin doğrulaması için.
-  ({String reason, List<EditableItem> items})? lastRevision;
+  ({
+    String reason,
+    List<EditableItem> items,
+    DateTime? requestedAt,
+    String? customerNote,
+  })?
+  lastRevision;
 
   /// `true` ise `createRevision` hata atar.
   bool failRevision = false;
@@ -153,7 +159,12 @@ class FakeOrderEditApi implements OrderEditApi {
       );
     }
 
-    lastRevision = (reason: reason, items: items);
+    lastRevision = (
+      reason: reason,
+      items: items,
+      requestedAt: requestedAt,
+      customerNote: customerNote,
+    );
     return result;
   }
 }

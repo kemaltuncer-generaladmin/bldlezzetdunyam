@@ -26,6 +26,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/order_edit.dart';
 import '../data/providers.dart';
+import '../input/keyboard_text_field.dart';
 import '../input/onscreen_keyboard.dart';
 import '../l10n/app_localizations.dart';
 
@@ -52,7 +53,24 @@ class _OrderEditScreenState extends ConsumerState<OrderEditScreen> {
   RevisionReason? _reason;
   String? _customReason;
   DateTime? _requestedAt;
+
+  /// Personelin girdiği yeni müşteri notu; `null` = dokunulmadı.
+  ///
+  /// Siparişin kendi notundan AYRI tutuluyor: "dokunulmadı" ile "boşaltıldı"
+  /// aynı şey değil ve ikisini tek alanda tutmak, notu temizlemeyi
+  /// imkânsız kılardı.
+  String? _customerNote;
+
   bool _saving = false;
+
+  /// Sunucudan gelen ilk hâlleri — değişiklik ölçütü.
+  DateTime? _originalRequestedAt;
+  String? _originalCustomerNote;
+
+  bool get _requestedAtChanged => _requestedAt != _originalRequestedAt;
+
+  bool get _customerNoteChanged =>
+      _customerNote != null && _customerNote != (_originalCustomerNote ?? '');
 
   @override
   Widget build(BuildContext context) {
@@ -104,9 +122,13 @@ class _OrderEditScreenState extends ConsumerState<OrderEditScreen> {
 
     // İlk veri geldiğinde çalışma kopyası kurulur. Sonraki yeniden
     // çizimlerde EZİLMEZ: personelin yaptığı değişiklikler kaybolurdu.
-    _items ??= List<EditableItem>.of(order.items);
-    _original ??= List<EditableItem>.of(order.items);
-    _requestedAt ??= order.requestedAt;
+    if (_original == null) {
+      _items = List<EditableItem>.of(order.items);
+      _original = List<EditableItem>.of(order.items);
+      _requestedAt = order.requestedAt;
+      _originalRequestedAt = order.requestedAt;
+      _originalCustomerNote = order.customerNote;
+    }
 
     final items = _items!;
 
@@ -150,6 +172,19 @@ class _OrderEditScreenState extends ConsumerState<OrderEditScreen> {
                 label: Text(l10n.editAddProduct),
               ),
               const SizedBox(height: BldSpacing.lg),
+              _SectionTitle(text: l10n.editRequestedAt),
+              _DeliveryTimeRow(
+                requestedAt: _requestedAt,
+                original: order.requestedAt,
+                onChange: () => unawaited(_pickTime(order)),
+              ),
+              const SizedBox(height: BldSpacing.lg),
+              _SectionTitle(text: l10n.editNote),
+              _NoteRow(
+                note: _customerNote ?? order.customerNote,
+                onEdit: () => unawaited(_editNote(order)),
+              ),
+              const SizedBox(height: BldSpacing.lg),
               _SectionTitle(text: l10n.editReason),
               _ReasonPicker(
                 selected: _reason,
@@ -179,6 +214,11 @@ class _OrderEditScreenState extends ConsumerState<OrderEditScreen> {
     final original = _original;
     final items = _items;
     if (original == null || items == null) return false;
+
+    // Teslimat saati ve müşteri notu da tek başına bir revizyon sebebi:
+    // "yarım saat geç gelsin" diyen müşteri için kalem değiştirmiyoruz
+    // ama fişin yeniden basılması gerekiyor.
+    if (_requestedAtChanged || _customerNoteChanged) return true;
 
     if (original.length != items.length) return true;
 
@@ -224,6 +264,49 @@ class _OrderEditScreenState extends ConsumerState<OrderEditScreen> {
     });
   }
 
+  /// Teslimat saatini değiştir.
+  ///
+  /// YALNIZ SAAT SORULUYOR, TARİH DEĞİL: mutfak bugünün siparişini
+  /// düzenliyor. Tarih de sorulsaydı personel yanlış güne kaydırabilir ve
+  /// sipariş panodan kaybolurdu.
+  /// NEDEN `showTimePicker` DEĞİL: Material'in seçicisi kadran ve küçük
+  /// metin alanlarıyla geliyor; yağlı elle dakika tutturmak zor ve kasada
+  /// donanım klavyesi yok (K-10). Kendi penceremiz büyük ± düğmeleri ve
+  /// ekran klavyesiyle çalışıyor — ekranın geri kalanıyla aynı dil.
+  Future<void> _pickTime(EditableOrder order) async {
+    final base = (_requestedAt ?? DateTime.now()).toLocal();
+
+    final picked = await showDialog<({int hour, int minute})>(
+      context: context,
+      builder: (context) => _TimePrompt(hour: base.hour, minute: base.minute),
+    );
+
+    if (picked == null || !mounted) return;
+
+    setState(
+      () => _requestedAt = DateTime(
+        base.year,
+        base.month,
+        base.day,
+        picked.hour,
+        picked.minute,
+      ),
+    );
+  }
+
+  Future<void> _editNote(EditableOrder order) async {
+    final entered = await showDialog<String>(
+      context: context,
+      builder: (context) => _NotePrompt(
+        initial: _customerNote ?? order.customerNote ?? '',
+      ),
+    );
+
+    if (entered == null || !mounted) return;
+
+    setState(() => _customerNote = entered.trim());
+  }
+
   Future<void> _save(EditableOrder order) async {
     final l10n = AppL10n.of(context);
     final messenger = ScaffoldMessenger.of(context);
@@ -257,7 +340,8 @@ class _OrderEditScreenState extends ConsumerState<OrderEditScreen> {
             orderId: widget.orderId,
             reason: reason,
             items: _items!,
-            requestedAt: _requestedAt == order.requestedAt ? null : _requestedAt,
+            requestedAt: _requestedAtChanged ? _requestedAt : null,
+            customerNote: _customerNoteChanged ? _customerNote : null,
           );
 
       // Panonun revizyonu hemen görmesi için kaynak tazeleniyor;
@@ -695,16 +779,15 @@ class _ProductPickerState extends ConsumerState<_ProductPicker> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
+            KeyboardTextField(
               controller: _search,
-              autofocus: true,
-              onChanged: (_) => setState(() {}),
-              style: const TextStyle(fontSize: KdsTextScale.orderNumber),
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search),
-                labelText: l10n.editProductSearch,
-                border: const OutlineInputBorder(),
+              touchMode: ref.watch(
+                kdsSettingsProvider.select((settings) => settings.touchMode),
               ),
+              autofocus: true,
+              label: l10n.editProductSearch,
+              prefixIcon: Icons.search,
+              onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: BldSpacing.md),
             SizedBox(
@@ -756,6 +839,257 @@ class _ProductPickerState extends ConsumerState<_ProductPicker> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Teslimat saati satırı — değeri ve değiştirme düğmesi.
+class _DeliveryTimeRow extends StatelessWidget {
+  const _DeliveryTimeRow({
+    required this.requestedAt,
+    required this.original,
+    required this.onChange,
+  });
+
+  final DateTime? requestedAt;
+  final DateTime? original;
+  final VoidCallback onChange;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
+    final changed = requestedAt != original;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            requestedAt == null
+                ? l10n.editNoRequestedAt
+                : TurkishTime.shortDateTime(requestedAt!),
+            style: TextStyle(
+              fontSize: KdsTextScale.orderNumber,
+              fontWeight: changed ? FontWeight.bold : FontWeight.normal,
+              // DEĞİŞEN DEĞER VURGULU: personel kaydetmeden önce neyi
+              // değiştirdiğini bir bakışta görmeli; listenin ortasındaki
+              // sessiz bir saat değişikliği gözden kaçar.
+              color: Color(changed ? BldColors.warning : KdsColors.onSurface),
+            ),
+          ),
+        ),
+        FilledButton.tonalIcon(
+          onPressed: onChange,
+          icon: const Icon(Icons.schedule),
+          label: Text(l10n.editChangeTime),
+          style: FilledButton.styleFrom(minimumSize: const Size(0, 56)),
+        ),
+      ],
+    );
+  }
+}
+
+/// Müşteri notu satırı.
+class _NoteRow extends StatelessWidget {
+  const _NoteRow({required this.note, required this.onEdit});
+
+  final String? note;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
+    final text = note == null || note!.isEmpty ? l10n.editNoNote : note!;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: KdsTextScale.statusBar),
+          ),
+        ),
+        FilledButton.tonalIcon(
+          onPressed: onEdit,
+          icon: const Icon(Icons.edit_note),
+          label: Text(l10n.editChangeNote),
+          style: FilledButton.styleFrom(minimumSize: const Size(0, 56)),
+        ),
+      ],
+    );
+  }
+}
+
+/// Teslimat saati penceresi — büyük ± düğmeleri (K-10).
+///
+/// Dakika **5'er adım** ilerliyor: mutfak "16:47"ye teslim sözü vermiyor,
+/// beşer dakikalık pencerelerle konuşuyor. Tek tek saymak yerine dört
+/// dokunuşta çeyrek saat kaydırmak, telefondaki müşteriyi bekletmiyor.
+class _TimePrompt extends StatefulWidget {
+  const _TimePrompt({required this.hour, required this.minute});
+
+  final int hour;
+  final int minute;
+
+  @override
+  State<_TimePrompt> createState() => _TimePromptState();
+}
+
+class _TimePromptState extends State<_TimePrompt> {
+  late int _hour = widget.hour;
+
+  // Başlangıç dakikası 5'in katına yuvarlanıyor: aksi hâlde ilk dokunuş
+  // "47 → 52" gibi tuhaf bir değer üretirdi.
+  late int _minute = (widget.minute ~/ 5) * 5;
+
+  void _shiftHour(int delta) =>
+      setState(() => _hour = (_hour + delta + 24) % 24);
+
+  void _shiftMinute(int delta) => setState(() {
+    final total = _hour * 60 + _minute + delta;
+    final wrapped = (total + 1440) % 1440;
+    _hour = wrapped ~/ 60;
+    _minute = wrapped % 60;
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
+    String two(int value) => value.toString().padLeft(2, '0');
+
+    return AlertDialog(
+      backgroundColor: const Color(KdsColors.surface),
+      title: Text(l10n.editRequestedAt),
+      content: SizedBox(
+        width: 700,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '${two(_hour)}:${two(_minute)}',
+              style: const TextStyle(
+                fontSize: 72,
+                fontWeight: FontWeight.bold,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+            const SizedBox(height: BldSpacing.lg),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _TimeStepButton(label: '-1 sa', onTap: () => _shiftHour(-1)),
+                _TimeStepButton(label: '-5 dk', onTap: () => _shiftMinute(-5)),
+                _TimeStepButton(label: '+5 dk', onTap: () => _shiftMinute(5)),
+                _TimeStepButton(label: '+1 sa', onTap: () => _shiftHour(1)),
+              ],
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.cancel),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(minimumSize: const Size(0, 56)),
+          onPressed: () =>
+              Navigator.of(context).pop((hour: _hour, minute: _minute)),
+          child: Text(l10n.save),
+        ),
+      ],
+    );
+  }
+}
+
+class _TimeStepButton extends StatelessWidget {
+  const _TimeStepButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: BldSpacing.sm),
+    child: FilledButton.tonal(
+      onPressed: onTap,
+      style: FilledButton.styleFrom(minimumSize: const Size(120, 72)),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: KdsTextScale.statusBar),
+      ),
+    ),
+  );
+}
+
+/// Not düzenleme penceresi — ekran klavyesiyle (K-10).
+///
+/// AYRI BİR WIDGET: denetleyicinin sahibi bu sınıf. Diyaloğu kuran ekran
+/// tutsaydı, pencere kapandıktan sonra `dispose` edilmiş bir denetleyiciye
+/// yazılıyordu.
+class _NotePrompt extends StatefulWidget {
+  const _NotePrompt({required this.initial});
+
+  final String initial;
+
+  @override
+  State<_NotePrompt> createState() => _NotePromptState();
+}
+
+class _NotePromptState extends State<_NotePrompt> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initial,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() => Navigator.of(context).pop(_controller.text);
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
+
+    return AlertDialog(
+      backgroundColor: const Color(KdsColors.surface),
+      title: Text(l10n.editNote),
+      content: SizedBox(
+        width: 900,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: _controller,
+                autofocus: true,
+                // Sunucu 1000 karakterde kesiyor; sınırı burada göstermek,
+                // kaydetmede doğrulama hatası almaktan iyi.
+                maxLength: 1000,
+                maxLines: 3,
+                style: const TextStyle(fontSize: KdsTextScale.orderNumber),
+                decoration: const InputDecoration(border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: BldSpacing.md),
+              OnscreenKeyboard(controller: _controller, onSubmit: _submit),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.cancel),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(minimumSize: const Size(0, 56)),
+          onPressed: _submit,
+          child: Text(l10n.save),
+        ),
+      ],
     );
   }
 }
