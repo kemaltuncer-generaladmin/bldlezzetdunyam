@@ -136,9 +136,7 @@ ediyordu.
   yönteminden** türüyor. Başarısız iade de kayıt açıyor.
 - İptal edilen ödenmiş siparişte de iade kaydı açılıyor.
 
-## K-14 — Kurye fişi, telefon, revizyon · KISMÎ
-
-**Bitti:**
+## K-14 — Kurye fişi, telefon, revizyon · BİTTİ
 - Üçüncü fiş tipi `kurye` (`packages/core` şablonu + 2 golden test + 4
   kural testi). Tahsilat satırı çift boy; ödenmiş siparişte basılmıyor.
 - **Panoda telefon** — `docs/03` §5'teki gizlilik kuralı daraltıldı
@@ -150,20 +148,64 @@ ediyordu.
 - Müşteri tarafı: `GET /orders/{id}` artık `revision_no` + `revisions[]`
   döndürüyor.
 
-**Yapılmadı:** KDS'teki düzenleme ekranı (adet ±, ürün ekleme, sebep
-seçimi, fark onayı). Motor ve uçlar hazır, tetiği yok.
+- **KDS düzenleme ekranı**: adet ±, kalem kaldırma, ürün ekleme
+  (fiyatsız), teslimat saati, müşteri notu, sebep seçimi, onay penceresi.
+- **Kurye fişi elle yeniden bastırılabiliyor**; menü siparişten türüyor,
+  gel-al siparişte kurye seçeneği çıkmıyor.
+- **İade / ek tahsilat tutarı** kaydetme mesajında görünüyor — yalnız
+  fark, cari bakiye değil (ADR-08 duruyor).
 
-## K-15 / K-16 · YAPILMADI
+## K-15 — Abonelik üretim planı · BİTTİ
 
-Abonelik üretim planı ekranı ve BBD Store köprüsü bu turda başlanmadı.
-BBD tarafına bırakılan not aşağıda; kendi tarafımızdaki iş henüz sıfır
-(yalnız `bbd_siparis.wav` ses dosyası hazır).
+Tam ekran plan (bugün / yarın / hafta), ürün toplamları, teslimat
+çizelgesi, durum ilerletme, uyarı bloğu (başlıklı) ve üretim planı fişi
+(golden testli).
+
+## K-16 — BBD Store köprüsü · BİTTİ VE CANLI
+
+İmzalı webhook (`POST /api/partner/bbd/orders`), `external_id` ile
+tekilleştirme, kitchen ucundan kuyruk + ack, BBD'ye özel ses, ayrı
+**paketleme fişi** (kitap e-ticareti: stok kodu, yazar, kargo firması,
+takip numarası) ve durum çubuğunda `BBD: n` çipi.
+
+**Canlıda doğrulandı (12.08.2026):** ortak sır iki tarafın `.env`'inde
+eşleşiyor — imzalı istek middleware'i geçti, yalnız gövde doğrulaması
+reddetti (`422`). Doğrulama fiş oluşturmayan bir gövdeyle yapıldı;
+temizlenecek test kaydı yok.
+
+BBD siparişleri panoya, üretim şeridine, vardiya istatistiğine, günlük
+sayaca ve cari hesaba **karışmıyor** — senin kararın.
+
+## Dokunmatik ikinci tur — SIFIR KLAVYE/FARE (12.08.2026)
+
+Kural: **dokunmatik kip açıkken kasada klavye ve fare takılı olmayacak.**
+Denetimde çıkan ve kapatılan açıklar:
+
+- **Dokunmatik kasa HİÇ EŞLEŞEMİYORDU.** Türkçe ekran klavyesinde rakam
+  yoktu: sunucu adresi, eşleme kodu ve yazıcı yolu yazılamıyordu. Üstelik
+  eşleme ekranının hiç klavyesi yoktu. Rakam sırası + `- _ / : @`
+  eklendi; eşleme alanlarının klavye düğmesi **ayardan bağımsız** hep
+  duruyor (o ekran ayarlardan önce geliyor, ayara bağlamak aynı
+  kilitlenmeyi sürdürürdü).
+- **Satışı kapatmanın dokunmatik yolu yoktu:** satış kontrolü yalnız
+  satış KAPALIYKEN çıkan kırmızı şeritten açılıyordu. Vardiya özeti (F3)
+  de hiç dokunuşla açılmıyordu. Durum çubuğuna **İşlemler** menüsü
+  eklendi; klavye kısayolları duruyor.
+- **Klavyesiz metin alanları:** ayarlardaki iki alan, satış kontrolü ve
+  düzenleme ekranındaki ürün aramaları. Ortak `KeyboardTextField` ile
+  kapandı.
+- **Teslimat saati ve müşteri notu düzenleme hiç çalışmıyordu:** gövdede
+  alan hazırdı, onları değiştirecek arayüz yoktu. Saat seçici Material'in
+  kadranı değil, büyük düğmeli kendi penceremiz.
+- **Ses tanılamada "yok" ile "denenmedi" ayrıldı**; kurulum komutu
+  ekranda ve kopyalanabilir.
+- Kullanılmayan 12 l10n anahtarı kaldırıldı — kalan sıfır.
 
 ## Doğrulama (bu turda çalıştırıldı)
 
 ```
-mutfakapp      flutter analyze → temiz | flutter test → 430 test geçti
-packages/core  flutter analyze → temiz | flutter test → 134 test geçti
+mutfakapp      flutter analyze → temiz | flutter test → 455 test geçti
+packages/core  flutter analyze → temiz | flutter test → 139 test geçti
 api_client     flutter analyze → temiz
 design_system  flutter analyze → temiz
 musteriapp     flutter analyze → temiz | flutter test →  97 test geçti
@@ -171,15 +213,30 @@ website        eslint → temiz | tsc --noEmit → temiz
 docs/openapi.yaml → YAML geçerli, 44 yol
 ```
 
-**PHP tarafı KOŞTURULAMADI:** bu makinede PHP çalışma zamanı ve MySQL yok.
-Yazılan bütün PHP dosyaları Docker (`php:8.3-cli`) ile `php -l` sözdizimi
-denetiminden geçirildi; **feature testleri çalıştırılmadı.** Sunucuda ilk iş:
+**Canlı sunucu (12.08.2026):** kod deploy edildi, göçler koştu
+(`veykemtu_menu_soldout`, `veykemtu_order_revisions`,
+`veykemtu_payment_refunds`, `veykemtu_bbd_receipts`,
+`orders.bld_revision_no`, `veykemtu_kitchen_devices.volume_percent`
+doğrulandı). `/api/health` 200; BBD ucu imza doğrulaması ile çalışıyor.
 
-```bash
-cd platform
-php artisan igniter:up          # yeni göçler: 5 adet
-vendor/bin/phpunit --testsuite Veykemtu
-```
+**Bu PC'ye KDS kuruldu:** `infra/kasa/derle.sh` ile derlenip
+`~/.local/opt/mutfakapp` altına kuruldu, `mutfakapp.service` ayakta
+(çökme yok). Ses gerçekten çalışıyor — `pw-play --volume=0.800 <dosya>`
+çıkış kodu 0; eski hata `pw-play`'e `-q` geçirilmesiydi.
+
+**PHP feature testleri:** ilk kez sunucuda koştuğunda iki gerçek hata
+çıktı ve düzeltildi:
+
+1. Paylaşılan `KitchenTestCase` hiçbir autoload haritasında değildi —
+   PHPUnit eklenti test dizinlerini `suffix="Test.php"` ile tarıyor, o
+   desene uymayan taban sınıf toplanmıyor ve yüklenmiyordu. **226 testin
+   tamamı hiç koşmamıştı.** Sınıf `platform/tests/` altına (autoload-dev
+   `Tests\`) taşındı.
+2. `bld` kullanıcısının `bld_test` veritabanında yetkisi yoktu.
+
+Paket ~50 dakika sürüyor: `KitchenTestCase::setUp` her testte
+`veykemtu:setup` + `veykemtu:demo-menu` artisan komutlarını koşuyor
+(test başına ~13 sn). Hızlandırmak ayrı bir iş.
 
 ---
 
@@ -233,6 +290,9 @@ $signature = 'sha256='.hash_hmac('sha256', $body, $secret);
 
 ## Gövde
 
+**BBD Store bir KİTAP e-ticaret sitesidir.** Çıkan kâğıt bir mutfak fişi
+değil, **paketleme fişi**: raftan kitabı bulup kargoya vermek için.
+
 ```json
 {
   "external_id": "BBD-2026-000123",
@@ -242,17 +302,35 @@ $signature = 'sha256='.hash_hmac('sha256', $body, $secret);
   "phone": "0555 123 45 67",
   "delivery_type": "delivery",
   "address": "Örnek Mah. 12. Sk No:3, Selçuklu / Konya",
-  "note": "Zili çalmayın",
+  "note": "Hediye paketi yapılsın",
   "items": [
-    { "name": "Mercimek Çorbası", "quantity": 2, "options": ["Büyük"], "note": null }
+    {
+      "name": "Türkiye'nin Yakın Tarihi — Cilt II",
+      "quantity": 2,
+      "sku": "9789750718533",
+      "attributes": ["Orhan Pamuk", "Ciltli", "3. Baskı"],
+      "note": null
+    }
   ],
-  "amount_kurus": 18500
+  "amount_kurus": 18500,
+  "cargo_company": "Yurtiçi Kargo",
+  "tracking_number": "1234567890123",
+  "payment_label": "Ödendi (kredi kartı)"
 }
 ```
 
 - `external_id` **zorunlu ve tekil**. Tekilleştirme buna bakar.
-- `items[].name` fişe **olduğu gibi** basılır; BLD menüsüyle eşleştirme
-  yapılmaz (BBD ürünleri BLD menüsünde yok).
+- `items[].name` **kitap adı**, fişe olduğu gibi basılır; BLD menüsüyle
+  eşleştirme yapılmaz. Uzun adlar fişte satıra sarılır.
+- `items[].sku` **stok kodu / ISBN** — raftan bulmanın en hızlı yolu,
+  fişte `Kod:` satırında basılır.
+- `items[].attributes` yazar / cilt / baskı gibi ek nitelikler
+  (en çok 5 tane, her biri en çok 80 karakter).
+- `cargo_company` + `tracking_number`: paketleyen kişi doğru poşeti
+  seçsin diye. Takip numarası fişte **çift boy** basılır.
+  Kitapta `delivery` **kargo** demek, kurye değil.
+- `delivery_type: "pickup"` ise fişe adres basılmaz (mağazadan teslim).
+- `payment_label` serbest metin: "Ödendi (kredi kartı)", "Kapıda ödeme".
 - `amount_kurus` kuruş cinsinden tamsayı. Yoksa fişe tutar basılmaz.
 - Türkçe karakterler UTF-8; fişte PC857'ye çevrilir.
 
@@ -300,5 +378,19 @@ Aynı komutu ikinci kez çalıştırın: yanıt yine `200` olmalı ve mutfakta
 - KDS'te ayrı ses, fiş basımı ve durum çubuğunda "BBD: n" çipi ✅
 - 14 feature testi (imza, tekilleştirme, "panoya karışmıyor") ✅
 
-**Tek kalan:** `BBD_WEBHOOK_SECRET` sırrının üretilip iki tarafa da
-girilmesi. Boşken uç 401 döner — bilinçli.
+**Sır girildi ve doğrulandı (12.08.2026).** `BBD_WEBHOOK_SECRET` iki
+tarafın `.env`'inde eşleşiyor: imzalı bir istek middleware'i geçiyor,
+yalnız gövde doğrulaması reddediyor (`422`). Köprü canlı.
+
+**BBD ajanına iletilecek iki not:**
+
+1. Daha önce aldıkları `404`, yol yanlışlığından değil **kodun henüz
+   deploy edilmemiş olmasından** kaynaklanıyordu. Uç adresi doğru:
+   `https://api.benimlezzetdunyam.com.tr/api/partner/bbd/orders`
+2. İmza **ham gövde** (raw body) üzerinden alınır. JSON yeniden
+   serileştirilirse (boşluk/sıra değişir) imza tutmaz.
+
+**Bizim tarafta açık kalanlar** (BBD'nin bildirdiği):
+takip numarası sipariş anında gönderilmiyor, `delivery_type` her zaman
+`delivery` geliyor, müşteri sipariş notu yok. Üçü de fişte boş alan
+olarak geçiliyor — fiş yine basılıyor.
