@@ -212,6 +212,18 @@ class _DaySection extends ConsumerWidget {
               // kendisinden önce gelir.
               if (day.warnings.isNotEmpty) ...[
                 const SizedBox(height: BldSpacing.md),
+                // BAŞLIK ŞART: başlıksız bir sarı satır dizisi, listenin
+                // bir parçası gibi okunuyor ve "bunlar uyarı" olduğu
+                // anlaşılmıyor.
+                Text(
+                  l10n.planWarnings,
+                  style: const TextStyle(
+                    fontSize: KdsTextScale.columnHeader,
+                    fontWeight: FontWeight.bold,
+                    color: Color(BldColors.warning),
+                  ),
+                ),
+                const SizedBox(height: BldSpacing.xs),
                 for (final warning in day.warnings)
                   _WarningRow(warning: warning),
               ],

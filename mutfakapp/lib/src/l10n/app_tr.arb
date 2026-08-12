@@ -145,17 +145,9 @@
   "@settings": {
     "description": "Durum çubuğundaki ayarlar düğmesi"
   },
-  "deviceInfoTitle": "Cihaz bilgisi",
-  "@deviceInfoTitle": {
-    "description": "Ayarlar düğmesinin açtığı pencere"
-  },
   "deviceInfoServer": "Sunucu",
   "@deviceInfoServer": {
     "description": "API taban adresi satırı"
-  },
-  "deviceInfoPrinter": "Yazıcı",
-  "@deviceInfoPrinter": {
-    "description": "Yazıcı cihaz yolu satırı"
   },
   "deviceInfoVersion": "Sürüm",
   "@deviceInfoVersion": {
@@ -164,14 +156,6 @@
   "close": "Kapat",
   "@close": {
     "description": "Pencere kapatma düğmesi"
-  },
-  "devicePairingRequired": "Cihaz eşlenmedi",
-  "@devicePairingRequired": {
-    "description": "Kayıtlı mutfak token'ı yokken"
-  },
-  "devicePairingHint": "Yönetici panelinden alınan eşleme kodu girilmeden sipariş alınamaz.",
-  "@devicePairingHint": {
-    "description": "Eşleme yapılmadığında gösterilen açıklama"
   },
   "pairingTitle": "Mutfak ekranını eşle",
   "@pairingTitle": {
@@ -936,35 +920,6 @@
       }
     }
   },
-  "subscriptionDayToday": "Bugün",
-  "@subscriptionDayToday": {
-    "description": "Abonelik dökümünde bugün başlığı"
-  },
-  "subscriptionDayTomorrow": "Yarın",
-  "@subscriptionDayTomorrow": {
-    "description": "Abonelik dökümünde yarın başlığı"
-  },
-  "subscriptionOrderCount": "{count} sipariş",
-  "@subscriptionOrderCount": {
-    "description": "Gün başlığındaki sipariş sayısı",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "subscriptionTotalsLabel": "Hazırlanacak toplam",
-  "@subscriptionTotalsLabel": {
-    "description": "Gün içinde hazırlanacak toplam adetlerin başlığı"
-  },
-  "subscriptionDialogTitle": "Abonelik siparişleri (bugün + yarın)",
-  "@subscriptionDialogTitle": {
-    "description": "Abonelik döküm penceresi başlığı"
-  },
-  "subscriptionDialogClose": "Kapat",
-  "@subscriptionDialogClose": {
-    "description": "Abonelik döküm penceresini kapatan düğme"
-  },
   "settingsSectionSound": "Ses ve hoparlör",
   "@settingsSectionSound": {
     "description": "Ses ayarları bölüm başlığı."
@@ -1320,15 +1275,6 @@
   "@editRemove": {
     "description": "Kalem kaldırma."
   },
-  "editRemoved": "{name} kaldırıldı",
-  "@editRemoved": {
-    "description": "Kaldırma bildirimi.",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "editReason": "Değişiklik sebebi",
   "@editReason": {
     "description": "Sebep seçimi başlığı."
@@ -1382,10 +1328,6 @@
         "type": "String"
       }
     }
-  },
-  "editNoMoneyChange": "Tutar değişmiyor.",
-  "@editNoMoneyChange": {
-    "description": "Para farkı yokken."
   },
   "editSaved": "Revizyon #{count} kaydedildi. Fişler yeniden basılıyor.",
   "@editSaved": {

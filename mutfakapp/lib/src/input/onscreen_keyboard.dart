@@ -33,10 +33,19 @@ enum OnscreenKeyboardLayout {
 /// Türkçe'de `i` → `İ` olmalı. Arama da (`order_filter.dart`) aynı sınıfı
 /// kullanıyor; iki taraf ayrı bir kural kullansaydı klavyeyle yazılan
 /// metin aramayı tutturmazdı.
+/// RAKAM SIRASI ŞART: rakamsız bir düzende sunucu adresi
+/// (`https://api…:443`), eşleme kodu (`A1B2-C3D4`) ve yazıcı yolu
+/// (`/dev/thermal0`) **hiç yazılamıyordu**. Dokunmatik bir kasa bu yüzden
+/// eşleşemiyordu — kurtarılamaz bir kilitlenme, kilit ekranındakinin aynısı.
+///
+/// `-`, `_`, `/`, `:` de aynı sebeple burada: hepsi adres ve kod
+/// alanlarında geçiyor ve büyük harf kipiyle üretilemiyorlar.
 const List<List<String>> turkishKeyRows = [
+  ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
   ['q', 'w', 'e', 'r', 't', 'y', 'u', 'ı', 'o', 'p', 'ğ', 'ü'],
   ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'ş', 'i'],
   ['z', 'x', 'c', 'v', 'b', 'n', 'm', 'ö', 'ç', '.'],
+  ['-', '_', '/', ':', '@'],
 ];
 
 /// Sayısal düzen satırları.

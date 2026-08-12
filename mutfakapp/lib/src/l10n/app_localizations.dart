@@ -291,23 +291,11 @@ abstract class AppL10n {
   /// **'Ayarlar'**
   String get settings;
 
-  /// Ayarlar düğmesinin açtığı pencere
-  ///
-  /// In tr, this message translates to:
-  /// **'Cihaz bilgisi'**
-  String get deviceInfoTitle;
-
   /// API taban adresi satırı
   ///
   /// In tr, this message translates to:
   /// **'Sunucu'**
   String get deviceInfoServer;
-
-  /// Yazıcı cihaz yolu satırı
-  ///
-  /// In tr, this message translates to:
-  /// **'Yazıcı'**
-  String get deviceInfoPrinter;
 
   /// Uygulama sürümü satırı
   ///
@@ -320,18 +308,6 @@ abstract class AppL10n {
   /// In tr, this message translates to:
   /// **'Kapat'**
   String get close;
-
-  /// Kayıtlı mutfak token'ı yokken
-  ///
-  /// In tr, this message translates to:
-  /// **'Cihaz eşlenmedi'**
-  String get devicePairingRequired;
-
-  /// Eşleme yapılmadığında gösterilen açıklama
-  ///
-  /// In tr, this message translates to:
-  /// **'Yönetici panelinden alınan eşleme kodu girilmeden sipariş alınamaz.'**
-  String get devicePairingHint;
 
   /// Eşleme ekranının başlığı
   ///
@@ -1203,42 +1179,6 @@ abstract class AppL10n {
   /// **'Bugün {today} · Yarın {tomorrow} — ayrıntı için dokunun'**
   String subscriptionBannerBreakdown(int today, int tomorrow);
 
-  /// Abonelik dökümünde bugün başlığı
-  ///
-  /// In tr, this message translates to:
-  /// **'Bugün'**
-  String get subscriptionDayToday;
-
-  /// Abonelik dökümünde yarın başlığı
-  ///
-  /// In tr, this message translates to:
-  /// **'Yarın'**
-  String get subscriptionDayTomorrow;
-
-  /// Gün başlığındaki sipariş sayısı
-  ///
-  /// In tr, this message translates to:
-  /// **'{count} sipariş'**
-  String subscriptionOrderCount(int count);
-
-  /// Gün içinde hazırlanacak toplam adetlerin başlığı
-  ///
-  /// In tr, this message translates to:
-  /// **'Hazırlanacak toplam'**
-  String get subscriptionTotalsLabel;
-
-  /// Abonelik döküm penceresi başlığı
-  ///
-  /// In tr, this message translates to:
-  /// **'Abonelik siparişleri (bugün + yarın)'**
-  String get subscriptionDialogTitle;
-
-  /// Abonelik döküm penceresini kapatan düğme
-  ///
-  /// In tr, this message translates to:
-  /// **'Kapat'**
-  String get subscriptionDialogClose;
-
   /// Ses ayarları bölüm başlığı.
   ///
   /// In tr, this message translates to:
@@ -1695,12 +1635,6 @@ abstract class AppL10n {
   /// **'Kaldır'**
   String get editRemove;
 
-  /// Kaldırma bildirimi.
-  ///
-  /// In tr, this message translates to:
-  /// **'{name} kaldırıldı'**
-  String editRemoved(String name);
-
   /// Sebep seçimi başlığı.
   ///
   /// In tr, this message translates to:
@@ -1766,12 +1700,6 @@ abstract class AppL10n {
   /// In tr, this message translates to:
   /// **'Tahsil edilecek fark: {amount}'**
   String editExtraCharge(String amount);
-
-  /// Para farkı yokken.
-  ///
-  /// In tr, this message translates to:
-  /// **'Tutar değişmiyor.'**
-  String get editNoMoneyChange;
 
   /// Başarı bildirimi.
   ///

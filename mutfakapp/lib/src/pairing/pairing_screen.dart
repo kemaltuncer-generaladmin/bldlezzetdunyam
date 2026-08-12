@@ -5,6 +5,8 @@
 /// bu ekranın yönlendirme sorumluluğu yoktur.
 library;
 
+import 'dart:async';
+
 import 'package:bld_api_client/bld_api_client.dart';
 import 'package:bld_design_system/bld_design_system.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/device_session.dart';
 import '../data/providers.dart';
+import '../input/keyboard_text_field.dart';
 import '../l10n/app_localizations.dart';
 
 class PairingScreen extends ConsumerStatefulWidget {
@@ -191,8 +194,37 @@ class _Field extends StatelessWidget {
       labelText: label,
       hintText: hint,
       border: const OutlineInputBorder(),
+      // KLAVYE DÜĞMESİ HER ZAMAN VAR, dokunmatik ayarına bakmadan.
+      //
+      // Bu ekran ayarlardan ÖNCE geliyor: cihaz eşleşmeden pano
+      // açılmıyor, pano açılmadan ayarlara girilemiyor. `touchMode`
+      // varsayılanı kapalı olduğu için ayara bağlasaydık, dokunmatik bir
+      // kasa hiç eşleşemezdi — kilit ekranındaki eski hatanın aynısı.
+      //
+      // Alan salt okunur YAPILMIYOR: klavyeli bir kasada doğrudan yazmak
+      // hâlâ en hızlı yol; düğme onun yerine değil yanına duruyor.
+      suffixIcon: Builder(
+        builder: (context) => IconButton(
+          tooltip: AppL10n.of(context).keyboardTitle,
+          iconSize: 30,
+          icon: const Icon(Icons.keyboard_alt_outlined),
+          onPressed: () => unawaited(_openKeyboard(context)),
+        ),
+      ),
     ),
   );
+
+  Future<void> _openKeyboard(BuildContext context) async {
+    final entered = await showDialog<String>(
+      context: context,
+      builder: (context) => OnscreenKeyboardDialog(
+        title: label,
+        initial: controller.text,
+      ),
+    );
+
+    if (entered != null) controller.text = entered;
+  }
 }
 
 class _Banner extends StatelessWidget {

@@ -659,9 +659,15 @@ class _SoundDiagnostics extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: BldSpacing.xs),
+        // "HENÜZ DENENMEDİ" İLE "YOK" AYRI: ikisini aynı metinle
+        // göstermek, gerçekten eksik olan aracı "birazdan bulunur" gibi
+        // okutuyordu ve kimse kurmuyordu.
         _ValueRow(
           label: l10n.settingsSoundPlayer,
-          value: player.playerExecutable ?? l10n.settingsSoundNotProbed,
+          value: player.playerExecutable ??
+              (player.isMuted
+                  ? l10n.settingsSoundPlayerMissing
+                  : l10n.settingsSoundNotProbed),
         ),
         _ValueRow(
           label: l10n.settingsSoundFolder,
@@ -669,13 +675,29 @@ class _SoundDiagnostics extends ConsumerWidget {
         ),
         _ValueRow(
           label: l10n.settingsTts,
-          value: announcer.executable ?? l10n.settingsSoundNotProbed,
+          value:
+              announcer.executable ??
+              (announcer.isUnavailable
+                  ? l10n.settingsSoundPlayerMissing
+                  : l10n.settingsSoundNotProbed),
         ),
         const SizedBox(height: BldSpacing.xs),
         if (reason == null)
           _StatusRow(ok: true, label: l10n.settingsSoundOk)
         else
           _StatusRow(ok: false, label: '${l10n.settingsSoundProblem}: $reason'),
+        // KURULUM KOMUTU EKRANDA: "ses çalınamıyor" bilgisi tek başına
+        // kimseyi harekete geçirmiyor. Sahada bu ekrana bakan kişinin
+        // elinde terminal var; komutu ezberden yazmasını beklemek yerine
+        // buraya yazıyoruz.
+        if (player.playerExecutable == null && player.isMuted) ...[
+          const SizedBox(height: BldSpacing.xs),
+          _HintText(text: l10n.settingsSoundUnavailable),
+        ],
+        if (announcer.isUnavailable) ...[
+          const SizedBox(height: BldSpacing.xs),
+          _HintText(text: l10n.settingsTtsUnavailable),
+        ],
       ],
     );
   }
@@ -1085,6 +1107,25 @@ class _ValueRow extends StatelessWidget {
         ),
       ),
     ],
+  );
+}
+
+/// Kurulum komutu gibi kopyalanabilir olması gereken ipucu metni.
+///
+/// `SelectableText` — bu satırdaki `sudo apt install …` komutunu elle
+/// yeniden yazmak yerine seçip kopyalamak isteyen kişi haklı.
+class _HintText extends StatelessWidget {
+  const _HintText({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => SelectableText(
+    text,
+    style: const TextStyle(
+      fontSize: KdsTextScale.statusBar,
+      color: Color(BldColors.warning),
+    ),
   );
 }
 

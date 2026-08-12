@@ -186,4 +186,52 @@ void main() {
       await tearDownTree(tester);
     });
   });
+
+  group('Klavye düzeni', () {
+    testWidgets('RAKAMLAR VE ADRES İŞARETLERİ var', (tester) async {
+      // Rakamsız bir düzende sunucu adresi (`https://api…`), eşleme kodu
+      // (`A1B2-C3D4`) ve yazıcı yolu (`/dev/thermal0`) hiç yazılamıyordu:
+      // dokunmatik bir kasa bu yüzden EŞLEŞEMİYORDU.
+      final controller = TextEditingController();
+      addTearDown(controller.dispose);
+
+      await pumpField(tester, touchMode: true, controller: controller);
+      await tester.tap(find.byType(TextField));
+      await tester.pumpAndSettle();
+
+      for (final key in const ['1', '0', '-', '/', ':', '.', '_', '@']) {
+        expect(
+          find.widgetWithText(InkWell, key),
+          findsWidgets,
+          reason: '"$key" tuşu yoksa adres ve kod alanları yazılamaz.',
+        );
+      }
+    });
+
+    testWidgets('adres yazılabiliyor', (tester) async {
+      final controller = TextEditingController();
+      addTearDown(controller.dispose);
+
+      await pumpField(tester, touchMode: true, controller: controller);
+      await tester.tap(find.byType(TextField));
+      await tester.pumpAndSettle();
+
+      for (final key in const ['a', '1', ':', '/', '.']) {
+        await tester.tap(find.widgetWithText(InkWell, key).first);
+        await tester.pump();
+      }
+
+      expect(controller.text, isEmpty);
+
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.widgetWithText(FilledButton, 'Kaydet'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(controller.text, 'a1:/.');
+    });
+  });
 }

@@ -719,7 +719,27 @@ yazma kipi donanım klavyesi istiyor. Kendi penceremiz `-1 sa / -5 dk /
 +5 dk / +1 sa` düğmeleriyle çalışıyor. Dakika beşer adım ilerliyor —
 mutfak "16:47"ye teslim sözü vermiyor.
 
+**3. Klavye düzeninde rakam ve adres işaretleri var.** Türkçe düzende
+yalnız harfler vardı: `https://api…`, `A1B2-C3D4` ve `/dev/thermal0`
+**hiç yazılamıyordu.** Yani dokunmatik bir kasa eşleşemiyordu — kilit
+ekranındaki eski kilitlenmenin aynısı. Rakam sırası ve `- _ / : @`
+eklendi.
+
+**4. Eşleme ekranındaki alanların klavye düğmesi ayara bakmıyor.** O
+ekran ayarlardan **önce** geliyor (cihaz eşleşmeden pano açılmıyor, pano
+açılmadan ayarlara girilemiyor) ve `touchMode` varsayılanı kapalı.
+Ayara bağlansaydı dokunmatik kasa hiç eşleşemezdi. Alan salt okunur
+yapılmadı: klavyeli kasada doğrudan yazmak hâlâ en hızlı yol.
+
 Kural `test/touch_only_test.dart` ile sabitlendi.
+
+### Ses tanılamada "yok" ile "denenmedi" ayrıldı
+
+Araç gerçekten eksikken de "Henüz denenmedi" yazıyordu ve bu, eksik
+aracı "birazdan bulunur" gibi okutuyordu. Artık araştırma bittiyse
+**"bulunamadı"** yazıyor ve altında kurulum komutu duruyor
+(`sudo apt install speech-dispatcher`) — seçilip kopyalanabilir. "Ses
+çalınamıyor" bilgisi tek başına kimseyi harekete geçirmiyordu.
 
 ### GERİ ALMA — "geri alma yoktur" kuralı daraltıldı
 

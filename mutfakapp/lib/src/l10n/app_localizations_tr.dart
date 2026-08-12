@@ -113,26 +113,13 @@ class AppL10nTr extends AppL10n {
   String get settings => 'Ayarlar';
 
   @override
-  String get deviceInfoTitle => 'Cihaz bilgisi';
-
-  @override
   String get deviceInfoServer => 'Sunucu';
-
-  @override
-  String get deviceInfoPrinter => 'Yazıcı';
 
   @override
   String get deviceInfoVersion => 'Sürüm';
 
   @override
   String get close => 'Kapat';
-
-  @override
-  String get devicePairingRequired => 'Cihaz eşlenmedi';
-
-  @override
-  String get devicePairingHint =>
-      'Yönetici panelinden alınan eşleme kodu girilmeden sipariş alınamaz.';
 
   @override
   String get pairingTitle => 'Mutfak ekranını eşle';
@@ -651,26 +638,6 @@ class AppL10nTr extends AppL10n {
   }
 
   @override
-  String get subscriptionDayToday => 'Bugün';
-
-  @override
-  String get subscriptionDayTomorrow => 'Yarın';
-
-  @override
-  String subscriptionOrderCount(int count) {
-    return '$count sipariş';
-  }
-
-  @override
-  String get subscriptionTotalsLabel => 'Hazırlanacak toplam';
-
-  @override
-  String get subscriptionDialogTitle => 'Abonelik siparişleri (bugün + yarın)';
-
-  @override
-  String get subscriptionDialogClose => 'Kapat';
-
-  @override
   String get settingsSectionSound => 'Ses ve hoparlör';
 
   @override
@@ -927,11 +894,6 @@ class AppL10nTr extends AppL10n {
   String get editRemove => 'Kaldır';
 
   @override
-  String editRemoved(String name) {
-    return '$name kaldırıldı';
-  }
-
-  @override
   String get editReason => 'Değişiklik sebebi';
 
   @override
@@ -967,9 +929,6 @@ class AppL10nTr extends AppL10n {
   String editExtraCharge(String amount) {
     return 'Tahsil edilecek fark: $amount';
   }
-
-  @override
-  String get editNoMoneyChange => 'Tutar değişmiyor.';
 
   @override
   String editSaved(int count) {
