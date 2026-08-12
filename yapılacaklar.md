@@ -241,9 +241,39 @@ doğrulandı). `/api/health` 200; BBD ucu imza doğrulaması ile çalışıyor.
    aradı; "116 hata / altyapı bozuk" izlenimi buradan çıktı. Doğru kurulum
    `docs/08-kurulum-deploy.md` §3'e yazıldı.
 
-Paket ~50 dakika sürüyor: `KitchenTestCase::setUp` her testte
-`veykemtu:setup` + `veykemtu:demo-menu` artisan komutlarını koşuyor
-(test başına ~13 sn). Hızlandırmak ayrı bir iş.
+**SONUÇ: 226/226 geçiyor, 902 doğrulama, sıfır hata.** Paket ~50 dakika
+sürüyor: `KitchenTestCase::setUp` her testte `veykemtu:setup` +
+`veykemtu:demo-menu` koşuyor (test başına ~13 sn). Hızlandırmak ayrı iş.
+
+### Paketi koşturmak neyi yakaladı
+
+Testler daha önce hiç koşamadığı için **üretim kodunda üç hata sessizce
+çıkmıştı**:
+
+1. **`OrderFactory::storeAddress()` silinmiş, çağrısı kalmıştı** (K-12
+   `LineResolver` ayrıştırması). `POST /api/orders` adrese gönderimde
+   ölümcül hatayla 500 dönüyordu — **üretimde sipariş verilemiyordu** ve
+   bu hâl `57f7d5f` ile dağıtılmıştı. Acil düzeltme `b61e143`.
+2. **`revision_no` müşteri detay ucunda yoktu.** Alan `summary()` ve
+   `kitchen()`'a eklenmiş, takip ekranının çektiği `detail()`'e
+   eklenmemişti: web'de "Revize edildi" rozeti ve mobildeki "siparişiniz
+   güncellendi" bildirimi hiç çalışmıyordu. `docs/openapi.yaml`'daki
+   `OrderDetail` şeması da eksikti.
+3. **`receipt_type_kurye` dil anahtarı yoktu**; admin paneli ham anahtarı
+   basıyordu. Blade anahtarı fiş tipinden türettiği için derleme uyarmaz.
+
+Test altyapısında da üç hata:
+
+4. **`igniter:up` açık işlemin içinde koşuyordu.** MySQL'de DDL örtük
+   commit yapar: savepoint yok olur, `DB::transaction()` kullanan her uç
+   `SAVEPOINT trans2 does not exist` ile 500 döner ve testler arası geri
+   alma çalışmaz (demo menü her testte üstüne yükleniyordu). Tek başına
+   25 testi düşürüyordu.
+5. `registerPayload()` paylaşılan tabana taşınmamıştı — 13 test.
+6. `KitchenTestCase` autoload haritası dışındaydı — 226 testin tamamı.
+
+**Ders:** bu tur deploy edilip testler sonra koşuldu. Sıra tersine
+çevrilmeliydi; 1 numaralı hata o zaman üretime hiç çıkmazdı.
 
 ---
 
