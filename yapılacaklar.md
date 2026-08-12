@@ -17,6 +17,12 @@
 [x] abonelik için atığımız ekran detaylandırılacak. ekran aşlırı boş işlevsellik arttırılacak
     → K-15. Tam ekran üretim planı (bugün/yarın/hafta), ürün toplamları, teslimat çizelgesi,
       durum ilerletme, "üretim koşmadı" uyarısı ve üretim planı fişi.
+[x] ayrı ayrı kurye fişi mutfak fişi istemiyorum. fişler işte revize 1 2 diye ayrı ayrı fiş
+    çıkarmasın fazla fiş çıkıyor kafa karıştırıcı bunu düzeltelim
+    → K-20. Kurye fişi müşteri fişine katlandı (sipariş başına 3 değil 2 kâğıt); revizyonda
+      ayrı "REVİZE #N" kâğıdı yerine tek güncel fiş + 20 sn birleştirme penceresi.
+      İki kez düzenlenmiş adrese gönderim: 7 kâğıt → 2. Ayrıca fişe teslim QR'ı eklendi ve
+      takip QR'ının giriş duvarına çarpan hatası düzeltildi.
 
 # Web-Admin
 [x] api subdomaininde farklı bir bld sitesi yatıyor bu site kaldırılacak. orijinal anadomain olacak
@@ -692,3 +698,116 @@ iznini reddeden müşterinin sipariş veremeyeceği anlamına gelirdi.
   hiç tanımlı değil ve `vendor/bin/pint --test` eklentideki neredeyse her
   dosyayı işaretliyor — bu turda dokunulmayanlar dâhil. Kırk dosyayı yeniden
   biçimlendirmek bu turun kapsamı değildi; ayrı bir iş olarak durmalı.
+
+---
+
+# Log — Fiş sadeleştirme turu (14.08.2026)
+
+**Şikâyet:** "ayrı ayrı kurye fişi mutfak fişi istemiyorum, revize 1 2 diye
+ayrı ayrı fiş çıkarmasın, fazla fiş çıkıyor kafa karıştırıcı."
+
+Sayım şikâyeti doğruluyordu. Görev kimliği `K-20`; gerekçelerin tamamı
+`docs/05-mutfakapp.md` §5.3/§5.5 ve `docs/09-gorev-plani.md` §8.8'de.
+
+## Kâğıt sayımı
+
+| Senaryo | Önce | Sonra |
+|---|---|---|
+| Gel-al | 2 | 2 |
+| Adrese gönderim | 3 | **2** |
+| Adrese gönderim, 2 revizyon | 7 | **2** (aynı pencerede) |
+
+## Ne yapıldı
+
+- **Kurye fişi müşteri fişine katlandı.** Kuryenin üç sorusunun cevabı (kime,
+  nereye, ne kadar tahsil edilecek) müşteri fişine taşındı ve teslimat bloğu
+  fiyat tablosunun **üstüne** alındı — kurye önce nereye gideceğine bakıyor,
+  kalem fiyatlarına hiç bakmıyor. Kâğıt kapıda kuryenin elinde, sonra
+  müşteride kalıyor.
+- **Sipariş notu da taşındı.** "Zili çalmayın" kuryeye bugüne kadar yalnız
+  kurye fişiyle ulaşıyordu; taşınmasaydı o fişi kaldırmak kuryenin elinden
+  bir kapı talimatını silmek olurdu.
+- **Revizyonda tek güncel fiş.** Ayrı "REVİZE #1/#2" kâğıtları yok; basılmış
+  fişler bir kez, güncel hâliyle, tepesinde çift boy `GÜNCEL FİŞ / REVİZE #N
+  / ÖNCEKİ FİŞİ ATIN` bandıyla çıkıyor. Bant mutfak fişine de geldi.
+- **20 sn birleştirme penceresi.** Personel telefonda konuşurken art arda
+  kaydediyor; ara sürümler artık hiç kâğıda çıkmıyor. Üst sınır 60 sn.
+  **İlk basım asla beklemiyor** — mutfak yemeğe başlamak için kâğıdı hemen
+  görmeli.
+- **Teslim QR'ı.** Kurye okutuyor → tek düğmeli onay → sipariş
+  `teslim_edildi`. Kurye girişi yok; yetki HMAC imzasında, bağlantı tek
+  kullanımlık.
+
+## Turda yakalanan hatalar (altı tane, hepsi mevcut)
+
+1. **Takip QR'ı yazıldığı günden beri çalışmıyordu.** K-18 bağlantıyı
+   `/siparis/<id>` olarak üretiyordu; o rota giriş istiyor, yani fişteki
+   kareyi okutan müşteri sipariş durumunu değil **giriş ekranını**
+   görüyordu. Girişsiz, imzalı bir takip sayfası eklendi.
+2. **Ödeme QR'ı üretimde ölü adrese gidiyordu** — sanal POS simülasyonu
+   kapalıyken rota hiç kaydedilmiyor ama fişe kare basılıyordu.
+3. **`PrintJob` revizyon körüydü.** Revizyon ack'i yutuluyor, yeniden
+   basılan kâğıt yerini aldığı eski kâğıdın saatiyle damgalanıyordu — tam
+   da "GÜNCEL FİŞ" bandının çözdüğü sorunu zaman damgası üretiyordu.
+4. **"Yeniden bas" iki kâğıt çıkarıyordu** — revizyon süzgeci yoktu.
+5. **Sanal POS dönüş adresi kırılacaktı** — düz string birleştirme, imzalı
+   takip adresi sorgu taşıdığı anda `durum` parametresini okunamaz kılardı.
+   Bu hatayı değişikliğin kendisi üretecekti, aynı turda düzeltildi.
+6. **`/cari-odeme-simulasyon/*` Caddy izin listesinde yoktu** — cari borç
+   ödeme sayfası üretimde ana siteye yönleniyordu. K-20 ile ilgisiz, aynı
+   satıra dokunulurken görüldü.
+
+## Doğrulama
+
+| Paket | Sonuç |
+|---|---|
+| PHP (`vendor/bin/phpunit`) | **316/316** |
+| `packages/core` | **163/163** |
+| `packages/api_client` | **49/49** |
+| `mutfakapp` | **472/472** |
+| `flutter analyze` (tüm çalışma alanı) | temiz |
+| Site: tsc + eslint + `next build` | temiz |
+| Playwright | **72 geçti**, 4 atlandı |
+
+Kurye, mutfak, üretim planı ve BBD golden'ları **bayt bayt aynı** kaldı;
+sözleşme değişikliklerinin tamamı additive, `required` listeleri değişmedi.
+
+## SENDEN BEKLEYEN — QR donanımı hâlâ doğrulanmadı
+
+`docs/10` §"QR AÇIK MADDE" kapanmadı: fişteki konum QR'ı sahada kâğıda
+çıkmıyor ve sebebi bilinmiyor. **Yeni teslim QR'ı aynı komuta dayanıyor.**
+
+Sahaya çıkmadan kasada koşulmalı:
+
+```bash
+cd mutfakapp && dart run tool/yazici_teshis.dart
+```
+
+Yalnız C bölümü çıkıyorsa yazıcı yerleşik QR'ı desteklemiyor demektir ve
+QR'ların raster çizilmesi gerekiyor — ayrı ve daha büyük bir iş.
+Birleştirme ve revizyon düzeltmesi bu karardan **bağımsız** çalışıyor.
+
+## Dağıtımda yapılacaklar
+
+```bash
+cd platform
+php artisan igniter:up          # veykemtu_print_jobs.revision göçü
+```
+
+- **Yeni `.env` girdisi:** `BLD_LINK_SECRET`. Boşsa `APP_KEY`'e düşer ve
+  özellik çalışır; yine de üretimde ayrı tanımlanmalı — `APP_KEY`
+  döndürüldüğünde oturumlar ve şifrelenmiş sütunlar da geçersiz olur.
+  Sır değişince **basılı fişlerdeki QR'lar ölür**.
+- **`infra/Caddyfile.internal` dağıtılmalı:** `/teslimat/*` izin listesine
+  eklendi. Güncellenmiş dosya gitmezse teslim QR'ı ana siteye 308'lenir ve
+  hata "QR ana sayfayı açıyor" diye görünüp yanlış depoda aranır.
+
+## Bilinçli olarak yapılmayanlar
+
+- **Pint ile toplu biçimlendirme yine yapılmadı.** Önceki turdaki gerekçe
+  aynen geçerli: `vendor/bin/pint --test` bu turda dokunulmayan onlarca
+  dosyayı da işaretliyor.
+- **`kurye` fiş tipi silinmedi.** Sözleşme additive-only ve kuyrukta duran
+  eski satırlar tipe göre ayrıştırılıyor; enum değeri kalksaydı eski bir
+  kurye satırı mutfak fişi olarak yeniden basılırdı. Otomatik tetiği ve KDS
+  menüsündeki seçeneği kalktı, uç elle yeniden basım için duruyor.
