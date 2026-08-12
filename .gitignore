@@ -113,3 +113,9 @@ tmp/
 
 # Kasaya özel derleme değerleri (kitchen token) — asla commitlenmez
 infra/kasa/.kasa.env
+
+# Sır devri için elden ele gezen notlar (BBD köprüsü ortak sırrı, Coolify
+# env değerleri). İçlerinde gerçek kimlik bilgisi var; AGENTS §2.2 gereği
+# repoya girmezler. Devir bitince silinirler.
+BBD-BLD-SIR.md
+COOLIFY-ENV-BBD.md
