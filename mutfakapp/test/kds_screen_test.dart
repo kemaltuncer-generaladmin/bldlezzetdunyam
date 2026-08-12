@@ -450,6 +450,9 @@ void main() {
     expect(bar.width, isNotNull);
     expect(bar.width, lessThan(600));
 
+    // Ekranda 5 saniyeden uzun kalmamalı: uzun kalan şerit panoyu kapatıyor.
+    expect(bar.duration, const Duration(seconds: 5));
+
     // Metin kısa, hedef büyük: parmakla basılan şey bir metin bağlantısı değil.
     expect(find.text('Hazırlanıyor durumuna'), findsOneWidget);
     final undo = find.widgetWithText(FilledButton, 'GERİ AL');

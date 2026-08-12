@@ -768,7 +768,9 @@ bağlantısıydı, parmakla ıskalanıyordu. Şimdi altta ortalanmış 460 px'li
 yüzer bir kutu var; içinde kısa bilgi ("Hazırlanıyor durumuna"), **52 px
 yüksekliğinde GERİ AL düğmesi** ve 64 px'lik bir kapatma hedefi. Kapatma
 düğmesi eklendi çünkü şeridi kaydırarak kapatmak dokunmatikte alttaki
-kartı da kaydırıyordu. Ölçüt `test/kds_screen_test.dart` içinde.
+kartı da kaydırıyordu. Şerit **5 saniyede** kendiliğinden kapanıyor (önce
+10 idi): yanlış dokunuş ilk saniyede fark ediliyor, sonrası yalnızca panoyu
+kapatıyor. Ölçüt `test/kds_screen_test.dart` içinde.
 
 ---
 

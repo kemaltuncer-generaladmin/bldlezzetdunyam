@@ -208,7 +208,7 @@ void _offerUndo(
   late final ScaffoldFeatureController<SnackBar, SnackBarClosedReason> bar;
   bar = messenger.showSnackBar(
     SnackBar(
-      duration: const Duration(seconds: 10),
+      duration: _undoBarDuration,
       backgroundColor: const Color(KdsColors.surfaceRaised),
       behavior: SnackBarBehavior.floating,
       // Sabit genişlik, ekran genişliğinin yüzdesi değil: 1920 px'te de
@@ -256,6 +256,13 @@ void _offerUndo(
 /// içindeki düğme de bu yüksekliği doldurur, ince bir metin bağlantısı değil.
 const double _undoBarWidth = 460;
 const double _undoBarHeight = 64;
+
+/// Şerit 5 saniyede kendiliğinden kapanır.
+///
+/// Yanlış dokunuş fark edilirse ilk saniyede fark edilir; daha uzun kalan
+/// şerit yalnızca panoyu kapatıyor ve personeli "hâlâ geri alabilirim"
+/// diye yanıltıyordu.
+const Duration _undoBarDuration = Duration(seconds: 5);
 
 /// Şeridin içi: kısa bilgi + büyük GERİ AL + kapat.
 class _UndoBarContent extends StatelessWidget {
