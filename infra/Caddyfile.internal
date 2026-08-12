@@ -23,6 +23,33 @@
 	@medya path /storage/*
 	header @medya Access-Control-Allow-Origin "*"
 
+	# api.* KÖKÜ ANA DOMAINE GİDER (I-07).
+	#
+	# Bu konteyner yalnızca API + admin panelidir. Vitrin rotaları eklenti
+	# tarafında kapatıldı (`BridgeApi\Extension::disableStorefrontTheme`), ama
+	# oraya yazılan bir adres yine de 404 dönerdi. api.* adresini elle yazan
+	# ya da eski bağlantıdan gelen müşteri boş sayfa değil gerçek siteyi
+	# görmeli.
+	#
+	# İKİ KEMER, BİLEREK: eklenti bayrağı rotayı hiç kurmaz, bu kural ise
+	# kurulsa bile dışarı sızmasını engeller. Biri geri alınırsa diğeri
+	# tutar.
+	#
+	# `not` listesi tam olmak zorunda — buradan düşen her yol yönlendirilir:
+	#   /api/*             REST sözleşmesi (docs/openapi.yaml)
+	#   /admin*            yönetim paneli
+	#   /storage/*         yüklenen medya (ürün fotoğrafları)
+	#   /vendor/*          yayınlanan çekirdek varlıkları (CSS, ikon fontu)
+	#   /_assets/*         çekirdeğin varlık birleştiricisi
+	#   /odeme-simulasyon/* sanal POS simülasyonu (veykemtu.payment)
+	#   /robots.txt, /favicon.svg  kökte duran statik dosyalar
+	@vitrinDisi {
+		not path /api/* /admin /admin/* /storage/* /vendor/* /_assets/* /odeme-simulasyon/* /robots.txt /favicon.svg
+	}
+	# Hedef ortamdan okunur; varsayılan üretim adresidir. Geliştirmede
+	# `SITE_PUBLIC_URL` verilerek yerel siteye yönlendirilebilir.
+	redir @vitrinDisi {$SITE_PUBLIC_URL:https://benimlezzetdunyam.com.tr}{uri} permanent
+
 	php_fastcgi app:9000
 	file_server
 	encode gzip

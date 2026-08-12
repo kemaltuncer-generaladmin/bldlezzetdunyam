@@ -60,6 +60,15 @@ services:
       # `account` cari deftere, `cash` manuel iadeye gider. Gerçek sanal
       # POS bağlanınca buraya onun adı yazılacak.
       BLD_REFUND_DRIVER: ${BLD_REFUND_DRIVER:-simulated}
+
+      # SMS sağlayıcısı — telefonla giriş kodu (B-18).
+      #
+      # BOŞ BIRAKILIRSA KOD SMS OLARAK GİTMEZ, yalnızca sunucu günlüğüne
+      # yazılır; e-posta + şifre girişi çalışmaya devam eder. Değerler
+      # Coolify ortam değişkenlerinde tutulur, ASLA burada değil.
+      NETGSM_USERNAME: ${NETGSM_USERNAME:-}
+      NETGSM_PASSWORD: ${NETGSM_PASSWORD:-}
+      NETGSM_HEADER: ${NETGSM_HEADER:-}
     volumes:
       # Yüklenen medya ve loglar imajda değil, kalıcı birimde durur —
       # yeni sürüm dağıtıldığında silinmemeleri gerekir.
@@ -96,6 +105,9 @@ services:
       # girmiyor ve dışarıdan 404 dönüyor. Alan adı Coolify arayüzündeki
       # "Domains" alanından verilir, compose'dan değil.
       - SERVICE_FQDN_WEB_80
+      # api.* köküne düşen istekler buraya yönlendirilir (I-07). Bu konteyner
+      # yalnızca API + admin sunar; müşteri yüzü `site` servisidir.
+      - SITE_PUBLIC_URL=${SITE_URL:-https://benimlezzetdunyam.com.tr}
     # Coolify'ın Traefik hizmetini kurabilmesi için portun bildirilmesi
     # gerekir; `ports` değil `expose` — dışarı açılmayacak, yalnızca
     # proxy'nin iç ağdan ulaşacağı port ilan ediliyor.

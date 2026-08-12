@@ -30,6 +30,41 @@ RUN composer install --no-interaction --prefer-dist --no-progress \
 COPY platform/ ./
 RUN composer dump-autoload --optimize --no-dev
 
+# ÇEKİRDEK VARLIKLARINI YAYINLA — ikonların görünmesinin şartı (I-08).
+#
+# SORUN: bu aşama eskiden yalnızca `composer install` koşuyordu.
+# `public/vendor/igniter` ise composer'ın değil `vendor:publish`'in ürünü ve
+# repoda durmuyor (`platform/.gitignore`). Sonuç: Caddy imajının `public/`
+# klasöründe o dizin HİÇ yoktu.
+#
+# Belirti neden kafa karıştırıcıydı: admin panelin CSS'i çalışıyordu, çünkü
+# o PHP tarafındaki `_assets` birleştirici rotasından geliyor. Ama Font
+# Awesome'ın `@font-face` kuralı `url(../fonts/FontAwesome/fa-solid-900.woff2)`
+# diyor; tarayıcı bunu `/vendor/igniter/fonts/...` altında arıyor ve 404
+# alıyordu. Stiller yerinde, ikonların hepsi boş kutu.
+#
+# `app` konteynerinin giriş betiği aynı komutu çalışma anında koşuyor
+# (`entrypoint.sh`); bu satır iki imajı eşitler.
+#
+# NEDEN GEÇİCİ .env: `vendor:publish` uygulamayı ayağa kaldırır, ayağa
+# kalkmak için de APP_KEY ve bir veritabanı sürücüsü ister. Derleme anında
+# MySQL yok; bellek içi SQLite yeter — hiçbir sorgu koşmuyor, yalnızca
+# bağlantı tanımının geçerli olması gerekiyor. Dosya sonra siliniyor ki
+# imaja sahte bir yapılandırma sızmasın.
+#
+# `test -f` KASTEN: yayınlama sessizce başarısız olursa derleme burada
+# patlar. Aksi hâlde hata yalnızca canlıda, kırık ikonlar olarak görünürdü —
+# bu hatayı bir kez zaten böyle bulduk.
+RUN printf '%s\n' \
+      'APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' \
+      'APP_ENV=production' \
+      'DB_CONNECTION=sqlite' \
+      'DB_DATABASE=:memory:' \
+      > .env \
+ && php artisan vendor:publish --tag=laravel-assets --force --no-interaction \
+ && rm -f .env \
+ && test -f public/vendor/igniter/fonts/FontAwesome/fa-solid-900.woff2
+
 FROM caddy:2-alpine
 
 COPY --from=build /var/www/platform/public /var/www/platform/public
