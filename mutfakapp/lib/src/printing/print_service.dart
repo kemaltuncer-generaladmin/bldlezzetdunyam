@@ -140,7 +140,26 @@ class PrintService {
       revision: revision,
       createdAt: _now(),
     );
+
     if (added) {
+      /*
+       * ESKİMİŞ İŞLER ÖNCE EKLE, SONRA SİL SIRASIYLA DÜŞÜRÜLÜYOR.
+       *
+       * Ters sırada (önce sil, sonra ekle) süreç aradaki an içinde ölürse
+       * kuyrukta o siparişin hiçbir fişi kalmazdı — mutfak hiç kâğıt
+       * görmezdi. Bu sırada en kötü ihtimalle iki iş birden kalır ve
+       * ikisi de basılır; yani hata yönü "fazla kâğıt", "eksik fiş" değil.
+       *
+       * Yalnız EKLEME BAŞARILIYSA çalışıyor: `INSERT OR IGNORE` çakışmada
+       * false döndürüyor ve o durumda kuyrukta zaten aynı revizyonun işi
+       * var demektir; eskisini silmek için bir sebep yok.
+       */
+      _queue.dropSuperseded(
+        orderId: orderId,
+        type: type,
+        keepRevision: revision,
+      );
+
       _emitPending();
       _wake();
     }

@@ -38,6 +38,29 @@ KitchenReceipt receiptFor(int orderId) => KitchenReceipt(
 Future<void> settle([int milliseconds = 60]) =>
     Future<void>.delayed(Duration(milliseconds: milliseconds));
 
+/// Müşteri fişi — kuyruk testlerinde ikinci bir fiş tipine ihtiyaç var.
+CustomerReceipt customerReceiptFor(int orderId) => CustomerReceipt(
+  orderNumber: 'S-$orderId',
+  deliveryType: DeliveryType.delivery,
+  items: const [
+    OrderItem(
+      menuId: 1,
+      name: 'Tavuk Sote',
+      quantity: 1,
+      unitPrice: 18500,
+      lineTotal: 18500,
+    ),
+  ],
+  subtotal: 18500,
+  deliveryFee: 4000,
+  total: 22500,
+  currency: 'TRY',
+  payment: const Payment(
+    method: PaymentMethod.cash,
+    status: PaymentStatus.pending,
+  ),
+);
+
 void main() {
   group('Kuyruk tablosu', () {
     late PrintQueue queue;
@@ -102,6 +125,128 @@ void main() {
       );
       expect(queue.pendingCount(), isZero);
       expect(queue.all(), hasLength(1));
+    });
+
+    /// ESKİ FİŞ ASLA ÇIKMAZ — sahada bulunan hata.
+    ///
+    /// Tetikleyici revizyon artınca yeni iş ekliyordu ama eskisi kuyrukta
+    /// duruyordu. Yazıcı bir süre kapalı kalınca (kâğıt bitti, kablo çıktı)
+    /// kuyruk açıldığında ÖNCE eski fiş basılıyor, mutfak iki kâğıt alıyor
+    /// ve hangisinin güncel olduğunu anlayamıyordu.
+    test('revizyon artınca eski basılmamış iş düşer', () {
+      queue.enqueue(
+        orderId: 5012,
+        type: ReceiptType.mutfak,
+        revision: 0,
+        createdAt: DateTime.utc(2026, 8, 4),
+      );
+      queue.enqueue(
+        orderId: 5012,
+        type: ReceiptType.mutfak,
+        revision: 1,
+        createdAt: DateTime.utc(2026, 8, 4, 0, 5),
+      );
+      expect(queue.pendingCount(), 2, reason: 'düşürmeden önce ikisi de var');
+
+      final dropped = queue.dropSuperseded(
+        orderId: 5012,
+        type: ReceiptType.mutfak,
+        keepRevision: 1,
+      );
+
+      expect(dropped, 1);
+      expect(queue.pendingCount(), 1);
+      expect(queue.nextPending()!.revision, 1, reason: 'kalan en güncel olan');
+    });
+
+    /// Basılmış iş bir OLAYIN KAYDI; sunucudaki `ack` de onu görmüş.
+    /// Silinirse "bu fiş basıldı mı" sorusu cevapsız kalır.
+    test('basılmış eski iş düşürülmez', () {
+      queue.enqueue(
+        orderId: 5012,
+        type: ReceiptType.mutfak,
+        revision: 0,
+        createdAt: DateTime.utc(2026, 8, 4),
+      );
+      queue.markPrinted(queue.nextPending()!.id, DateTime.utc(2026, 8, 4));
+
+      queue.enqueue(
+        orderId: 5012,
+        type: ReceiptType.mutfak,
+        revision: 1,
+        createdAt: DateTime.utc(2026, 8, 4, 0, 5),
+      );
+
+      expect(
+        queue.dropSuperseded(
+          orderId: 5012,
+          type: ReceiptType.mutfak,
+          keepRevision: 1,
+        ),
+        0,
+      );
+    });
+
+    /// Fiş tipleri birbirini etkilemez. Müşteri fişi revizyonda yeniden
+    /// basılmıyor (`PrintTriggers`); onun bekleyen işi düşürülseydi hiç
+    /// basılmamış bir müşteri fişi sessizce kaybolurdu.
+    test('bir tipin düşmesi diğer tipi etkilemez', () {
+      queue.enqueue(
+        orderId: 5012,
+        type: ReceiptType.musteri,
+        revision: 0,
+        createdAt: DateTime.utc(2026, 8, 4),
+      );
+      queue.enqueue(
+        orderId: 5012,
+        type: ReceiptType.mutfak,
+        revision: 0,
+        createdAt: DateTime.utc(2026, 8, 4),
+      );
+      queue.enqueue(
+        orderId: 5012,
+        type: ReceiptType.mutfak,
+        revision: 1,
+        createdAt: DateTime.utc(2026, 8, 4, 0, 5),
+      );
+
+      queue.dropSuperseded(
+        orderId: 5012,
+        type: ReceiptType.mutfak,
+        keepRevision: 1,
+      );
+
+      expect(queue.pendingCount(), 2, reason: 'müşteri fişi + revize mutfak');
+    });
+
+    /// Başka siparişin fişine dokunulmaz.
+    test('başka siparişin işi düşmez', () {
+      queue.enqueue(
+        orderId: 5012,
+        type: ReceiptType.mutfak,
+        revision: 0,
+        createdAt: DateTime.utc(2026, 8, 4),
+      );
+      queue.enqueue(
+        orderId: 5013,
+        type: ReceiptType.mutfak,
+        revision: 0,
+        createdAt: DateTime.utc(2026, 8, 4),
+      );
+      queue.enqueue(
+        orderId: 5013,
+        type: ReceiptType.mutfak,
+        revision: 1,
+        createdAt: DateTime.utc(2026, 8, 4, 0, 5),
+      );
+
+      queue.dropSuperseded(
+        orderId: 5013,
+        type: ReceiptType.mutfak,
+        keepRevision: 1,
+      );
+
+      expect(queue.pendingCount(), 2);
     });
 
     test('sıra ekleme sırasını korur', () {
@@ -255,6 +400,63 @@ void main() {
           settleBetweenReceipts: settle,
           retrySchedule: const [Duration(milliseconds: 10)],
         );
+
+    /// SAHADAKİ ŞİKÂYETİN UÇTAN UCA KARŞILIĞI: "eski fişler çıkıyor".
+    ///
+    /// Yazıcı kapalıyken sipariş düzenleniyor; kuyrukta iki revizyon
+    /// birikiyor. Yazıcı açılınca YALNIZ en güncel fiş çıkmalı — mutfağın
+    /// eline iki kâğıt geçip hangisinin geçerli olduğunu tahmin etmesi
+    /// gerekmemeli.
+    test('yazıcı kapalıyken düzenlenen sipariş tek fiş basar', () async {
+      kitchen.kitchenReceipts[5012] = receiptFor(5012);
+
+      printer.broken = true;
+      build().start();
+
+      service.enqueue(5012, ReceiptType.mutfak);
+      await settle(60);
+      expect(printer.written, isEmpty, reason: 'yazıcı kapalı');
+
+      // Mutfak siparişi düzenledi: revizyon 1.
+      service.enqueue(5012, ReceiptType.mutfak, revision: 1);
+
+      printer.broken = false;
+      await settle(400);
+
+      expect(
+        printer.written.length,
+        1,
+        reason: 'iki revizyon birikti ama yalnız en güncel basılmalı',
+      );
+      expect(queue.pendingCount(), 0);
+    });
+
+    /// Müşteri fişi revizyonda yeniden basılmıyor; bekleyen işi de
+    /// düşürülmemeli. Düşürülseydi hiç basılmamış bir müşteri fişi
+    /// sessizce kaybolurdu.
+    test('revizyon, bekleyen müşteri fişini düşürmez', () async {
+      kitchen.kitchenReceipts[5012] = receiptFor(5012);
+      kitchen.customerReceipts[5012] = customerReceiptFor(5012);
+
+      printer.broken = true;
+      build().start();
+
+      service
+        ..enqueue(5012, ReceiptType.musteri)
+        ..enqueue(5012, ReceiptType.mutfak);
+      await settle(60);
+
+      service.enqueue(5012, ReceiptType.mutfak, revision: 1);
+
+      printer.broken = false;
+      await settle(500);
+
+      expect(
+        printer.written.length,
+        2,
+        reason: 'müşteri fişi + revize mutfak fişi',
+      );
+    });
 
     test('arka arkaya fişler yazıcıyı yormadan basılır', () async {
       // SAHADA YAŞANDI: kuyrukta 28 iş birikmişti ve döngü hepsini yazıcı

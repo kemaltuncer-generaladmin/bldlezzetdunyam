@@ -167,6 +167,46 @@ class PrintQueue {
     return _db.updatedRows > 0;
   }
 
+  /// Bir siparişin ESKİMİŞ, henüz basılmamış fişlerini kuyruktan düşürür.
+  ///
+  /// ## Neden gerekli
+  ///
+  /// Sipariş düzenlendiğinde tetikleyici yeni revizyon için yeni bir iş
+  /// ekliyor, ama eski revizyonun işi kuyrukta duruyordu. Yazıcı bir süre
+  /// kapalı kalırsa (kâğıt bitti, kablo çıktı) ya da düzenleme hızlı
+  /// gelirse, kuyruk açıldığında ÖNCE eski fiş basılıyordu: mutfak iki
+  /// kâğıt alıyor ve hangisinin güncel olduğunu kâğıda bakarak
+  /// anlayamıyordu.
+  ///
+  /// Kural: **her aşamada yalnız en güncel fiş çıkar.** Basılmış işlere
+  /// dokunulmuyor — onlar olmuş bitmiş bir olayın kaydı ve sunucudaki
+  /// `ack` de onları görmüş durumda.
+  ///
+  /// [keepRevision] KORUNAN revizyondur, silinen değil: çağıran taraf "şu
+  /// an geçerli olan bu" diyor ve ondan küçük her şey düşüyor. Eşitler
+  /// kalıyor, yoksa yeni eklenen işi kendimiz silerdik.
+  ///
+  /// Tip bazında çalışıyor: müşteri fişi revizyonda yeniden basılmıyor
+  /// (`PrintTriggers`), yani onun eski işi de düşürülmemeli — düşürülseydi
+  /// hiç basılmamış bir müşteri fişi sessizce kaybolurdu.
+  int dropSuperseded({
+    required int orderId,
+    required ReceiptType type,
+    required int keepRevision,
+  }) {
+    _db.execute(
+      '''
+      DELETE FROM print_queue
+      WHERE order_id = ?
+        AND type = ?
+        AND revision < ?
+        AND printed_at IS NULL
+      ''',
+      [orderId, type.wireName, keepRevision],
+    );
+    return _db.updatedRows;
+  }
+
   /// Basılmayı bekleyen en eski iş; yoksa `null`.
   ///
   /// Sıra `id`'ye göredir: siparişler mutfağa geldikleri sırayla basılır.
