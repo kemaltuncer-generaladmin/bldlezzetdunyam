@@ -321,6 +321,42 @@ oturum hiç açılmasa bile servisi ayakta tutmak içindir.
 **Dağıtım CI'da değil, Coolify'ın GitHub webhook'unda.** CI yalnızca
 doğrular; `main`'e itilen kod Coolify tarafından dağıtılır.
 
+### PHP testlerini sunucuda elle koşmak (12.08.2026)
+
+Uygulama imajıyla tek seferlik bir konteyner açıp `phpunit` koşmak
+mümkün, ama **iki tuzağı var** ve ikisi de sessizce yanlış sonuç
+üretiyor:
+
+**1. `DB_PREFIX` boş verilmezse her sorgu yanlış tabloyu arar.**
+`config/database.php` varsayılanı `ti_`. Üretimde bu değeri boşa çeken
+yer `infra/platform/entrypoint.sh`'in ürettiği `.env`. Konteyneri
+`--entrypoint sh` ile açınca o betik **koşmuyor**, `.env` üretilmiyor ve
+prefix `ti_`'ye düşüyor. Sonuç: `Table 'bld_test.ti_menu_categories'
+doesn't exist` gibi yüzlerce hata ve "test altyapısı bozuk" izlenimi.
+Sahada yaşandı — yarım gün buna gitti.
+
+**2. Test veritabanı adı `_test` ile bitmeli ve kullanıcının yetkisi
+olmalı.** `tests/bootstrap.php` `DB_DATABASE`'in sonuna `_test` ekliyor,
+yani `DB_DATABASE=bld` verilir ve testler `bld_test`'e gider. O
+veritabanında `bld` kullanıcısının yetkisi yoksa paket ilk testte düşer:
+
+```sql
+GRANT ALL PRIVILEGES ON bld_test.* TO 'bld'@'%'; FLUSH PRIVILEGES;
+```
+
+Doğru env dosyası:
+
+```
+APP_KEY / DB_USERNAME / DB_PASSWORD   → app konteynerinden kopyalanır
+APP_ENV=testing   DB_HOST=db   DB_DATABASE=bld   DB_PREFIX=
+CACHE_DRIVER=array   SESSION_DRIVER=array   QUEUE_CONNECTION=sync
+```
+
+**Paket ~50 dakika sürüyor.** `KitchenTestCase::setUp` her testte
+`veykemtu:setup` + `veykemtu:demo-menu` koşuyor (test başına ~13 sn).
+Konteyneri `docker run -d` ile **ayrık** başlatın: ssh koparsa ya da
+istemci zaman aşımına düşerse paket yarıda kalıyor.
+
 **ADR kapıları** — bunlar test değil, mimari kuralın CI karşılığıdır:
 
 | Kural | Kapı |

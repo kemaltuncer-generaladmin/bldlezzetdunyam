@@ -234,6 +234,13 @@ doğrulandı). `/api/health` 200; BBD ucu imza doğrulaması ile çalışıyor.
    `Tests\`) taşındı.
 2. `bld` kullanıcısının `bld_test` veritabanında yetkisi yoktu.
 
+3. **`DB_PREFIX` boş verilmemişti** (benim kurulum hatam).
+   `config/database.php` varsayılanı `ti_`; üretimde bu değeri boşa çeken
+   yer `entrypoint.sh`'in ürettiği `.env` ve konteyner `--entrypoint sh`
+   ile açılınca o betik koşmuyor. Her sorgu var olmayan `ti_*` tablosunu
+   aradı; "116 hata / altyapı bozuk" izlenimi buradan çıktı. Doğru kurulum
+   `docs/08-kurulum-deploy.md` §3'e yazıldı.
+
 Paket ~50 dakika sürüyor: `KitchenTestCase::setUp` her testte
 `veykemtu:setup` + `veykemtu:demo-menu` artisan komutlarını koşuyor
 (test başına ~13 sn). Hızlandırmak ayrı bir iş.
