@@ -11,23 +11,6 @@ library;
 
 import '../delivery_type.dart';
 
-/// Fiş tipi.
-///
-/// "Teslim" fişi öğrenci kanalıyla birlikte iptal edilmiştir
-/// (`docs/BILINMEYENLER.md` #1). [kurye] ise K-14 ile eklendi: sipariş
-/// düzenleme akışında kuryenin eline giden bilgi (ad, telefon, adres,
-/// tahsil edilecek fark) mutfak fişine de müşteri fişine de sığmıyordu —
-/// mutfak fişinde adres yok, müşteri fişi ise müşteride kalıyor.
-enum ReceiptKind {
-  mutfak('mutfak'),
-  musteri('musteri'),
-  kurye('kurye');
-
-  const ReceiptKind(this.wireName);
-
-  final String wireName;
-}
-
 /// Fişe basılacak ödeme yöntemi.
 ///
 /// `bld_api_client`'taki `PaymentMethod`'un fiş karşılığıdır; etiketleri
@@ -144,6 +127,8 @@ class KitchenReceiptData {
     this.requestedAt,
     this.customerPhone,
     this.customerNote,
+    this.revisionNo = 0,
+    this.revisionSummary = const <String>[],
   });
 
   final String orderNumber;
@@ -168,6 +153,23 @@ class KitchenReceiptData {
 
   /// Sipariş notu. Varsa fişin sonunda `NOT:` bloğu basılır — asla gizlenmez.
   final String? customerNote;
+
+  /// Kaçıncı revizyon; `0` = düzenlenmedi (K-20).
+  ///
+  /// `>0` ise fişin **en üstüne** çift boy `GÜNCEL FİŞ / REVİZE #N / ÖNCEKİ
+  /// FİŞİ ATIN` bandı basılır. K-20'ye kadar mutfak fişinde böyle bir bant
+  /// hiç yoktu: düzenlenen sipariş için yeni kâğıt çıkıyor ama üstünde onu
+  /// öncekinden ayıran hiçbir şey yazmıyordu ve tezgâhta iki kâğıt yan yana
+  /// durduğunda hangisinin geçerli olduğu okunamıyordu.
+  final int revisionNo;
+
+  /// Neyin değiştiği — `Mercimek Çorbası: 20 -> 10`.
+  ///
+  /// Boşsa `DEĞİŞİKLİKLER` bloğu hiç basılmaz; bant yine basılır. Başlıksız
+  /// boş bir blok, personele bir şeyin kayıp olduğunu düşündürürdü.
+  final List<String> revisionSummary;
+
+  bool get isRevised => revisionNo > 0;
 }
 
 /// BBD Store fişi verisi (K-16).
@@ -342,15 +344,14 @@ class ProductionPlanDelivery {
 
 /// Kurye fişi verisi (K-14).
 ///
-/// NEDEN ÜÇÜNCÜ TİP: kurye üç şeye ihtiyaç duyuyor ve hiçbiri tek bir
-/// mevcut fişte birlikte yok — **kime** (ad + telefon), **nereye**
-/// (adres + harita QR), **ne kadar tahsil edilecek**. Mutfak fişinde
-/// adres yok (mutfak teslimat yapmıyor), müşteri fişi ise müşteride
-/// kalıyor.
+/// **K-20'DEN BERİ OTOMATİK BASILMIYOR.** Kuryenin üç sorusunun cevabı —
+/// kime, nereye, ne kadar tahsil edilecek — [CustomerReceiptData]'ya
+/// taşındı ve sipariş başına iki kâğıt çıkıyor.
 ///
-/// REVİZYON BİLGİSİ ZORUNLU: sipariş düzenlendiyse kuryenin elindeki
-/// fiş eski olabilir. Başlıktaki `REVİZE #N` ve değişiklik özeti,
-/// kuryenin yanlış tutarı tahsil etmesini engelliyor.
+/// Bu tip ve şablonu **elle yeniden bastırma** kaçış kapısı için duruyor:
+/// kâğıt sıkışırsa ya da kurye fişi kaybederse personelin onu geri
+/// getirecek bir yolu olmalı. Golden dosyaları bilerek dondurulmuş
+/// durumda — birleşmenin bu yola sızmadığı bayt düzeyinde doğrulanıyor.
 class CourierReceiptData {
   const CourierReceiptData({
     required this.orderNumber,
@@ -407,6 +408,15 @@ class CourierReceiptData {
 }
 
 /// Müşteri fişi verisi — fiyatlı, adrese gönderimde adresli.
+///
+/// **K-20: BU FİŞ ARTIK KURYENİN DE FİŞİ.** Ayrı bir kurye fişi otomatik
+/// basılmıyor; kuryenin üç sorusunun cevabı — kime ([customerName],
+/// [customerPhone]), nereye ([address] + harita QR), ne kadar tahsil
+/// edilecek ([collectAmount]) — buraya taşındı.
+///
+/// Öncesinde adrese gönderim başına üç kâğıt, iki kez düzenlenmiş siparişte
+/// yedi kâğıt çıkıyordu ve tezgâhta hangisinin güncel olduğu okunamıyordu.
+/// Artık tek kâğıt: kurye kapıda okuyor, sonra müşteride kalıyor.
 class CustomerReceiptData {
   const CustomerReceiptData({
     required this.orderNumber,
@@ -422,6 +432,13 @@ class CustomerReceiptData {
     this.requestedAt,
     this.trackUrl,
     this.payUrl,
+    this.customerName,
+    this.customerPhone,
+    this.customerNote,
+    this.collectAmount = 0,
+    this.revisionNo = 0,
+    this.revisionSummary = const <String>[],
+    this.deliverUrl,
   });
 
   final String orderNumber;
@@ -465,11 +482,65 @@ class CustomerReceiptData {
   /// QR'ı basmak ikinci kez ödemeye davet etmek olurdu.
   final String? payUrl;
 
+  /// Müşterinin tam adı — kurye kapıda "kime teslim ediyorum" der.
+  ///
+  /// Gel-al siparişinde `null`: kurye yok ve müşteri kâğıdı tezgâhtan
+  /// alıyor, kendi adını okumaya ihtiyacı yok.
+  final String? customerName;
+
+  /// Müşterinin telefonu — kapı açılmadığında kuryenin arayacağı numara.
+  ///
+  /// Gel-al siparişinde `null`. Adrese gönderimde **çift boy** basılır:
+  /// kurye numarayı araçta, kötü ışıkta, tek elle okuyor.
+  final String? customerPhone;
+
+  /// Sipariş notu ("Zili çalmayın").
+  ///
+  /// BU FİŞE TAŞINMASI ŞARTTI (K-20): kapı talimatı kuryeye bugüne kadar
+  /// yalnız kurye fişiyle ulaşıyordu. O fişi otomatik basmaktan vazgeçip
+  /// notu taşımasaydık, kuryenin elinden bir kapı talimatını silmiş
+  /// olurduk.
+  final String? customerNote;
+
+  /// Kapıda tahsil edilecek tutar (kuruş).
+  ///
+  /// Ödenmiş siparişte ve gel-al'da `0` ve satır **hiç basılmaz**: sıfırlık
+  /// bir "tahsil edilecek" satırı, kuryenin bir sonraki fişte gerçek tutarı
+  /// gözden kaçırmasına yol açıyordu.
+  final int collectAmount;
+
+  /// Kaçıncı revizyon; `0` = düzenlenmedi.
+  final int revisionNo;
+
+  /// Neyin değiştiği. Boşsa `DEĞİŞİKLİKLER` bloğu basılmaz.
+  final List<String> revisionSummary;
+
+  /// "Teslim ettim" bağlantısı — fişe QR olarak basılır (K-20).
+  ///
+  /// Kurye okutuyor, tek düğmeli bir onay sayfası açılıyor, onaylayınca
+  /// sipariş `teslim_edildi` oluyor ve bağlantı ölüyor.
+  ///
+  /// `null` olduğu hâller: gel-al siparişi ya da sunucuda imza sırrı
+  /// yapılandırılmamış. İkisinde de kare hiç basılmaz.
+  final String? deliverUrl;
+
+  /// Kurye bloğu (ad, telefon, adres, tahsilat, teslim QR) basılacak mı?
+  ///
+  /// Tek kapı: gel-al fişinde bu bilgilerin hiçbiri basılmıyor. Ayrı ayrı
+  /// `null` kontrolü yapılsaydı, bir alan dolu gelirse gel-al fişinde
+  /// yalnız o satır belirirdi.
+  bool get showsCourierBlock => deliveryType == DeliveryType.delivery;
+
+  bool get isRevised => revisionNo > 0;
+
   /// Takip QR'ı basılabilir mi?
   bool get hasTrackQr => _hasUrl(trackUrl);
 
   /// Ödeme QR'ı basılabilir mi?
   bool get hasPayQr => _hasUrl(payUrl);
+
+  /// Teslim QR'ı basılabilir mi? Gel-al'da asla.
+  bool get hasDeliverQr => showsCourierBlock && _hasUrl(deliverUrl);
 
   /// Boş dize de `null` sayılır: sunucu tarafında bir alan boş string
   /// olarak gelirse QR yerine kare bir gürültü basılırdı.

@@ -599,41 +599,31 @@ void main() {
       await tearDownTree(tester);
     });
 
-    testWidgets('KURYE FİŞİ de yeniden bastırılabilir', (tester) async {
-      // Kurye fişi K-14'te üçüncü tip olarak eklendi ve tetikleyici onu
-      // otomatik basıyor; ama kâğıt sıkışırsa personelin elle yeniden
-      // bastıracak bir yolu YOKTU — menüde yalnız mutfak ve müşteri vardı.
-      final queue = PrintQueue.inMemory();
-      addTearDown(queue.close);
-      final service = PrintService(
-        queue: queue,
-        device: NullPrinter(),
-        kitchen: FakeKitchenService(),
-      );
-      addTearDown(service.dispose);
-
+    testWidgets('KURYE FİŞİ menüde YOKTUR (K-20)', (tester) async {
+      // K-14'te üçüncü tip olarak eklenmişti ve menüde yer alıyordu.
+      // K-20 ile kuryenin ihtiyaç duyduğu her şey müşteri fişine taşındı;
+      // menüde iki seçenek bırakmak personele "hangisini basayım"
+      // sorusunu geri getirirdi — birleştirmenin çözdüğü sorunun kendisi.
       await pumpKds(
         tester,
         settings: settings,
         orders: [makeOrder(id: 5013)],
-        printService: service,
       );
 
       await tester.tap(find.byIcon(Icons.print_outlined));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      await tester.tap(find.text('Kurye fişini yeniden bas'));
-      await tester.pump();
-
-      expect(queue.all().single.type, ReceiptType.kurye);
+      expect(find.text('Mutfak fişini yeniden bas'), findsOneWidget);
+      expect(find.text('Müşteri fişini yeniden bas'), findsOneWidget);
+      expect(find.text('Kurye fişini yeniden bas'), findsNothing);
 
       await tearDownTree(tester);
     });
 
-    testWidgets('GEL-AL siparişte kurye fişi ÖNERİLMEZ', (tester) async {
-      // Gel-al siparişin kuryesi yok; boş adresli bir kâğıt basmak
-      // personeli olmayan bir teslimatı aramaya iter.
+    testWidgets('GEL-AL siparişte de menü iki tiptir', (tester) async {
+      // Gel-al siparişin kuryesi yok; K-20'den beri adrese gönderimde
+      // de kurye fişi menüde değil, yani iki akış aynı menüyü görüyor.
       await pumpKds(
         tester,
         settings: settings,

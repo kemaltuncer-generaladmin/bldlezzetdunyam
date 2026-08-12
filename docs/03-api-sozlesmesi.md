@@ -412,6 +412,17 @@ Fiş içeriği. Yazdırma verisini sunucu hazırlar, KDS yalnızca biçimlendiri
 > **Fiyat ve adres gizliliği aynen duruyor** — kural kaldırılmadı,
 > daraltıldı. Ayrıntı: `docs/05-mutfakapp.md` §14.
 
+**K-20: `type=musteri` ARTIK KURYENİN DE FİŞİ.** Ayrı bir `kurye` fişi
+otomatik basılmıyor; `customer_name`, `customer_phone`, `customer_note`,
+`collect_amount`, `revision_no`, `revision_summary` ve `deliver_url` alanları
+bu yanıta eklendi (hepsi additive, `required` listesi değişmedi). Gel-al
+siparişinde ad, telefon, teslim bağlantısı `null` ve `collect_amount` `0`
+gelir — kurye yok.
+
+`type=kurye` **uç olarak duruyor** ama otomatik tetiklenmiyor: personelin
+KDS'ten elle yeniden bastırabildiği bir kaçış kapısı (kâğıt sıkışması,
+kaybolan fiş). Enum değeri sözleşmeden silinmedi (additive-only, §1.4).
+
 **Yanıt 200 (type=musteri)** — ayrıca `items` fiyatlı, `subtotal`, `delivery_fee`, `total`, `payment` ve (`delivery_type=delivery` ise) `address` alanları içerir.
 
 Bu, mutfak kapsamının müşteri adresini görebildiği **tek** uçtur ve yalnızca `type=musteri` içindir; `GET /api/kitchen/orders` adres döndürmez.
@@ -421,8 +432,22 @@ basılacak iki QR'ın hedefi. İkisi de **nullable**:
 
 | Alan | Değer | `null` olduğu durum |
 |---|---|---|
-| `track_url` | `<FRONTEND_URL>/siparis/<id>` | `FRONTEND_URL` tanımsız |
-| `pay_url` | Ödeme sayfası + `?return=<track_url>` | `FRONTEND_URL` tanımsız **veya sipariş zaten ödenmiş** |
+| `track_url` | `<FRONTEND_URL>/takip/<id>?e=…&s=…` | `FRONTEND_URL` **veya** imza sırrı tanımsız |
+| `pay_url` | Ödeme sayfası + `?return=<track_url>` | yukarıdakiler, sipariş zaten ödenmiş, **veya sanal POS simülasyonu kapalı** |
+| `deliver_url` | `<APP_URL>/teslimat/<id>?e=…&s=…` | imza sırrı tanımsız **veya gel-al siparişi** |
+
+**K-20 (14.08.2026) — `track_url` ADRESİ DEĞİŞTİ, bu bir hata düzeltmesiydi.**
+Eskiden `<FRONTEND_URL>/siparis/<id>` idi ve o rota sitede oturum istiyor
+(`middleware.ts` + `requireSession`): fişteki kareyi okutan müşteri sipariş
+durumunu değil **giriş ekranını** görüyordu. Kâğıda basılan bir QR giriş
+isteyemez. Yeni adres imzalı ve girişsiz; girişli `/siparis/{id}` sayfası
+olduğu gibi duruyor.
+
+**`deliver_url` yeni (K-20).** Kuryenin okuttuğu "teslim ettim" QR'ı. Kurye
+girişi yoktur; yetki URL'deki HMAC imzasındadır ve imza sipariş kimliğine,
+amaca ve son geçerlilik anına bağlıdır — bir siparişin bağlantısı komşusunu
+açmaz, takip bağlantısı teslim bağlantısı yerine geçmez, `?e=` değiştirilerek
+süre uzatılamaz.
 
 Bağlantıyı **sunucu üretir**, KDS değil. KDS'in site adresini bilmesi
 gerekmiyor; kasada yanlış ya da eski bir alan adı kalırsa basılan QR sessizce
@@ -464,6 +489,7 @@ liste ne işe yaradıklarını özetler.
 | `GET/POST /api/kitchen/menu-availability` | "Bugün tükendi" işaretleri. **Fiyatsız** ürün listesi (ADR-08) |
 | `GET /api/kitchen/orders/{id}/editable` | Düzenlenebilir sipariş görüntüsü — **fiyatsız**, telefonlu |
 | `GET/POST /api/kitchen/orders/{id}/revisions` | Revizyon geçmişi ve yeni revizyon (K-12) |
+| `GET /api/public/orders/{id}/tracking` | **Kimlik gerektirmez** — fişteki takip QR'ının açtığı uç (K-20). Yetki `?e=`/`?s=` imzasında. Siparişin DAR yüzü: adres, ad, telefon ve kalem listesi dönmez |
 | `GET /api/kitchen/menu` | Düzenleme ekranının ürün seçicisi — **fiyatsız** |
 | `GET /api/kitchen/subscription-plan` | Abonelik üretim planı: toplamlar, saatler, **uyarılar** (K-15) |
 | `GET /api/kitchen/bbd-orders` + `.../{id}/ack` | BBD fiş kuyruğu (K-16) |

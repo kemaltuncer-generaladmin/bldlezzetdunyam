@@ -53,7 +53,7 @@ class SimulationController extends Controller
         // callback iki kez gelebilir; idempotentlik oradan geliyor
         // (docs/04 §5) ve simülasyon aynı davranışı taklit etmeli.
         if ((bool) $order->processed) {
-            return redirect()->away($returnUrl.'?durum=zaten_odendi');
+            return redirect()->away(self::withStatus($returnUrl, 'zaten_odendi'));
         }
 
         $data = $request->validate([
@@ -85,7 +85,21 @@ class SimulationController extends Controller
             'order_id' => $order->order_id,
         ]);
 
-        return redirect()->away($returnUrl.'?durum=odendi');
+        return redirect()->away(self::withStatus($returnUrl, 'odendi'));
+    }
+
+    /**
+     * Dönüş adresine `durum` parametresini ekler.
+     *
+     * DÜZ BİRLEŞTİRME YETMİYOR (K-20). Dönüş adresi eskiden hep sorgusuz
+     * `/siparis/{id}` idi ve `.'?durum=odendi'` çalışıyordu. Fişteki takip
+     * bağlantısı artık imzalı: `/takip/{id}?e=...&s=...`. Düz birleştirme
+     * ikinci bir `?` üretir, `durum` okunamaz hâle gelir ve müşteri
+     * ödemesinin geçtiğini gösteren mesajı hiç görmez.
+     */
+    private static function withStatus(string $url, string $durum): string
+    {
+        return $url.(str_contains($url, '?') ? '&' : '?').'durum='.$durum;
     }
 
     private function orderByHash(string $hash): Order

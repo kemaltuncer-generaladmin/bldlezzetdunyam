@@ -49,6 +49,14 @@ export type OrderDetail = Schemas['OrderDetail'];
 export type Payment = Schemas['Payment'];
 export type StatusHistoryEntry = Schemas['StatusHistoryEntry'];
 
+/**
+ * Fişteki takip QR'ının açtığı, giriş istemeyen sipariş yüzü (K-20).
+ *
+ * `OrderDetail` ile karıştırılmamalı: adres, ad, telefon ve kalem listesi
+ * YOKTUR. Bu veriyi açan şey bir oturum değil, kâğıda basılmış bir kare.
+ */
+export type PublicOrderTracking = Schemas['PublicOrderTracking'];
+
 // Sarmalayıcı gövdeler de sözleşmeden çıkarılır, elle yazılmaz.
 export type LocationListResponse = JsonOk<operations['listLocations']>;
 export type MenuResponse = JsonOk<operations['getMenu']>;

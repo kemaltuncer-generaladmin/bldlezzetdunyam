@@ -96,7 +96,7 @@ Her senaryo elle koşulur ve sonuç tabloya işlenir. Hepsi geçmeden canlıya a
 | 10 | Bir ürünü "bugün tükendi" işaretle | Menüde soluk; siparişe eklenemez; **abonelik üretimi etkilenmez** |
 | 11 | Siparişi düzenle (20 → 10), sebep seç, kaydet | 5 sn içinde web takip ekranında adet ve toplam değişir; mobilde bildirim düşer |
 | 12 | Aynı siparişi ikinci kez düzenle | Cari deftere **ikinci** hareket yazılır (birincisi yutulmaz) |
-| 13 | Düzenleme sonrası yazıcı | Mutfak + kurye fişi **"REVİZE #N"** başlığıyla yeniden basılır; müşteri fişi basılmaz |
+| 13 | Düzenleme sonrası yazıcı | Basılmış fişler **"GÜNCEL FİŞ / REVİZE #N / ÖNCEKİ FİŞİ ATIN"** bandıyla, 20 sn sessizlikten sonra **bir kez** yeniden basılır (K-20). Ayrı kurye fişi çıkmaz |
 | 14 | Admin panel | Revizyon ve iade kaydı görünür; başarısız iade **açık** durur |
 | 15 | Abonelik ekranı (F8) | Ürün toplamları, teslimat saatleri ve uyarılar görünür |
 | 16 | `veykemtu:abonelik-uret` KOŞMADAN yarın sekmesi | **Kırmızı "üretim koşmamış" uyarısı** çıkar |
@@ -247,7 +247,7 @@ testi), `ContractTest` içindeki üç fiş bağlantısı testi,
 |---|---|---|
 | 1 | Kapıda ödemeli sipariş, `hazir` yap | Müşteri fişinde **iki** QR: üstte ödeme, altta takip |
 | 2 | Ödeme QR'ını okut | Ödeme sayfası açılır; bitince takip sayfasına döner |
-| 3 | Takip QR'ını okut | `/siparis/<id>` açılır |
+| 3 | Takip QR'ını okut | `/takip/<id>?e=…&s=…` açılır — **giriş istemez** (K-20) |
 | 4 | Online ödenmiş sipariş | Ödeme QR'ı **basılmaz**, takip QR'ı basılır |
 | 5 | `FRONTEND_URL` boşken | İki QR da basılmaz, fiş eski hâliyle çıkar |
 | 6 | Haritada iğnesi olan adres | Harita QR'ı ayrıca basılır (K-14) |
@@ -262,6 +262,64 @@ testi), `ContractTest` içindeki üç fiş bağlantısı testi,
 | 4 | İğneyi hizmet alanı dışına sürükle | Kabul edilmez, iğne eski yerine döner, uyarı çıkar |
 | 5 | İğne koymadan sipariş ver | Sipariş geçer; fiş QR'sız basılır (iğne zorunlu değil) |
 | 6 | Adresi sil | Onay sorar; geçmiş siparişlerin adresi değişmez |
+
+### S12 — Fiş birleşmesi ve teslim QR'ı (K-20, 14.08.2026)
+
+Otomatik karşılıkları: `mutfakapp/test/print_triggers_test.dart` (23),
+`mutfakapp/test/print_queue_test.dart` ("Yeniden bas revizyona duyarlıdır"),
+`packages/core/test/escpos_golden_test.dart` ("Birleşik fiş kuralları" grubu
++ dört yeni golden), `PublicTrackingTest` (8), `DeliveryConfirmTest` (11),
+`SignedLinkTest` (10), `website/e2e/siparis.spec.ts` (girişsiz takip).
+
+> **ÖNCE DONANIM.** `docs/10` §"QR AÇIK MADDE" hâlâ kapanmadı: fişteki konum
+> QR'ı sahada kâğıda çıkmıyor ve sebebi bilinmiyor. Teslim QR'ı da aynı
+> `GS ( k` komutuna dayanıyor. Aşağıdaki 4–6 numaralı adımlardan önce
+> `cd mutfakapp && dart run tool/yazici_teshis.dart` koşulmalı; yalnız C
+> bölümü çıkıyorsa yazıcı yerleşik QR'ı yutuyor demektir ve QR'lar raster
+> çizilmek zorunda (ayrı görev).
+
+**S12.1 — Kâğıt sayımı**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Adrese gönderim siparişi, `onaylandi` | **Bir** mutfak fişi |
+| 2 | `hazir` yap | **Bir** müşteri fişi: ad, telefon, adres, harita QR, `TAHSİL`, takip + teslim QR'ı. Ayrı kurye fişi **çıkmaz** |
+| 3 | Gel-al siparişi, `hazir` | Fişte adres, ad, telefon, `TAHSİL` ve teslim QR'ı **yok**; `GEL-AL` yazar |
+| 4 | Karttan "Yeniden bas" | Menüde **iki** seçenek (mutfak, müşteri); **tek** kâğıt çıkar |
+
+**S12.2 — Revizyon tek kâğıda iner**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `hazir` siparişi düzenle | 20 sn boyunca **hiç kâğıt çıkmaz** |
+| 2 | 20 sn dolmadan ikinci kez düzenle | Sayaç sıfırlanır; ara sürüm basılmaz |
+| 3 | Sessizlikten sonra | Mutfak + müşteri fişi **birer kez**, son sürümle, üstünde `GÜNCEL FİŞ / REVİZE #2 / ÖNCEKİ FİŞİ ATIN` |
+| 4 | `hazir` ÖNCESİ düzenle | Müşteri fişi fazladan çıkmaz; `hazir`da bir kez, güncel veriyle çıkar |
+| 5 | Bekletme sırasında kasayı yeniden başlat | Fiş **hemen** çıkar (hata yönü "erken", "hiç" değil) |
+| 6 | Bekletme sırasında siparişi iptal et | Bekleyen fiş **hiç basılmaz** |
+
+**S12.3 — Girişsiz takip**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Takip QR'ını **çıkış yapmış** telefonla okut | Sipariş durumu görünür; `/giris` ekranı **çıkmaz** |
+| 2 | Sayfada adres/telefon/kalem ara | **Yok** — yalnız durum, tutar, ödeme durumu |
+| 3 | `?s=` değerini bozup aç | "Bağlantı geçersiz" |
+| 4 | Başka siparişin imzasıyla aç | `403` |
+| 5 | `BLD_LINK_SECRET` ve `APP_KEY` boşken | QR hiç basılmaz, fiş eski hâliyle çıkar |
+
+**S12.4 — Teslim onayı**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `yolda` siparişin teslim QR'ını okut | Sipariş no, ad, adres, tahsil edilecek tutar + tek düğme |
+| 2 | "TESLİM ETTİM" | Sipariş `teslim_edildi`; `status_history`'de "Kurye QR ile teslim onayı" |
+| 3 | Aynı QR'ı ikinci kez okut | "Bu sipariş zaten teslim edildi" — **hata ekranı değil**, yeni kayıt açılmaz |
+| 4 | `hazir` (yolda yapılmamış) siparişte okut | Teslim edilir; geçmişte **`yolda` satırı da** oluşur |
+| 5 | `onaylandi` siparişte okut | "Sipariş henüz hazır değil"; durum değişmez |
+| 6 | İptal edilmiş siparişte okut | "Bu sipariş iptal edilmiş"; durum değişmez |
+| 7 | Süresi dolmuş bağlantı | "Bağlantının süresi doldu — kasadan yeni fiş bastırın" |
+| 8 | `infra/Caddyfile.internal` güncellenmeden üretime çık | QR ana siteye 308'lenir — **dağıtım öncesi kontrol edilecek madde** |
 
 ## 2. Bileşen bazlı kabul ölçütleri
 

@@ -305,6 +305,81 @@ void main() {
     });
   });
 
+  /// "Yeniden bas" — revizyon körlüğü hatası (K-20).
+  ///
+  /// Eski `requeue` `(order_id, type)` eşleştiriyordu; ne revizyon süzgeci
+  /// ne satır sınırı vardı. Düzenlenmiş bir siparişte tek dokunuş, o tipin
+  /// HER revizyon satırını basılmamışa çeviriyor ve hem eski hem yeni sürüm
+  /// kâğıda dökülüyordu — tam da `dropSuperseded`'in engellediği hata.
+  group('Yeniden bas revizyona duyarlıdır', () {
+    late PrintQueue queue;
+
+    setUp(() => queue = PrintQueue.inMemory(clock: () => DateTime.utc(2026, 8, 14)));
+    tearDown(() => queue.close());
+
+    /// İki revizyonu da basılmış bir sipariş kurar.
+    void seedPrintedRevisions() {
+      for (final revision in [0, 1]) {
+        queue.enqueue(
+          orderId: 5012,
+          type: ReceiptType.mutfak,
+          revision: revision,
+          createdAt: DateTime.utc(2026, 8, 4),
+        );
+      }
+      for (final job in queue.all()) {
+        queue.markPrinted(job.id, DateTime.utc(2026, 8, 4, 12));
+      }
+      expect(queue.pendingCount(), 0);
+    }
+
+    test('YALNIZ EN GÜNCEL revizyon kuyruğa geri konur', () {
+      seedPrintedRevisions();
+
+      expect(
+        queue.requeue(orderId: 5012, type: ReceiptType.mutfak),
+        isTrue,
+      );
+
+      expect(queue.pendingCount(), 1, reason: 'iki kâğıt birden çıkmamalı');
+      expect(
+        queue.all().where((job) => job.printedAt == null).single.revision,
+        1,
+      );
+    });
+
+    test('eski revizyonun basılmışlığı bozulmaz', () {
+      seedPrintedRevisions();
+      queue.requeue(orderId: 5012, type: ReceiptType.mutfak);
+
+      final eski = queue.all().firstWhere((job) => job.revision == 0);
+      expect(eski.printedAt, isNotNull, reason: 'denetim izi silinmemeli');
+    });
+
+    test('istenen revizyon açıkça verilebilir', () {
+      seedPrintedRevisions();
+
+      queue.requeue(orderId: 5012, type: ReceiptType.mutfak, revision: 0);
+
+      expect(
+        queue.all().where((job) => job.printedAt == null).single.revision,
+        0,
+      );
+    });
+
+    test('satır hiç yoksa İSTENEN revizyonla yeni iş açılır', () {
+      // Sıfırıncı revizyonla açılsaydı, bir sonraki otomatik tetiğin
+      // `dropSuperseded` çağrısı onu "eskimiş" sayıp siler ve elle
+      // istenen fiş sessizce kaybolurdu.
+      expect(
+        queue.requeue(orderId: 7777, type: ReceiptType.musteri, revision: 3),
+        isTrue,
+      );
+
+      expect(queue.all().single.revision, 3);
+    });
+  });
+
   group('Kuyruk diskte kalıcıdır', () {
     test('uygulama yeniden başlarsa iş kaybolmaz', () async {
       final dir = await Directory.systemTemp.createTemp('bld_kuyruk');

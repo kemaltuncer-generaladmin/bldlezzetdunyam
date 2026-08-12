@@ -23,6 +23,15 @@ const TRANSITIONS = {
   iptal: [],
 };
 
+/// Fişteki imzalı bağlantıların mock karşılıkları (K-20).
+///
+/// Sabit değerler: mock'un işi kriptografi değil, "bağlantı var mı yok mu"
+/// dallarını KDS'e sunmak.
+const MOCK_SITE_URL = 'http://localhost:3000';
+const MOCK_API_URL = 'http://localhost:4010';
+const MOCK_LINK_EXPIRES = 1786512000;
+const MOCK_SIGNATURE = 'mock-imza';
+
 export class MockState {
   constructor() {
     this.reset();
@@ -293,12 +302,50 @@ export class MockState {
 
   // ── Yazdırma denetimi ─────────────────────────────────────────────────
 
-  /** İdempotent: aynı (order_id, type) ikinci kez kaydedilmez. */
-  ackPrint(orderId, type, printedAt) {
-    const key = `${orderId}:${type}`;
+  /**
+   * İdempotent: aynı `(order_id, type, revision)` ÜÇLÜSÜ ikinci kez
+   * kaydedilmez (K-20).
+   *
+   * Revizyon anahtarın parçası olmasaydı, düzenlenen siparişin yeniden
+   * basılan fişinin ack'i sessizce yutulur ve `printed_at` hep ilk basımı
+   * gösterirdi — elinde iki kâğıt olan kurye hangisinin yeni olduğunu
+   * kâğıttaki tek zaman damgasından anlayamazdı.
+   *
+   * `revision` gönderilmezse `0` sayılır: alanı bilmeyen eski KDS
+   * sürümleri çalışmaya devam eder.
+   */
+  ackPrint(orderId, type, printedAt, revision = 0) {
+    const key = `${orderId}:${type}:${revision}`;
     if (this.printJobs.has(key)) return false;
     this.printJobs.set(key, printedAt);
     return true;
+  }
+
+  /** Siparişin GÜNCEL revizyonu için basım anı; yoksa `null`. */
+  printedAtFor(order, type) {
+    return this.printJobs.get(`${order.id}:${type}:${order.revision_no ?? 0}`) ?? null;
+  }
+
+  // ── Fişteki imzalı bağlantılar (K-20) ─────────────────────────────────
+  //
+  // Mock GERÇEK HMAC ÜRETMİYOR ve üretmemeli: burada sınanan şey kriptografi
+  // değil, KDS'in bağlantı gelince QR basıp gelmeyince basmaması. Sabit bir
+  // imza, golden çıktıyı da belirlenimci tutuyor.
+
+  trackUrl(order) {
+    return `${MOCK_SITE_URL}/takip/${order.id}?e=${MOCK_LINK_EXPIRES}&s=${MOCK_SIGNATURE}`;
+  }
+
+  payUrl(order) {
+    // Ödenmiş siparişin fişine ödeme QR'ı basmak, ikinci kez ödemeye davet
+    // etmek olurdu.
+    if ((order.payment?.status ?? 'pending') === 'paid') return null;
+    return `${MOCK_API_URL}/odeme-simulasyon/mock-${order.id}`
+      + `?return=${encodeURIComponent(this.trackUrl(order))}`;
+  }
+
+  deliverUrl(order) {
+    return `${MOCK_API_URL}/teslimat/${order.id}?e=${MOCK_LINK_EXPIRES}&s=${MOCK_SIGNATURE}`;
   }
 
   // ── Üretim listesi ────────────────────────────────────────────────────

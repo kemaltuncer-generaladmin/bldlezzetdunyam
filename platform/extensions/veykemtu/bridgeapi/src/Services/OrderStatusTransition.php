@@ -6,6 +6,7 @@ namespace Veykemtu\BridgeApi\Services;
 
 use Igniter\Admin\Models\Status;
 use Igniter\Cart\Models\Order;
+use Illuminate\Support\Facades\DB;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
 use Veykemtu\BridgeApi\Models\AccountLedgerEntry;
 use Veykemtu\BridgeApi\Support\BusinessTime;
@@ -97,10 +98,18 @@ class OrderStatusTransition
     /**
      * Sipariş durumunu ilerletir.
      *
+     * `$comment` geçişin **neden** olduğunu `status_history`'ye yazar; boş
+     * bırakılırsa çekirdeğin varsayılanı geçerli olur. Mevcut çağıranların
+     * hiçbiri etkilenmiyor.
+     *
      * @throws ApiException geçersiz geçişte
      */
-    public function apply(Order $order, string $to, ?int $userId = null): Order
-    {
+    public function apply(
+        Order $order,
+        string $to,
+        ?int $userId = null,
+        ?string $comment = null,
+    ): Order {
         $from = $this->codeOf($order);
         $this->assertAllowed($order, $from, $to);
 
@@ -109,10 +118,11 @@ class OrderStatusTransition
         // Çekirdeğin kendi metodu kullanılır: status_history kaydını,
         // bildirim tetiklerini ve status_updated_at'i o yönetir.
         // Kendi UPDATE'imizi yazmak bu üçünü sessizce atlardı.
-        $order->updateOrderStatus($status->status_id, [
+        $order->updateOrderStatus($status->status_id, array_filter([
             'notify' => (bool) $status->notify_customer,
             'user_id' => $userId,
-        ]);
+            'comment' => $comment,
+        ], static fn($value): bool => $value !== null));
 
         if ($to === self::CANCELLED) {
             $this->reverseAccountDebitOnCancel($order);
@@ -120,6 +130,38 @@ class OrderStatusTransition
         }
 
         return $order->refresh();
+    }
+
+    /**
+     * Kuryenin QR'la verdiği teslim onayı — K-20.
+     *
+     * NEDEN AYRI METOT VE NEDEN İKİ ADIM: fiş `hazir` durumunda basılıyor,
+     * ama `assertAllowed()` adrese gönderimde `hazir -> teslim_edildi`
+     * geçişini açıkça reddediyor ("önce yola çıkarılmalı", `docs/02` §3) ve
+     * mutfakta kimse "yolda" düğmesine basmamış olabilir.
+     *
+     * MATRİS GEVŞETİLMEDİ. Gevşetmek, `yolda` adımını atlama iznini
+     * **bütün** istemcilere verirdi ve `docs/02`'de bir değişiklik
+     * gerektirirdi. Bunun yerine burada iki dürüst geçiş yapılıyor: kurye
+     * gerçekten yola çıktı ve gerçekten vardı — ikisini aynı anda öğrendik.
+     *
+     * TEK İŞLEM İÇİNDE: arada bir hata olursa sipariş "yolda"da asılı
+     * kalmasın, ya ikisi de olsun ya hiçbiri.
+     *
+     * @throws ApiException zaten teslim edilmiş, iptal edilmiş ya da henüz
+     *                      hazır olmayan siparişte
+     */
+    public function confirmDelivery(Order $order, string $comment): Order
+    {
+        return DB::transaction(function () use ($order, $comment): Order {
+            $current = $this->codeOf($order);
+
+            if ($current === self::READY && $order->order_type === Order::DELIVERY) {
+                $order = $this->apply($order, self::ON_THE_WAY, null, $comment);
+            }
+
+            return $this->apply($order, self::DELIVERED, null, $comment);
+        });
     }
 
     /**

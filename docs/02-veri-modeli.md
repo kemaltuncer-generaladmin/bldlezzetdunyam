@@ -40,9 +40,18 @@ KDS kendi kuyruğunu diskte tutar; bu tablo yalnızca **denetim** içindir (hang
 |---|---|
 | `id` | bigint PK |
 | `order_id` | bigint FK |
-| `type` | enum: `mutfak` \| `musteri` |
+| `type` | enum: `mutfak` \| `musteri` \| `kurye` |
+| `revision` | int, varsayılan `0` — K-20 |
 | `printed_at` | timestamp null |
 | `device_id` | bigint FK null |
+
+Tekillik `(order_id, type, revision)` **üçlüsüdür**. K-20'ye kadar
+`(order_id, type)` çiftiydi ve `record()` ilk-yazan-kazanır çalışıyordu;
+düzenlenen siparişin yeniden basılan fişinin `ack`'i **sessizce yutuluyordu**.
+Sonucu `printed_at` alanında görünüyordu: yeniden basılan kâğıt, yerini
+aldığı eski kâğıdın saatiyle damgalanıyordu ve elinde iki kâğıt olan kurye
+hangisinin yeni olduğunu tek zaman damgasından anlayamıyordu. Denetim sorusu
+değişmedi, daraldı: "bu revizyon ilk ne zaman basıldı".
 
 ### 2.3 `veykemtu_app_releases` (appversion eklentisi)
 
@@ -117,9 +126,10 @@ KDS kendi kuyruğunu diskte tutar; bu tablo yalnızca **denetim** içindir (hang
 | Durum | Basılan fiş | Koşul |
 |---|---|---|
 | `onaylandi` ya da ötesi | Mutfak fişi | — |
-| `hazir` ya da ötesi | Müşteri fişi | — |
-| `hazir` ya da ötesi | **Kurye fişi** | yalnız `delivery_type = delivery` |
-| revizyon numarası arttı | Mutfak + kurye fişi **yeniden** | — |
+| `hazir` ya da ötesi | Müşteri fişi (kurye bilgileri içinde) | — |
+| revizyon numarası arttı | Daha önce **basılmış** fişler, güncel hâliyle, bir kez | 20 sn sessizlik penceresi |
+
+**Sipariş başına tam iki kâğıt çıkar** ve bu teslimat tipinden bağımsızdır.
 
 > **DÜZELTME (11.08.2026).** Bu tablo "→ `yeni` (oluşma anı) → mutfak
 > fişi" diyordu ve **05.08.2026'dan beri yanlıştı**: `yeni` durumunda
@@ -129,6 +139,14 @@ KDS kendi kuyruğunu diskte tutar; bu tablo yalnızca **denetim** içindir (hang
 > beri doğruydu, doküman geride kalmıştı.
 >
 > Kurye fişi ve revizyon tetiği K-14 ile eklendi.
+>
+> **DÜZELTME (14.08.2026, K-20).** Kurye fişi satırı kaldırıldı: artık
+> otomatik basılmıyor. K-14'teki hâliyle adrese gönderim başına **üç**,
+> iki kez düzenlenmiş siparişte **yedi** kâğıt çıkıyordu ve tezgâhta
+> hangisinin güncel olduğu okunamıyordu. Kuryenin ihtiyaç duyduğu her şey
+> müşteri fişine taşındı; `kurye` tipi yalnız elle yeniden bastırma için
+> duruyor. Revizyon tetiği de değişti: yalnız **daha önce basılmış** fişler
+> yeniden çıkıyor ve art arda düzenlemeler tek kâğıtta birleşiyor.
 
 ### Mutfak turu tabloları (K-11 … K-13, 11.08.2026)
 

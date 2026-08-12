@@ -25,6 +25,10 @@ KitchenReceiptData toKitchenReceiptData(
   // bulamaz.
   customerPhone: receipt.customerPhone,
   customerNote: receipt.customerNote,
+  // Revizyon taşınmazsa fişin başındaki "GÜNCEL FİŞ / ÖNCEKİ FİŞİ ATIN"
+  // bandı hiç basılmaz ve tezgâhtaki iki kâğıt ayırt edilemez (K-20).
+  revisionNo: receipt.revisionNo,
+  revisionSummary: receipt.revisionSummary,
   lines: [
     for (final line in receipt.lines)
       KitchenReceiptLine(
@@ -37,6 +41,11 @@ KitchenReceiptData toKitchenReceiptData(
 );
 
 /// Müşteri fişi DTO'sunu şablon girdisine çevirir.
+///
+/// K-20'DEN BERİ KURYE ALANLARINI DA TAŞIYOR. Ad, telefon, sipariş notu ve
+/// tahsil edilecek tutar burada düşerse kurye kapıda kime, nereye ve ne
+/// kadar sorusunun cevabını fişte bulamaz — ayrı kurye fişi artık
+/// basılmıyor.
 CustomerReceiptData toCustomerReceiptData(
   CustomerReceipt receipt, {
   required DateTime printedAt,
@@ -56,6 +65,14 @@ CustomerReceiptData toCustomerReceiptData(
   // gerekmiyor. `null` gelirse QR hiç basılmıyor.
   trackUrl: receipt.trackUrl,
   payUrl: receipt.payUrl,
+  // ── K-20: kurye bilgileri ────────────────────────────────────────────
+  deliverUrl: receipt.deliverUrl,
+  customerName: receipt.customerName,
+  customerPhone: receipt.customerPhone,
+  customerNote: receipt.customerNote,
+  collectAmount: receipt.collectAmount,
+  revisionNo: receipt.revisionNo,
+  revisionSummary: receipt.revisionSummary,
   lines: [
     for (final item in receipt.items)
       CustomerReceiptLine(
@@ -80,6 +97,10 @@ ReceiptAddress _address(Address address) => ReceiptAddress(
 
 /// `CourierReceipt` → kurye fiş şablonunun girdisi (K-14).
 ///
+/// K-20'DEN BERİ YALNIZ ELLE YENİDEN BASMA YOLU. Otomatik tetik kalktı;
+/// kuryenin bilgisi müşteri fişinde. Bu yol, kâğıt sıkışması ya da kaybolan
+/// fiş için duruyor.
+///
 /// Müşteri fişinden farkı: kalem fiyatları taşınır ama ara toplam/teslimat
 /// ücreti taşınmaz — kurye fiyat kırılımına bakmıyor, tek sorusu "ne kadar
 /// alacağım". O da [CourierReceiptData.collectAmount].
@@ -102,7 +123,14 @@ CourierReceiptData toCourierReceiptData(
   total: receipt.total,
   paymentMethod: _paymentMethod(receipt.payment.method),
   paymentStatus: _paymentStatus(receipt.payment.status),
-  printedAt: receipt.printedAt ?? printedAt,
+  // CANLI SAAT — diğer iki fişle aynı (K-20 düzeltmesi).
+  //
+  // Eskiden `receipt.printedAt ?? printedAt` idi ve sunucu revizyondan
+  // bağımsız olarak hep İLK basımın saatini döndürüyordu; yeniden basılan
+  // kâğıt, yerini aldığı eski kâğıdın saatiyle damgalanıyordu. Elinde iki
+  // kâğıt olan kurye hangisinin yeni olduğunu tek zaman damgasından
+  // anlayamıyordu. Fişin başlığındaki tarih, o kâğıdın basıldığı andır.
+  printedAt: printedAt,
   customerName: receipt.customerName,
   customerPhone: receipt.customerPhone,
   customerNote: receipt.customerNote,

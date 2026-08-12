@@ -569,6 +569,27 @@ app.get('/api/orders/:id', requireCustomer, (req, res) => {
   return res.json(out.orderDetailOut(state, order));
 });
 
+/**
+ * Fişteki takip QR'ının açtığı girişsiz uç (K-20).
+ *
+ * `requireCustomer` YOK — test edilen şey tam olarak bu: kâğıda basılan
+ * kareyi okutan müşteri giriş ekranı görmemeli. Yetki `e`/`s` imzasında;
+ * mock imzayı sabit tutuyor (kriptografi sunucunun işi, mock'un değil) ama
+ * PARAMETRELERİN VARLIĞINI arıyor, yoksa istemcinin imzayı hiç göndermediği
+ * bir hata mock'a karşı fark edilmezdi.
+ */
+app.get('/api/public/orders/:id/tracking', (req, res) => {
+  const { e: expires, s: signature } = req.query;
+  if (!expires || !signature) {
+    return fail(res, 'FORBIDDEN', 'Takip bağlantısı geçersiz.');
+  }
+
+  const order = state.orderById(Number(req.params.id));
+  if (!order) return fail(res, 'NOT_FOUND', 'Sipariş bulunamadı.');
+
+  return res.json(out.publicTrackingOut(state, order));
+});
+
 app.post('/api/orders/:id/cancel', requireCustomer, (req, res) => {
   const order = state.orderById(Number(req.params.id));
   if (!order || order.customer_id !== req.customerId) {
@@ -659,9 +680,12 @@ app.get('/api/kitchen/orders/:id/receipt', requireKitchen, (req, res) => {
   const type = req.query.type;
   if (type === 'mutfak') return res.json(out.kitchenReceiptOut(state, order));
   if (type === 'musteri') return res.json(out.customerReceiptOut(state, order));
+  // `kurye` K-20'den beri otomatik basılmıyor ama uç duruyor: personel
+  // kâğıt sıkışmasında elle yeniden bastırabiliyor.
+  if (type === 'kurye') return res.json(out.courierReceiptOut(state, order));
 
   return fail(res, 'VALIDATION_FAILED', 'Fiş tipi geçersiz.', {
-    type: 'mutfak veya musteri olmalı.',
+    type: 'mutfak, musteri veya kurye olmalı.',
   });
 });
 
@@ -672,14 +696,16 @@ app.post(
     const order = state.orderById(Number(req.params.orderId));
     if (!order) return fail(res, 'NOT_FOUND', 'Sipariş bulunamadı.');
 
-    const { type, printed_at: printedAt } = req.body ?? {};
-    if (!['mutfak', 'musteri'].includes(type)) {
+    const { type, printed_at: printedAt, revision } = req.body ?? {};
+    if (!['mutfak', 'musteri', 'kurye'].includes(type)) {
       return fail(res, 'VALIDATION_FAILED', 'Fiş tipi geçersiz.', {
-        type: 'mutfak veya musteri olmalı.',
+        type: 'mutfak, musteri veya kurye olmalı.',
       });
     }
-    // İdempotent: ikinci çağrı da 204 döner, yeni kayıt açmaz.
-    state.ackPrint(order.id, type, printedAt ?? nowIso());
+    // İdempotent: aynı (sipariş, tip, revizyon) üçlüsü için ikinci çağrı da
+    // 204 döner, yeni kayıt açmaz. `revision` isteğe bağlı — göndermeyen
+    // eski KDS sürümleri `0` kovasına düşer (K-20).
+    state.ackPrint(order.id, type, printedAt ?? nowIso(), Number(revision ?? 0));
     return res.status(204).end();
   },
 );

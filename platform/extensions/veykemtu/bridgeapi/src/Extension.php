@@ -382,18 +382,52 @@ class Extension extends BaseExtension
          */
         RateLimiter::for('bld-partner', static fn(Request $request): Limit => Limit::perHour(300)
             ->by($request->ip() ?? 'bilinmeyen'));
+
+        /*
+         * Fişteki imzalı bağlantılar (K-20).
+         *
+         * SINIR SİPARİŞ BAŞINA, IP BAŞINA DEĞİL. Takip ucunu çağıran taraf
+         * müşterinin telefonu değil, **Next.js sunucusu**: bütün müşteriler
+         * tek çıkış IP'sini paylaşıyor ve IP başına bir sınır, yoğun saatte
+         * takip sayfasını herkese birden kapatırdı.
+         *
+         * Sipariş başına sınır, imzayı ele geçiren birinin tek bir siparişi
+         * dövmesini de sınırlar ve komşu siparişleri etkilemez.
+         *
+         * Takipte 30/dk: sayfa 5 saniyede bir yokluyor (12/dk), aynı
+         * siparişi iki cihazdan açan müşteriye ve yenilemelere yer kalıyor.
+         */
+        RateLimiter::for('bld-track', static fn(Request $request): Limit => Limit::perMinute(30)
+            ->by('track:'.(string) $request->route('order')));
+
+        /*
+         * Teslim onayı 10/dk: kurye sayfayı açıp bir düğmeye basıyor, o
+         * kadar. Dar tutmak, imzayı deneme yanılma ile bulma girişimini
+         * (128 bitte zaten ulaşılamaz) ölçülebilir olmaktan da çıkarıyor.
+         */
+        RateLimiter::for('bld-teslimat', static fn(Request $request): Limit => Limit::perMinute(10)
+            ->by('teslimat:'.(string) $request->route('order')));
     }
 
     /**
-     * Rotalar yalnızca API isteklerinde yüklenir.
+     * Rotalar iki ayrı yığına kaydedilir.
      *
-     * TastyIgniter'ın web/admin middleware yığını (oturum, CSRF, tema)
-     * bilinçli olarak uygulanmaz: API durumsuzdur ve token ile kimliklenir.
+     * `routes/api.php` → `api` yığını. TastyIgniter'ın web/admin
+     * middleware'i (oturum, CSRF, tema) bilinçli olarak uygulanmaz: API
+     * durumsuzdur ve token ile kimliklenir.
+     *
+     * `routes/web.php` → `web` yığını. K-20 ile geldi ve yukarıdaki kuralın
+     * istisnası DEĞİL, kapsamı dışında: oradaki tek sayfa kuryenin telefonda
+     * açtığı gerçek bir HTML formu ve **CSRF koruması gerekiyor**. Emsali
+     * `Veykemtu\Payment\Extension::registerSimulationRoutes()`.
      */
     private function registerRoutes(): void
     {
         Route::middleware('api')
             ->group(__DIR__.'/../routes/api.php');
+
+        Route::middleware('web')
+            ->group(__DIR__.'/../routes/web.php');
     }
 
     /**

@@ -20,21 +20,27 @@ import 'print_job.dart';
 
 /// `print_queue` tablosunu yöneten kalıcı kuyruk.
 class PrintQueue {
-  PrintQueue._(this._db);
+  PrintQueue._(this._db, DateTime Function()? clock)
+    : _now = clock ?? (() => DateTime.now().toUtc());
 
   /// [path] dosyasını açar; yoksa oluşturur. Bellek içi kuyruk için
   /// [inMemory] kullanılır (testler).
-  factory PrintQueue.open(String path) {
+  ///
+  /// [clock] enjekte edilebilir — `PrintService` ile aynı desen. Elle
+  /// yeniden basımda açılan yeni satırın zamanı buradan geliyor ve testin
+  /// gerçek saate bağlı kalmaması gerekiyor.
+  factory PrintQueue.open(String path, {DateTime Function()? clock}) {
     _prepareLibrary();
-    return PrintQueue._(sqlite3.open(path)).._createSchema();
+    return PrintQueue._(sqlite3.open(path), clock).._createSchema();
   }
 
-  factory PrintQueue.inMemory() {
+  factory PrintQueue.inMemory({DateTime Function()? clock}) {
     _prepareLibrary();
-    return PrintQueue._(sqlite3.openInMemory()).._createSchema();
+    return PrintQueue._(sqlite3.openInMemory(), clock).._createSchema();
   }
 
   final Database _db;
+  final DateTime Function() _now;
 
   static bool _libraryPrepared = false;
 
@@ -310,15 +316,53 @@ class PrintQueue {
   ///
   /// İş hiç yoksa (bir haftalık temizlik silmişse) yenisi açılır; bu durumda
   /// fiş verisi sunucudan yeniden çekilir.
-  bool requeue({required int orderId, required ReceiptType type}) {
+  ///
+  /// ## YALNIZ TEK SATIR — revizyon körlüğü hatası (K-20)
+  ///
+  /// Eski sorgu `(order_id, type)` eşleştiriyordu; ne revizyon süzgeci ne de
+  /// satır sınırı vardı. Düzenlenmiş bir siparişte o tipin **her** revizyon
+  /// satırı basılmamışa dönüyor ve "Yeniden bas" tek dokunuşta hem eski hem
+  /// yeni sürümü kâğıda döküyordu — tam da `dropSuperseded`'in engellemek
+  /// için yazıldığı hata.
+  ///
+  /// [revision] verilmezse **en güncel** satır seçilir; personel karttan
+  /// "yeniden bas" derken hangi sürümü istediğini söylemiyor, kastettiği
+  /// her zaman elindeki güncel siparişin fişi.
+  ///
+  /// `UPDATE ... LIMIT 1` KULLANILMIYOR: o sözdizimi SQLite'ın isteğe bağlı
+  /// `SQLITE_ENABLE_UPDATE_DELETE_LIMIT` derleme bayrağını gerektiriyor ve
+  /// uygulama Ubuntu'nun sistem `libsqlite3`'ünü yüklüyor — orada bayrağın
+  /// açık olduğu garanti değil. Alt sorgu her yapılandırmada çalışır.
+  bool requeue({
+    required int orderId,
+    required ReceiptType type,
+    int? revision,
+  }) {
     _db.execute(
-      'UPDATE print_queue SET printed_at = NULL, attempts = 0 '
-      'WHERE order_id = ? AND type = ?',
-      [orderId, type.wireName],
+      '''
+      UPDATE print_queue SET printed_at = NULL, attempts = 0
+      WHERE id = (
+        SELECT id FROM print_queue
+        WHERE order_id = ? AND type = ?
+          AND (? IS NULL OR revision = ?)
+        ORDER BY revision DESC, id DESC
+        LIMIT 1
+      )
+      ''',
+      [orderId, type.wireName, revision, revision],
     );
     if (_db.updatedRows > 0) return true;
 
-    return enqueue(orderId: orderId, type: type, createdAt: DateTime.now());
+    // ÇAĞIRANIN REVİZYONUYLA AÇILIYOR, `0` ile değil: düzenlenmiş bir
+    // siparişte sıfırıncı revizyonla açılan satır, bir sonraki otomatik
+    // tetiğin `dropSuperseded` çağrısında "eskimiş" sayılıp silinirdi ve
+    // elle istenen fiş sessizce kaybolurdu.
+    return enqueue(
+      orderId: orderId,
+      type: type,
+      revision: revision ?? 0,
+      createdAt: _now(),
+    );
   }
 
   void close() => _db.dispose();

@@ -862,7 +862,11 @@ class _QueueSectionState extends ConsumerState<_QueueSection> {
   }
 
   void _reprint(PrintJob job) {
-    ref.read(printServiceProvider).reprint(job.orderId, job.type);
+    // Satırın kendi revizyonu elimizde — o sürümü geri koyuyoruz, en
+    // güncelini değil: personel kuyrukta GÖRDÜĞÜ satıra basıyor.
+    ref
+        .read(printServiceProvider)
+        .reprint(job.orderId, job.type, revision: job.revision);
     _reload();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

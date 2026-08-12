@@ -383,6 +383,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public/orders/{id}/tracking": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * İmzalı takip (giriş gerektirmez)
+         * @description Fişteki takip QR'ının arkasındaki uç (K-20). **Kimlik gerektirmez**;
+         *     yetki URL'deki HMAC imzasındadır.
+         *
+         *     NEDEN AYRI BİR UÇ: `GET /orders/{id}` oturum istiyor ve fişteki QR'ı
+         *     okutan müşteri sipariş durumunu değil giriş ekranını görüyordu. Aynı
+         *     uca "imza varsa oturumu atla" diye bir kapı açmak, tek bir uçta iki
+         *     farklı yetki seviyesi demekti; ilk dikkatsiz düzenleme adresi kimliği
+         *     doğrulanmamış ziyaretçiye açardı. Ayrı rota, yetki sınırını bir
+         *     yönlendirme gerçeği hâline getiriyor.
+         *
+         *     Yanıt siparişin **daraltılmış** yüzüdür: adres, ad, telefon ve kalem
+         *     listesi dönmez (`PublicOrderTracking`).
+         *
+         *     Girişli `/orders/{id}` ve `/siparis/{id}` sayfası olduğu gibi duruyor.
+         */
+        get: operations["getPublicOrderTracking"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/orders/{id}/cancel": {
         parameters: {
             query?: never;
@@ -820,9 +859,15 @@ export interface paths {
         put?: never;
         /**
          * Fiş basıldı bildirimi
-         * @description Denetim içindir. **İdempotent:** aynı `(order_id, type)` çifti için tekrarlanan
-         *     çağrı yeni kayıt açmaz, yine `204` döner. KDS bu çağrı başarısız olursa sessizce
-         *     yutar — fişin basılmış olması ack'e bağlı değildir.
+         * @description Denetim içindir. **İdempotent:** aynı `(order_id, type, revision)` üçlüsü için
+         *     tekrarlanan çağrı yeni kayıt açmaz, yine `204` döner. KDS bu çağrı başarısız
+         *     olursa sessizce yutar — fişin basılmış olması ack'e bağlı değildir.
+         *
+         *     **K-20:** tekillik eskiden `(order_id, type)` çiftiydi ve revizyon sonrası
+         *     yeniden basılan fişin ack'i **sessizce yutuluyordu**. Sonucu `printed_at`
+         *     alanında görünüyordu: yeniden basılan fiş, yerini aldığı ESKİ fişin saatiyle
+         *     damgalanıyordu. Elinde iki kâğıt olan kurye hangisinin yeni olduğunu
+         *     kâğıttaki tek zaman damgasından anlayamıyordu.
          */
         post: operations["ackPrintJob"];
         delete?: never;
@@ -1457,6 +1502,16 @@ export interface components {
          * @description `kurye` K-14 ile eklendi: kuryenin eline giden fiş (ad + telefon,
          *     adres + harita QR, tahsil edilecek tutar, revizyon özeti).
          *     Yalnız `delivery` siparişte basılır — gel-al'da kurye yoktur.
+         *
+         *     **K-20 (14.08.2026) — `kurye` ARTIK OTOMATİK BASILMIYOR.** Kuryenin
+         *     ihtiyaç duyduğu her şey (ad, telefon, adres + harita QR, tahsil
+         *     edilecek tutar, revizyon özeti, teslim QR'ı) `musteri` fişine taşındı;
+         *     sipariş başına tam iki kâğıt çıkıyor. Kâğıt kapıda kuryenin elinde,
+         *     sonra müşteride kalıyor.
+         *
+         *     Enum değeri **silinmedi** (additive-only, `docs/03` §1.4) ve uç
+         *     çalışmaya devam ediyor: `kurye` fişi KDS'ten **elle yeniden
+         *     bastırılabilen** bir kaçış kapısı olarak duruyor.
          * @enum {string}
          */
         ReceiptType: "mutfak" | "musteri" | "kurye";
@@ -2443,7 +2498,35 @@ export interface components {
             customer_note?: string | null;
             /** Format: date-time */
             printed_at?: string | null;
+            /**
+             * @description Kaçıncı revizyon (K-20). `0` = hiç düzenlenmedi. `>0` ise KDS fişin
+             *     **başına** çift boy `GÜNCEL FİŞ — REVİZE #N / ÖNCEKİ FİŞİ ATIN`
+             *     bandını basar.
+             *
+             *     Mutfak fişi bu alanı K-20'ye kadar hiç almıyordu: düzenlenen
+             *     sipariş için yeni kâğıt çıkıyor ama üstünde onu öncekinden ayıran
+             *     hiçbir şey yazmıyordu. Tezgâhta iki kâğıt yan yana durduğunda
+             *     hangisinin geçerli olduğu okunamıyordu.
+             * @default 0
+             */
+            revision_no: number;
+            /**
+             * @description Son revizyonun insan okur özeti (`Mercimek Çorbası: 20 -> 10`).
+             *     Boş dizi, özetin çıkarılamadığı anlamına gelir; bant yine basılır,
+             *     liste basılmaz.
+             */
+            revision_summary?: string[];
         };
+        /**
+         * @description **K-20 (14.08.2026): bu fiş artık kuryenin de fişidir.** Ayrı bir
+         *     `kurye` fişi otomatik basılmıyor; kuryenin ihtiyaç duyduğu üç bilgi
+         *     (kime, nereye, ne kadar tahsil edilecek) bu şemaya taşındı. Sipariş
+         *     başına tam iki kâğıt çıkıyor: `onaylandi`da `mutfak`, `hazir`da
+         *     `musteri`. Kâğıdı kapıda kurye okuyor, sonra müşteride kalıyor.
+         *
+         *     `required` listesi **değişmedi** — eklenen alanların hepsi isteğe
+         *     bağlı, eski istemciler kırılmıyor.
+         */
         CustomerReceipt: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -2468,6 +2551,157 @@ export interface components {
             customer_label?: string | null;
             /** Format: date-time */
             printed_at?: string | null;
+            /**
+             * @description Tam ad (K-20). Kurye kapıda "kime teslim ediyorum" sorusunu bu
+             *     satırdan cevaplıyor; `customer_label` baş harfe indirgenmiş hâli
+             *     olduğu için yetmiyor.
+             */
+            customer_name?: string | null;
+            /**
+             * @description Müşterinin telefonu (K-20). Kapı açılmadığında ya da adres tarifi
+             *     yetmediğinde kuryenin arayacağı numara **bu fişte** olmak zorunda:
+             *     ayrı kurye fişi artık basılmıyor.
+             *
+             *     KDS **kartında** telefon yine yoktur (`KitchenOrder`) — ekran
+             *     mutfakta gün boyu açık durur, kartta telefon olması her müşterinin
+             *     numarasını salondan görünür kılardı. Fiş tek bir sipariş için
+             *     basılıp kuryeye gider.
+             */
+            customer_phone?: string | null;
+            customer_note?: string | null;
+            /**
+             * @description Kapıda **tahsil edilecek** tutar (K-20). Ödenmiş siparişte `0`'dır
+             *     ve KDS satırı hiç basmaz: sıfırlık bir "tahsil edilecek" satırı,
+             *     kuryenin bir sonraki fişte gerçek tutarı gözden kaçırmasına yol
+             *     açıyordu.
+             *
+             *     `total` ile aynı olduğu hâlde ayrı bir alan: `total` siparişin
+             *     bedeli, bu ise kuryenin eline geçecek para. Ödeme yöntemi
+             *     değiştiğinde ikisi ayrışıyor.
+             */
+            collect_amount?: components["schemas"]["Money"];
+            /**
+             * @description Kaçıncı revizyon (K-20). `>0` ise KDS fişin başına çift boy
+             *     `GÜNCEL FİŞ — REVİZE #N / ÖNCEKİ FİŞİ ATIN` bandını basar.
+             * @default 0
+             */
+            revision_no: number;
+            /** @description Son revizyonun insan okur özeti; boş dizi = özet yok. */
+            revision_summary?: string[];
+            /**
+             * Format: uri
+             * @description Sipariş takip sayfası; fişe QR olarak basılır (K-18). Müşteri
+             *     numarayı elle yazmadan durumu izler.
+             *
+             *     `FRONTEND_URL` tanımsızsa `null` gelir ve KDS QR basmaz —
+             *     çalışmayan bir kare basmak, okutup boş sayfa gören müşteri
+             *     üretmekten iyi değil.
+             *
+             *     **K-20 — ADRES DEĞİŞTİ.** Eskiden `/siparis/{id}` idi ve o sayfa
+             *     oturum istiyor: basılı QR'ı okutan müşteri sipariş durumunu değil
+             *     **giriş ekranını** görüyordu. Yeni adres imzalı ve girişsiz:
+             *     `/takip/{id}?e=<son geçerlilik>&s=<imza>`. Girişli
+             *     `/siparis/{id}` sayfası olduğu gibi duruyor.
+             */
+            track_url?: string | null;
+            /**
+             * Format: uri
+             * @description "Teslim ettim" QR'ı (K-20). Kurye okutur, tek düğmeli bir onay
+             *     sayfası açılır, onaylayınca sipariş `teslim_edildi` olur.
+             *
+             *     **Kurye girişi yoktur**; yetki URL'deki imzadadır. Bağlantı tek
+             *     kullanımlıktır ve bu ayrı bir bayrakla değil, durum makinesinin
+             *     kendisiyle sağlanır: `teslim_edildi` terminaldir, ikinci okutma
+             *     geçerli bir geçiş bulamaz.
+             *
+             *     `null` olduğu hâller: gel-al siparişi (kurye yok) ya da imza sırrı
+             *     yapılandırılmamış. İkisinde de KDS kareyi hiç basmaz.
+             */
+            deliver_url?: string | null;
+            /**
+             * Format: uri
+             * @description Ödeme sayfası; fişe QR olarak basılır (K-19). Kapıda ödeme seçen
+             *     müşteri nakit bulundurmak zorunda kalmasın diye.
+             *
+             *     **Yalnızca ödenmemiş siparişte dolu.** Ödenmiş siparişin fişine
+             *     ödeme QR'ı basmak, ikinci kez ödemeye davet etmek olurdu.
+             *
+             *     **K-20:** sanal POS simülasyonu kapalıysa (`POS_ALLOW_SIMULATION`
+             *     tanımsız üretim ortamı) rota hiç kaydedilmediği için burası da
+             *     `null` döner. Eskiden ölü bir adrese giden bir kare basılıyordu.
+             */
+            pay_url?: string | null;
+        };
+        /**
+         * @description Kurye fişi (K-14). **K-20'den beri otomatik basılmıyor** — içeriği
+         *     `CustomerReceipt`'e taşındı ve sipariş başına iki kâğıt çıkıyor. Bu
+         *     şema, KDS'ten **elle yeniden bastırma** yolu için duruyor: kâğıt
+         *     sıkışır ya da kurye fişi kaybederse personelin onu geri getirecek bir
+         *     yolu olmalı.
+         *
+         *     Sözleşmede K-20'ye kadar hiç tanımlanmamıştı; uç `kurye` tipini
+         *     döndürdüğü hâlde `getReceipt` yanıtında listelenmiyordu. Burada
+         *     eklenen şey **var olan davranışın belgelenmesidir**, yeni bir alan
+         *     değil.
+         */
+        CourierReceipt: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "kurye";
+            order_number: string;
+            delivery_type: components["schemas"]["DeliveryType"];
+            /** Format: date-time */
+            requested_at?: string | null;
+            items: components["schemas"]["OrderItem"][];
+            total: components["schemas"]["Money"];
+            currency: components["schemas"]["Currency"];
+            payment: components["schemas"]["Payment"];
+            address?: components["schemas"]["Address"] | null;
+            customer_name?: string | null;
+            customer_phone?: string | null;
+            customer_note?: string | null;
+            /** @default 0 */
+            revision_no: number;
+            revision_summary?: string[];
+            /** @description Ödenmiş siparişte `0`; KDS satırı hiç basmaz. */
+            collect_amount?: components["schemas"]["Money"];
+            /** Format: date-time */
+            printed_at?: string | null;
+        };
+        /**
+         * @description Siparişin **daraltılmış** yüzü — fişteki takip QR'ının arkasındaki
+         *     veri (K-20). `OrderDetail` ile karıştırılmamalı.
+         *
+         *     ADRES, AD, TELEFON VE KALEM LİSTESİ YOKTUR. Basılı bir kâğıt
+         *     düşürülebilir, fotoğraflanabilir, çöpten çıkarılabilir; üstündeki
+         *     bağlantı kâğıdın kendisinden fazlasını açmamalı. Buradan çıkarılan
+         *     her şey zaten o kâğıdın üstünde yazıyor — kâğıttan daha uzun yaşayan
+         *     bir URL üzerinden ikinci kez sızdırmak hiçbir şey kazandırmıyor.
+         */
+        PublicOrderTracking: {
+            /** Format: int64 */
+            id: number;
+            order_number: string;
+            status: components["schemas"]["OrderStatus"];
+            delivery_type: components["schemas"]["DeliveryType"];
+            /** Format: date-time */
+            requested_at?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            total: components["schemas"]["Money"];
+            currency: components["schemas"]["Currency"];
+            /** @description `redirect_url` **taşımaz** — ödeme başlatma girişli akışın işidir. */
+            payment: {
+                method: components["schemas"]["PaymentMethod"];
+                status: components["schemas"]["PaymentStatus"];
+            };
+            /** @default 0 */
+            revision_no: number;
+            status_history: components["schemas"]["StatusHistoryEntry"][];
+            /** Format: date-time */
+            server_time: string;
         };
         ContactChannel: {
             /** @description Ekranda görünen biçim, örn. `0212 000 00 00`. */
@@ -2748,6 +2982,20 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /**
+         * @description Yetki yok (`FORBIDDEN`). İmzalı bağlantılarda **bozuk imza ile süresi
+         *     dolmuş bağlantı aynı kodu döner**; ayrımı yalnız `message` taşır.
+         *     Ayrı kod vermek, elinde geçersiz bir bağlantı olan kişiye "imza
+         *     doğruydu ama süresi geçti" bilgisini verirdi.
+         */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
         /** @description Kayıt yok (`NOT_FOUND`) */
         NotFound: {
             headers: {
@@ -2851,6 +3099,8 @@ export type SchemaKitchenSubscriptionOrders = components['schemas']['KitchenSubs
 export type SchemaReceiptLine = components['schemas']['ReceiptLine'];
 export type SchemaKitchenReceipt = components['schemas']['KitchenReceipt'];
 export type SchemaCustomerReceipt = components['schemas']['CustomerReceipt'];
+export type SchemaCourierReceipt = components['schemas']['CourierReceipt'];
+export type SchemaPublicOrderTracking = components['schemas']['PublicOrderTracking'];
 export type SchemaContactChannel = components['schemas']['ContactChannel'];
 export type SchemaSiteBrand = components['schemas']['SiteBrand'];
 export type SchemaSiteContact = components['schemas']['SiteContact'];
@@ -2861,6 +3111,7 @@ export type SchemaQuoteStatus = components['schemas']['QuoteStatus'];
 export type SchemaQuoteRequestInput = components['schemas']['QuoteRequestInput'];
 export type ResponseUnauthenticated = components['responses']['Unauthenticated'];
 export type ResponseForbiddenOrRevoked = components['responses']['ForbiddenOrRevoked'];
+export type ResponseForbidden = components['responses']['Forbidden'];
 export type ResponseNotFound = components['responses']['NotFound'];
 export type ResponseValidationFailed = components['responses']['ValidationFailed'];
 export type ResponseInvalidTransition = components['responses']['InvalidTransition'];
@@ -3474,6 +3725,40 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    getPublicOrderTracking: {
+        parameters: {
+            query: {
+                /** @description Son geçerlilik (unix saniye). İmzaya dâhildir — uzatılamaz. */
+                e: number;
+                /** @description base64url kodlu, 128 bite kırpılmış HMAC-SHA256. */
+                s: string;
+            };
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Takip özeti */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicOrderTracking"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
     cancelOrder: {
         parameters: {
             query?: never;
@@ -4021,7 +4306,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["KitchenReceipt"] | components["schemas"]["CustomerReceipt"];
+                    "application/json": components["schemas"]["KitchenReceipt"] | components["schemas"]["CustomerReceipt"] | components["schemas"]["CourierReceipt"];
                 };
             };
             401: components["responses"]["Unauthenticated"];
@@ -4048,6 +4333,14 @@ export interface operations {
                     type: components["schemas"]["ReceiptType"];
                     /** Format: date-time */
                     printed_at: string;
+                    /**
+                     * @description Fişin hangi revizyon için basıldığı (K-20). Alan
+                     *     **isteğe bağlıdır**: göndermeyen eski KDS sürümleri `0`
+                     *     kovasına düşer, yani düzenlenmemiş sipariş için bugünkü
+                     *     davranış aynen sürer.
+                     * @default 0
+                     */
+                    revision?: number;
                 };
             };
         };

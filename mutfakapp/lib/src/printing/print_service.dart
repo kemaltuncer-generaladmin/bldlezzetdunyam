@@ -171,9 +171,18 @@ class PrintService {
   /// Otomatik tetiklerden farkı: idempotentlik kasıtlı olarak **kırılır**.
   /// Kâğıt sıkıştı, fiş yırtıldı, mürekkep soldu — bunlar personelin
   /// gördüğü, yazılımın göremediği durumlar. Karar insanındır.
-  bool reprint(int orderId, ReceiptType type) {
+  ///
+  /// [revision] verilmezse kuyruktaki **en güncel** sürüm seçilir. Çağıran
+  /// biliyorsa (kartta duran siparişin revizyonu gibi) vermesi daha iyi:
+  /// kuyruk temizlenmişse yeni satır doğru sürümle açılır ve bir sonraki
+  /// otomatik tetik onu "eskimiş" sayıp silmez.
+  bool reprint(int orderId, ReceiptType type, {int? revision}) {
     if (_disposed) return false;
-    final requeued = _queue.requeue(orderId: orderId, type: type);
+    final requeued = _queue.requeue(
+      orderId: orderId,
+      type: type,
+      revision: revision,
+    );
     if (requeued) {
       _emitPending();
       _wake();
@@ -293,7 +302,15 @@ class PrintService {
     try {
       await _kitchen.ackPrint(
         job.orderId,
-        PrintAckRequest(type: job.type, printedAt: printedAt),
+        // REVİZYON DA GİDİYOR (K-20): sunucudaki denetim tekilliği
+        // `(order_id, type, revision)`. Gönderilmeseydi revizyon sonrası
+        // basımın ack'i sıfırıncı sürümün üstüne yazılmayıp sessizce
+        // yutulur ve fişin `printed_at`'i hep ilk basımı gösterirdi.
+        PrintAckRequest(
+          type: job.type,
+          printedAt: printedAt,
+          revision: job.revision,
+        ),
       );
     } on Object {
       // Bilinçli sessizlik (`docs/05` §5.4): ack denetim içindir, fiş elde.

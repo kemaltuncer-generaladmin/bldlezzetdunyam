@@ -56,6 +56,46 @@ test.describe('Sipariş akışı', () => {
     await expect(page.getByText('Sepetiniz boş')).toHaveCount(0);
   });
 
+  /**
+   * Fişteki takip QR'ının açtığı sayfa GİRİŞ İSTEMEZ — K-20.
+   *
+   * Düzeltilen gerçek kusur: bağlantı eskiden `/siparis/{id}` idi ve o rota
+   * `middleware.ts` matcher'ında. Fişteki kareyi okutan müşteri sipariş
+   * durumunu değil `/giris` ekranını görüyordu.
+   *
+   * ÇEREZSİZ BAĞLAM ŞART: `page` varsayılan bağlamda çalışıyor ve önceki
+   * bir test oturum çerezi bırakmış olsaydı, giriş duvarına çarpmadığımızı
+   * sanırdık. `browser.newContext()` bunu garantiliyor.
+   */
+  test('fişteki takip bağlantısı giriş istemez', async ({ browser }) => {
+    const context = await browser.newContext();
+    const anonim = await context.newPage();
+
+    // Mock imzayı doğrulamıyor ama VARLIĞINI arıyor: istemcinin imzayı hiç
+    // göndermediği bir hata, parametresiz istekte fark edilmezdi.
+    await anonim.goto('/takip/5010?e=1786512000&s=mock-imza');
+
+    await expect(anonim).toHaveURL(/\/takip\/5010/);
+    await expect(anonim.getByRole('heading', { name: /Sipariş S-5010/ })).toBeVisible();
+
+    // Girişli takip ekranının aksine burada adres ve kalem listesi YOKTUR:
+    // bu sayfayı açan şey bir oturum değil, kâğıda basılmış bir kare.
+    await expect(anonim.getByText('Örnek Mah. 12. Sk No:3')).toHaveCount(0);
+
+    await context.close();
+  });
+
+  test('imzasız takip bağlantısı sipariş göstermez', async ({ browser }) => {
+    const context = await browser.newContext();
+    const anonim = await context.newPage();
+
+    await anonim.goto('/takip/5010');
+
+    await expect(anonim.getByText(/Bağlantı geçersiz/)).toBeVisible();
+
+    await context.close();
+  });
+
   test('giriş yapmadan ödemeye gidilemez', async ({ page }) => {
     await page.goto('/odeme');
 

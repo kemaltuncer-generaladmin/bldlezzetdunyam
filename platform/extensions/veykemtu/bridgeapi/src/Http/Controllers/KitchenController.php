@@ -234,6 +234,9 @@ class KitchenController extends ApiController
         $data = $request->validate([
             'type' => ['required', Rule::in(PrintJob::TYPES)],
             'printed_at' => ['required', 'date'],
+            // `sometimes` KASITLI: alanı hiç göndermeyen eski KDS sürümleri
+            // `0` kovasına düşer ve bugünkü davranışları aynen sürer (K-20).
+            'revision' => ['sometimes', 'integer', 'min:0'],
         ]);
 
         $model = $this->findOrder($order);
@@ -246,6 +249,7 @@ class KitchenController extends ApiController
             $data['type'],
             BusinessTime::forStorage(Carbon::parse($data['printed_at'])),
             (int) $device->id,
+            (int) ($data['revision'] ?? 0),
         );
 
         return $this->noContent();

@@ -100,10 +100,11 @@ final CustomerReceiptData customerDeliveryWithQrs = CustomerReceiptData(
     district: 'Selçuklu',
     city: 'Konya',
   ),
-  trackUrl: 'https://benimlezzetdunyam.com.tr/siparis/5015',
+  trackUrl: 'https://benimlezzetdunyam.com.tr/takip/5015?e=1786512000&s=Ab3',
   payUrl:
       'https://api.benimlezzetdunyam.com.tr/odeme-simulasyon/abc123'
-      '?return=https%3A%2F%2Fbenimlezzetdunyam.com.tr%2Fsiparis%2F5015',
+      '?return=https%3A%2F%2Fbenimlezzetdunyam.com.tr%2Ftakip%2F5015'
+      '%3Fe%3D1786512000%26s%3DAb3',
 );
 
 /// Ödenmiş sipariş: takip QR'ı var, ödeme QR'ı YOK.
@@ -119,7 +120,7 @@ final CustomerReceiptData customerPaidWithTrackQr = CustomerReceiptData(
   total: 8500,
   paymentMethod: ReceiptPaymentMethod.online,
   paymentStatus: ReceiptPaymentStatus.paid,
-  trackUrl: 'https://benimlezzetdunyam.com.tr/siparis/5016',
+  trackUrl: 'https://benimlezzetdunyam.com.tr/takip/5016?e=1786512000&s=Cd4',
 );
 
 final CustomerReceiptData customerDeliveryWithPin = CustomerReceiptData(
@@ -161,6 +162,115 @@ final CustomerReceiptData customerPickup = CustomerReceiptData(
   total: 133500,
   paymentMethod: ReceiptPaymentMethod.cash,
   paymentStatus: ReceiptPaymentStatus.pending,
+);
+
+/// BİRLEŞİK müşteri fişi — en zor vaka (K-20).
+///
+/// EN ZOR VAKA BİLİNÇLİ SEÇİLDİ: revizyon bandı, değişiklik listesi, ad,
+/// çift boy telefon, harita QR'lı adres, sipariş notu, tahsilat satırı ve
+/// üç QR bir arada. Bloklardan biri yer değiştirirse bu dosya kırılır;
+/// kolay vakayı sabitlemek asıl kırılgan yolu korumasız bırakırdı.
+final CustomerReceiptData customerMerged = CustomerReceiptData(
+  orderNumber: 'S-5020',
+  deliveryType: DeliveryType.delivery,
+  printedAt: printedAt,
+  requestedAt: requestedAt,
+  lines: const [
+    CustomerReceiptLine(quantity: 10, name: 'Mercimek Çorbası', lineTotal: 85000),
+    CustomerReceiptLine(
+      quantity: 2,
+      name: 'Tavuk Sote',
+      lineTotal: 37000,
+      options: ['Az acılı'],
+    ),
+  ],
+  subtotal: 122000,
+  deliveryFee: 4000,
+  total: 126000,
+  paymentMethod: ReceiptPaymentMethod.cash,
+  paymentStatus: ReceiptPaymentStatus.pending,
+  customerName: 'Ayşe Yılmaz',
+  customerPhone: '0555 123 45 67',
+  customerNote: 'Zili çalmayın',
+  collectAmount: 126000,
+  revisionNo: 2,
+  revisionSummary: const ['Mercimek Çorbası: 20 → 10', 'ÇIKARILDI: Ayran ×5'],
+  address: const ReceiptAddress(
+    line1: 'Örnek Mah. 12. Sk No:3',
+    district: 'Selçuklu',
+    city: 'Konya',
+    latitude: 37.8901234,
+    longitude: 32.4876543,
+  ),
+  trackUrl: 'https://benimlezzetdunyam.com.tr/takip/5020?e=1786512000&s=Ef5',
+  payUrl: 'https://api.benimlezzetdunyam.com.tr/odeme-simulasyon/xyz789',
+  deliverUrl:
+      'https://api.benimlezzetdunyam.com.tr/teslimat/5020?e=1786339200&s=Gh6',
+);
+
+/// Ödenmiş, düzenlenmemiş adrese gönderim — tahsilat satırı ve ödeme QR'ı YOK.
+final CustomerReceiptData customerMergedPaid = CustomerReceiptData(
+  orderNumber: 'S-5021',
+  deliveryType: DeliveryType.delivery,
+  printedAt: printedAt,
+  lines: const [
+    CustomerReceiptLine(quantity: 2, name: 'Tavuk Sote', lineTotal: 37000),
+  ],
+  subtotal: 37000,
+  deliveryFee: 4000,
+  total: 41000,
+  paymentMethod: ReceiptPaymentMethod.online,
+  paymentStatus: ReceiptPaymentStatus.paid,
+  customerName: 'Mehmet Demir',
+  customerPhone: '0532 987 65 43',
+  address: const ReceiptAddress(
+    line1: 'Örnek Mah. 12. Sk No:3',
+    district: 'Selçuklu',
+    city: 'Konya',
+  ),
+  deliverUrl:
+      'https://api.benimlezzetdunyam.com.tr/teslimat/5021?e=1786339200&s=Ij7',
+);
+
+/// Gel-al + revizyon — bant var, kurye mobilyası YOK.
+///
+/// Bu dosyanın işi: birleşmenin gel-al fişine sızmadığını sabitlemek. Ad,
+/// telefon, adres, tahsilat ve teslim QR'ı burada hiç basılmamalı.
+final CustomerReceiptData customerPickupRevised = CustomerReceiptData(
+  orderNumber: 'S-5022',
+  deliveryType: DeliveryType.pickup,
+  printedAt: printedAt,
+  lines: const [
+    CustomerReceiptLine(quantity: 1, name: 'Mercimek Çorbası', lineTotal: 8500),
+  ],
+  subtotal: 8500,
+  deliveryFee: 0,
+  total: 8500,
+  paymentMethod: ReceiptPaymentMethod.cash,
+  paymentStatus: ReceiptPaymentStatus.pending,
+  revisionNo: 1,
+  revisionSummary: const ['ÇIKARILDI: Tavuk Sote ×2'],
+  // Sunucu gel-al'da bunları zaten null gönderiyor; yine de DOLU
+  // veriliyor ki şablonun kendi kapısı (`showsCourierBlock`) sınansın.
+  customerName: 'Ali Kaya',
+  customerPhone: '0533 111 22 33',
+  collectAmount: 8500,
+  deliverUrl: 'https://api.benimlezzetdunyam.com.tr/teslimat/5022?e=1&s=Kl8',
+);
+
+/// Düzenlenmiş MUTFAK fişi (K-20) — `docs/10` S9-13'ün kapattığı açık.
+final KitchenReceiptData kitchenRevised = KitchenReceiptData(
+  orderNumber: 'S-5020',
+  deliveryType: DeliveryType.delivery,
+  printedAt: printedAt,
+  requestedAt: requestedAt,
+  customerPhone: '5551234567',
+  customerNote: 'Fatura kurumsal',
+  revisionNo: 2,
+  revisionSummary: const ['Mercimek Çorbası: 20 → 10', 'ÇIKARILDI: Ayran ×5'],
+  lines: const [
+    KitchenReceiptLine(quantity: 10, name: 'Mercimek Çorbası'),
+  ],
 );
 
 /// Kurye fişi — düzenlenmiş, kapıda ödemeli, haritalı sipariş (K-14).
@@ -334,6 +444,10 @@ void main() {
     test('gel-al', () {
       expectGolden('receipt_mutfak_pickup', buildKitchenReceipt(kitchenPickup));
     });
+
+    test('düzenlenmiş sipariş — GÜNCEL FİŞ bandı (K-20)', () {
+      expectGolden('receipt_mutfak_revize', buildKitchenReceipt(kitchenRevised));
+    });
   });
 
   group('Golden — müşteri fişi', () {
@@ -369,6 +483,202 @@ void main() {
       expectGolden(
         'receipt_musteri_qr_yalniz_takip',
         buildCustomerReceipt(customerPaidWithTrackQr),
+      );
+    });
+
+    test('birleşik fiş — revizyonlu, tahsilatlı, üç QR\'lı (K-20)', () {
+      expectGolden(
+        'receipt_musteri_birlesik_revize',
+        buildCustomerReceipt(customerMerged),
+      );
+    });
+
+    test('birleşik fiş — ödenmiş, tahsilat satırı yok (K-20)', () {
+      expectGolden(
+        'receipt_musteri_birlesik_odenmis',
+        buildCustomerReceipt(customerMergedPaid),
+      );
+    });
+
+    test('gel-al + revizyon — kurye bloğu sızmaz (K-20)', () {
+      expectGolden(
+        'receipt_musteri_pickup_revize',
+        buildCustomerReceipt(customerPickupRevised),
+      );
+    });
+  });
+
+  /// Fiş birleşmesinin KURALLARI — K-20.
+  ///
+  /// Golden dosyaları baytları donduruyor ve şablon bilinçli değiştiğinde
+  /// yenileniyor. Buradakiler ise kararın kendisini sabitliyor: bandın
+  /// fişin en üstünde olması ya da gel-al fişinde tahsilat satırının hiç
+  /// bulunmaması bir tasarım kararı, bayt dizisinin yan etkisi değil.
+  group('Birleşik fiş kuralları (K-20)', () {
+    test('GÜNCEL FİŞ bandı yalnız revizyonda basılır', () {
+      final duz = buildCustomerReceipt(customerMergedPaid);
+
+      expect(customerMergedPaid.isRevised, isFalse);
+      expect(_contains(duz, Pc857.encode('GÜNCEL FİŞ')), isFalse);
+      expect(
+        _contains(buildCustomerReceipt(customerMerged), Pc857.encode('GÜNCEL')),
+        isTrue,
+      );
+    });
+
+    test('bant fişin EN ÜSTÜNDE — işletme adından önce', () {
+      final bytes = buildCustomerReceipt(customerMerged);
+
+      // Bandın tek işi, elde duran ÖNCEKİ kâğıdı geçersiz kılmak. Bir
+      // satır aşağıda olsaydı katlanmış bir fişte görünmezdi.
+      expect(
+        _indexOf(bytes, Pc857.encode('GÜNCEL')),
+        lessThan(_indexOf(bytes, Pc857.encode('BENİM'))),
+      );
+    });
+
+    test('mutfak fişinde de REVİZE bandı vardır', () {
+      // `docs/10-test-kabul.md` S9-13 bunu zaten şart koşuyordu; K-20'ye
+      // kadar yalnız kurye fişinde vardı.
+      final bytes = buildKitchenReceipt(kitchenRevised);
+
+      expect(_contains(bytes, Pc857.encode('REVİZE #2')), isTrue);
+      expect(_contains(bytes, Pc857.encode('ÖNCEKİ FİŞİ ATIN')), isTrue);
+    });
+
+    test('düzenlenmemiş mutfak fişinde bant YOK', () {
+      expect(
+        _contains(buildKitchenReceipt(kitchenDelivery), Pc857.encode('GÜNCEL')),
+        isFalse,
+      );
+    });
+
+    test('DEĞİŞİKLİKLER listesi boşsa blok hiç basılmaz', () {
+      final data = CustomerReceiptData(
+        orderNumber: 'S-1',
+        deliveryType: DeliveryType.delivery,
+        printedAt: printedAt,
+        lines: const [
+          CustomerReceiptLine(quantity: 1, name: 'Çorba', lineTotal: 8500),
+        ],
+        subtotal: 8500,
+        deliveryFee: 0,
+        total: 8500,
+        paymentMethod: ReceiptPaymentMethod.cash,
+        paymentStatus: ReceiptPaymentStatus.pending,
+        revisionNo: 1,
+      );
+
+      final bytes = buildCustomerReceipt(data);
+
+      // Bant basılır (kâğıt eskimiş olabilir) ama başlıksız boş bir liste
+      // personele bir şeyin kayıp olduğunu düşündürürdü.
+      expect(_contains(bytes, Pc857.encode('REVİZE #1')), isTrue);
+      expect(_contains(bytes, Pc857.encode('DEĞİŞİKLİKLER')), isFalse);
+    });
+
+    test('müşteri fişi kurye bilgisini taşır', () {
+      final bytes = buildCustomerReceipt(customerMerged);
+
+      // Ayrı kurye fişi artık basılmıyor; bu üçü burada yoksa kurye
+      // kapıda kime, nereye ve ne kadar sorusunu cevaplayamaz.
+      expect(_contains(bytes, Pc857.encode('AYŞE YILMAZ')), isTrue);
+      expect(_contains(bytes, Pc857.encode('Tel: 0555 123 45 67')), isTrue);
+      expect(_contains(bytes, Pc857.encode('Örnek Mah. 12. Sk No:3')), isTrue);
+      expect(_contains(bytes, Pc857.encode('TAHSİL: 1.260,00')), isTrue);
+    });
+
+    test('sipariş notu kurye bloğunda — adresin yanında', () {
+      final bytes = buildCustomerReceipt(customerMerged);
+
+      // "Zili çalmayın" bir KAPI TALİMATI: kurye onu yola çıkmadan
+      // okumalı, fişin dibinde değil. Kurye fişi kalkarken taşınmasaydı
+      // talimat kuryenin elinden tamamen silinirdi.
+      expect(_contains(bytes, Pc857.encode('NOT: Zili çalmayın')), isTrue);
+      expect(
+        _indexOf(bytes, Pc857.encode('NOT: Zili çalmayın')),
+        lessThan(_indexOf(bytes, Pc857.encode('Ara Toplam'))),
+      );
+    });
+
+    test('telefon ÇİFT BOY basılır', () {
+      final bytes = buildCustomerReceipt(customerMerged);
+      final phone = _indexOf(bytes, Pc857.encode('Tel: 0555'));
+
+      expect(
+        _lastIndexOf(bytes.sublist(0, phone), EscPosCommands.doubleSizeOn),
+        greaterThan(
+          _lastIndexOf(bytes.sublist(0, phone), EscPosCommands.doubleSizeOff),
+        ),
+        reason: 'kurye numarayı araçta, kötü ışıkta, tek elle okuyor',
+      );
+    });
+
+    test('teslimat bloğu fiyat tablosunun ÜSTÜNDE', () {
+      final bytes = buildCustomerReceipt(customerMerged);
+
+      // Kurye önce nereye gideceğine bakıyor; kalem fiyatlarına hiç
+      // bakmıyor. Blok aşağıda kalsaydı her teslimatta fişin tamamı
+      // okunmak zorunda olurdu.
+      expect(
+        _indexOf(bytes, Pc857.encode('Örnek Mah')),
+        lessThan(_indexOf(bytes, Pc857.encode('Ara Toplam'))),
+      );
+    });
+
+    test('DEĞİŞİKLİKLER toplam ile tahsilat ARASINDA', () {
+      final bytes = buildCustomerReceipt(customerMerged);
+
+      // "Toplam bu → çünkü şunlar değişti → şu kadar al" zinciri, kapıda
+      // tutar tartışması çıktığında okunacak sıradır.
+      final toplam = _indexOf(bytes, Pc857.encode('TOPLAM'));
+      final degisiklik = _indexOf(bytes, Pc857.encode('DEĞİŞİKLİKLER'));
+      final tahsil = _indexOf(bytes, Pc857.encode('TAHSİL:'));
+
+      expect(toplam, lessThan(degisiklik));
+      expect(degisiklik, lessThan(tahsil));
+    });
+
+    test('ödenmiş siparişte TAHSİL satırı hiç basılmaz', () {
+      // Sıfırlık bir "tahsil edilecek" satırı, kuryenin bir sonraki fişte
+      // gerçek tutarı gözden kaçırmasına yol açıyordu.
+      expect(
+        _contains(buildCustomerReceipt(customerMergedPaid), Pc857.encode('TAHSİL')),
+        isFalse,
+      );
+    });
+
+    test('GEL-AL fişinde kurye mobilyası YOKTUR', () {
+      final bytes = buildCustomerReceipt(customerPickupRevised);
+
+      // Veri DOLU geliyor; kapı şablonun kendisinde olmalı.
+      expect(customerPickupRevised.customerName, isNotNull);
+      expect(customerPickupRevised.collectAmount, greaterThan(0));
+
+      expect(_contains(bytes, Pc857.encode('ALİ KAYA')), isFalse);
+      expect(_contains(bytes, Pc857.encode('Tel:')), isFalse);
+      expect(_contains(bytes, Pc857.encode('TAHSİL')), isFalse);
+      expect(_contains(bytes, Pc857.encode('GEL-AL')), isTrue);
+
+      // Bant gel-al fişinde de basılır: o kâğıt da eskimiş olabilir.
+      expect(_contains(bytes, Pc857.encode('REVİZE #1')), isTrue);
+    });
+
+    test('gel-al fişinde teslim QR\'ı basılmaz', () {
+      expect(customerPickupRevised.deliverUrl, isNotNull);
+      expect(customerPickupRevised.hasDeliverQr, isFalse);
+    });
+
+    test('teslim QR\'ı başlıklı basılır', () {
+      // Kâğıt teslimden sonra müşteride kalıyor; kurye bunu kapıda,
+      // kâğıdı vermeden ÖNCE okutmalı. Başlıksız üçüncü bir kare
+      // hangisinin kimin olduğunu belirsiz bırakırdı.
+      expect(
+        _contains(
+          buildCustomerReceipt(customerMerged),
+          Pc857.encode('KURYE: TESLİMDEN ÖNCE OKUT'),
+        ),
+        isTrue,
       );
     });
   });
@@ -759,8 +1069,10 @@ void main() {
     });
 
     test('adrese gönderim müşteri fişinde adres bloğu vardır', () {
+      // BAŞLIK `TESLİMAT:` DEĞİL `TESLİMAT` (K-20): blok artık yalnız adres
+      // değil, kuryenin tüm bloğu — ad, telefon, adres, kapı notu.
       final text = _decode(buildCustomerReceipt(customerDelivery));
-      expect(text, contains('Teslimat:'));
+      expect(text, contains('TESLİMAT'));
       expect(text, contains('Örnek Mah. 12. Sk No:3'));
       expect(text, contains('Selçuklu / Konya'));
       expect(text, isNot(contains('GEL-AL')));

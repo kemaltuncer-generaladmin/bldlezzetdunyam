@@ -1396,19 +1396,201 @@ class ContractTest extends TestCase
             ->getJson('/api/kitchen/orders/'.$order['id'].'/receipt?type=musteri', self::HEADERS)
             ->assertOk()->json();
 
-        $this->assertSame(
-            'https://ornek.test/siparis/'.$order['id'],
+        /*
+         * ADRES `/takip/` — `/siparis/` DEĞİL (K-20).
+         *
+         * Eski bağlantı `/siparis/{id}` idi ve o sayfa oturum istiyor:
+         * fişteki kareyi okutan müşteri sipariş durumunu değil GİRİŞ
+         * EKRANINI görüyordu. Kâğıda basılan bir QR giriş isteyemez.
+         */
+        $this->assertStringStartsWith(
+            'https://ornek.test/takip/'.$order['id'].'?',
             $musteri['track_url'],
         );
+
+        // İmza ve son geçerlilik URL'de olmalı; ikisi de yetkinin kendisi.
+        parse_str((string) parse_url($musteri['track_url'], PHP_URL_QUERY), $query);
+        $this->assertArrayHasKey('e', $query);
+        $this->assertArrayHasKey('s', $query);
+        $this->assertNotSame('', $query['s']);
+        $this->assertGreaterThan(time(), (int) $query['e']);
 
         // Sipariş ödenmemiş (kapıda ödeme) — ödeme QR'ı basılmalı ve
         // dönüşte müşteriyi kendi takip sayfasına götürmeli.
         $this->assertNotNull($musteri['pay_url']);
         $this->assertStringContainsString('/odeme-simulasyon/', $musteri['pay_url']);
         $this->assertStringContainsString(
-            rawurlencode('https://ornek.test/siparis/'.$order['id']),
+            rawurlencode($musteri['track_url']),
             $musteri['pay_url'],
         );
+    }
+
+    /**
+     * Müşteri fişi K-20'den beri KURYENİN DE FİŞİ.
+     *
+     * Ayrı kurye fişi otomatik basılmıyor; kuryenin üç sorusunun cevabı
+     * (kime, nereye, ne kadar tahsil edilecek) bu fişte olmak zorunda.
+     * Eksik kalsaydı kurye kapıda adresi ya da tutarı bilmeden dururdu.
+     */
+    public function test_musteri_fisi_kurye_alanlarini_tasir(): void
+    {
+        $order = $this->placeOrder();
+
+        $musteri = $this->asKitchen()
+            ->getJson('/api/kitchen/orders/'.$order['id'].'/receipt?type=musteri', self::HEADERS)
+            ->assertOk()->json();
+
+        $this->assertNotNull($musteri['customer_phone'], 'kurye kapıda arayacak');
+        $this->assertNotNull($musteri['address'], 'kurye nereye gideceğini bilmeli');
+        $this->assertArrayHasKey('customer_name', $musteri);
+        $this->assertArrayHasKey('deliver_url', $musteri);
+
+        // Ödenmemiş sipariş: tamamı kapıda tahsil edilecek.
+        $this->assertSame($musteri['total'], $musteri['collect_amount']);
+    }
+
+    /** Ödenmiş siparişte tahsilat sıfır — kurye kapıda para istemez. */
+    public function test_odenmis_siparisin_musteri_fisinde_tahsilat_sifirdir(): void
+    {
+        $order = $this->placeOrder();
+
+        \Igniter\Cart\Models\Order::where('order_id', $order['id'])
+            ->update(['processed' => 1]);
+
+        $musteri = $this->asKitchen()
+            ->getJson('/api/kitchen/orders/'.$order['id'].'/receipt?type=musteri', self::HEADERS)
+            ->assertOk()->json();
+
+        $this->assertSame(0, $musteri['collect_amount']);
+    }
+
+    /**
+     * Gel-al fişinde kurye bloğu YOK.
+     *
+     * Kurye yok; ad, telefon, tahsilat satırı ve teslim QR'ı basmak
+     * personeli olmayan bir teslimatı aramaya iterdi.
+     */
+    public function test_gel_al_fisinde_kurye_bilgisi_ve_teslim_baglantisi_yoktur(): void
+    {
+        $order = $this->placeOrder(deliveryType: 'pickup');
+
+        $musteri = $this->asKitchen()
+            ->getJson('/api/kitchen/orders/'.$order['id'].'/receipt?type=musteri', self::HEADERS)
+            ->assertOk()->json();
+
+        $this->assertNull($musteri['address']);
+        $this->assertNull($musteri['customer_name']);
+        $this->assertNull($musteri['customer_phone']);
+        $this->assertNull($musteri['deliver_url']);
+        $this->assertSame(0, $musteri['collect_amount']);
+    }
+
+    /**
+     * Simülasyon kapalıyken ödeme QR'ı basılmaz.
+     *
+     * `Veykemtu\Payment\Extension` simülasyon rotalarını
+     * `SimulatedPos::isAllowed()` yanlışken HİÇ kaydetmiyor; bu kontrol
+     * olmadan üretimde ölü bir adrese giden kare basılıyordu.
+     */
+    public function test_simulasyon_kapaliysa_odeme_baglantisi_null_doner(): void
+    {
+        config(['app.frontend_url' => 'https://ornek.test', 'app.env' => 'production']);
+        putenv('POS_ALLOW_SIMULATION');
+        unset($_ENV['POS_ALLOW_SIMULATION'], $_SERVER['POS_ALLOW_SIMULATION']);
+
+        $order = $this->placeOrder();
+
+        $musteri = $this->asKitchen()
+            ->getJson('/api/kitchen/orders/'.$order['id'].'/receipt?type=musteri', self::HEADERS)
+            ->assertOk()->json();
+
+        $this->assertNull($musteri['pay_url']);
+        $this->assertNotNull($musteri['track_url'], 'takip QR\'ı simülasyona bağlı değil');
+    }
+
+    /**
+     * Mutfak fişi revizyon bandını taşır — `docs/10` S9-13.
+     *
+     * K-20'ye kadar `revision_no` mutfak fişine HİÇ gitmiyordu: düzenlenen
+     * sipariş için yeni kâğıt çıkıyor ama üstünde onu öncekinden ayıran
+     * hiçbir şey yazmıyordu.
+     */
+    public function test_mutfak_fisi_revizyon_bilgisini_tasir(): void
+    {
+        $order = $this->placeOrder();
+        $this->advance((int) $order['id'], ['onaylandi']);
+
+        $this->asKitchen()->postJson(
+            '/api/kitchen/orders/'.$order['id'].'/revisions',
+            [
+                'reason' => 'Müşteri talebi',
+                'items' => [['menu_id' => $this->menuId('Tavuk Sote'), 'quantity' => 1]],
+            ],
+            self::HEADERS,
+        )->assertOk();
+
+        $mutfak = $this->asKitchen()
+            ->getJson('/api/kitchen/orders/'.$order['id'].'/receipt?type=mutfak', self::HEADERS)
+            ->assertOk()->json();
+
+        $this->assertSame(1, $mutfak['revision_no']);
+        $this->assertNotEmpty($mutfak['revision_summary']);
+    }
+
+    /**
+     * Revizyon sonrası fiş, ESKİ basımın saatiyle damgalanmamalı.
+     *
+     * K-20 öncesi `PrintJob` tekilliği `(order_id, type)` idi; revizyon
+     * ack'i sessizce yutuluyor ve `printed_at` hep ilk basımı gösteriyordu.
+     * Elinde iki kâğıt olan kurye hangisinin yeni olduğunu anlayamıyordu.
+     */
+    public function test_revizyon_yeni_bir_basim_kaydi_acar(): void
+    {
+        $order = $this->placeOrder();
+        $this->advance((int) $order['id'], ['onaylandi']);
+
+        $this->asKitchen()->postJson(
+            '/api/kitchen/print-jobs/'.$order['id'].'/ack',
+            ['type' => 'mutfak', 'printed_at' => '2026-08-14T09:00:00Z', 'revision' => 0],
+            self::HEADERS,
+        )->assertNoContent();
+
+        $this->asKitchen()->postJson(
+            '/api/kitchen/orders/'.$order['id'].'/revisions',
+            [
+                'reason' => 'Müşteri talebi',
+                'items' => [['menu_id' => $this->menuId('Tavuk Sote'), 'quantity' => 1]],
+            ],
+            self::HEADERS,
+        )->assertOk();
+
+        $mutfak = $this->asKitchen()
+            ->getJson('/api/kitchen/orders/'.$order['id'].'/receipt?type=mutfak', self::HEADERS)
+            ->assertOk()->json();
+
+        $this->assertNull(
+            $mutfak['printed_at'],
+            'yeni revizyon henüz basılmadı; eski basımın saati taşınmamalı',
+        );
+    }
+
+    /** `revision` göndermeyen eski KDS sürümü çalışmaya devam eder. */
+    public function test_ack_revizyonsuz_gonderilebilir(): void
+    {
+        $order = $this->placeOrder();
+        $this->advance((int) $order['id'], ['onaylandi']);
+
+        $this->asKitchen()->postJson(
+            '/api/kitchen/print-jobs/'.$order['id'].'/ack',
+            ['type' => 'mutfak', 'printed_at' => '2026-08-14T09:00:00Z'],
+            self::HEADERS,
+        )->assertNoContent();
+
+        $mutfak = $this->asKitchen()
+            ->getJson('/api/kitchen/orders/'.$order['id'].'/receipt?type=mutfak', self::HEADERS)
+            ->assertOk()->json();
+
+        $this->assertNotNull($mutfak['printed_at']);
     }
 
     /**

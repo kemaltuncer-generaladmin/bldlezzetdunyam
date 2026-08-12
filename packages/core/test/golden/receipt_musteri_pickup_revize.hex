@@ -1,0 +1,78 @@
+# receipt_musteri_pickup_revize — beklenen ESC/POS baytları (725 bayt)
+# Üreten: packages/core/test/escpos_golden_test.dart
+# Yenileme: BLD_UPDATE_GOLDEN=1 dart test
+#
+# Okunabilir karşılığı (kontrol baytları noktayla gösterilir):
+#   GÜNCEL FİŞ
+#   REVİZE #1
+#   ÖNCEKİ FİŞİ ATIN
+#   ------------------------------------------------
+#   BENİM LEZZET DÜNYAM
+#   Sipariş: S-5022
+#   04.08.2026 14:32
+#   ------------------------------------------------
+#   GEL-AL
+#   ------------------------------------------------
+#   1× Mercimek Çorbası                        85,00
+#   ------------------------------------------------
+#   Ara Toplam                                 85,00
+#   TOPLAM                                     85,00
+#   Ödeme: Kapıda (Bekliyor)
+#   ------------------------------------------------
+#   DEĞİŞİKLİKLER
+#   * ÇIKARILDI: Tavuk Sote ×2
+#   ------------------------------------------------
+#   Bu belge bilgi fişidir,
+#   mali değeri yoktur.
+#   
+#   
+#   
+#   
+#   
+
+1B 40 1B 74 1D 1B 61 01 1B 61 01 1D 21 11 1B 45
+01 47 9A 4E 43 45 4C 20 46 98 9E 0A 52 45 56 98
+5A 45 20 23 31 0A 99 4E 43 45 4B 98 20 46 98 9E
+98 20 41 54 49 4E 0A 1D 21 00 1B 45 00 1B 61 00
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+0A 1B 61 01 1D 21 11 1B 45 01 42 45 4E 98 4D 20
+4C 45 5A 5A 45 54 20 44 9A 4E 59 41 4D 0A 1D 21
+00 53 69 70 61 72 69 9F 3A 20 53 2D 35 30 32 32
+0A 1B 45 00 30 34 2E 30 38 2E 32 30 32 36 20 31
+34 3A 33 32 0A 1B 61 00 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 0A 1B 61 01 1B 45 01 47
+45 4C 2D 41 4C 0A 1B 45 00 1B 61 00 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 0A 31 E8 20
+4D 65 72 63 69 6D 65 6B 20 80 6F 72 62 61 73 8D
+20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20
+20 20 20 20 20 20 20 20 38 35 2C 30 30 0A 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 0A 41
+72 61 20 54 6F 70 6C 61 6D 20 20 20 20 20 20 20
+20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20
+20 20 20 20 20 20 20 20 20 20 38 35 2C 30 30 0A
+1B 45 01 54 4F 50 4C 41 4D 20 20 20 20 20 20 20
+20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20
+20 20 20 20 20 20 20 20 20 20 20 20 20 20 38 35
+2C 30 30 0A 1B 45 00 99 64 65 6D 65 3A 20 4B 61
+70 8D 64 61 20 28 42 65 6B 6C 69 79 6F 72 29 0A
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+0A 1B 45 01 44 45 A6 98 9E 98 4B 4C 98 4B 4C 45
+52 0A 1B 45 00 2A 20 80 49 4B 41 52 49 4C 44 49
+3A 20 54 61 76 75 6B 20 53 6F 74 65 20 E8 32 0A
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
+0A 42 75 20 62 65 6C 67 65 20 62 69 6C 67 69 20
+66 69 9F 69 64 69 72 2C 0A 6D 61 6C 69 20 64 65
+A7 65 72 69 20 79 6F 6B 74 75 72 2E 0A 0A 0A 0A
+0A 1D 56 42 00

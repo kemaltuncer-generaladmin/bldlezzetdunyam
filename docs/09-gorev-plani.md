@@ -281,6 +281,80 @@ seferinde 227, sonrakinde 1 test). Güvenilir komut:
 vendor/bin/phpunit --testsuite Veykemtu
 ```
 
+## 8.8 Fiş sadeleştirme turu — K-20 (14.08.2026)
+
+Tek şikâyet: **"fazla fiş çıkıyor, kafa karıştırıcı."** Sahadaki sayım
+şikâyeti doğruluyordu — adrese gönderim başına üç kâğıt, iki kez düzenlenmiş
+siparişte yedi kâğıt. Tezgâhta aynı siparişin birkaç kâğıdı birikiyor ve
+hangisinin güncel olduğu kâğıda bakarak anlaşılmıyordu.
+
+| Kimlik | İş | Durum |
+|---|---|---|
+| K-20 | **Kurye fişi müşteri fişine katlandı** (otomatik tetiği kalktı, elle yeniden basım kaldı); **revizyonda tek güncel kâğıt** + 20 sn birleştirme penceresi; mutfak fişine `GÜNCEL FİŞ / REVİZE #N` bandı; girişsiz **imzalı takip** sayfası; **teslim ettim QR'ı**; `PrintJob` ve `requeue` revizyon körlüğü düzeltmeleri | **Bitti** |
+
+**Kâğıt sayımı — öncesi / sonrası**
+
+| Senaryo | Önce | Sonra |
+|---|---|---|
+| Gel-al, düzenlenmemiş | 2 | 2 |
+| Adrese gönderim, düzenlenmemiş | 3 | **2** |
+| Adrese gönderim, 2 revizyon | 7 | **2** (aynı pencerede) / 4 (ayrı pencerelerde) |
+
+### Turda yakalanan hatalar
+
+1. **Takip QR'ı giriş duvarına çarpıyordu.** K-18 bağlantıyı
+   `<FRONTEND_URL>/siparis/<id>` olarak üretiyordu; o rota `middleware.ts`
+   matcher'ında ve `requireSession` ile korunuyor. Yani fişteki kareyi okutan
+   müşteri sipariş durumunu değil `/giris` ekranını görüyordu. Özellik
+   yazıldığı günden beri çalışmıyordu ve kimse fark etmemişti.
+2. **Ödeme QR'ı üretimde ölü bir adrese gidiyordu.** `veykemtu/payment`
+   simülasyon rotalarını `POS_ALLOW_SIMULATION` tanımsız üretimde **hiç
+   kaydetmiyor**, ama `ReceiptBuilder::payUrl()` bu kontrolü yapmıyordu.
+   Okutan müşteri Caddy'nin 308'i sayesinde ana sayfaya düşüyordu.
+3. **`PrintJob` revizyon körü.** Tekillik `(order_id, type)` olduğu için
+   revizyon `ack`'i sessizce yutuluyor ve yeniden basılan kâğıt, yerini
+   aldığı eski kâğıdın saatiyle damgalanıyordu — "GÜNCEL FİŞ" bandının
+   çözdüğü sorunun aynısını zaman damgası üretiyordu.
+4. **"Yeniden bas" iki kâğıt çıkarıyordu.** `PrintQueue.requeue` revizyon
+   süzgeci ve satır sınırı olmadan çalışıyordu: tek dokunuş o tipin **her**
+   revizyon satırını basılmamışa çeviriyordu — tam da K-17'nin
+   `dropSuperseded` ile engellediği hata, elle tetiklenen yoldan geri
+   geliyordu.
+5. **Ödeme dönüşü kırılacaktı.** Sanal POS denetleyicileri dönüş adresine
+   `.'?durum=odendi'` diye **düz birleştirme** yapıyordu. Bugün çalışıyordu
+   çünkü `/siparis/{id}` sorgusuz; imzalı takip adresi `?e=…&s=…` taşıdığı
+   anda ikinci bir `?` girip `durum`u okunamaz kılacaktı. Değişiklik bu
+   hatayı **üretecekti**, aynı turda düzeltildi.
+6. **`/cari-odeme-simulasyon/*` Caddy izin listesinde yoktu** — cari borç
+   ödeme sayfası üretimde ana siteye yönleniyordu. K-20 ile ilgisiz, aynı
+   satıra dokunulurken görüldü ve düzeltildi.
+
+### Açık kalan — DONANIM
+
+`docs/10` §"QR AÇIK MADDE" hâlâ kapanmadı: fişteki konum QR'ı sahada kâğıda
+çıkmıyor ve sebebi bilinmiyor (siparişte iğne yok mu, yoksa yazıcı `GS ( k`
+komutunu sessizce yutuyor mu). Yeni teslim QR'ı aynı komuta dayanıyor.
+
+**Sahaya çıkmadan `cd mutfakapp && dart run tool/yazici_teshis.dart`
+koşulmalı.** Yalnız C bölümü çıkıyorsa yazıcı yerleşik QR'ı desteklemiyor
+demektir ve QR'lar `qr` paketi + `EscPosBuilder.bitImage` ile raster
+çizilmek zorunda — ayrı ve daha büyük bir iş. Birleştirme ve revizyon
+düzeltmesi o karardan bağımsız çalışıyor.
+
+### Sunucuda koşturulacak
+
+```bash
+cd platform
+php artisan igniter:up          # veykemtu_print_jobs.revision göçü
+vendor/bin/phpunit --testsuite Veykemtu
+```
+
+**Yeni `.env` girdisi:** `BLD_LINK_SECRET` (boşsa `APP_KEY`'e düşer; üretimde
+ayrı tanımlanmalı — `APP_KEY` döndürüldüğünde oturumlar da geçersiz olur).
+
+**Dağıtım öncesi:** `infra/Caddyfile.internal` izin listesine `/teslimat/*`
+eklendi; güncellenmiş dosya dağıtılmazsa teslim QR'ı ana siteye 308'lenir.
+
 ## 8.7 Fiş ve harita turu — K-17 … K-19, W-15 … W-16 (12.08.2026)
 
 Üç şikâyet: "eski fişler asla çıkmamalı", "konum QR'ı yok", "web sitesi

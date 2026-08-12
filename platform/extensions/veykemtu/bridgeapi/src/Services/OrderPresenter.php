@@ -13,10 +13,12 @@ use Veykemtu\BridgeApi\Support\Money;
 /**
  * Sipariş nesnelerini sözleşme biçimine çevirir — `docs/openapi.yaml`.
  *
- * NEDEN AYRI SINIF: aynı sipariş üç farklı yüzde farklı görünür —
- * müşteri (fiyatlı, adresli), mutfak (fiyatsız, adressiz), fiş. Bu ayrımı
- * denetleyicilere dağıtmak, bir gün mutfak yanıtına fiyat sızdırmanın en
- * kolay yoludur. Kapsam sınırı tek dosyada durur ve denetlenebilir.
+ * NEDEN AYRI SINIF: aynı sipariş DÖRT farklı yüzde farklı görünür —
+ * müşteri (fiyatlı, adresli), mutfak (fiyatsız, adressiz), fiş ve K-20 ile
+ * gelen girişsiz takip (en dar yüz: adres, ad, telefon ve kalem yok). Bu
+ * ayrımı denetleyicilere dağıtmak, bir gün mutfak yanıtına fiyat ya da
+ * girişsiz uca adres sızdırmanın en kolay yoludur. Kapsam sınırı tek
+ * dosyada durur ve denetlenebilir.
  */
 class OrderPresenter
 {
@@ -122,6 +124,49 @@ class OrderPresenter
             // değişimine bakıyor ve hiç tetiklenmiyordu.
             'revision_no' => (int) ($order->bld_revision_no ?? 0),
             'revisions' => $this->revisions($order),
+        ];
+    }
+
+    /**
+     * Girişsiz takip görünümü — fişteki QR'ın açtığı yüz (K-20).
+     *
+     * ADRES, AD, TELEFON VE KALEM LİSTESİ DÖNMEZ. Bu, `detail()`in yanına
+     * konmuş ikinci bir sipariş yüzü değil; daha DAR bir yüz.
+     *
+     * NEDEN BU KADAR DAR: bu veriyi açan şey bir oturum değil, kâğıda
+     * basılmış bir kare. Fiş düşürülebilir, fotoğraflanabilir, çöpten
+     * çıkarılabilir. Buradan çıkarılan her şey zaten o kâğıdın üstünde
+     * yazıyor — kâğıttan daha uzun yaşayan bir URL üzerinden ikinci kez
+     * sızdırmak hiçbir şey kazandırmıyor.
+     *
+     * VARSAYIM: `total` ve ödeme durumu İÇERİDE. QR'ı okutan müşterinin ilk
+     * sorusu çoğu zaman "borcum kapandı mı"; ikisi de fişin üstünde zaten
+     * basılı. Fazla bulunursa iki satır silinerek geri alınır.
+     *
+     * @return array<string, mixed>
+     */
+    public function publicTracking(Order $order): array
+    {
+        $payment = $this->payment($order);
+
+        return [
+            'id' => (int) $order->order_id,
+            'order_number' => $this->number($order),
+            'status' => $this->transitions->codeOf($order),
+            'delivery_type' => $this->deliveryType($order),
+            'requested_at' => $this->requestedAt($order),
+            'created_at' => $this->ts($order->created_at),
+            'total' => $this->totals($order)['total'],
+            'currency' => 'TRY',
+            // `redirect_url` ELENIYOR: ödeme başlatmak girişli akışın işi.
+            // Fişteki ödeme QR'ı zaten ayrı ve imzalı bir yol kullanıyor.
+            'payment' => [
+                'method' => $payment['method'],
+                'status' => $payment['status'],
+            ],
+            'revision_no' => (int) ($order->bld_revision_no ?? 0),
+            'status_history' => $this->statusHistory($order),
+            'server_time' => Carbon::now()->utc()->toIso8601ZuluString(),
         ];
     }
 

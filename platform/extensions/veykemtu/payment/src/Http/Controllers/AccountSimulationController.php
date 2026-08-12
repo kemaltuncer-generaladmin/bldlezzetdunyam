@@ -55,7 +55,7 @@ class AccountSimulationController extends Controller
         // kez gelebiliyor (docs/04 §5); simülasyon aynı davranışı taklit
         // etmeli, yoksa istemciler bu duruma karşı yazılmaz.
         if (!$intent->isPending()) {
-            return redirect()->away($returnUrl.'?durum=zaten_odendi');
+            return redirect()->away(self::withStatus($returnUrl, 'zaten_odendi'));
         }
 
         $request->validate([
@@ -108,7 +108,19 @@ class AccountSimulationController extends Controller
             'amount_kurus' => $intent->amount_kurus,
         ]);
 
-        return redirect()->away($returnUrl.'?durum=odendi');
+        return redirect()->away(self::withStatus($returnUrl, 'odendi'));
+    }
+
+    /**
+     * Dönüş adresine `durum` parametresini ekler.
+     *
+     * `SimulationController::withStatus` ile aynı gerekçe (K-20): dönüş
+     * adresi artık sorgu parametresi taşıyabiliyor ve düz birleştirme
+     * ikinci bir `?` üretip `durum`u okunamaz kılıyordu.
+     */
+    private static function withStatus(string $url, string $durum): string
+    {
+        return $url.(str_contains($url, '?') ? '&' : '?').'durum='.$durum;
     }
 
     private function intentByHash(string $hash): AccountPaymentIntent

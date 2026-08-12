@@ -469,7 +469,11 @@ class _Board extends ConsumerWidget {
     KitchenOrder order,
     ReceiptType type,
   ) {
-    ref.read(printServiceProvider).reprint(order.id, type);
+    // Karttaki siparişin GÜNCEL revizyonu: personel elindeki siparişin
+    // fişini istiyor, eski bir sürümünü değil.
+    ref
+        .read(printServiceProvider)
+        .reprint(order.id, type, revision: order.revisionNo);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(

@@ -171,6 +171,17 @@ abstract class KitchenReceipt with _$KitchenReceipt {
     String? customerPhone,
     String? customerNote,
     DateTime? printedAt,
+
+    /// Kaçıncı revizyon; `0` = düzenlenmedi (K-20).
+    ///
+    /// `>0` ise fişin başına çift boy `GÜNCEL FİŞ — REVİZE #N / ÖNCEKİ FİŞİ
+    /// ATIN` bandı basılır. K-20'ye kadar mutfak fişi bu bilgiyi hiç
+    /// almıyordu: düzenlenen sipariş için yeni kâğıt çıkıyor ama üstünde
+    /// onu öncekinden ayıran hiçbir şey yazmıyordu.
+    @Default(0) int revisionNo,
+
+    /// İnsan okuyabilir değişiklik satırları; boşsa liste basılmaz.
+    @Default(<String>[]) List<String> revisionSummary,
   }) = _KitchenReceipt;
 
   factory KitchenReceipt.fromJson(Map<String, dynamic> json) =>
@@ -179,6 +190,11 @@ abstract class KitchenReceipt with _$KitchenReceipt {
 
 /// `GET /kitchen/orders/{id}/receipt?type=musteri` — fiyatlı, adrese
 /// gönderimde adresli.
+///
+/// **K-20: BU FİŞ ARTIK KURYENİN DE FİŞİ.** Ayrı bir kurye fişi otomatik
+/// basılmıyor; kuryenin üç sorusunun cevabı (kime, nereye, ne kadar tahsil
+/// edilecek) buraya taşındı. Sipariş başına tam iki kâğıt çıkıyor. Kurye
+/// kapıda okuyor, kâğıt sonra müşteride kalıyor.
 @freezed
 abstract class CustomerReceipt with _$CustomerReceipt {
   const factory CustomerReceipt({
@@ -210,6 +226,39 @@ abstract class CustomerReceipt with _$CustomerReceipt {
     /// YALNIZCA ödenmemiş siparişte dolu. Ödenmiş siparişin fişine ödeme
     /// QR'ı basmak, ikinci kez ödemeye davet etmek olurdu.
     String? payUrl,
+
+    // ── K-20: kurye fişinden devralınan alanlar ─────────────────────────
+
+    /// Tam ad — kurye kapıda "kime teslim ediyorum" sorusunu bundan
+    /// cevaplıyor. Gel-al siparişinde `null`.
+    String? customerName,
+
+    /// Müşterinin telefonu — kapı açılmadığında kuryenin arayacağı numara.
+    /// Gel-al siparişinde `null`.
+    String? customerPhone,
+
+    /// Sipariş notu ("Zili çalmayın").
+    ///
+    /// BU FİŞE TAŞINMASI ŞARTTI: kapı talimatı kuryeye bugüne kadar yalnız
+    /// kurye fişiyle ulaşıyordu; o fişi otomatik basmaktan vazgeçip notu
+    /// taşımasaydık kuryenin elinden bir kapı talimatını silmiş olurduk.
+    String? customerNote,
+
+    /// Kapıda tahsil edilecek tutar (kuruş). Ödenmişse ve gel-al'da `0`;
+    /// KDS o durumda satırı hiç basmaz.
+    @Default(0) int collectAmount,
+
+    /// Kaçıncı revizyon; `0` = düzenlenmedi.
+    @Default(0) int revisionNo,
+
+    /// İnsan okuyabilir değişiklik satırları.
+    @Default(<String>[]) List<String> revisionSummary,
+
+    /// "Teslim ettim" QR'ı — kurye okutunca tek düğmeli onay sayfası açılır.
+    ///
+    /// `null` olduğu hâller: gel-al siparişi (kurye yok) ya da sunucuda imza
+    /// sırrı yapılandırılmamış. İkisinde de kare hiç basılmaz.
+    String? deliverUrl,
   }) = _CustomerReceipt;
 
   factory CustomerReceipt.fromJson(Map<String, dynamic> json) =>
@@ -219,10 +268,14 @@ abstract class CustomerReceipt with _$CustomerReceipt {
 /// `GET /kitchen/orders/{id}/receipt?type=kurye` — kuryenin eline giden
 /// fiş (K-14).
 ///
-/// NEDEN ÜÇÜNCÜ TİP: kurye üç bilgiye ihtiyaç duyuyor ve hiçbiri tek bir
-/// mevcut fişte birlikte yok — kime (ad + telefon), nereye (adres + QR),
-/// ne kadar tahsil edilecek. Mutfak fişinde adres yok; müşteri fişi ise
-/// müşteride kalıyor.
+/// **K-20'DEN BERİ OTOMATİK BASILMIYOR.** İçeriği [CustomerReceipt]'e
+/// taşındı ve sipariş başına iki kâğıt çıkıyor. Bu tip, KDS'ten **elle
+/// yeniden bastırma** kaçış kapısı için duruyor: kâğıt sıkışırsa ya da
+/// kurye fişi kaybederse personelin onu geri getirecek bir yolu olmalı.
+///
+/// Sözleşmeden de silinmedi (additive-only): kuyrukta duran eski satırlar
+/// `wireName` ile ayrıştırılıyor ve enum değeri kalkarsa eski bir kurye
+/// satırı mutfak fişi olarak yeniden basılırdı.
 @freezed
 abstract class CourierReceipt with _$CourierReceipt {
   const factory CourierReceipt({
@@ -260,6 +313,12 @@ abstract class PrintAckRequest with _$PrintAckRequest {
   const factory PrintAckRequest({
     @ReceiptTypeConverter() required ReceiptType type,
     required DateTime printedAt,
+
+    /// Fişin hangi revizyon için basıldığı (K-20).
+    ///
+    /// Sunucudaki denetim tekilliği `(order_id, type, revision)`. Alan
+    /// gönderilmezse `0` sayılır; eski KDS sürümleri çalışmaya devam eder.
+    @Default(0) int revision,
   }) = _PrintAckRequest;
 
   factory PrintAckRequest.fromJson(Map<String, dynamic> json) =>

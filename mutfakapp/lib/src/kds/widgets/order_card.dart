@@ -483,13 +483,16 @@ class _CardActions extends StatelessWidget {
 
 /// Bu sipariş için yeniden basılabilecek fiş tipleri.
 ///
-/// KURYE FİŞİ YALNIZ `delivery` SİPARİŞTE: gel-al siparişinin kuryesi yok
-/// ve boş adresli bir kâğıt basmak, personeli olmayan bir teslimatı
-/// aramaya iter. Tetikleyici tarafındaki kural da aynı (`print_triggers`).
-List<ReceiptType> reprintableTypes(KitchenOrder order) => [
+/// K-20'DEN BERİ İKİ TİP. Kurye fişi otomatik basılmıyor ve menüden de
+/// kaldırıldı: kuryenin ihtiyaç duyduğu her şey artık müşteri fişinde ve
+/// listede iki seçenek bırakmak, personele "hangisini basayım" sorusunu
+/// geri getirirdi — birleştirmenin çözdüğü sorunun ta kendisi.
+///
+/// `ReceiptType.kurye` sözleşmede ve kuyrukta duruyor (eski satırlar
+/// ayrıştırılabilsin diye); yalnız bu menüde görünmüyor.
+List<ReceiptType> reprintableTypes(KitchenOrder order) => const [
   ReceiptType.mutfak,
   ReceiptType.musteri,
-  if (order.deliveryType == DeliveryType.delivery) ReceiptType.kurye,
 ];
 
 /// Fiş tipinin personele gösterilen adı.

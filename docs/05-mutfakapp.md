@@ -191,11 +191,26 @@ içindedir ve golden test ile doğrulanır.
 NOT: Fatura kurumsal
 ```
 
-**Müşteri fişi** (fiyatlı):
+**Müşteri fişi** (fiyatlı — K-20'den beri **kuryenin de fişi**):
 ```
+###### GÜNCEL FİŞ ######      (yalnız revizyonda, çift boy)
+###### REVİZE #2 ######
+### ÖNCEKİ FİŞİ ATIN ###
+--------------------------------
    BENİM LEZZET DÜNYAM
       Sipariş: S-5012
       04.08.2026 14:32
+      Teslim: 05.08 09:30
+--------------------------------
+TESLİMAT
+AYŞE YILMAZ
+Tel: 0555 123 45 67           (çift boy)
+Örnek Mah. 12. Sk No:3
+Selçuklu / Konya
+
+        [HARİTA QR]
+       Haritada aç
+NOT: Zili çalmayın
 --------------------------------
 2× Tavuk Sote        370,00
 1× Mercimek Çorbası   85,00
@@ -203,19 +218,42 @@ NOT: Fatura kurumsal
 Ara Toplam           455,00
 Teslimat              40,00
 TOPLAM               495,00
-Ödeme: Online (Ödendi)
+Ödeme: Kapıda (Bekliyor)
 --------------------------------
-Teslimat:
-Örnek Mah. 12. Sk No:3
-Selçuklu / Konya
-
-        [QR KODU]
-       Haritada aç
+DEĞİŞİKLİKLER                 (yalnız revizyonda)
+* Mercimek Çorbası: 20 -> 10
+--------------------------------
+     TAHSİL: 495,00           (çift boy, ödenmemişse)
+--------------------------------
+      [KARTLA ÖDE QR]         (ödenmemişse)
+      [TAKİP QR]
+ KURYE: TESLİMDEN ÖNCE OKUT
+      [TESLİM QR]             (yalnız adrese gönderim)
 --------------------------------
 Bu belge bilgi fişidir,
 mali değeri yoktur.
 ```
-`delivery_type=pickup` siparişinde "Teslimat" bloğu ve "Teslimat" ücret satırı **basılmaz**; yerine `GEL-AL` yazar.
+
+**BLOK SIRASI KEYFÎ DEĞİL — kâğıdı kimin ne zaman okuduğuna göre.** Kurye
+kâğıdı eline aldığında sorduğu ilk soru "nereye gidiyorum"; kalem
+fiyatlarına hiç bakmıyor. Bu yüzden teslimat bloğu fiyat tablosunun
+**üstünde**. Aşağıda kalsaydı her teslimatta fişin tamamı okunmak zorunda
+olurdu.
+
+`DEĞİŞİKLİKLER` bloğu toplam ile tahsilat **arasında**: okunuşu bir neden
+zinciri kuruyor — "toplam bu → çünkü şunlar değişti → şu kadar tahsil et".
+Kapıda tutar tartışması çıktığında okunacak sıra tam olarak budur.
+
+**SİPARİŞ NOTU TESLİMAT BLOĞUNDA, fişin dibinde değil.** "Zili çalmayın" bir
+kapı talimatı ve kurye onu yola çıkmadan okumalı. Not bugüne kadar kuryeye
+yalnız kurye fişiyle ulaşıyordu; o fişi otomatik basmaktan vazgeçip notu
+taşımasaydık, kuryenin elinden bir kapı talimatını silmiş olurduk.
+
+`delivery_type=pickup` siparişinde **teslimat bloğunun tamamı** (ad, telefon,
+adres, harita QR, sipariş notu), "Teslimat" ücret satırı, `TAHSİL` satırı ve
+teslim QR'ı **basılmaz**; yerine `GEL-AL` yazar. Sunucu gel-al'da bu alanları
+zaten `null` gönderiyor, ama kapı şablonun kendisinde de var — bir alan dolu
+gelse bile gel-al fişinde tek satır belirmez.
 
 Mutfak fişindeki `Tel:` satırı `customer_phone` doluysa **çift boy** basılır —
 numara mutfağın ışığında, kâğıdı eline almadan okunabilmeli. Çift boyda satır
@@ -228,16 +266,63 @@ Müşteri fişindeki harita QR'ı yalnızca adreste iğne varsa basılır ve iç
 adres QR'la birlikte **yine de** basılır: fiş buruşabilir, kuryenin telefonu
 bitebilir.
 
-#### Fişteki üç QR — K-18/K-19 (12.08.2026)
+#### Fişteki dört QR — K-18/K-19/K-20
 
-Fişte artık en çok üç QR olabiliyor. Üçü de **koşullu**: veri yoksa blok hiç
+Fişte artık en çok dört QR olabiliyor. Hepsi **koşullu**: veri yoksa blok hiç
 basılmaz, boş kare çıkmaz.
 
 | QR | Nerede | Ne zaman basılır | İçerik |
 |---|---|---|---|
-| Harita | Kurye/müşteri fişi, adres bloğunun altında | `address_latitude` **ve** `address_longitude` dolu | `https://www.google.com/maps?q=<enlem>,<boylam>` |
-| Takip | Müşteri fişi, sonda | `track_url` dolu | `<FRONTEND_URL>/siparis/<id>` |
-| Ödeme | Müşteri fişi, takip QR'ının **üstünde** | `pay_url` dolu | Ödeme sayfası + `?return=<takip adresi>` |
+| Harita | Teslimat bloğunun altında | `address_latitude` **ve** `address_longitude` dolu | `https://www.google.com/maps?q=<enlem>,<boylam>` |
+| Ödeme | Fişin sonunda, takip QR'ının **üstünde** | `pay_url` dolu | Ödeme sayfası + `?return=<takip adresi>` |
+| Takip | Ödeme QR'ının altında | `track_url` dolu | `<FRONTEND_URL>/takip/<id>?e=…&s=…` |
+| **Teslim** | En altta, `KURYE: TESLİMDEN ÖNCE OKUT` başlığıyla | `deliver_url` dolu (yalnız adrese gönderim) | `<APP_URL>/teslimat/<id>?e=…&s=…` |
+
+**TAKİP ADRESİ K-20'DE DEĞİŞTİ VE BU BİR HATA DÜZELTMESİYDİ.** Eskiden
+`<FRONTEND_URL>/siparis/<id>` idi; o rota `website/middleware.ts` matcher'ında
+ve `requireSession` ile korunuyor. Yani **fişteki kareyi okutan müşteri
+sipariş durumunu değil giriş ekranını görüyordu.** Kâğıda basılan bir QR giriş
+isteyemez. Yeni adres imzalı ve girişsiz; girişli `/siparis/{id}` sayfası
+olduğu gibi duruyor.
+
+**Teslim QR'ı başlıklı basılıyor** çünkü kâğıt teslimden sonra müşteride
+kalıyor: kurye onu kapıda, kâğıdı vermeden ÖNCE okutmalı. Başlıksız dördüncü
+bir kare, hangisinin kimin olduğunu belirsiz bırakırdı.
+
+**Ödeme QR'ı simülasyon kapalıyken de basılmıyor (K-20).** `veykemtu/payment`
+üretimde `POS_ALLOW_SIMULATION` tanımsızken rotayı **hiç kaydetmiyor**; bu
+kontrol eklenene kadar fişe ölü bir adrese giden kare basılıyordu ve okutan
+müşteri Caddy'nin 308'i sayesinde ana sayfaya düşüyordu.
+
+#### Teslim onayı — imzalı, tek kullanımlık (K-20)
+
+Kurye QR'ı okutuyor → tek düğmeli bir onay sayfası açılıyor (sipariş numarası,
+ad, adres, tahsil edilecek tutar, `TESLİM ETTİM`) → basınca sipariş
+`teslim_edildi` oluyor.
+
+* **Kurye girişi yok.** Kuryenin sistemde hesabı yok ve olması bu işin on katı
+  bir iş. Yetki URL'deki HMAC imzasında; imza sipariş kimliğine, amaca ve son
+  geçerlilik anına bağlı.
+* **Tek kullanımlık, ayrı bir bayrak olmadan.** `teslim_edildi` durum
+  makinesinde terminal, yani ikinci okutma geçerli bir geçiş bulamıyor. Ayrı
+  bir "kullanıldı" sütunu aynı gerçeği ikinci kez kodlar ve ikisinin
+  ayrışabildiği bir durum yaratırdı.
+* **İkinci okutma hata ekranı DEĞİL:** "bu sipariş zaten teslim edildi" diyor.
+  Çift dokunan kurye kırmızı ekran görmemeli, iş zaten olmuş.
+* **`hazir` durumunda iki adım atılıyor.** Fiş `hazir`da basılıyor ama durum
+  makinesi adrese gönderimde `hazir -> teslim_edildi` geçişini reddediyor
+  (`docs/02` §3) ve mutfakta kimse "yolda" düğmesine basmamış olabilir. Matris
+  **gevşetilmedi** — gevşetmek o adımı atlama iznini bütün istemcilere
+  verirdi; onun yerine tek işlem içinde `yolda` sonra `teslim_edildi`
+  yazılıyor. İki dürüst geçmiş satırı gerçeğe de daha yakın: kurye gerçekten
+  yola çıktı ve gerçekten vardı, ikisini aynı anda öğrendik.
+* **Kabul edilen risk:** fişi fotoğraflayan biri siparişi teslim edilmiş
+  işaretleyebilir. Zarar sınırlı (yemek zaten gitti), bağlantı tek
+  kullanımlık ve süresi kısa (2 gün). Alternatif, kuryeyi kapıda giriş yapmaya
+  zorlamaktı.
+* **`infra/Caddyfile.internal` izin listesi şart:** `/teslimat/*` orada
+  olmazsa istek ana siteye 308'lenir ve hata "QR ana sayfayı açıyor" diye
+  görünüp yanlış depoda aranır.
 
 **Ödeme QR'ı ödenmiş siparişte basılmaz.** `ReceiptBuilder::payUrl()`,
 `$order->processed` doğruysa `null` döner. Ödenmiş bir fişte ödeme karesi
@@ -293,12 +378,24 @@ basılır; sessizce kaybolan fişten iyidir.
 
 ### 5.5 Tetikler
 
-**Sipariş başına tam olarak iki fiş çıkar** (karar 05.08.2026):
+**Sipariş başına tam olarak iki fiş çıkar** (karar 05.08.2026, K-20 ile
+teslimat tipinden bağımsız hâle geldi):
 
 | Olay | Fiş |
 |---|---|
 | Mutfak siparişi **onayladı** (`onaylandi`) | Mutfak fişi (otomatik) |
-| Durum **`hazir`** yapıldı | Müşteri fişi (otomatik) |
+| Durum **`hazir`** yapıldı | Müşteri fişi (otomatik) — kurye bilgileri içinde |
+
+> **KURYE FİŞİ OTOMATİK BASILMAZ (K-20, 14.08.2026).** K-14'te üçüncü tip
+> olarak eklenmişti ve `hazir`da adrese gönderim siparişlerinde basılıyordu;
+> yani adrese gönderim başına **üç** kâğıt, iki kez düzenlenmiş siparişte
+> **yedi** kâğıt çıkıyordu. Tezgâhta aynı siparişin birkaç kâğıdı birikiyor
+> ve hangisinin güncel olduğu kâğıda bakarak anlaşılmıyordu.
+>
+> Kuryenin üç sorusunun cevabı (kime, nereye, ne kadar tahsil edilecek)
+> müşteri fişine taşındı. Kâğıt kapıda kuryenin elinde, sonra müşteride
+> kalıyor. `kurye` tipi sözleşmede ve kuyrukta duruyor — yalnız **elle
+> yeniden bastırma** yolu olarak.
 
 > **`yeni` durumunda fiş BASILMAZ.** Sipariş henüz kabul edilmemiştir ve
 > müşteri iptal edebilir (`docs/03` §4 — iptal `yeni` ve `onaylandi`
@@ -313,6 +410,43 @@ tetiği kaçırmaktansa fazladan çağırmak yeğdir — kuyruktaki
 `teslim_edildi` de "hazır ötesi" sayılır: gel-al siparişi `hazir`dan
 doğrudan oraya geçer ve arada bir yayın kaçarsa müşteri fişi hiç
 basılmazdı.
+
+#### Revizyon tetiği ve birleştirme penceresi — K-20 (14.08.2026)
+
+Yukarıdaki iki satır **düzenlenmemiş** sipariş içindir. Sipariş
+düzenlenince (K-12) `revision_no` artıyor ve daha önce basılmış fişlerin
+güncellenmesi gerekiyor.
+
+| Olay | Fiş |
+|---|---|
+| Revizyon arttı, o tip **daha önce basıldı** | Aynı fiş, **güncel** hâliyle, bir kez |
+| Revizyon arttı, o tip **henüz basılmadı** | Hiçbir şey — kendi eşiğinde zaten güncel çıkacak |
+
+**Düzenlemelerin çoğu `hazir` öncesi geliyor** ve o anda müşteri fişi henüz
+basılmamış oluyor; bu yüzden pratikte fazladan kâğıt üretmiyorlar.
+
+**BEKLETME PENCERESİ.** Revizyon işi hemen kuyruğa girmiyor; **20 saniye**
+sessizlik bekleniyor. Personel müşteriyle telefonda konuşurken birkaç kez
+kaydediyor ve her kayıt ayrı bir kâğıt demekti. Pencere dolmadan yeni bir
+revizyon gelirse sayaç sıfırlanıyor ve **yalnız sonuncusu** basılıyor; ara
+sürümler hiç kâğıda çıkmıyor.
+
+Üst sınır **60 saniye**: düzenlemeye devam eden bir personel yüzünden
+mutfak asıl siparişi pişirmeye devam etmesin diye, sessizlik hiç gelmese
+bile bu süre dolunca güncel fiş çıkıyor.
+
+> **İlk basım ASLA beklemez.** Mutfak yemeğe başlamak için kâğıdı hemen
+> görmeli; bekletme yalnız *yeniden* basımlara uygulanıyor.
+
+**Pencere `PrintTriggers` içinde ve zamanlayıcısız.** `PollingOrderSource`
+zaten ~5 saniyede bir yayın yapıyor; bekleyen iş bir sonraki yoklamada
+salınıyor. İki sonucu var: testler sahte saatle belirlenimci koşuyor, ve
+bekletme sırasında çöken bir kasa yeniden açıldığında **hemen** basıyor
+(hafıza boş → eşikler ateşlenir). Hata yönü "daha erken kâğıt", asla "hiç
+kâğıt yok".
+
+`PrintService`'te tutulsaydı iş pencere boyunca yalnız RAM'de dururdu ve
+§5.4'ün ilk maddesi ("her yazdırma işi önce SQLite'a yazılır") çiğnenirdi.
 
 #### Sesli uyarılar (05.08.2026)
 
@@ -933,24 +1067,47 @@ müşteri parasını bekler, kimse bir şey bilmez.
 **Ek tahsilat otomatik alınmaz.** Müşterinin kartından habersiz ek çekim
 kabul edilemez; fark kurye fişine yazılır.
 
-### Kurye fişi — üçüncü fiş tipi
+### Kurye fişi — üçüncü fiş tipiydi, K-20'de müşteri fişine katlandı
 
-Kurye üç bilgiye ihtiyaç duyuyor ve hiçbiri tek bir mevcut fişte birlikte
-yok: **kime** (ad + telefon), **nereye** (adres + harita QR), **ne kadar
-tahsil edilecek**. Mutfak fişinde adres yok (mutfak teslimat yapmıyor);
-müşteri fişi ise müşteride kalıyor.
+**11.08.2026'daki gerekçe:** kurye üç bilgiye ihtiyaç duyuyor ve hiçbiri tek
+bir mevcut fişte birlikte yok — **kime** (ad + telefon), **nereye** (adres +
+harita QR), **ne kadar tahsil edilecek**. Mutfak fişinde adres yok; müşteri
+fişi ise müşteride kalıyor. Bu yüzden üçüncü bir tip açıldı.
 
-* Yalnız `delivery` siparişte basılır — gel-al'da kurye yok.
-* Tahsilat satırı **en altta ve çift boy**; ödenmiş siparişte hiç
-  basılmaz (sıfırlık bir satır, sonraki fişte gerçek tutarı gözden
-  kaçırtıyor).
-* Sipariş düzenlendiyse başlıkta çift boy `REVİZE #N` ve değişiklik
-  listesi.
-* **Karttan elle yeniden bastırılabilir** (12.08.2026). Tetikleyici fişi
-  otomatik basıyor, ama kâğıt sıkışırsa personelin onu geri getirecek bir
-  yolu olmalı. Menü siparişten türüyor: gel-al siparişte kurye seçeneği
-  hiç görünmüyor — boş adresli bir kâğıt, personeli olmayan bir teslimatı
-  aramaya iter.
+**14.08.2026'da (K-20) o karar geri alındı.** Gerekçe hâlâ doğruydu ama
+çözümü yanlıştı: üçüncü kâğıt, adrese gönderim başına toplamı **üçe**,
+iki kez düzenlenmiş siparişte **yediye** çıkardı. Tezgâhta aynı siparişin
+birkaç kâğıdı birikiyor ve hangisinin güncel olduğu kâğıda bakarak
+anlaşılmıyordu — personelin şikâyeti tam olarak buydu.
+
+Doğru çözüm ayrı bir kâğıt değil, **aynı kâğıdın doğru sıralanması**:
+teslimat bloğu müşteri fişinin fiyat tablosunun üstüne alındı. Kurye kapıda
+okuyor, kâğıt sonra müşteride kalıyor — zaten yemekle birlikte hareket eden
+tek kâğıt o.
+
+**"Müşteri fişi kuryenin elinde olmaz" itirazı neden geçersiz:** o fiş
+zaten kuryeyle gidiyordu; K-14'ten önce de müşteriye kurye teslim ediyordu.
+Değişen tek şey, kuryenin ihtiyaç duyduğu bilginin ayrı bir kâğıt yerine
+aynı kâğıtta olması.
+
+Bugünkü hâli:
+
+* Teslimat bloğu (ad, telefon, adres, harita QR, sipariş notu) **yalnız
+  `delivery` siparişte** basılır — gel-al'da kurye yok.
+* Tahsilat satırı **çift boy**, değişiklik listesinin altında; ödenmiş
+  siparişte ve gel-al'da hiç basılmaz (sıfırlık bir satır, sonraki fişte
+  gerçek tutarı gözden kaçırtıyor).
+* Sipariş düzenlendiyse fişin **en üstünde** çift boy `GÜNCEL FİŞ / REVİZE
+  #N / ÖNCEKİ FİŞİ ATIN` bandı; `DEĞİŞİKLİKLER` listesi toplam ile tahsilat
+  arasında. **Bant mutfak fişinde de var** — K-20'ye kadar yalnız kurye
+  fişindeydi ve `docs/10` S9-13 bunu zaten şart koşuyordu.
+* `kurye` tipi **silinmedi**: sözleşme additive-only ve kuyruktaki eski
+  satırlar `wireName` ile ayrıştırılıyor; enum değeri kalksaydı eski bir
+  kurye satırı mutfak fişi olarak yeniden basılırdı. Uç çalışmaya devam
+  ediyor, yalnız otomatik tetiği ve KDS menüsündeki seçeneği kalktı.
+* **Menüde iki seçenek kaldı** (mutfak, müşteri). Kurye fişini menüde
+  bırakmak, personele "hangisini basayım" sorusunu geri getirirdi —
+  birleştirmenin çözdüğü sorunun ta kendisi.
 
 ### Fiş tekilliği revizyon bazlı
 

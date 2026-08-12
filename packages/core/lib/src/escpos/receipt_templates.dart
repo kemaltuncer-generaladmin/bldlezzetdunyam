@@ -1,8 +1,20 @@
 /// Fiş şablonları — `docs/05-mutfakapp.md` §5.3.
 ///
-/// İki şablon vardır: [buildKitchenReceipt] ve [buildCustomerReceipt]. Her ikisi
-/// de **saf fonksiyondur**: aynı girdi her zaman aynı baytları verir, saat
-/// okumaz, cihaza yazmaz, istisna atmaz. Golden testlerin dayanağı budur.
+/// Beş şablon var ve hepsi **saf fonksiyondur**: aynı girdi her zaman aynı
+/// baytları verir, saat okumaz, cihaza yazmaz, istisna atmaz. Golden
+/// testlerin dayanağı budur.
+///
+/// | Şablon | Ne zaman |
+/// |---|---|
+/// | [buildKitchenReceipt] | `onaylandi` — fiyatsız, iri punto |
+/// | [buildCustomerReceipt] | `hazir` — fiyatlı **ve kuryenin fişi** (K-20) |
+/// | [buildCourierReceipt] | otomatik DEĞİL; yalnız elle yeniden basım |
+/// | [buildProductionPlanReceipt] | personel istediğinde (K-15) |
+/// | [buildBbdReceipt] | BBD Store kitap siparişi (K-16) |
+///
+/// SİPARİŞ BAŞINA İKİ KÂĞIT ÇIKAR. K-20'ye kadar adrese gönderimde üç, iki
+/// kez düzenlenmiş siparişte yedi kâğıt çıkıyordu ve tezgâhta hangisinin
+/// güncel olduğu okunamıyordu.
 library;
 
 import 'dart:typed_data';
@@ -63,6 +75,10 @@ Uint8List buildKitchenReceipt(
         ..reset()
         ..align(EscPosAlign.center);
 
+  // ── Revizyon bandı EN ÜSTTE, işletme başlığından da önce (K-20).
+  //    Tek işi, tezgâhta duran önceki kâğıdı geçersiz kılmak.
+  _writeRevisionBanner(builder, style, data.revisionNo);
+
   // ── Başlık: teslimat tipi en iri metin. Personelin ilk gördüğü şey
   //    siparişin adrese mi gideceği, gel-al mı olduğudur.
   final deliveryLabel = TurkishCase.toUpperCase(
@@ -120,6 +136,10 @@ Uint8List buildKitchenReceipt(
 
   builder.rule();
 
+  // DEĞİŞİKLİKLER, `NOT:`TAN ÖNCE: biri siparişin ne olduğunu, diğeri nasıl
+  // hazırlanacağını söylüyor. Mutfak önce neyi pişireceğini bilmeli.
+  _writeRevisionSummary(builder, style, data.revisionSummary);
+
   if (_hasText(data.customerNote)) {
     builder.bold(on: true);
     for (final line in _wrap(
@@ -134,7 +154,28 @@ Uint8List buildKitchenReceipt(
   return _finish(builder, style);
 }
 
-/// Müşteri fişi: fiyatlı; adrese gönderimde adresli, gel-al'da `GEL-AL` yazar.
+/// Müşteri fişi — fiyatlı **ve K-20'den beri kuryenin de fişi**.
+///
+/// NEDEN BİRLEŞTİ: kurye üç bilgiye ihtiyaç duyuyordu (kime, nereye, ne
+/// kadar tahsil edilecek) ve bunlar ayrı bir kâğıttaydı. Adrese gönderim
+/// başına üç kâğıt, iki kez düzenlenmiş siparişte yedi kâğıt çıkıyordu;
+/// tezgâhta hangisinin güncel olduğu okunamıyordu. Artık tek kâğıt: kurye
+/// kapıda okuyor, sonra müşteride kalıyor.
+///
+/// BLOK SIRASI, KÂĞIDI KİMİN NE ZAMAN OKUDUĞUNA GÖRE:
+///
+/// 1. Revizyon bandı — elde duran eski kâğıdı geçersiz kılar.
+/// 2. Kimlik (işletme, sipariş no, saat).
+/// 3. **Teslimat bloğu** — ad, telefon, adres, harita QR, sipariş notu.
+///    Fiyat tablosunun ÜSTÜNDE, çünkü kurye önce nereye gideceğine bakıyor
+///    ve bunu araçta, kötü ışıkta, tek eliyle okuyor.
+/// 4. Kalemler ve tutarlar — müşterinin bölümü, kapıda okunmuyor.
+/// 5. Değişiklikler → tahsilat: "toplam bu → çünkü şunlar değişti → şu
+///    kadar al" zinciri, kapıda tartışma çıkarsa okunacak sıradır.
+/// 6. QR'lar ve yasal dipnot.
+///
+/// Gel-al siparişinde 3. blok, tahsilat satırı ve teslim QR'ı **hiç
+/// basılmaz**; yerinde `GEL-AL` yazar.
 Uint8List buildCustomerReceipt(
   CustomerReceiptData data, {
   ReceiptStyle style = ReceiptStyle.standard,
@@ -142,9 +183,13 @@ Uint8List buildCustomerReceipt(
   final builder =
       EscPosBuilder(columns: style.columns, codePage: style.codePage)
         ..reset()
-        ..align(EscPosAlign.center)
-        ..doubleSize(on: true)
-        ..bold(on: true);
+        ..align(EscPosAlign.center);
+
+  _writeRevisionBanner(builder, style, data.revisionNo);
+
+  builder
+    ..doubleSize(on: true)
+    ..bold(on: true);
 
   for (final line in _wrap(
     TurkishCase.toUpperCase(style.businessName),
@@ -166,6 +211,13 @@ Uint8List buildCustomerReceipt(
   builder
     ..align(EscPosAlign.left)
     ..rule();
+
+  // ── TESLİMAT BLOĞU (K-20) ───────────────────────────────────────────
+  //
+  // Fiyat tablosunun ÜSTÜNDE. Kurye kâğıdı eline aldığında sorduğu ilk
+  // soru "nereye gidiyorum"; kalem fiyatlarına hiç bakmıyor. Blok aşağıda
+  // kalsaydı her teslimatta fişin tamamı okunmak zorunda olurdu.
+  _writeCourierBlock(builder, data, style);
 
   for (final line in data.lines) {
     for (final row in _amountRows(
@@ -213,59 +265,56 @@ Uint8List buildCustomerReceipt(
   }
   builder
     ..bold(on: false)
-    ..line('Ödeme: ${data.paymentMethod.label} (${data.paymentStatus.label})')
-    ..rule();
+    ..line('Ödeme: ${data.paymentMethod.label} (${data.paymentStatus.label})');
 
-  final address = data.address;
-  if (data.deliveryType == DeliveryType.delivery && address != null) {
-    builder.line('Teslimat:');
-    for (final row in _wrap(address.line1, style.columns)) {
-      builder.line(row);
-    }
+  // ── DEĞİŞİKLİKLER, TOPLAM İLE TAHSİLAT ARASINDA ─────────────────────
+  //
+  // Okunuş sırası bir neden zinciri kuruyor: "toplam bu → çünkü şunlar
+  // değişti → şu kadar tahsil et". Kapıda tutar tartışması çıktığında
+  // okunacak sıra tam olarak budur. Üstte olsaydı kalem tablosunu bölerdi,
+  // altta olsaydı tahsilat satırından sonra kimse okumazdı.
+  _writeRevisionSummary(builder, style, data.revisionSummary);
+
+  // ── TAHSİLAT — kapıda yapılacak son iş, o yüzden en altta ve çift boy.
+  //
+  // Ödenmiş siparişte ve gel-al'da HİÇ BASILMAZ: sıfırlık bir "tahsil
+  // edilecek" satırı, kuryenin bir sonraki fişte gerçek tutarı gözden
+  // kaçırmasına yol açıyordu.
+  if (data.showsCourierBlock && data.collectAmount > 0) {
+    builder
+      ..rule()
+      ..feed()
+      ..align(EscPosAlign.center)
+      ..doubleSize(on: true)
+      ..bold(on: true);
     for (final row in _wrap(
-      '${address.district} / ${address.city}',
-      style.columns,
+      'TAHSİL: ${Money.formatForReceipt(data.collectAmount)}',
+      style.doubleColumns,
     )) {
       builder.line(row);
     }
-    if (_hasText(address.note)) {
-      for (final row in _wrap(address.note!.trim(), style.columns)) {
-        builder.line(row);
-      }
-    }
-
-    // Haritadan seçilen nokta varsa QR.
-    //
-    // Serbest metin adres KALDIRILMIYOR, QR onun ÜSTÜNE ekleniyor: kuryenin
-    // telefonu bitmiş, kamerası bozuk ya da fiş buruşmuş olabilir. Fiş tek
-    // başına da adrese götürmeye yetmeli — QR son yüz metreyi kısaltan bir
-    // kolaylık, tek bilgi kaynağı değil.
-    if (address.hasPin) {
-      builder
-        ..feed()
-        ..align(EscPosAlign.center)
-        ..qr(address.mapUrl)
-        ..line('Haritada aç')
-        ..align(EscPosAlign.left);
-    }
-  } else {
     builder
-      ..align(EscPosAlign.center)
-      ..bold(on: true)
-      ..line('GEL-AL')
+      ..doubleSize(on: false)
       ..bold(on: false)
       ..align(EscPosAlign.left);
   }
 
   // ── QR'lar ──────────────────────────────────────────────────────────
   //
-  // İkisi de fişin SONUNDA ve alt alta: QR'lar yer kaplıyor, araya
-  // girseler tutar satırıyla adres arasını açıp fişi okunmaz hâle
-  // getirirlerdi.
+  // Hepsi fişin SONUNDA ve alt alta: QR'lar yer kaplıyor, araya girseler
+  // tutar satırlarının arasını açıp fişi okunmaz hâle getirirlerdi.
   //
-  // ÖDEME QR'I ÖNCE, TAKİP SONRA. Müşterinin fişi eline aldığı andaki
-  // sırası bu: önce "borcum var mı", sonra "ne zaman gelecek". Ödeme
-  // QR'ı zaten yalnız ödenmemiş siparişte basılıyor.
+  // SIRA: ödeme → takip → teslim. İlk ikisi müşterinin ("borcum var mı",
+  // "ne zaman gelecek"), sonuncusu kuryenin. Kurye kâğıdı müşteriye
+  // vermeden ÖNCE en alttakini okutuyor.
+  //
+  // AYIRICI YALNIZCA BASILACAK QR VARSA: koşulsuz basılsaydı QR'sız fişte
+  // arka arkaya iki boş çizgi çıkar ve aralarında bir şeyin eksik olduğu
+  // izlenimi doğardı.
+  if (data.hasPayQr || data.hasTrackQr || data.hasDeliverQr) {
+    builder.rule();
+  }
+
   if (data.hasPayQr) {
     builder
       ..feed()
@@ -287,6 +336,22 @@ Uint8List buildCustomerReceipt(
       ..align(EscPosAlign.left);
   }
 
+  // TESLİM QR'I EN ALTTA VE BAŞLIKLI (K-20).
+  //
+  // BAŞLIK ŞART: kâğıt teslimden sonra müşteride kalıyor. Kurye bunu
+  // kapıda, kâğıdı vermeden ÖNCE okutmalı; başlıksız üçüncü bir kare
+  // hangisinin kimin olduğunu belirsiz bırakırdı.
+  if (data.hasDeliverQr) {
+    builder
+      ..feed()
+      ..align(EscPosAlign.center)
+      ..bold(on: true)
+      ..line('KURYE: TESLİMDEN ÖNCE OKUT')
+      ..bold(on: false)
+      ..qr(data.deliverUrl!)
+      ..align(EscPosAlign.left);
+  }
+
   builder.rule();
   for (final footer in style.footerLines) {
     for (final row in _wrap(footer, style.columns)) {
@@ -295,6 +360,108 @@ Uint8List buildCustomerReceipt(
   }
 
   return _finish(builder, style);
+}
+
+/// Müşteri fişindeki teslimat bloğu — kime, nereye (K-20).
+///
+/// Gel-al siparişinde bloğun tamamı yerine ortalı `GEL-AL` basılıyor: ad,
+/// telefon ve adres orada anlamsız, tahsilat satırı ise personeli olmayan
+/// bir teslimatı aramaya iterdi.
+///
+/// SİPARİŞ NOTU BU BLOĞUN İÇİNDE, fişin sonunda değil: "Zili çalmayın" bir
+/// kapı talimatı ve kurye onu **yola çıkmadan** okumalı.
+void _writeCourierBlock(
+  EscPosBuilder builder,
+  CustomerReceiptData data,
+  ReceiptStyle style,
+) {
+  if (!data.showsCourierBlock) {
+    builder
+      ..align(EscPosAlign.center)
+      ..bold(on: true)
+      ..line('GEL-AL')
+      ..bold(on: false)
+      ..align(EscPosAlign.left)
+      ..rule();
+    return;
+  }
+
+  builder
+    ..bold(on: true)
+    ..line('TESLİMAT')
+    ..bold(on: false);
+
+  if (_hasText(data.customerName)) {
+    builder.bold(on: true);
+    for (final row in _wrap(
+      TurkishCase.toUpperCase(data.customerName!.trim()),
+      style.columns,
+    )) {
+      builder.line(row);
+    }
+    builder.bold(on: false);
+  }
+
+  // TELEFON ÇİFT BOY: kurye numarayı araçta, kötü ışıkta, tek elle okuyor.
+  // Normal puntoda basıldığında ancak fişi kaldırıp yakından okunabiliyordu.
+  if (_hasText(data.customerPhone)) {
+    builder
+      ..doubleSize(on: true)
+      ..bold(on: true);
+    for (final row in _wrap(
+      'Tel: ${data.customerPhone!.trim()}',
+      style.doubleColumns,
+    )) {
+      builder.line(row);
+    }
+    builder
+      ..doubleSize(on: false)
+      ..bold(on: false);
+  }
+
+  final address = data.address;
+  if (address != null) {
+    for (final row in _wrap(address.line1, style.columns)) {
+      builder.line(row);
+    }
+    for (final row in _wrap(
+      '${address.district} / ${address.city}',
+      style.columns,
+    )) {
+      builder.line(row);
+    }
+    if (_hasText(address.note)) {
+      for (final row in _wrap(address.note!.trim(), style.columns)) {
+        builder.line(row);
+      }
+    }
+
+    // Serbest metin adres KALDIRILMIYOR, QR onun ÜSTÜNE ekleniyor: kuryenin
+    // telefonu bitmiş, kamerası bozuk ya da fiş buruşmuş olabilir. Fiş tek
+    // başına da adrese götürmeye yetmeli — QR son yüz metreyi kısaltan bir
+    // kolaylık, tek bilgi kaynağı değil.
+    if (address.hasPin) {
+      builder
+        ..feed()
+        ..align(EscPosAlign.center)
+        ..qr(address.mapUrl)
+        ..line('Haritada aç')
+        ..align(EscPosAlign.left);
+    }
+  }
+
+  if (_hasText(data.customerNote)) {
+    builder.bold(on: true);
+    for (final row in _wrap(
+      'NOT: ${data.customerNote!.trim()}',
+      style.columns,
+    )) {
+      builder.line(row);
+    }
+    builder.bold(on: false);
+  }
+
+  builder.rule();
 }
 
 /// Kurye fişi (K-14) — kime, nereye, ne kadar tahsil edilecek.
@@ -755,6 +922,72 @@ Uint8List buildBbdReceipt(
 }
 
 // ───────────────────────────── Yardımcılar ─────────────────────────────
+
+/// Revizyon bandı — fişin **en üstünde**, çift boy (K-20).
+///
+/// TEK İŞİ: birinin elinde duran ÖNCEKİ kâğıdı geçersiz kılmak. Bir satır
+/// aşağıda olsaydı, katlanmış ya da üst üste yığılmış bir fişte görünmezdi.
+///
+/// ÜÇ AYRI SATIR, tek uzun cümle değil: çift boyda satır 24 karakter ve
+/// `_wrap` "REVİZE #1 / ÖNCEKİ FİŞİ ATIN" gibi bir metni ortasından kırıp
+/// `/` ile başlayan bir satır üretirdi.
+///
+/// Mutfak ve müşteri fişi aynı yardımcıyı çağırıyor: iki yerde ayrı
+/// yazılsaydı biri güncellendiğinde ikisi ayrışır ve aynı siparişin iki
+/// kâğıdı farklı görünürdü.
+void _writeRevisionBanner(
+  EscPosBuilder builder,
+  ReceiptStyle style,
+  int revisionNo,
+) {
+  if (revisionNo <= 0) return;
+
+  builder
+    ..align(EscPosAlign.center)
+    ..doubleSize(on: true)
+    ..bold(on: true);
+
+  for (final text in [
+    'GÜNCEL FİŞ',
+    'REVİZE #$revisionNo',
+    'ÖNCEKİ FİŞİ ATIN',
+  ]) {
+    for (final row in _wrap(text, style.doubleColumns)) {
+      builder.line(row);
+    }
+  }
+
+  builder
+    ..doubleSize(on: false)
+    ..bold(on: false)
+    ..align(EscPosAlign.left)
+    ..rule()
+    ..align(EscPosAlign.center);
+}
+
+/// `DEĞİŞİKLİKLER` bloğu — neyin değiştiği.
+///
+/// Liste boşsa blok HİÇ basılmaz: başlıksız ya da boş bir blok, kâğıda
+/// bakan personele bir şeyin kayıp olduğunu düşündürürdü.
+void _writeRevisionSummary(
+  EscPosBuilder builder,
+  ReceiptStyle style,
+  List<String> summary,
+) {
+  if (summary.isEmpty) return;
+
+  builder
+    ..rule()
+    ..bold(on: true)
+    ..line('DEĞİŞİKLİKLER')
+    ..bold(on: false);
+
+  for (final change in summary) {
+    for (final row in _wrap('* $change', style.columns)) {
+      builder.line(row);
+    }
+  }
+}
 
 void _writeKitchenLine(
   EscPosBuilder builder,

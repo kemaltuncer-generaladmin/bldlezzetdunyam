@@ -21,6 +21,7 @@ use Veykemtu\BridgeApi\Http\Controllers\CatalogController;
 use Veykemtu\BridgeApi\Http\Controllers\HealthController;
 use Veykemtu\BridgeApi\Http\Controllers\KitchenController;
 use Veykemtu\BridgeApi\Http\Controllers\OrderController;
+use Veykemtu\BridgeApi\Http\Controllers\PublicTrackingController;
 use Veykemtu\BridgeApi\Http\Controllers\QuoteRequestController;
 use Veykemtu\BridgeApi\Http\Controllers\SiteContentController;
 use Veykemtu\BridgeApi\Http\Controllers\SubscriptionController;
@@ -70,6 +71,13 @@ Route::prefix('api')
         // ayrıca oran sınırı uygulanır.
         Route::post('kitchen/pair', [KitchenController::class, 'pair'])
             ->middleware('throttle:bld-auth');
+
+        // Fişteki takip QR'ı (K-20). Kimlik gerektirmez; yetki URL'deki
+        // HMAC imzasında. `/orders/{id}` ile karıştırılmamalı — bu uç
+        // siparişin çok daha DAR bir yüzünü döner (adres, ad, telefon ve
+        // kalem listesi yok).
+        Route::get('public/orders/{order}/tracking', [PublicTrackingController::class, 'show'])
+            ->middleware('throttle:bld-track');
 
         // ── Ortak (BBD Store) ────────────────────────────────────────────
         //

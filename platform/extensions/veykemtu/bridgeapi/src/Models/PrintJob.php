@@ -15,13 +15,19 @@ use Illuminate\Support\Carbon;
  * KDS kendi kalıcı kuyruğunu diskte tutar; bu tablo **yalnızca denetim**
  * içindir: hangi fiş, hangi cihazda, ne zaman basıldı.
  *
- * `(order_id, type)` çifti benzersizdir — aynı fiş iki kez kaydedilmez.
- * Bu, KDS'in ağ hatasında ack'i tekrar göndermesini zararsız kılar
- * (`docs/10-test-kabul.md` S4).
+ * `(order_id, type, revision)` ÜÇLÜSÜ benzersizdir — aynı fişin aynı sürümü
+ * iki kez kaydedilmez. Bu, KDS'in ağ hatasında ack'i tekrar göndermesini
+ * zararsız kılar (`docs/10-test-kabul.md` S4).
+ *
+ * REVİZYON K-20 İLE GELDİ. Öncesinde tekillik `(order_id, type)` idi ve
+ * düzenlenen siparişin yeniden basılan fişinin ack'i sessizce yutuluyordu;
+ * `printedAtFor()` hep ilk basımın saatini döndürdüğü için yeniden basılan
+ * kâğıt, yerini aldığı eski kâğıdın saatiyle damgalanıyordu.
  *
  * @property int $id
  * @property int $order_id
  * @property string $type
+ * @property int $revision
  * @property Carbon|null $printed_at
  * @property int|null $device_id
  */
@@ -76,18 +82,27 @@ class PrintJob extends Model
     /**
      * Fiş basımını kaydeder. İdempotenttir.
      *
-     * İlk kayıt kazanır: ikinci çağrı `printed_at`'i **değiştirmez**, çünkü
-     * denetim sorusu "ilk ne zaman basıldı"dır, "son ne zaman denendi" değil.
+     * İlk kayıt kazanır — ama artık **revizyon başına**: ikinci çağrı aynı
+     * revizyonun `printed_at`'ini değiştirmez, çünkü denetim sorusu "bu
+     * revizyon ilk ne zaman basıldı"dır, "son ne zaman denendi" değil.
+     * Revizyon artınca yeni bir satır açılır; eskisi denetim izi olarak
+     * yerinde kalır.
+     *
+     * `$revision` VARSAYILAN `0`: alanı hiç göndermeyen eski KDS sürümleri
+     * sıfır kovasına düşer, yani düzenlenmemiş sipariş için davranış
+     * bugünküyle birebir aynı kalır.
      */
     public static function record(
         int $orderId,
         string $type,
         Carbon $printedAt,
         ?int $deviceId,
+        int $revision = 0,
     ): self {
         $job = static::firstOrNew([
             'order_id' => $orderId,
             'type' => $type,
+            'revision' => $revision,
         ]);
 
         if (!$job->exists) {
@@ -99,10 +114,11 @@ class PrintJob extends Model
         return $job;
     }
 
-    public static function printedAtFor(int $orderId, string $type): ?Carbon
+    public static function printedAtFor(int $orderId, string $type, int $revision = 0): ?Carbon
     {
         return static::where('order_id', $orderId)
             ->where('type', $type)
+            ->where('revision', $revision)
             ->value('printed_at');
     }
 }

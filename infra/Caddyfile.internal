@@ -42,9 +42,15 @@
 	#   /vendor/*          yayınlanan çekirdek varlıkları (CSS, ikon fontu)
 	#   /_assets/*         çekirdeğin varlık birleştiricisi
 	#   /odeme-simulasyon/* sanal POS simülasyonu (veykemtu.payment)
+	#   /cari-odeme-simulasyon/* cari borç ödeme simülasyonu (B-14/W-12)
+	#   /teslimat/*        kuryenin fişteki QR'la açtığı teslim onayı (K-20)
 	#   /robots.txt, /favicon.svg  kökte duran statik dosyalar
+	#
+	# `/cari-odeme-simulasyon/*` LİSTEDE EKSİKTİ ve sayfa üretimde ana siteye
+	# yönleniyordu (14.08.2026'da fark edildi). `path` baştan eşleştiği için
+	# `/odeme-simulasyon/*` onu kapsamıyor — ayrı satır şart.
 	@vitrinDisi {
-		not path /api/* /admin /admin/* /storage/* /vendor/* /_assets/* /odeme-simulasyon/* /robots.txt /favicon.svg
+		not path /api/* /admin /admin/* /storage/* /vendor/* /_assets/* /odeme-simulasyon/* /cari-odeme-simulasyon/* /teslimat/* /robots.txt /favicon.svg
 	}
 	# Hedef ortamdan okunur; varsayılan üretim adresidir. Geliştirmede
 	# `SITE_PUBLIC_URL` verilerek yerel siteye yönlendirilebilir.

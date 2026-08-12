@@ -346,6 +346,14 @@ export function seedOrders(now) {
         { status: 'onaylandi', at: minutesAgo(36) },
         { status: 'hazirlaniyor', at: minutesAgo(18) },
       ],
+      // ── DÜZENLENMİŞ SİPARİŞ (K-12/K-20) ──────────────────────────────
+      //
+      // Mock revizyon motoru koşturmuyor; bu iki alan elle tohumlanıyor ki
+      // KDS'in revizyon yolu — fişin başındaki "GÜNCEL FİŞ / ÖNCEKİ FİŞİ
+      // ATIN" bandı ve DEĞİŞİKLİKLER bloğu — mock'a karşı da denenebilsin.
+      // Öncesinde mock'ta `revision` hiç yoktu ve o yol hiç görülemiyordu.
+      revision_no: 2,
+      revision_summary: ['Mercimek Çorbası: 20 -> 10', 'ÇIKARILDI: Ayran ×5'],
     },
     {
       id: 5011,
