@@ -117,9 +117,7 @@ export default async function TeklifAlPage() {
           )}
 
           <div className="text-xs/6 text-muted-foreground">
-            <p>
-              Formda yazdıklarınız yalnızca teklif hazırlamak ve size dönmek için kullanılıyor.
-            </p>
+            <p>Formda yazdıklarınız yalnızca teklif hazırlamak ve size dönmek için kullanılıyor.</p>
           </div>
         </aside>
       </div>

@@ -333,12 +333,24 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   GEÇİŞ DÖNEMİ YARDIMCILARI
+   KISAYOL SINIFLARI (`bld-*`)
 
-   Arayüz shadcn/ui bileşenlerine taşınıyor. Aşağıdaki `bld-*` sınıfları henüz
-   taşınmamış ekranları ayakta tutuyor; bir ekran shadcn'e geçtikçe oradaki
-   kullanımlar silinir ve son kullanım kalkınca sınıfın kendisi de kalkar.
-   Yeni kod bunları KULLANMAZ.
+   v2.0'da GÖZDEN GEÇİRİLDİ VE BIRAKILDI — silinmedi. Gerekçe:
+
+   Bu sınıfların hepsi zaten v2 tasarım jetonlarının üzerine kurulu
+   (`bg-card`, `bg-primary`, `border-input`, `text-muted-foreground`). Yani
+   shadcn bileşenlerinden AYRI BİR GÖRSEL DİL DEĞİLLER; aynı dilin kısayolu.
+   Altmış kullanımı tek tek bileşene çevirmek kullanıcıya hiçbir şey
+   kazandırmaz, buna karşılık on sekiz dosyada gerileme riski açardı.
+
+   Yeni kod yine de shadcn bileşenlerini kullanır (`Button`, `Input`,
+   `Badge`, `Skeleton`): bileşen odak halkası, `disabled` davranışı ve
+   `asChild` desteğini birlikte getiriyor, sınıf getirmiyor. Bir ekran başka
+   bir sebeple elden geçtiğinde oradaki kullanımlar da bileşene taşınır.
+
+   DEĞİŞTİRMEDEN ÖNCE: buradaki bir sınıfı düzenlemek onlarca ekranı birden
+   etkiler. Tek bir ekranı farklılaştırmak gerekiyorsa sınıfı değiştirmek
+   değil, o ekranda bileşene geçmek doğru olanı.
    ═══════════════════════════════════════════════════════════════════════════ */
 @utility bld-card {
   @apply rounded-card border bg-card text-card-foreground shadow-xs;

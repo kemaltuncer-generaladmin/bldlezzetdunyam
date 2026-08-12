@@ -25,6 +25,39 @@ export type AuthFormState = {
 
 export const IDLE_AUTH_STATE: AuthFormState = { status: 'idle', message: null, fieldErrors: {} };
 
+/**
+ * Telefonla giriş durumu — W-11.
+ *
+ * İKİ AŞAMALI FORMUN TEK DURUMU. `phase` alanı hangi ekranın çizileceğini
+ * söylüyor: `phone` numarayı ister, `code` altı haneyi. Ayrı iki bileşene
+ * bölünseydi "kod ekranındayken numarayı düzelt" akışı iki bileşen arasında
+ * durum taşımayı gerektirirdi.
+ *
+ * `phone` alanı geri taşınıyor çünkü doğrulama isteği numarayı da gönderiyor
+ * ve kullanıcı onu ikinci kez yazmamalı.
+ *
+ * `resendAt`, "yeniden gönder" düğmesinin ne zaman açılacağını söyleyen
+ * mutlak zaman damgası (ms). Kalan saniye olarak taşınsaydı, kullanıcı
+ * sekmeyi arka plana alıp döndüğünde sayaç donmuş görünürdü.
+ */
+export type OtpFormState = {
+  status: 'idle' | 'error';
+  phase: 'phone' | 'code';
+  phone: string;
+  message: string | null;
+  fieldErrors: Record<string, string>;
+  resendAt: number;
+};
+
+export const IDLE_OTP_STATE: OtpFormState = {
+  status: 'idle',
+  phase: 'phone',
+  phone: '',
+  message: null,
+  fieldErrors: {},
+  resendAt: 0,
+};
+
 export type CheckoutState = {
   status: 'idle' | 'error';
   message: string | null;
@@ -67,3 +100,41 @@ export type CancelState = {
 };
 
 export const IDLE_CANCEL_STATE: CancelState = { status: 'idle', message: null, at: 0 };
+
+/**
+ * Cari ödeme başlatma durumu — W-12.
+ *
+ * Başarı durumu YOK ve olamaz: başarılı akış sağlayıcının sayfasına
+ * yönlendiriyor, yani bu bileşen artık ekranda değil. Yalnızca hata
+ * taşınıyor.
+ */
+export type AccountPaymentState = {
+  status: 'idle' | 'error';
+  message: string | null;
+  at: number;
+};
+
+export const IDLE_ACCOUNT_PAYMENT_STATE: AccountPaymentState = {
+  status: 'idle',
+  message: null,
+  at: 0,
+};
+
+/**
+ * Abonelik self-servis eylemlerinin ortak durumu — W-13.
+ *
+ * `at` her çalıştırmada değişiyor: aynı hata iki kez oluştuğunda React
+ * nesneyi eşit görüp yeniden çizmezdi ve kullanıcı "tıkladım, bir şey
+ * olmadı" derdi.
+ */
+export type SubscriptionActionState = {
+  status: 'idle' | 'ok' | 'error';
+  message: string | null;
+  at: number;
+};
+
+export const IDLE_SUBSCRIPTION_STATE: SubscriptionActionState = {
+  status: 'idle',
+  message: null,
+  at: 0,
+};

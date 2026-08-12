@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { ShoppingCart } from 'lucide-react';
 import { readBrowserCookie } from '@/lib/browser-cookie';
 import { CART_CHANGED_EVENT } from '@/lib/cart-events';
+import { isOrderingRoute } from '@/content/navigation';
 
 const CART_COUNT_COOKIE = 'bld_cart_n';
 const SESSION_NAME_COOKIE = 'bld_name';
@@ -13,15 +14,20 @@ const SESSION_NAME_COOKIE = 'bld_name';
 /**
  * Sipariş akışı için sepet rozeti ve oturum bağlantısı.
  *
- * ## Neden yalnızca sipariş rotalarında?
+ * ## Ne zaman görünür?
  *
- * Site artık iki işi birden yapıyor: kurumsal tanıtım ve sipariş. Kurumsal
+ * Site iki işi birden yapıyor: kurumsal tanıtım ve sipariş. Kurumsal
  * ziyaretçinin (teklif arayan bir satın alma sorumlusu) ilk gördüğü şeyin
- * "Sepet" olması, firmayı yemek sipariş sitesi gibi gösteriyordu.
+ * "Sepet" olması, firmayı yemek sipariş sitesi gibi gösteriyordu. Rozeti
+ * tamamen silmek de doğru değildi: sipariş akışı çalışıyor.
  *
- * Rozeti silmek de doğru değildi: sipariş akışı çalışıyor ve `/menu` →
- * `/sepet` yolunda kullanıcının sepetini görmesi gerekiyor. Çözüm, bileşeni
- * rotaya bağlamak — sipariş sayfalarında görünür, kurumsal sayfalarda yok.
+ * İKİ KOŞULDAN BİRİ YETER:
+ *   * sipariş rotalarındayız (`/menu`, `/sepet`, `/odeme` …), ya da
+ *   * sepette ürün var.
+ *
+ * İkinci koşul v2.0'da eklendi (W-10): ana sayfadaki menüden sepete ürün
+ * eklenebiliyor ve o üründen sonra ziyaretçi hangi sayfaya giderse gitsin
+ * sepetini görebilmeli. Boş sepette kurumsal sayfalar eskisi gibi rozetsiz.
  *
  * Cookie'ler sunucuda değil istemcide okunuyor: sunucuda okumak kurumsal
  * sayfaları da dinamik yapar ve ISR'ı bozardı. İlk boyama iki tarafta da
@@ -35,16 +41,6 @@ const SESSION_NAME_COOKIE = 'bld_name';
  * dilli (docs/06 §5); metinleri sunucuda çözüp prop olarak geçmek aynı sonucu
  * veriyor, sağlayıcıya gerek kalmıyor.
  */
-const ORDERING_ROUTES = [
-  '/menu',
-  '/urun',
-  '/sepet',
-  '/odeme',
-  '/siparis',
-  '/siparislerim',
-  '/hesabim',
-];
-
 export interface HeaderActionLabels {
   readonly cart: string;
   readonly cartEmpty: string;
@@ -58,13 +54,20 @@ export function HeaderActions({ labels }: { labels: HeaderActionLabels }) {
   const [cartCount, setCartCount] = useState(0);
   const [firstName, setFirstName] = useState<string | null>(null);
 
-  const onOrderingRoute = ORDERING_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`),
-  );
+  const onOrderingRoute = isOrderingRoute(pathname);
 
+  /*
+   * ÇEREZ HER ROTADA OKUNUYOR, YALNIZ SİPARİŞ ROTALARINDA DEĞİL (W-10).
+   *
+   * v2.0'da ana sayfadaki "bugün mutfakta" bölümünden sepete ürün
+   * eklenebiliyor. Okuma eskisi gibi rotaya bağlı kalsaydı, ürün ekleyen
+   * ziyaretçi rozeti hiç görmez ve sepetinin var olduğunu ancak `/menu`ye
+   * gidince fark ederdi.
+   *
+   * Bu bir ISR sorunu YARATMAZ: çerez sunucuda değil tarayıcıda okunuyor,
+   * yani `/` ve `/kurumsal` statik kalmaya devam ediyor.
+   */
   useEffect(() => {
-    if (!onOrderingRoute) return;
-
     const sync = () => {
       const rawCount = readBrowserCookie(CART_COUNT_COOKIE);
       const parsed = rawCount === null ? 0 : Number.parseInt(rawCount, 10);
@@ -79,9 +82,17 @@ export function HeaderActions({ labels }: { labels: HeaderActionLabels }) {
       window.removeEventListener(CART_CHANGED_EVENT, sync);
       window.removeEventListener('focus', sync);
     };
-  }, [pathname, onOrderingRoute]);
+  }, [pathname]);
 
-  if (!onOrderingRoute) return null;
+  /*
+   * Kurumsal sayfalarda rozet YALNIZCA sepette ürün varken çıkıyor.
+   *
+   * Teklif arayan bir satın alma sorumlusunun ilk gördüğü şey "Sepet"
+   * olmamalı (bileşenin başındaki gerekçe) — ama sepetinde üç ürün olan
+   * birinden o sepeti saklamak da yanlış: hangi sayfaya giderse gitsin
+   * bıraktığı yerden devam edebilmeli.
+   */
+  if (!onOrderingRoute && cartCount === 0) return null;
 
   return (
     <div className="flex items-center gap-1 sm:gap-2">

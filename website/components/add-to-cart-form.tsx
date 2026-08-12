@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { addToCartAction } from '@/app/actions/cart';
 import { IDLE_CART_STATE } from '@/lib/action-state';
 import { announceCartChanged } from '@/lib/cart-events';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 
 type Props = {
   menuId: number;

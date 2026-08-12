@@ -2,114 +2,114 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown } from 'lucide-react';
-import { MAIN_NAV } from '@/content/navigation';
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  navigationMenuTriggerStyle,
+} from '@/components/ui/navigation-menu';
+import { MAIN_NAV, isOrderingRoute } from '@/content/navigation';
 import { cn } from '@/lib/utils';
 
 /**
  * Masaüstü ana gezinme.
  *
- * Alt menü `<details>` ile açılıyor, JavaScript durum yönetimiyle değil:
- * tarayıcı açma/kapama, klavye (Enter/Space), Escape ve odak sırasını
- * kendisi yönetiyor. Kendi yazdığımız bir dropdown'da bunların hepsini
- * yeniden kurmak ve test etmek gerekirdi.
+ * RADIX `NavigationMenu`, ÖNCEKİ `<details>/<summary>` YERİNE (W-07).
  *
- * `onMouseLeave` ile kapanma yok: yalnızca hover'a bağlı bir menü klavye ve
- * dokunmatik kullanıcıyı dışarıda bırakır.
- */
-/**
- * Sipariş akışı rotaları.
+ * `<details>` seçilmişti çünkü açma/kapama, klavye ve odak yönetimini
+ * tarayıcı bedavaya veriyordu. Vermediği tek şey ise asıl gerekli olandı:
+ * **seçim yapılınca kapanmak.** Alt menüdeki bir bağlantıya tıklandığında
+ * Next.js istemci tarafında geziniyor, DOM korunuyor ve `<details open>`
+ * olduğu gibi kalıyordu — kullanıcı yeni sayfanın üstünde hâlâ açık duran
+ * bir panel görüyordu. Dışarı tıklamak da, Escape de kapatmıyordu
+ * (`<details>` Escape dinlemez; eski yorumdaki aksi yöndeki iddia yanlıştı).
  *
- * Buralarda pazarlama gezinmesi gizleniyor. Sebep görsel değil, ölçülmüş:
- * `/menu` başlığında hem yedi bölümlük menü hem sepet/oturum hem de "Teklif
- * Al" yan yana gelince satır 1280 px'te 1362 px'e taşıyor ve sayfada yatay
- * kaydırma çıkıyordu. Kullanıcı zaten bir iş akışının içinde; bölümlerin
- * tamamına hamburger menüden erişmeye devam ediyor.
+ * Radix bunların hepsini kutudan çıkarıyor: seçimde kapanma, dış tıklama,
+ * Escape, odak tuzağı ve `aria-expanded`. `NavigationMenuLink` içindeki
+ * `onSelect` varsayılanı menüyü kapattığı için ek bir state'e gerek yok —
+ * ve rota değişimini dinlemediğimiz için "aynı sayfaya tıklanınca kapanmama"
+ * hatası da yapısal olarak ortadan kalkıyor.
  */
-const ORDERING_ROUTES = [
-  '/menu',
-  '/urun',
-  '/sepet',
-  '/odeme',
-  '/siparis',
-  '/siparislerim',
-  '/hesabim',
-];
-
 export function MainNav() {
   const pathname = usePathname();
 
-  const onOrderingRoute = ORDERING_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`),
-  );
-  if (onOrderingRoute) return null;
+  if (isOrderingRoute(pathname)) return null;
 
   return (
-    <nav aria-label="Ana gezinme" className="hidden items-center gap-0.5 xl:flex">
-      {MAIN_NAV.map((item) => {
-        const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+    <NavigationMenu className="hidden xl:flex" aria-label="Ana gezinme">
+      <NavigationMenuList className="gap-0.5">
+        {MAIN_NAV.map((item) => {
+          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
 
-        if (!item.children) {
+          if (!item.children) {
+            return (
+              <NavigationMenuItem key={item.href}>
+                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
+                  <Link
+                    href={item.href}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={cn(
+                      'text-sm font-medium whitespace-nowrap',
+                      isActive ? 'text-primary' : 'text-foreground/75',
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+            );
+          }
+
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={isActive ? 'page' : undefined}
-              className={cn(
-                'rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors',
-                'hover:bg-muted hover:text-foreground',
-                isActive ? 'text-primary' : 'text-foreground/75',
-              )}
-            >
-              {item.label}
-            </Link>
-          );
-        }
-
-        return (
-          <details key={item.href} className="group/menu relative">
-            <summary
-              className={cn(
-                'flex cursor-pointer list-none items-center gap-1 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors',
-                'hover:bg-muted hover:text-foreground [&::-webkit-details-marker]:hidden',
-                isActive ? 'text-primary' : 'text-foreground/75',
-              )}
-            >
-              {item.label}
-              <ChevronDown
-                aria-hidden="true"
-                className="size-4 transition-transform duration-200 group-open/menu:rotate-180"
-              />
-            </summary>
-
-            <div className="absolute top-full left-0 z-50 mt-1 w-80 rounded-xl border bg-popover p-2 text-popover-foreground shadow-lg">
-              <Link
-                href={item.href}
-                className="block rounded-lg px-3 py-2 text-sm font-semibold hover:bg-muted"
+            <NavigationMenuItem key={item.href}>
+              <NavigationMenuTrigger
+                className={cn(
+                  'text-sm font-medium whitespace-nowrap',
+                  isActive ? 'text-primary' : 'text-foreground/75',
+                )}
               >
-                Tüm hizmetler
-              </Link>
-              <ul className="mt-1 space-y-0.5">
-                {item.children.map((child) => (
-                  <li key={child.href}>
-                    <Link
-                      href={child.href}
-                      className="block rounded-lg px-3 py-2 transition-colors hover:bg-muted"
-                    >
-                      <span className="block text-sm font-medium">{child.label}</span>
-                      {child.summary && (
-                        <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
-                          {child.summary}
-                        </span>
-                      )}
-                    </Link>
+                {item.label}
+              </NavigationMenuTrigger>
+
+              <NavigationMenuContent>
+                <ul className="w-80 p-2">
+                  <li>
+                    <NavigationMenuLink asChild>
+                      <Link
+                        href={item.href}
+                        className="block rounded-lg px-3 py-2 text-sm font-semibold hover:bg-muted"
+                      >
+                        Tüm {item.label.toLocaleLowerCase('tr-TR')}
+                      </Link>
+                    </NavigationMenuLink>
                   </li>
-                ))}
-              </ul>
-            </div>
-          </details>
-        );
-      })}
-    </nav>
+
+                  {item.children.map((child) => (
+                    <li key={child.href}>
+                      <NavigationMenuLink asChild>
+                        <Link
+                          href={child.href}
+                          className="block rounded-lg px-3 py-2 transition-colors hover:bg-muted"
+                        >
+                          <span className="block text-sm font-medium">{child.label}</span>
+                          {child.summary && (
+                            <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+                              {child.summary}
+                            </span>
+                          )}
+                        </Link>
+                      </NavigationMenuLink>
+                    </li>
+                  ))}
+                </ul>
+              </NavigationMenuContent>
+            </NavigationMenuItem>
+          );
+        })}
+      </NavigationMenuList>
+    </NavigationMenu>
   );
 }

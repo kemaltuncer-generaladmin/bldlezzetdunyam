@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { JsonLd } from '@/components/json-ld';
 import { CtaBand } from '@/components/site/cta-band';
 import { FeatureItem, ProcessStepCard, SectorCard, ServiceCard } from '@/components/site/cards';
+import { CartSummaryBar } from '@/components/cart-summary';
+import { QuickOrder } from '@/components/site/quick-order';
 import { Section, SectionHeading } from '@/components/site/section';
 import { TodaysMenu } from '@/components/site/todays-menu';
 import { fetchSiteContent } from '@/lib/api/site-content';
@@ -121,6 +123,24 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ── 1b. Hızlı sipariş ─────────────────────────────────────────────
+        HERO'NUN HEMEN ALTINDA VE BİLEREK. Site v2.0'da sipariş odaklı: geri
+        dönen kurumsal müşteri sayfaya "bugün ne var, geçen siparişi
+        tekrarlayayım" diye geliyor ve bunun için yedi bölüm kaydırması
+        anlamsızdı.
+
+        Kutu KENDİ VERİSİNİ İSTEMCİDEN çekiyor (`/api/hizli-siparis`), yani
+        ana sayfa ISR'da kalmaya devam ediyor. Girişsiz ziyaretçide de
+        çiziliyor ama içeriği değişiyor — orada "giriş yap / kurumsal kayıt"
+        diyor.
+      */}
+      <Section aria-labelledby="hizli-siparis-baslik" className="!py-8 sm:!py-10">
+        <h2 id="hizli-siparis-baslik" className="sr-only">
+          Hızlı sipariş
+        </h2>
+        <QuickOrder />
+      </Section>
+
       {/* ── 2. Fark şeridi ────────────────────────────────────────────────── */}
       <Section aria-labelledby="fark-baslik" className="!py-12 sm:!py-16">
         <h2 id="fark-baslik" className="sr-only">
@@ -134,7 +154,13 @@ export default async function HomePage() {
       </Section>
 
       {/* ── 3. Hizmetler ─────────────────────────────────────────────────── */}
-      <Section tone="muted" aria-labelledby="hizmetler-baslik">
+      {/*
+        `id="hizmetler"`: kaldırılan `/hizmetler` sayfasının kalıcı
+        yönlendirme hedefi burası (W-08, `next.config.ts`). Bağlantı
+        çapasız kalsaydı, eski adresten gelen ziyaretçi ana sayfanın en
+        üstüne düşer ve aradığını bulamazdı.
+      */}
+      <Section id="hizmetler" tone="muted" aria-labelledby="hizmetler-baslik">
         <SectionHeading
           id="hizmetler-baslik"
           eyebrow="Hizmetler"
@@ -146,7 +172,13 @@ export default async function HomePage() {
           {featuredServices.map((service, index) => (
             <div key={service.slug} className="bld-reveal">
               <ServiceCard
-                href={`/hizmetler/${service.slug}`}
+                /*
+                  Hizmet detay sayfaları kaldırıldı (W-08). Kart artık
+                  teklif formuna, hizmet önceden seçili gelecek şekilde
+                  gidiyor — ziyaretçinin bir sonraki adımı zaten buydu;
+                  detay sayfası araya giren bir duraktı.
+                */
+                href={`/teklif-al?hizmet=${service.slug}`}
                 icon={service.icon}
                 title={service.title}
                 summary={service.summary}
@@ -159,8 +191,8 @@ export default async function HomePage() {
 
         <div className="mt-10">
           <Button asChild variant="outline" size="lg">
-            <Link href="/hizmetler">
-              Tüm hizmetler
+            <Link href="/teklif-al">
+              Size uygun düzeni konuşalım
               <ArrowRight aria-hidden="true" />
             </Link>
           </Button>
@@ -249,7 +281,7 @@ export default async function HomePage() {
             </ul>
 
             <Button asChild variant="outline" size="lg" className="mt-10">
-              <Link href="/kalite-hijyen">
+              <Link href="/kurumsal#kalite">
                 Zincirin tamamı
                 <ArrowRight aria-hidden="true" />
               </Link>
@@ -275,7 +307,7 @@ export default async function HomePage() {
                 title={sector.title}
                 need={sector.need}
                 answer={sector.answer}
-                href={`/hizmetler/${sector.serviceSlug}`}
+                href={`/teklif-al?hizmet=${sector.serviceSlug}`}
                 image={sectorImage(sector.slug)}
               />
             </div>
@@ -284,7 +316,7 @@ export default async function HomePage() {
 
         <div className="mt-10">
           <Button asChild variant="outline" size="lg">
-            <Link href="/calistigimiz-alanlar">
+            <Link href="/kurumsal#alanlar">
               Tüm alanlar
               <ArrowRight aria-hidden="true" />
             </Link>
@@ -322,6 +354,19 @@ export default async function HomePage() {
         title={`${brand.shortName} ile başlamak için tek telefon`}
         description="Kaç kişisiniz, ne zaman ve nerede — bunları söyleyin, menü önerisi ve fiyatla birlikte dönelim."
       />
+
+      {/*
+        SEPET ÇUBUĞU (W-10). "Bugün mutfakta" bölümünden sepete ekleme
+        yapılabildiği için, eklenenin nereye gittiğinin görünmesi gerekiyor.
+        Sepet boşken hiç çizilmiyor — bu yüzden ürün eklemeyen kurumsal
+        ziyaretçi hiçbir şey görmüyor.
+
+        Mobilde alta sabit (`lg:hidden`); masaüstünde header'daki sepet
+        rozeti aynı işi görüyor — o da v2.0'da sepet doluyken kurumsal
+        sayfalarda görünür oldu (`HeaderActions`). İki gösterge birden
+        aynı ekranda fazlalık olurdu.
+      */}
+      <CartSummaryBar />
     </>
   );
 }

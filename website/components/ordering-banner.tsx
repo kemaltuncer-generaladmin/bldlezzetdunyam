@@ -13,13 +13,10 @@ export function OrderingClosedBanner({ location }: { location: Location | null }
   // olarak durduruldu" tek başına müşteriyi tekrar tekrar denemeye itiyor;
   // "fırın arızalandı, 19:30'da açılıyoruz" beklemeyi bilinçli kılıyor.
   const reason = !location.ordering_enabled
-    ? (location.ordering_pause_reason ??
-       'Sipariş alımı geçici olarak durduruldu.')
+    ? (location.ordering_pause_reason ?? 'Sipariş alımı geçici olarak durduruldu.')
     : 'Şu an sipariş saatleri dışındayız.';
 
-  const resumesAt = location.ordering_resumes_at
-    ? new Date(location.ordering_resumes_at)
-    : null;
+  const resumesAt = location.ordering_resumes_at ? new Date(location.ordering_resumes_at) : null;
 
   // Süresiz durdurmada saat YAZILMAZ: uydurulmuş bir saat, gelmeyen bir
   // açılışı beklettirir.

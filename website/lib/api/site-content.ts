@@ -14,14 +14,12 @@ import {
   VISION,
 } from '@/content/company';
 import { MENU_SOLUTIONS, SEASONAL_APPROACH } from '@/content/menus';
-import { POSTS } from '@/content/posts';
 import { ALLERGEN_APPROACH, CERTIFICATIONS, QUALITY_CHAIN } from '@/content/quality';
 import { SECTORS } from '@/content/sectors';
 import { SERVICES } from '@/content/services';
 import { BRAND, CONTACT, LOGO, SOCIAL } from '@/content/site';
 import type { Differentiator, FaqItem, ProcessStep, Value } from '@/content/company';
 import type { MenuCourse, MenuSolution } from '@/content/menus';
-import type { Post } from '@/content/posts';
 import type { QualityPrinciple } from '@/content/quality';
 import type { Sector } from '@/content/sectors';
 import type { Service } from '@/content/services';
@@ -120,12 +118,15 @@ export interface SiteMenus {
 /**
  * Hizmet ve yazı gövdeleri.
  *
- * `bodyHtml` yalnızca panelden gelir; yedek içerikte `null`'dır. Yazılarda
- * yedek gövde hâlâ tipli bloklardan (`Post.body`) oluşuyor — sayfa hangisi
- * doluysa onu basar, böylece API kapalıyken de yazılar okunabilir kalır.
+ * `bodyHtml` yalnızca panelden gelir; yedek içerikte `null`'dır.
+ *
+ * BLOG (`posts`) v2.0'DA KALDIRILDI (W-08). Uç hâlâ `posts` döndürüyor —
+ * sözleşme eklemeli, alan silinmez — ama site onu ne doğruluyor ne de
+ * gösteriyor: zod nesnesi katı değil, tanımsız alanları sessizce atıyor.
+ * Yazıları geri getirmek isteyen `postSchema` + `mergePosts` + yedek
+ * dosyasını birlikte geri koymalı; git geçmişinde duruyorlar.
  */
 export type SiteService = Service & { readonly bodyHtml: Nullable<string> };
-export type SitePost = Post & { readonly bodyHtml: Nullable<string> };
 
 export interface SiteContent {
   readonly brand: SiteBrand;
@@ -137,7 +138,6 @@ export interface SiteContent {
   readonly quality: SiteQuality;
   readonly services: readonly SiteService[];
   /** Yayın tarihine göre yeniden eskiye sıralı. */
-  readonly posts: readonly SitePost[];
   readonly updatedAt: Nullable<string>;
   /** İçeriğin API'den mi yedekten mi geldiği — tanılama için, arayüz kullanmaz. */
   readonly origin: 'api' | 'fallback';
@@ -261,17 +261,6 @@ const serviceSchema = z.object({
   quote_needs: z.array(z.string()).nullish(),
 });
 
-const postSchema = z.object({
-  slug: z.string(),
-  title: z.string(),
-  description: z.string(),
-  category: z.string(),
-  published_at: z.string(),
-  // Panel sayıyı metin olarak yollayabiliyor; sayfa `number` bekliyor.
-  reading_minutes: z.coerce.number().nullish(),
-  body_html: z.string().nullish(),
-});
-
 const siteContentSchema = z.object({
   brand: brandSchema.nullish().catch(null),
   contact: contactSchema.nullish().catch(null),
@@ -281,7 +270,6 @@ const siteContentSchema = z.object({
   menus: menusSchema.nullish().catch(null),
   quality: qualitySchema.nullish().catch(null),
   services: z.array(serviceSchema).nullish().catch(null),
-  posts: z.array(postSchema).nullish().catch(null),
   updated_at: z.string().nullish().catch(null),
 });
 
@@ -290,10 +278,6 @@ type SiteContentResponse = z.infer<typeof siteContentSchema>;
 /* ══════════════════════════════════════════════════════════════════════════
    3. Yedek içerik
    ══════════════════════════════════════════════════════════════════════════ */
-
-function byNewestFirst(posts: readonly SitePost[]): readonly SitePost[] {
-  return [...posts].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
-}
 
 /**
  * `content/*.ts` dosyalarından derlenen yedek.
@@ -336,7 +320,6 @@ const FALLBACK_CONTENT: SiteContent = {
     certifications: CERTIFICATIONS,
   },
   services: SERVICES.map((service) => ({ ...service, bodyHtml: null })),
-  posts: byNewestFirst(POSTS.map((post) => ({ ...post, bodyHtml: null }))),
   updatedAt: null,
   origin: 'fallback',
 };
@@ -530,45 +513,6 @@ function mergeServices(input: SiteContentResponse['services']): readonly SiteSer
   );
 }
 
-/**
- * Okuma süresi tahmini.
- *
- * Panel bu alanı boş bırakabiliyor. Sabit bir sayı yazmak uydurma olurdu;
- * bunun yerine gövdedeki sözcük sayısından hesaplıyoruz (Türkçe için ~200
- * sözcük/dakika). En az 1 dakika — "0 dakika okuma" anlamsız görünür.
- */
-function estimateReadingMinutes(bodyHtml: Nullable<string>): number {
-  if (!bodyHtml) return 1;
-  const words = bodyHtml
-    .replace(/<[^>]*>/g, ' ')
-    .trim()
-    .split(/\s+/).length;
-  return Math.max(1, Math.round(words / 200));
-}
-
-function mergePosts(input: SiteContentResponse['posts']): readonly SitePost[] {
-  return byNewestFirst(
-    mapList(
-      input,
-      (post): SitePost => {
-        const bodyHtml = optionalText(post.body_html, null);
-        return {
-          slug: post.slug,
-          title: post.title,
-          description: post.description,
-          category: post.category,
-          publishedAt: post.published_at,
-          readingMinutes: post.reading_minutes ?? estimateReadingMinutes(bodyHtml),
-          // Panelden gelen yazının tipli blok gövdesi yok; metin `bodyHtml`'de.
-          body: [],
-          bodyHtml,
-        };
-      },
-      FALLBACK_CONTENT.posts,
-    ),
-  );
-}
-
 function merge(input: SiteContentResponse): SiteContent {
   return {
     brand: mergeBrand(input.brand),
@@ -594,7 +538,6 @@ function merge(input: SiteContentResponse): SiteContent {
     menus: mergeMenus(input.menus),
     quality: mergeQuality(input.quality),
     services: mergeServices(input.services),
-    posts: mergePosts(input.posts),
     updatedAt: optionalText(input.updated_at, null),
     origin: 'api',
   };
@@ -672,8 +615,4 @@ export function findService(
   slug: string,
 ): SiteService | undefined {
   return services.find((service) => service.slug === slug);
-}
-
-export function findPost(posts: readonly SitePost[], slug: string): SitePost | undefined {
-  return posts.find((post) => post.slug === slug);
 }

@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 
 type Props = {
   /** Sözleşmede `MenuItem.image_url` `null` olabilir (`docs/openapi.yaml`). */

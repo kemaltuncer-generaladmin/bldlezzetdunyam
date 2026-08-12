@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { IconClock } from '@/components/icons';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 import {
   etaCaveat,
   etaClockText,

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { LoginForm } from '@/components/auth/login-form';
+import { LoginTabs } from '@/components/auth/login-tabs';
 import { safeInternalPath } from '@/lib/safe-redirect';
 import { getCurrentCustomerSafe } from '@/lib/session';
 
@@ -39,9 +40,19 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           </p>
         )}
 
-        <div className="mt-6 bld-card p-5 shadow-md sm:p-6">
-          <LoginForm next={next} />
+        <div className="mt-6 rounded-xl border bg-card p-5 shadow-md sm:p-6">
+          <LoginTabs next={next} />
         </div>
+
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          Hesabınız yok mu?{' '}
+          <Link
+            href="/kurumsal-kayit"
+            className="font-medium text-primary underline underline-offset-4"
+          >
+            Kurumsal kayıt oluşturun
+          </Link>
+        </p>
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { HeaderActions } from '@/components/header-actions';
 import { BrandMark } from '@/components/site/brand-mark';
+import { HeaderShell } from '@/components/site/header-shell';
 import { MainNav } from '@/components/site/main-nav';
 import { MobileNav } from '@/components/site/mobile-nav';
 import { PRIMARY_CTA } from '@/content/navigation';
@@ -27,7 +28,7 @@ export async function SiteHeader() {
   const { brand, contact } = await fetchSiteContent();
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+    <HeaderShell>
       <div className="mx-auto flex h-18 max-w-content items-center gap-3 px-4 sm:px-6">
         <Link
           href="/"
@@ -99,6 +100,6 @@ export async function SiteHeader() {
           />
         </div>
       </div>
-    </header>
+    </HeaderShell>
   );
 }

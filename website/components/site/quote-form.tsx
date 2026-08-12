@@ -124,7 +124,7 @@ export function QuoteForm() {
           durumda doğrudan da ulaşabilirsiniz.
         </p>
         <Button asChild variant="outline" className="mt-7">
-          <Link href="/hizmetler">Hizmetleri incele</Link>
+          <Link href="/menu">Günün menüsüne bak</Link>
         </Button>
       </div>
     );

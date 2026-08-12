@@ -79,7 +79,7 @@ export function LoginForm({ next }: { next: string }) {
       <p className="text-center text-sm text-neutral-600">
         Hesabınız yok mu?{' '}
         <Link
-          href={`/kayit?next=${encodeURIComponent(next)}`}
+          href={`/kurumsal-kayit?next=${encodeURIComponent(next)}`}
           className="rounded-sm font-semibold text-brand-700 underline-offset-2 hover:underline"
         >
           Kayıt olun

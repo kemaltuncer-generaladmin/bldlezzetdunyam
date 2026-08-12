@@ -10,7 +10,7 @@ import { FormField, inputClass } from '@/components/form-field';
 import { paymentMethodHint, paymentMethodLabel } from '@/lib/labels';
 import { SERVICE_AREA_CITY, SERVICE_AREA_DISTRICTS } from '@/lib/service-area';
 import { checkoutSchema, type CheckoutValues } from '@/lib/validation/checkout';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 import type { LocationEta, PaymentMethod } from '@/lib/api/types';
 
 type Props = {

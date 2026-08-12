@@ -1,5 +1,5 @@
 import { formatPrice } from '@/lib/format';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 
 type Props = {
   subtotal: number;

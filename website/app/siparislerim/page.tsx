@@ -7,7 +7,7 @@ import { fetchOrders } from '@/lib/api/orders';
 import { formatDateTime, formatPrice } from '@/lib/format';
 import { orderStatusLabel } from '@/lib/labels';
 import { requireSession } from '@/lib/require-session';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 import type { OrderListResponse, OrderStatus } from '@/lib/api/types';
 
 export const dynamic = 'force-dynamic';

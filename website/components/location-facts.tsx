@@ -3,7 +3,7 @@ import { IconCheck, IconClock, IconTruck, IconWallet } from '@/components/icons'
 import { formatPrice } from '@/lib/format';
 import { readLocationEta } from '@/lib/eta';
 import { paymentMethodLabel } from '@/lib/labels';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 import type { Location } from '@/lib/api/types';
 
 type Fact = {

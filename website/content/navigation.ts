@@ -20,94 +20,86 @@ export interface NavItem extends NavLink {
 }
 
 export const MAIN_NAV: readonly NavItem[] = [
+  /*
+   * DÖRT SAYFA, ALT MENÜ YOK — W-08.
+   *
+   * Önceki yapı yedi başlık ve sekiz alt sayfalık bir açılır menüydü. İki
+   * sorun vardı: 1280 px'te satır taşıyordu (bkz. `ORDERING_ROUTES`) ve
+   * ziyaretçinin aradığı şey ("bugün ne var, nasıl sipariş veririm")
+   * listenin hiçbir yerinde yoktu.
+   *
+   * MENÜ İLK SIRADA ve bilerek: site artık sipariş odaklı. Tanıtım
+   * içeriği kaybolmadı, `/` ve `/kurumsal` içinde bölüm oldu.
+   *
+   * `children` alanı tip tanımında DURUYOR: alt menü ihtiyacı geri
+   * gelirse `MainNav` onu doğru şekilde çiziyor (Radix, seçimde kapanma).
+   */
+  { href: '/menu', label: 'Menü' },
   { href: '/kurumsal', label: 'Kurumsal' },
-  {
-    href: '/hizmetler',
-    label: 'Hizmetler',
-    children: [
-      {
-        href: '/hizmetler/kurumsal-toplu-yemek',
-        label: 'Kurumsal toplu yemek',
-        summary: 'Ofis, fabrika ve iş yerleri için düzenli öğün hizmeti',
-      },
-      {
-        href: '/hizmetler/tasima-yemek',
-        label: 'Taşıma yemek',
-        summary: 'Merkez mutfakta üretim, sıcaklık kontrollü teslimat',
-      },
-      {
-        href: '/hizmetler/yerinde-uretim',
-        label: 'Yerinde üretim',
-        summary: 'Kurumun kendi mutfağında ekiple üretim',
-      },
-      {
-        href: '/hizmetler/okul-yemek-hizmeti',
-        label: 'Okul yemek hizmeti',
-        summary: 'Yaş grubuna göre planlanmış öğün ve alerjen takibi',
-      },
-      {
-        href: '/hizmetler/saglik-kuruluslari',
-        label: 'Sağlık kuruluşları',
-        summary: 'Diyetisyen onaylı menü ve refakatçi öğünleri',
-      },
-      {
-        href: '/hizmetler/santiye-yemek',
-        label: 'Şantiye yemek hizmeti',
-        summary: 'Vardiyalı çalışmaya uygun, sahada teslim',
-      },
-      {
-        href: '/hizmetler/davet-organizasyon',
-        label: 'Davet ve organizasyon',
-        summary: 'Düğün, açılış ve kurumsal etkinlik catering',
-      },
-      {
-        href: '/hizmetler/toplanti-ikram',
-        label: 'Toplantı ikramları',
-        summary: 'Kahvaltı, coffee break ve seminer ikram paketleri',
-      },
-    ],
-  },
-  { href: '/menu-cozumleri', label: 'Menü Çözümleri' },
-  { href: '/kalite-hijyen', label: 'Kalite ve Hijyen' },
-  { href: '/calistigimiz-alanlar', label: 'Çalıştığımız Alanlar' },
-  { href: '/bilgi-merkezi', label: 'Bilgi Merkezi' },
   { href: '/iletisim', label: 'İletişim' },
 ];
 
 /** Header'daki birincil eylem. Her sayfada aynı yere gider. */
 export const PRIMARY_CTA = { href: '/teklif-al', label: 'Teklif Al' } as const;
 
+/**
+ * Sipariş akışı rotaları — header'ın davranışını değiştiren tek liste.
+ *
+ * Bu rotalarda pazarlama gezinmesi gizlenir, sepet/oturum göstergesi çıkar ve
+ * hamburger her genişlikte görünür kalır. Sebep görsel değil, ölçülmüş: yedi
+ * bölümlük menü + sepet + "Teklif Al" 1280 px'te satırı 1362 px'e taşıyor ve
+ * sayfada yatay kaydırma çıkarıyordu.
+ *
+ * BURADA, ÇÜNKÜ ÜÇ BİLEŞEN AYNI SORUYU SORUYOR (`MainNav`, `MobileNav`,
+ * `HeaderActions`). Liste üçünde de ayrı ayrı yazılıydı; yeni bir sipariş
+ * rotası eklendiğinde üçünü birden güncellemeyi hatırlamak gerekiyordu ve
+ * biri unutulduğunda belirti "header bazı sayfalarda tuhaf" gibi teşhisi zor
+ * bir şey oluyordu.
+ */
+export const ORDERING_ROUTES: readonly string[] = [
+  '/menu',
+  '/urun',
+  '/sepet',
+  '/odeme',
+  '/siparis',
+  '/siparislerim',
+  '/hesabim',
+];
+
+/** Verilen yol bir sipariş akışı rotası mı? */
+export function isOrderingRoute(pathname: string): boolean {
+  return ORDERING_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+}
+
 export const FOOTER_NAV: readonly {
   readonly title: string;
   readonly links: readonly NavLink[];
 }[] = [
   {
-    title: 'Hizmetler',
+    title: 'Sipariş',
     links: [
-      { href: '/hizmetler/kurumsal-toplu-yemek', label: 'Kurumsal toplu yemek' },
-      { href: '/hizmetler/tasima-yemek', label: 'Taşıma yemek' },
-      { href: '/hizmetler/yerinde-uretim', label: 'Yerinde üretim' },
-      { href: '/hizmetler/okul-yemek-hizmeti', label: 'Okul yemek hizmeti' },
-      { href: '/hizmetler/davet-organizasyon', label: 'Davet ve organizasyon' },
-      { href: '/hizmetler', label: 'Tüm hizmetler' },
+      { href: '/menu', label: 'Günün menüsü' },
+      { href: '/sepet', label: 'Sepetim' },
+      { href: '/siparislerim', label: 'Siparişlerim' },
+      { href: '/hesabim/cari', label: 'Cari hesabım' },
+      { href: '/hesabim/abonelikler', label: 'Aboneliklerim' },
     ],
   },
   {
     title: 'Kurumsal',
     links: [
       { href: '/kurumsal', label: 'Biz kimiz' },
-      { href: '/kalite-hijyen', label: 'Kalite ve hijyen' },
-      { href: '/menu-cozumleri', label: 'Menü çözümleri' },
-      { href: '/calistigimiz-alanlar', label: 'Çalıştığımız alanlar' },
-      { href: '/bilgi-merkezi', label: 'Bilgi merkezi' },
+      { href: '/kurumsal#kalite', label: 'Kalite ve hijyen' },
+      { href: '/kurumsal#alanlar', label: 'Çalıştığımız alanlar' },
+      { href: '/teklif-al', label: 'Teklif al' },
     ],
   },
   {
-    title: 'Sipariş',
+    title: 'Hesap',
     links: [
-      { href: '/menu', label: 'Günün menüsü' },
-      { href: '/siparislerim', label: 'Siparişlerim' },
       { href: '/giris', label: 'Giriş yap' },
+      { href: '/kurumsal-kayit', label: 'Kurumsal kayıt' },
+      { href: '/iletisim', label: 'İletişim' },
     ],
   },
 ];

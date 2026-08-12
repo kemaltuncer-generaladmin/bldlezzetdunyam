@@ -11,18 +11,18 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        // Kişisel veri taşıyan ve oturum gerektiren alanlar dizinlenmez.
-        // Kurumsal sayfaların tamamı serbesttir.
-        disallow: [
-          '/sepet',
-          '/odeme',
-          '/siparis/',
-          '/siparislerim',
-          '/hesabim',
-          '/giris',
-          '/kayit',
-          '/api/',
-        ],
+        /*
+         * Kişisel veri taşıyan ve oturum gerektiren alanlar dizinlenmez.
+         * Kurumsal sayfaların tamamı serbesttir.
+         *
+         * `/kurumsal-kayit` BİLEREK LİSTEDE DEĞİL (v2.0). Yerini aldığı
+         * `/kayit` buradaydı ve doğruydu — bireysel kayıt aranacak bir
+         * sayfa değildi. Kurumsal kayıt ise bir DÖNÜŞÜM sayfası: "kurumsal
+         * yemek hesabı" arayan bir satın alma sorumlusunun inebileceği
+         * yer ve boş bir form olduğu için kişisel veri taşımıyor.
+         * `sitemap.ts` de onu ilan ediyor; ikisi tutarlı olmak zorunda.
+         */
+        disallow: ['/sepet', '/odeme', '/siparis/', '/siparislerim', '/hesabim', '/giris', '/api/'],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,

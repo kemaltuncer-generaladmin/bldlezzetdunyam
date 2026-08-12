@@ -7,6 +7,7 @@ import { Mail, Menu, MessageCircle, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -14,7 +15,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { BrandMark } from '@/components/site/brand-mark';
-import { LEGAL_NAV, MAIN_NAV, PRIMARY_CTA } from '@/content/navigation';
+import { LEGAL_NAV, MAIN_NAV, PRIMARY_CTA, isOrderingRoute } from '@/content/navigation';
 import { cn } from '@/lib/utils';
 
 /**
@@ -32,29 +33,25 @@ export type MobileNavChannel = {
 const CHANNEL_ICONS = { phone: Phone, whatsapp: MessageCircle, email: Mail } as const;
 
 /**
- * Sipariş akışı rotaları — `MainNav` ile aynı liste.
- *
- * Oralarda masaüstü gezinmesi gizlendiği için hamburger düğmesi her genişlikte
- * görünür kalmalı; yoksa geniş ekranda sipariş sayfasındaki kullanıcının
- * hiçbir gezinme yolu kalmıyor.
- */
-const ORDERING_ROUTES = [
-  '/menu',
-  '/urun',
-  '/sepet',
-  '/odeme',
-  '/siparis',
-  '/siparislerim',
-  '/hesabim',
-];
-
-/**
  * Mobil gezinme.
  *
  * Sheet, odak tuzağını ve Escape ile kapanmayı Radix üzerinden hazır getiriyor.
- * Bizim eklediğimiz tek davranış: **rota değişince kapanma.** Onsuz kullanıcı
- * bir bağlantıya bastığında sayfa arkada değişiyor ama panel açık kalıyor ve
- * hiçbir şey olmamış gibi görünüyor.
+ *
+ * KAPANMA İKİ KEMERLE SAĞLANIYOR (W-07) — ve ikisi de gerekli:
+ *
+ * 1. Her bağlantı `SheetClose asChild` ile sarılı. Tıklama anında kapatır;
+ *    hedefin ne olduğuna bakmaz.
+ * 2. `pathname` değişince `setOpen(false)`. Tarayıcı geri/ileri tuşuyla
+ *    yapılan gezinmeyi yakalar — orada tıklama olmadığı için 1. kemer
+ *    devreye girmez.
+ *
+ * ÖNCEDEN YALNIZ 2. KEMER VARDI VE ÜÇ DURUMDA DELİNİYORDU:
+ *   * bulunduğun sayfanın kendi bağlantısına dokunmak — `usePathname()` aynı
+ *     dizeyi döndürüyor, efekt hiç yeniden koşmuyor, panel açık kalıyor;
+ *   * alttaki `tel:` / `wa.me` / `mailto:` düğmeleri — rota hiç değişmiyor,
+ *     kullanıcı telefon uygulamasından dönünce paneli açık buluyor;
+ *   * yavaş bir RSC geçişi (`/odeme`, `/siparislerim` dinamik) — panel geçiş
+ *     boyunca açık duruyor ve "kapanmıyor" olarak okunuyor.
  *
  * Alt menüler burada açılır-kapanır değil, düz liste hâlinde: mobilde iki
  * seviyeli açılım fazladan bir dokunuş ve fazladan bir hata payı demek.
@@ -73,9 +70,7 @@ export function MobileNav({
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
-  const onOrderingRoute = ORDERING_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`),
-  );
+  const onOrderingRoute = isOrderingRoute(pathname);
 
   useEffect(() => {
     setOpen(false);
@@ -112,32 +107,36 @@ export function MobileNav({
               const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
                 <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    aria-current={isActive ? 'page' : undefined}
-                    className={cn(
-                      'flex min-h-11 items-center rounded-lg px-3 text-[0.95rem] font-medium transition-colors',
-                      isActive ? 'bg-accent text-accent-foreground' : 'hover:bg-muted',
-                    )}
-                  >
-                    {item.label}
-                  </Link>
+                  <SheetClose asChild>
+                    <Link
+                      href={item.href}
+                      aria-current={isActive ? 'page' : undefined}
+                      className={cn(
+                        'flex min-h-11 items-center rounded-lg px-3 text-[0.95rem] font-medium transition-colors',
+                        isActive ? 'bg-accent text-accent-foreground' : 'hover:bg-muted',
+                      )}
+                    >
+                      {item.label}
+                    </Link>
+                  </SheetClose>
 
                   {item.children && (
                     <ul className="mt-1 mb-2 ml-3 space-y-0.5 border-l border-border pl-3">
                       {item.children.map((child) => (
                         <li key={child.href}>
-                          <Link
-                            href={child.href}
-                            className={cn(
-                              'flex min-h-11 items-center rounded-lg px-3 text-sm transition-colors',
-                              pathname === child.href
-                                ? 'font-medium text-primary'
-                                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                            )}
-                          >
-                            {child.label}
-                          </Link>
+                          <SheetClose asChild>
+                            <Link
+                              href={child.href}
+                              className={cn(
+                                'flex min-h-11 items-center rounded-lg px-3 text-sm transition-colors',
+                                pathname === child.href
+                                  ? 'font-medium text-primary'
+                                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                              )}
+                            >
+                              {child.label}
+                            </Link>
+                          </SheetClose>
                         </li>
                       ))}
                     </ul>
@@ -150,31 +149,41 @@ export function MobileNav({
           <ul className="mt-6 space-y-0.5 border-t pt-4 text-xs text-muted-foreground">
             {LEGAL_NAV.map((link) => (
               <li key={link.href}>
-                <Link href={link.href} className="flex min-h-11 items-center px-3">
-                  {link.label}
-                </Link>
+                <SheetClose asChild>
+                  <Link href={link.href} className="flex min-h-11 items-center px-3">
+                    {link.label}
+                  </Link>
+                </SheetClose>
               </li>
             ))}
           </ul>
         </nav>
 
         <div className="space-y-2 border-t p-4">
-          <Button asChild size="lg" className="w-full">
-            <Link href={PRIMARY_CTA.href}>{PRIMARY_CTA.label}</Link>
-          </Button>
+          <SheetClose asChild>
+            <Button asChild size="lg" className="w-full">
+              <Link href={PRIMARY_CTA.href}>{PRIMARY_CTA.label}</Link>
+            </Button>
+          </SheetClose>
 
-          {/* Girilmemiş kanal hiç render edilmez — sahte numara göstermek yerine. */}
+          {/* Girilmemiş kanal hiç render edilmez — sahte numara göstermek yerine.
+              `SheetClose` burada özellikle önemli: `tel:`/`wa.me`/`mailto:`
+              bağlantıları rotayı hiç değiştirmiyor, yani paneli kapatacak
+              başka bir mekanizma yok. Kullanıcı arama ekranından dönünce
+              paneli açık bulmamalı. */}
           {channels.map((channel) => {
             const Icon = CHANNEL_ICONS[channel.kind];
             // WhatsApp'ta numara değil eylem yazılır; `href` zaten wa.me adresi.
             const label = channel.kind === 'whatsapp' ? 'WhatsApp' : channel.display;
             return (
-              <Button key={channel.href} asChild variant="outline" size="lg" className="w-full">
-                <a href={channel.href}>
-                  <Icon aria-hidden="true" />
-                  {label}
-                </a>
-              </Button>
+              <SheetClose key={channel.href} asChild>
+                <Button asChild variant="outline" size="lg" className="w-full">
+                  <a href={channel.href}>
+                    <Icon aria-hidden="true" />
+                    {label}
+                  </a>
+                </Button>
+              </SheetClose>
             );
           })}
         </div>

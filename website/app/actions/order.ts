@@ -3,14 +3,19 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { ApiError, userMessage } from '@/lib/api/client';
-import { isOrderingOpen } from '@/lib/api/catalog';
-import { cancelOrder, createOrder } from '@/lib/api/orders';
-import { clearCart, resolveCart } from '@/lib/cart';
+import { fetchCatalog, flattenItems, isOrderingOpen } from '@/lib/api/catalog';
+import { cancelOrder, createOrder, fetchOrder } from '@/lib/api/orders';
+import { addLine, clearCart, readCart, resolveCart, writeCart } from '@/lib/cart';
 import { readToken } from '@/lib/session';
 import { istanbulLocalToUtcIso } from '@/lib/timezone';
 import { checkoutSchema } from '@/lib/validation/checkout';
-import type { Address, OrderCreateRequest, OrderCreatedResponse } from '@/lib/api/types';
-import type { CancelState, CheckoutState } from '@/lib/action-state';
+import type {
+  Address,
+  OrderCreateRequest,
+  OrderCreatedResponse,
+  OrderDetail,
+} from '@/lib/api/types';
+import type { CancelState, CartActionState, CheckoutState } from '@/lib/action-state';
 
 function invalid(message: string, fieldErrors: Record<string, string> = {}): CheckoutState {
   return { status: 'error', message, fieldErrors };
@@ -143,6 +148,106 @@ export async function createOrderAction(
       ? redirectUrl
       : `/siparis/${created.id}`,
   );
+}
+
+/**
+ * Geçmiş bir siparişi sepete geri yükler — W-10.
+ *
+ * SEÇENEKLER TAŞINAMIYOR VE BU SÖZLEŞMEDEN GELİYOR. `OrderItem` seçenek
+ * KİMLİKLERİNİ değil, görünen ADLARINI taşıyor (`options?: string[]`);
+ * "Az acılı" metninden hangi `option_value_id` olduğunu geri çıkarmak,
+ * seçenek adı değiştiğinde sessizce yanlış ürün eklemek demekti.
+ *
+ * Bu yüzden ZORUNLU seçeneği olan ürünler atlanıyor ve kullanıcıya kaç
+ * satırın atlandığı SAYIYLA söyleniyor. Sessizce eksik bir sepet
+ * hazırlamak, müşterinin ödeme adımında fark etmesine yol açardı.
+ *
+ * Menüden kalkmış ya da bugün tükenmiş ürünler de atlanıyor: katalog
+ * `fresh` çekiliyor, yani karar ISR önbelleğine değil o anki duruma
+ * dayanıyor.
+ */
+export async function repeatOrderAction(
+  _prev: CartActionState,
+  formData: FormData,
+): Promise<CartActionState> {
+  const token = await readToken();
+  if (!token) redirect('/giris?next=%2F');
+
+  const orderId = Number(formData.get('order_id'));
+  if (!Number.isFinite(orderId) || orderId <= 0) {
+    return { status: 'error', message: 'Sipariş bulunamadı.', at: Date.now() };
+  }
+
+  let order: OrderDetail;
+  let catalog: Awaited<ReturnType<typeof fetchCatalog>>;
+  try {
+    [order, catalog] = await Promise.all([fetchOrder(token, orderId), fetchCatalog('fresh')]);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      redirect('/giris?next=%2F&durum=suresi-doldu');
+    }
+    return {
+      status: 'error',
+      message: userMessage(error, 'Sipariş okunamadı, tekrar deneyin.'),
+      at: Date.now(),
+    };
+  }
+
+  if (!isOrderingOpen(catalog.location)) {
+    return {
+      status: 'error',
+      message: 'Şu anda sipariş alamıyoruz. Menüden çalışma saatlerini görebilirsiniz.',
+      at: Date.now(),
+    };
+  }
+
+  const available = new Map(flattenItems(catalog.categories).map((item) => [item.id, item]));
+
+  let lines = await readCart();
+  let added = 0;
+  let skipped = 0;
+
+  for (const orderItem of order.items) {
+    const item = available.get(orderItem.menu_id);
+
+    // Menüden kalkmış, tükenmiş ya da zorunlu seçeneği olan ürün.
+    // `is_available` menüden kalkmayı, `sold_out_today` o günkü tükenmeyi
+    // ayrı ayrı gösteriyor (K-11). İkisi de eklemeyi engelliyor.
+    const unavailable = !item || !item.is_available || item.sold_out_today;
+
+    if (unavailable || (item.options ?? []).some((option) => option.required)) {
+      skipped += 1;
+      continue;
+    }
+
+    lines = addLine(lines, {
+      menuId: orderItem.menu_id,
+      quantity: orderItem.quantity,
+      optionValueIds: [],
+      note: orderItem.note ?? null,
+    });
+    added += 1;
+  }
+
+  if (added === 0) {
+    return {
+      status: 'error',
+      message: 'Bu siparişteki ürünlerin hiçbiri şu anda eklenemedi. Menüden seçim yapabilirsiniz.',
+      at: Date.now(),
+    };
+  }
+
+  await writeCart(lines);
+  revalidatePath('/sepet');
+
+  return {
+    status: 'ok',
+    message:
+      skipped === 0
+        ? 'Siparişiniz sepete eklendi.'
+        : `${added} ürün sepete eklendi. ${skipped} ürün seçenek gerektirdiği ya da bugün bulunmadığı için atlandı.`,
+    at: Date.now(),
+  };
 }
 
 export async function cancelOrderAction(

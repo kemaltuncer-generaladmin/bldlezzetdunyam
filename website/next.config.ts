@@ -56,6 +56,61 @@ const nextConfig: NextConfig = {
      */
     optimizePackageImports: ['radix-ui', 'lucide-react'],
   },
+  /*
+   * v2.0 BİLGİ MİMARİSİ SADELEŞTİRMESİ — W-08.
+   *
+   * On küsur tanıtım sayfası dörde indi: ana sayfa, kurumsal, iletişim ve
+   * teklif. Kaldırılan sayfaların içeriği kaybolmadı; `/` ve `/kurumsal`
+   * içinde bölüm oldu.
+   *
+   * KALICI (308) YÖNLENDİRME, SİLME DEĞİL. Bu adreslerin bir kısmı arama
+   * motorlarında kayıtlı ve bir kısmı müşterilere e-postayla gönderildi.
+   * Sayfayı 404'e bırakmak, o bağlantıların hem sıralamasını hem de
+   * ziyaretçisini çöpe atmak olurdu; yönlendirme sıralamayı hedefe taşır.
+   *
+   * `permanent: true` → 308. Tarayıcı ve arama motoru bunu önbelleğe alır,
+   * yani karar geri alınırsa eski bağlantılar bir süre daha yönlenmeye
+   * devam eder. Bilinçli: bu sayfalar geri gelmeyecek.
+   *
+   * Alt sayfalar ÖNCE geliyor (`/hizmetler/:slug`), çünkü Next.js listeyi
+   * sırayla eşleştiriyor ve `/hizmetler` kuralı önce yazılsaydı alt
+   * sayfaları da yakalar, hepsini ana sayfaya gönderirdi.
+   */
+  async redirects() {
+    return [
+      // Hizmet detayları → ana sayfadaki hizmetler bölümü.
+      { source: '/hizmetler/:slug', destination: '/#hizmetler', permanent: true },
+      { source: '/hizmetler', destination: '/#hizmetler', permanent: true },
+
+      // Menü çözümleri → gerçek menü. Ziyaretçinin aradığı zaten buydu.
+      { source: '/menu-cozumleri', destination: '/menu', permanent: true },
+
+      // Kalite/hijyen ve çalıştığımız alanlar → kurumsal sayfanın bölümleri.
+      { source: '/kalite-hijyen', destination: '/kurumsal#kalite', permanent: true },
+      { source: '/calistigimiz-alanlar', destination: '/kurumsal#alanlar', permanent: true },
+
+      // Bilgi merkezi (blog) tamamen kaldırıldı. Yazıların kendi adresleri
+      // için hedef yok; kurumsal sayfa en yakın karşılık.
+      { source: '/bilgi-merkezi/:slug', destination: '/kurumsal', permanent: true },
+      { source: '/bilgi-merkezi', destination: '/kurumsal', permanent: true },
+
+      /*
+       * BİREYSEL KAYIT → KURUMSAL KAYIT.
+       *
+       * Sipariş kapısı kurumsal hesaplarda açık (`docs/00` B2B kararı) ve
+       * sunucu zaten her yeni kaydı kurumsal işaretliyor. Eski `/kayit`
+       * formu ise unvan ve vergi bilgisi sormuyordu; yani
+       * faturalandırılamayan "kurumsal" hesaplar üretiyordu. İki yol
+       * arasındaki bu tutarsızlık, formu doldurduktan sonra fark edilen
+       * bir sorun olurdu.
+       *
+       * `permanent: false` (307) — bu bir iş kuralı, kalıcı bir adres
+       * taşıması değil. Bireysel kayıt geri açılırsa tarayıcıda önbelleğe
+       * alınmış bir 308 yolu tıkamamalı.
+       */
+      { source: '/kayit', destination: '/kurumsal-kayit', permanent: false },
+    ];
+  },
   images: {
     /*
      * Menü görselleri API'den mutlak URL olarak gelir (`MenuItem.image_url`);

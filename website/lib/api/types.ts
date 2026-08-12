@@ -57,3 +57,23 @@ export type OrderCreatedResponse = JsonCreated<operations['createOrder']>;
 export type LoginRequest = NonNullable<
   operations['login']['requestBody']
 >['content']['application/json'];
+
+/**
+ * Telefonla giriş (W-11 / B-18).
+ *
+ * `202` gövdesi `expires_in` ve `resend_after` taşıyor: geri sayımın
+ * süresini SUNUCU söylüyor, arayüz sabit yazmıyor. Sunucudaki bekleme
+ * (`OtpService::RESEND_COOLDOWN_SECONDS`) değiştiğinde ekrandaki sayaç
+ * kendiliğinden uyuyor; sabit yazılsaydı ikisi sessizce ayrışırdı.
+ */
+export type OtpRequestResponse =
+  operations['requestOtp']['responses'][202]['content']['application/json'];
+
+/** Cari hesap (W-12). */
+export type AccountSummary = JsonOk<operations['getAccountSummary']>;
+export type AccountStatement = JsonOk<operations['getAccountStatement']>;
+export type AccountPaymentStarted = JsonCreated<operations['startAccountPayment']>;
+
+/** Abonelik (W-13). */
+export type SubscriptionListResponse = JsonOk<operations['listSubscriptions']>;
+export type Subscription = Schemas['Subscription'];

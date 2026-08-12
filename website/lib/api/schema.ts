@@ -63,6 +63,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/otp/request": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Telefona giriş kodu gönder
+         * @description Kurumsal müşteri her sipariş için şifre hatırlamak zorunda kalmasın diye
+         *     ikinci bir giriş kapısı. E-posta + şifre yolu kapanmıyor.
+         *
+         *     **Yanıt numara kayıtlı olsun olmasın AYNIDIR.** "Bu numara kayıtlı
+         *     değil" demek, müşteri listesinin numara numara taranmasına izin
+         *     vermek olurdu. Kayıtsız numaraya SMS gönderilmez; bunu yalnızca
+         *     numaranın gerçek sahibi fark edebilir.
+         *
+         *     Telefon biçimi serbesttir: `5551112233`, `05551112233`,
+         *     `+905551112233` ve boşluklu yazımlar aynı numaraya çözülür.
+         */
+        post: operations["requestOtp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/otp/verify": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Giriş kodunu doğrula
+         * @description Başarılı doğrulama şifreli girişle AYNI gövdeyi döndürür; istemci
+         *     tarafında token'ın nereden geldiği fark etmez.
+         *
+         *     Kod tek kullanımlıktır ve doğrulandığı anda aynı numaranın diğer açık
+         *     kodları da tüketilir. Beş yanlış denemeden sonra kod ölür, yeni kod
+         *     istenmelidir.
+         */
+        post: operations["verifyOtp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/logout": {
         parameters: {
             query?: never;
@@ -394,6 +456,43 @@ export interface paths {
         get: operations["getAccountStatement"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/payments": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cari borç ödemesi başlat
+         * @description İki mod, tek uç: `amount` ile istenen tutar, `full: true` ile borcun
+         *     tamamı.
+         *
+         *     **Tutar sunucuda doğrulanır.** `full` modunda istemcinin gönderdiği
+         *     hiçbir rakam okunmaz; bakiye yeniden hesaplanır. Aksi hâlde
+         *     istemcinin ekranındaki eski bakiye ile gerçek borç ayrıştığında
+         *     (arada bir sipariş geçmişse) müşteri eksik ödeyip "kapattım" sanırdı.
+         *
+         *     Borcu aşan ödeme reddedilir: fazla ödeme defterde negatif bakiye
+         *     yaratır ve iadesi elle iş demektir.
+         *
+         *     Ödeme BU UÇTA TAMAMLANMAZ. Yanıttaki `redirect_url` sağlayıcının
+         *     sayfasıdır (bugün simülasyon); defter ancak ödeme kesinleşince
+         *     yazılır.
+         */
+        post: operations["startAccountPayment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2226,6 +2325,29 @@ export interface components {
              * @description Abonelikten üretildiyse abonelik kimliği; elle siparişte null.
              */
             subscription_id?: number | null;
+            /**
+             * @description Kaçıncı revizyon (K-12). Sipariş mutfakta düzenlendiğinde
+             *     artar. İstemciler "Revize edildi" rozetini ve "siparişiniz
+             *     güncellendi" bildirimini bu alanın DEĞİŞMESİNE bağlar —
+             *     yalnız duruma bakan bir tekilleştirme, içerik değiştiğinde
+             *     müşteriyi hiç uyarmaz.
+             * @default 0
+             */
+            revision_no: number;
+            /**
+             * @description Revizyon özeti, eskiden yeniye. İç alanlar (kim yaptı, hangi
+             *     kasa, ham anlık görüntüler) **dönmez**.
+             */
+            revisions?: {
+                revision_no: number;
+                reason: string;
+                /** @description Müşteriye iade edilen tutar; yoksa 0. */
+                refund: components["schemas"]["Money"];
+                /** @description Ek tahsil edilecek fark; yoksa 0. */
+                extra_charge: components["schemas"]["Money"];
+                /** Format: date-time */
+                created_at: string;
+            }[];
         };
         /** @description Fiyat alanı **yoktur** — mutfak kapsamı fiyat görmez. */
         KitchenOrderItem: {
@@ -2841,6 +2963,95 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
+    requestOtp: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example 05551112233 */
+                    phone: string;
+                };
+            };
+        };
+        responses: {
+            /** @description İstek alındı (numara kayıtlıysa SMS gönderildi) */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message: string;
+                        /**
+                         * @description Kodun ömrü (saniye).
+                         * @example 300
+                         */
+                        expires_in: number;
+                        /**
+                         * @description Yeni kod istenebilmesi için beklenecek süre (saniye).
+                         * @example 60
+                         */
+                        resend_after: number;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    verifyOtp: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example 05551112233 */
+                    phone: string;
+                    /** @example 482913 */
+                    code: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Giriş başarılı */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthResponse"];
+                };
+            };
+            /** @description Hesap devre dışı (`FORBIDDEN`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
     logout: {
         parameters: {
             query?: never;
@@ -3345,6 +3556,54 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+        };
+    };
+    startAccountPayment: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Ödenecek tutar (kuruş). `full` true ise yok sayılır. */
+                    amount?: number;
+                    /** @description true ise o anki borcun tamamı ödenir. */
+                    full?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Ödeme başlatıldı */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        payment_id: number;
+                        /** @description Ödenecek tutar (kuruş). */
+                        amount: number;
+                        /** @description İşlem başlatıldığı andaki borç (kuruş). */
+                        balance: number;
+                        /** @example TRY */
+                        currency: string;
+                        /** @enum {string} */
+                        status: "pending";
+                        /** Format: uri */
+                        redirect_url: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            422: components["responses"]["ValidationFailed"];
+            429: components["responses"]["RateLimited"];
         };
     };
     listSubscriptions: {

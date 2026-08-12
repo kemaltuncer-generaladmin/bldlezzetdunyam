@@ -5,7 +5,7 @@ import { ProductImage } from '@/components/product-image';
 import { formatPrice } from '@/lib/format';
 import { productPath } from '@/lib/slug';
 import type { MenuItem } from '@/lib/api/types';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 
 type Props = {
   item: MenuItem;
