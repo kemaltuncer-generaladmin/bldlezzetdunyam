@@ -223,6 +223,46 @@ Otomatik karşılıkları: PHP tarafında `AdminAccountTest`, `AdminPhoneOrderTe
 | 3 | Ana sayfadaki menüden sepete ekle | Sepet çubuğu ve header rozeti görünür |
 | 4 | Seçeneği olan ürün | Sepete eklenmez, detay sayfasına gider |
 
+### S11 — Fiş güncelliği ve QR'lar (K-17 … K-19, W-15/W-16, 12.08.2026)
+
+Otomatik karşılıkları: `mutfakapp/test/print_queue_test.dart` (37),
+`packages/core/test/escpos_golden_test.dart` (QR golden'ları ve dört kural
+testi), `ContractTest` içindeki üç fiş bağlantısı testi,
+`website/e2e/hesap.spec.ts` "Adres defteri (W-15)".
+
+**S11.1 — Eski fiş asla çıkmaz**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Yazıcıyı kapat, sipariş onayla | Mutfak fişi kuyrukta bekler |
+| 2 | Aynı siparişi KDS'ten düzenle | Kuyrukta o siparişin **tek** mutfak işi kalır, sürümü yeni olan |
+| 3 | Yazıcıyı aç | **Yalnız güncel fiş** basılır, eskisi hiç çıkmaz |
+| 4 | 1–2'yi yaptıktan sonra basmadan kasayı yeniden başlat | Kuyruk diskten gelir, yine yalnız güncel fiş basılır |
+| 5 | Fiş basıldıktan **sonra** düzenle | Basılmış satır kuyrukta durur (denetim izi), yeni sürüm ayrıca basılır |
+| 6 | Mutfak fişi yenilenirken bekleyen müşteri fişi | **Düşürülmez** — tür bazında siliniyor |
+
+**S11.2 — Fişteki QR'lar**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Kapıda ödemeli sipariş, `hazir` yap | Müşteri fişinde **iki** QR: üstte ödeme, altta takip |
+| 2 | Ödeme QR'ını okut | Ödeme sayfası açılır; bitince takip sayfasına döner |
+| 3 | Takip QR'ını okut | `/siparis/<id>` açılır |
+| 4 | Online ödenmiş sipariş | Ödeme QR'ı **basılmaz**, takip QR'ı basılır |
+| 5 | `FRONTEND_URL` boşken | İki QR da basılmaz, fiş eski hâliyle çıkar |
+| 6 | Haritada iğnesi olan adres | Harita QR'ı ayrıca basılır (K-14) |
+
+**S11.3 — Adres defteri ve harita**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `/hesabim/adresler` → yeni adres | Listede görünür |
+| 2 | "Varsayılan" işaretli adres, `/odeme` | Form önceden dolu gelir |
+| 3 | Haritada iğne koy, sipariş ver | Kurye fişinde harita QR'ı basılır |
+| 4 | İğneyi hizmet alanı dışına sürükle | Kabul edilmez, iğne eski yerine döner, uyarı çıkar |
+| 5 | İğne koymadan sipariş ver | Sipariş geçer; fiş QR'sız basılır (iğne zorunlu değil) |
+| 6 | Adresi sil | Onay sorar; geçmiş siparişlerin adresi değişmez |
+
 ## 2. Bileşen bazlı kabul ölçütleri
 
 ### Backend (`platform/`)

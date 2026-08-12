@@ -592,3 +592,103 @@ dolduğunun tek işareti o.
 - **Simülasyon POS canlıda açık kalıyor** (kullanıcı kararı). Kartla
   ödenen sipariş fiilen bedava; panelde her ekranın tepesinde uyarı
   şeridi var.
+
+---
+
+# Fiş güncelliği, QR'lar ve sitenin mobilden geri kalması (12.08.2026)
+
+Üç şikâyet: *"fişlerde saçmalık var, eski fişler asla çıkmamalı"*,
+*"konum QR'ı yok"*, *"web sitesi mobil uygulamanın gerisinde"*.
+
+## K-17 — Eski fiş artık basılmıyor
+
+Sipariş düzenlenince (K-12) yeni sürüm kuyruğa giriyordu ama **eski sürüm de
+kuyrukta bekliyordu.** Yazıcı meşgulse, kâğıt bittiyse ya da kasa yeniden
+başladıysa mutfak önce eskiyi, sonra yeniyi alıyordu. İki kâğıt arasındaki
+farkı kimse okumuyor — üstteki neyse o pişiyor. Yani iptal edilmiş bir satır
+yine de hazırlanıyordu.
+
+Kural: bir iş kuyruğa girer girmez, aynı siparişin aynı türdeki **daha eski ve
+henüz basılmamış** işleri düşürülüyor.
+
+Üç sınır bilerek kondu ve testle çakıldı (37 test):
+
+- **Basılmış iş silinmiyor** — o satır hem denetim kaydı hem de sunucuya `ack`
+  gidip gitmediğinin tek izi.
+- **Yalnız daha eski sürümler** — parametre korunacak sürüm; eşitlik dâhil
+  edilseydi işin kendisi silinirdi.
+- **Tür bazında** — müşteri fişi düzenlemede yeniden tetiklenmiyor; mutfak
+  fişi yenilendi diye bekleyen müşteri fişini düşürmek onu tamamen
+  kaybettirirdi.
+
+**Sıra önemli: önce ekle, sonra düşür.** Tersi olsaydı iki işlem arasında
+çöken kasa o sipariş için kuyrukta sıfır iş bırakırdı — mutfak hiç fiş
+görmezdi. Bu sırayla en kötü ihtimalde fazladan bir eski fiş basılır.
+
+## K-18/K-19 — Fişteki QR'lar üçe çıktı
+
+Harita QR'ı K-14'ten beri vardı. Eklenenler: **takip QR'ı** (`/siparis/<id>`)
+ve **ödeme QR'ı**. Üçü de koşullu — veri yoksa blok hiç basılmıyor, boş kare
+çıkmıyor.
+
+- **Ödeme QR'ı ödenmiş siparişte basılmıyor.** Ödenmiş fişte ödeme karesi
+  görmek müşteriyi ikinci kez ödemeye çalıştırır.
+- **Ödeme QR'ı takip QR'ının üstünde.** Kapıda ödemeli müşterinin fişi eline
+  alınca yapacağı ilk iş ödemek.
+- Bağlantıyı **sunucu üretiyor**, KDS değil: kasada eski bir alan adı kalırsa
+  QR sessizce ölü bir bağlantı taşır ve kimse fark etmez.
+
+## Bu turun asıl bulgusu: `FRONTEND_URL` hiçbir yerde tanımlı değildi
+
+İki ödeme denetleyicisi de `config('app.frontend_url')` okuyordu; değişken ne
+`platform/.env.example`'da ne `docker-compose.coolify.yml`'de vardı — yani
+**canlıda hiç set edilmemişti.** Ödeme dönüş adresi API köküne düşüyordu ve
+I-07'den sonra orası ana domaine 308 verdiği için müşteri ödemeyi bitirip ana
+sayfada buluyor, siparişinin ödenip ödenmediğini göremiyordu. Fiş QR'ları da
+aynı değeri kullandığı için hata bu turda ortaya çıktı.
+
+## W-15/W-16 — Site mobilin gerisindeydi
+
+`/addresses` uçları sözleşmede baştan beri vardı ve mobil kullanıyordu; **site
+hiç çağırmıyordu.** İki sonucu vardı:
+
+1. Siteden sipariş veren müşteri adresini her seferinde elden yazıyordu.
+2. Site hiç koordinat toplamadığı için **siteden gelen her siparişin kurye
+   fişi QR'sızdı.** Kurye adresi okuyup elle aramak zorunda kalıyordu — arayüz
+   eksiği gibi görünen boşluk mutfağa ve kuryeye kadar uzanıyordu.
+
+Eklenenler: `/hesabim/adresler` tam defteri (ekle/düzenle/sil/varsayılan) ve
+ödeme adımında kayıtlı adres seçimi; Leaflet + OpenStreetMap ile haritadan
+iğne. Harita **hizmet alanına kilitli** — dışarı kaydırılabilen harita "oraya
+da gidiyoruz" izlenimi verir, müşteri iğneyi Ankara'ya koyar ve siparişi
+reddedilince sebebini anlamaz. İğne **isteğe bağlı**: zorunlu kılmak, konum
+iznini reddeden müşterinin sipariş veremeyeceği anlamına gelirdi.
+
+## Doğrulama
+
+| Paket | Sonuç |
+|---|---|
+| PHP (`vendor/bin/phpunit --testsuite Veykemtu`) | **279/279** |
+| `packages/core` | **145/145** (QR golden'ları dâhil) |
+| `packages/api_client` | **49/49** |
+| `mutfakapp` | **462/462** |
+| Site: tsc + eslint + `next build` | temiz |
+| Playwright | **68 geçti**, 4 atlandı |
+| `docs/openapi.yaml` (Redocly) | geçerli |
+
+## Turda yakalanan hatalar
+
+- **Yanlış geçen bir e2e testi daha.** Kayıtlı adresin ödeme adımında seçili
+  geldiğini ölçen test, sepete tek ürün koyuyordu; tutar 250 ₺ asgarisinin
+  altında kaldığı için `/odeme` formu hiç çizmeyip "minimum sipariş tutarı"
+  uyarısını gösteriyordu. Test formu arıyor, bulamıyordu — hata mesajı
+  "seçici yok" diyordu ama sorun sepetteydi.
+- **Kuyrukta silme sırası** (yukarıda): önce sil–sonra ekle taslağı, çöken
+  kasada fişi tamamen kaybettirirdi.
+
+## Bilinçli olarak yapılmayanlar
+
+- **Pint ile toplu biçimlendirme yapılmadı.** Repoda `composer lint` script'i
+  hiç tanımlı değil ve `vendor/bin/pint --test` eklentideki neredeyse her
+  dosyayı işaretliyor — bu turda dokunulmayanlar dâhil. Kırk dosyayı yeniden
+  biçimlendirmek bu turun kapsamı değildi; ayrı bir iş olarak durmalı.

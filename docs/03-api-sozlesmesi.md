@@ -416,6 +416,20 @@ Fiş içeriği. Yazdırma verisini sunucu hazırlar, KDS yalnızca biçimlendiri
 
 Bu, mutfak kapsamının müşteri adresini görebildiği **tek** uçtur ve yalnızca `type=musteri` içindir; `GET /api/kitchen/orders` adres döndürmez.
 
+**`track_url` ve `pay_url` (K-18/K-19, additive, 12.08.2026)** — müşteri fişine
+basılacak iki QR'ın hedefi. İkisi de **nullable**:
+
+| Alan | Değer | `null` olduğu durum |
+|---|---|---|
+| `track_url` | `<FRONTEND_URL>/siparis/<id>` | `FRONTEND_URL` tanımsız |
+| `pay_url` | Ödeme sayfası + `?return=<track_url>` | `FRONTEND_URL` tanımsız **veya sipariş zaten ödenmiş** |
+
+Bağlantıyı **sunucu üretir**, KDS değil. KDS'in site adresini bilmesi
+gerekmiyor; kasada yanlış ya da eski bir alan adı kalırsa basılan QR sessizce
+ölü bir bağlantı taşır ve bunu kimse fark etmez. `null` gelen alanın QR'ı hiç
+basılmaz — boş kare, çalışmayan QR'dan iyidir. Basım kuralları:
+`docs/05-mutfakapp.md` §5.3.
+
 ### POST /api/kitchen/print-jobs/{order_id}/ack
 Fiş basıldı bildirimi (denetim için). `type`: `mutfak` \| `musteri`.
 ```json

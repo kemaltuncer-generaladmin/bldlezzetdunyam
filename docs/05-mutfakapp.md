@@ -223,21 +223,73 @@ numara mutfağın ışığında, kâğıdı eline almadan okunabilmeli. Çift bo
 kapsamının müşteri telefonunu gördüğü **tek** yerdir; KDS kartlarında telefon
 yoktur (`docs/03-api-sozlesmesi.md` §GET /api/kitchen/orders/{id}/receipt).
 
-Müşteri fişindeki QR yalnızca adreste harita iğnesi varsa basılır ve içinde
+Müşteri fişindeki harita QR'ı yalnızca adreste iğne varsa basılır ve içinde
 `https://www.google.com/maps?q=<enlem>,<boylam>` bağlantısı taşır. Serbest metin
 adres QR'la birlikte **yine de** basılır: fiş buruşabilir, kuryenin telefonu
 bitebilir.
 
+#### Fişteki üç QR — K-18/K-19 (12.08.2026)
+
+Fişte artık en çok üç QR olabiliyor. Üçü de **koşullu**: veri yoksa blok hiç
+basılmaz, boş kare çıkmaz.
+
+| QR | Nerede | Ne zaman basılır | İçerik |
+|---|---|---|---|
+| Harita | Kurye/müşteri fişi, adres bloğunun altında | `address_latitude` **ve** `address_longitude` dolu | `https://www.google.com/maps?q=<enlem>,<boylam>` |
+| Takip | Müşteri fişi, sonda | `track_url` dolu | `<FRONTEND_URL>/siparis/<id>` |
+| Ödeme | Müşteri fişi, takip QR'ının **üstünde** | `pay_url` dolu | Ödeme sayfası + `?return=<takip adresi>` |
+
+**Ödeme QR'ı ödenmiş siparişte basılmaz.** `ReceiptBuilder::payUrl()`,
+`$order->processed` doğruysa `null` döner. Ödenmiş bir fişte ödeme karesi
+görmek, müşteriyi ikinci kez ödemeye çalıştırır.
+
+**Sıra rastgele değil:** ödeme QR'ı takip QR'ının üstünde. Kapıda ödemeli
+müşteri fişi eline aldığında yapması gereken ilk iş ödemek; takip ise
+sonrasında lazım oluyor.
+
+`FRONTEND_URL` tanımlı değilse `track_url` da `pay_url` da `null` döner ve
+fiş eski hâliyle, QR'sız basılır. Site adresi olmadan üretilecek bağlantı
+API köküne çıkardı — orası artık ana domaine 308 veriyor (I-07), yani QR
+müşteriyi ana sayfaya atardı. Env tanımı: `docs/08-kurulum-deploy.md`.
+
 ### 5.4 Kuyruk
 
 **Zorunlu davranış:**
-- Her yazdırma işi önce SQLite'a yazılır (`print_queue` tablosu: `id`, `order_id`, `type`, `payload`, `attempts`, `created_at`, `printed_at`).
-- İş kimliği `(order_id, type)` çiftidir → **idempotent**, aynı fiş iki kez basılmaz.
+- Her yazdırma işi önce SQLite'a yazılır (`print_queue` tablosu: `id`, `order_id`, `type`, `revision`, `payload`, `attempts`, `created_at`, `printed_at`).
+- İş kimliği `(order_id, type, revision)` üçlüsüdür → **idempotent**, aynı fişin aynı sürümü iki kez basılmaz. `revision` sütunu K-12 ile geldi: düzenlenen sipariş yeni bir sürüm doğurur ve o sürüm basılmalıdır (bkz. aşağıdaki K-17 kuralı).
 - Basım başarısızsa: `attempts++`, geri çekilmeli tekrar (2s, 5s, 15s, 60s...), kuyrukta kalır.
 - Yazıcı yoksa/kağıt bittiyse durum çubuğunda kalıcı uyarı + kuyruk sayacı.
 - Uygulama yeniden başlarsa kuyruk diskten okunur ve devam eder.
 - Başarılı basımdan sonra `POST /api/kitchen/print-jobs/{order_id}/ack` gönderilir (başarısız olursa sessizce yut).
 - Ayarlarda **"Yeniden bas"** butonu: seçili siparişin fişini elle tekrar basar.
+
+#### ESKİ FİŞ ASLA BASILMAZ — K-17 (12.08.2026)
+
+Sipariş düzenlenince (K-12) `revision_no` artıyor ve mutfak fişi yeniden
+kuyruğa giriyor. Kuyrukta o siparişin **eski sürümü hâlâ basılmayı bekliyor**
+olabiliyordu: yazıcı meşgulse, kâğıt bittiyse ya da kasa yeniden başladıysa
+mutfak önce eski fişi, sonra yenisini alıyordu. İki fiş arasındaki farkı
+kimse okumuyor — üstteki kâğıt neyse o hazırlanıyor. Sahada bunun anlamı
+iptal edilmiş bir satırın yine de pişmesi.
+
+Kural: **bir iş kuyruğa girdiği anda, aynı siparişin aynı türdeki daha eski
+ve HENÜZ BASILMAMIŞ işleri düşürülür** (`PrintQueue.dropSuperseded`).
+
+Üç sınırı bilerek koyduk:
+
+* **Basılmış iş silinmez** (`printed_at IS NULL` şartı). O satır hem denetim
+  kaydı hem de sunucuya `ack` gönderilip gönderilmediğinin tek izi.
+* **Yalnızca daha eski sürümler** (`revision < keepRevision`). Parametre
+  korunacak sürümdür, silinecek olan değil — eşitlik dâhil edilseydi işin
+  kendisi de silinirdi.
+* **Tür bazında** (`type` şartı). Müşteri fişi düzenlemede yeniden
+  tetiklenmiyor; mutfak fişi yenilendi diye bekleyen müşteri fişini
+  düşürmek, o fişi tamamen kaybettirirdi.
+
+**Sıra önemli: önce ekle, sonra düşür.** Tersi olsaydı, silme ile ekleme
+arasında çöken bir kasa o sipariş için kuyrukta **sıfır** iş bırakırdı —
+mutfak hiç fiş görmezdi. Bu sırayla en kötü ihtimalde fazladan bir eski fiş
+basılır; sessizce kaybolan fişten iyidir.
 
 ### 5.5 Tetikler
 
@@ -256,7 +308,7 @@ bitebilir.
 Her iki eşik de "**o durum ya da ötesi**" diye okunur. Sipariş `hazir`
 iken uygulama kapanıp `yolda` iken açılırsa fiş hiç basılmamış olabilir;
 tetiği kaçırmaktansa fazladan çağırmak yeğdir — kuyruktaki
-`UNIQUE(order_id, type)` ikinci fişi zaten engelliyor.
+`UNIQUE(order_id, type, revision)` ikinci fişi zaten engelliyor.
 
 `teslim_edildi` de "hazır ötesi" sayılır: gel-al siparişi `hazir`dan
 doğrudan oraya geçer ve arada bir yayın kaçarsa müşteri fişi hiç

@@ -375,10 +375,28 @@ oturum hiç açılmasa bile servisi ayakta tutmak içindir.
 | `NETGSM_PASSWORD` | `app` | aynı |
 | `NETGSM_HEADER` | `app` | aynı — Netgsm panelinde **onaylı** gönderici adı olmalı, onaysız başlıkta sağlayıcı `40` döner ve tek mesaj bile ulaşmaz |
 | `SITE_PUBLIC_URL` | `web` | Varsayılan `https://benimlezzetdunyam.com.tr`; api.* kökünün yönleneceği adres |
+| `FRONTEND_URL` | `app` | **Ödeme dönüşü ve fiş QR'ları çalışmaz.** Ayrıntı aşağıda |
 
 Üçü birden dolu olmadıkça uygulama **ayağa kalkmayı reddetmez** — tek eksik
 değişken yüzünden bütün siteyi indirmek doğru olmazdı. SMS ikinci bir giriş
 yolu; eksikliğin izi günlükteki uyarı satırıdır.
+
+#### `FRONTEND_URL` hiçbir yerde tanımlı değildi (12.08.2026)
+
+`SimulationController::returnUrl()` ve `AccountSimulationController::returnUrl()`
+baştan beri `config('app.frontend_url')` okuyordu; değişken ne
+`platform/.env.example`'da ne de `docker-compose.coolify.yml`'de vardı. Yani
+canlıda **hiç set edilmemişti** ve ödeme sonrası dönüş adresi API köküne
+düşüyordu. I-07 ile o kök artık ana domaine 308 verdiği için müşteri ödemeyi
+bitirip ana sayfada buluyor, siparişinin ödenip ödenmediğini göremiyordu.
+
+Aynı değer K-18/K-19'da fiş QR'larının da kaynağı: `track_url` ve `pay_url`
+bu adresten üretiliyor (`ReceiptBuilder::frontendUrl()`). Tanımsızsa ikisi de
+`null` döner ve QR'lar **hiç basılmaz** — yanlış adrese giden bir kare
+basmaktansa basmamak yeğdir.
+
+Canlı değer: `FRONTEND_URL=https://benimlezzetdunyam.com.tr` (sonda eğik
+çizgi olmadan; `frontendUrl()` yine de kırpar).
 
 ### 1.y v2.0 göçleri
 

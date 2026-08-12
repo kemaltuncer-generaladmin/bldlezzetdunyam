@@ -111,8 +111,9 @@ seçenekli bir listeden gelir (Selçuklu, Karatay). Değerler
 sunucu kuralı yeniden uygular. Gerekçe ve kutu kenarları:
 `docs/00-genel-bakis.md` §4.1.
 
-Web sitesinde harita ile nokta seçimi **yoktur** (mobil uygulamaya özgüdür);
-bu yüzden web siparişlerinin fişinde konum QR'ı basılmaz.
+> **KURAL DEĞİŞTİ (W-16, 12.08.2026).** Bu paragraf eskiden "web sitesinde
+> harita ile nokta seçimi yoktur, bu yüzden web siparişlerinin fişinde konum
+> QR'ı basılmaz" diyordu. Artık var — bkz. §Adres defteri ve harita.
 
 ## B2B (kurumsal) geçiş
 
@@ -169,3 +170,52 @@ kuralı `/hizmetler`'den ÖNCE gelmek zorunda, yoksa alt sayfaları da yutar.
 **Arayüz kayıtlı/kayıtsız numarayı AYIRT ETMEZ.** Sunucu ayırt etmiyor
 (numara sayımına karşı) ve arayüzün yapması o korumayı delerdi: kayıtsız
 numara da kod ekranına geçer.
+
+### Adres defteri ve harita — W-15/W-16 (12.08.2026)
+
+Site, mobil uygulamanın gerisinde kalmıştı. `/addresses` uçları sözleşmede
+baştan beri vardı ve mobil kullanıyordu; **site hiç çağırmıyordu.** Sonucu iki
+katmanlıydı:
+
+1. Siteden sipariş veren müşteri adresini **her seferinde elden yazıyordu.**
+2. Site hiç koordinat toplamadığı için **siteden gelen her siparişin kurye
+   fişi QR'sızdı** (K-14 harita QR'ı yalnızca iğne varken basılıyor). Kurye
+   adresi okuyup elle aramak zorunda kalıyordu — yani bu, arayüz eksiği gibi
+   görünen ama mutfağa ve kuryeye kadar uzanan bir boşluktu.
+
+| Yer | Ne yapar |
+|---|---|
+| `/hesabim/adresler` | Tam defter: ekle, düzenle, sil, varsayılan yap |
+| `/odeme` | "Kayıtlı adreslerim" listesi; varsayılan adres önceden seçili gelir |
+
+**Tek form, iki iş.** Ekleme ve düzenleme aynı formu paylaşıyor
+(`components/address/address-book.tsx`); `editing` doluyken gizli `id` alanı
+gidiyor ve sunucu eylemi `PATCH`'e dönüyor. İki ayrı form, iki ayrı doğrulama
+ve iki ayrı harita durumu demekti.
+
+**Silme onay ister.** Geri alınamıyor. Geçmiş siparişler etkilenmiyor (sipariş
+adresi oluşturulurken kopyalanıyor), ama tek tıkla gitmesi doğru değil.
+
+#### Harita: Leaflet + OpenStreetMap
+
+Mobil zaten OSM karoları kullanıyor; harita kaynağı kararı verilmişti ve API
+anahtarı ya da faturalandırma istemiyor. Google Maps'e geçmek üç istemciyi
+birden bağlayan yeni bir maliyet kalemi açardı.
+
+* **`ssr: false` ile dinamik yükleniyor** (`map-picker-lazy.tsx`). Leaflet
+  modül düzeyinde `window` ve `document`'a dokunuyor; sunucuda içe aktarıldığı
+  anda derleme patlıyor. Yan faydası: ~150 kB harita paketi yalnızca adres
+  ekranını açan kullanıcıya iniyor, kurumsal sayfalara inmiyor.
+* **Harita hizmet alanına hapsedilmiş** (`maxBounds` + `maxBoundsViscosity: 1`).
+  Dışarı kaydırılabilen bir harita "oraya da gidiyoruz" izlenimi verir; müşteri
+  iğneyi Ankara'ya koyar, siparişi reddedilir ve sebebini anlamaz. Sınır
+  değerleri `lib/service-area.ts` içinde ve `packages/core/lib/src/service_area.dart`
+  ile **aynı olmak zorunda** — ikisi birlikte değişir.
+* **İğne ikonu gömülü SVG.** Leaflet'in varsayılan ikonu CDN'den geliyor ve
+  CSP altında düşebiliyor.
+* **İğne isteğe bağlı.** Zorunlu kılmak, konum iznini reddeden ya da haritayı
+  kullanamayan müşterinin sipariş veremeyeceği anlamına gelirdi. Koordinat
+  yoksa fiş eskisi gibi, QR'sız basılır.
+* Koordinatlar **ikisi birden ya da hiç** gidiyor (`lib/validation/address.ts`
+  `.transform()`): yalnız enlem taşıyan bir adres, yarım bir harita bağlantısı
+  demek.

@@ -281,6 +281,35 @@ seferinde 227, sonrakinde 1 test). Güvenilir komut:
 vendor/bin/phpunit --testsuite Veykemtu
 ```
 
+## 8.7 Fiş ve harita turu — K-17 … K-19, W-15 … W-16 (12.08.2026)
+
+Üç şikâyet: "eski fişler asla çıkmamalı", "konum QR'ı yok", "web sitesi
+mobil uygulamanın gerisinde".
+
+| Kimlik | İş |
+|---|---|
+| K-17 | **Eskimiş fiş kuyruktan düşüyor.** Sipariş düzenlenince yeni sürüm kuyruğa girerken aynı siparişin aynı türdeki basılmamış eski işleri siliniyor (`PrintQueue.dropSuperseded`) |
+| K-18 | Müşteri fişine **sipariş takip QR'ı** (`track_url`) |
+| K-19 | Müşteri fişine **ödeme QR'ı** (`pay_url`) — ödenmiş siparişte basılmaz |
+| W-15 | **Adres defteri**: `/hesabim/adresler` + ödeme adımında kayıtlı adres seçimi |
+| W-16 | **Haritadan konum seçimi** (Leaflet + OSM), hizmet alanına kilitli |
+
+### Turda yakalanan hatalar
+
+1. **`FRONTEND_URL` hiçbir yerde tanımlı değildi.** İki ödeme denetleyicisi
+   de `config('app.frontend_url')` okuyordu ama değişken ne
+   `.env.example`'da ne `docker-compose.coolify.yml`'de vardı. Canlıda ödeme
+   dönüşü API köküne düşüyordu ve I-07'den sonra orası ana sayfaya 308
+   veriyor — müşteri ödedikten sonra siparişini göremiyordu. K-18/K-19 aynı
+   değeri kullandığı için hata bu turda ortaya çıktı.
+2. **Site hiç koordinat toplamıyordu.** Kurye fişindeki harita QR'ı K-14'ten
+   beri hazırdı ama yalnız iğne varken basılıyor; mobil iğne alıyor, site
+   almıyordu. Yani "siteden gelen her sipariş QR'sız" — arayüz eksiği gibi
+   görünen bir boşluk kuryeye kadar uzanıyordu. W-16 bunu kapattı.
+3. **Kuyrukta silme sırası.** İlk taslak önce siliyor sonra ekliyordu; iki
+   işlem arasında çöken kasa o sipariş için kuyrukta **sıfır** iş bırakırdı.
+   Sıra ters çevrildi: en kötü ihtimalde fazladan bir fiş basılır.
+
 ## 9. Kapsam kesme sırası (takvim sıkışırsa)
 
 Sırayla feda edilir:
