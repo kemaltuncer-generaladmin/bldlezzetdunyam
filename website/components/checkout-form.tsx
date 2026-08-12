@@ -1,17 +1,18 @@
 'use client';
 
-import { useActionState, useTransition } from 'react';
+import { useActionState, useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createOrderAction } from '@/app/actions/order';
 import { IDLE_CHECKOUT_STATE } from '@/lib/action-state';
 import { EtaOptionNote } from '@/components/delivery-eta';
 import { FormField, inputClass } from '@/components/form-field';
+import { MapPickerLazy, type MapPin } from '@/components/address/map-picker-lazy';
 import { paymentMethodHint, paymentMethodLabel } from '@/lib/labels';
 import { SERVICE_AREA_CITY, SERVICE_AREA_DISTRICTS } from '@/lib/service-area';
 import { checkoutSchema, type CheckoutValues } from '@/lib/validation/checkout';
 import { cn } from '@/lib/utils';
-import type { LocationEta, PaymentMethod } from '@/lib/api/types';
+import type { LocationEta, PaymentMethod, SavedAddress } from '@/lib/api/types';
 
 type Props = {
   /** Yalnızca vitrinin açık ödeme yöntemleri (`docs/06` §3). */
@@ -21,16 +22,36 @@ type Props = {
   orderCutoff: string | null;
   /** Teslim süresi tahmini; sunucu vermiyorsa `null` ve hiç gösterilmez. */
   eta: LocationEta | null;
+  /**
+   * Kayıtlı adresler (W-15). Boş dizi gelebilir: defteri hiç kullanmamış
+   * müşteri ya da uç okunamamış olabilir — ikisinde de form elle yazmaya
+   * izin vermeye devam ediyor.
+   */
+  savedAddresses: readonly SavedAddress[];
 };
 
-export function CheckoutForm({ paymentMethods, minRequestedAt, orderCutoff, eta }: Props) {
+export function CheckoutForm({
+  paymentMethods,
+  minRequestedAt,
+  orderCutoff,
+  eta,
+  savedAddresses,
+}: Props) {
   const [serverState, formAction] = useActionState(createOrderAction, IDLE_CHECKOUT_STATE);
   const [pending, startTransition] = useTransition();
+
+  /*
+   * Varsayılan adres önceden dolu geliyor (W-15). Müşterilerin çoğu hep
+   * aynı yere sipariş veriyor; her seferinde listeden seçtirmek gereksiz
+   * bir adım olurdu. Defter boşsa alanlar eskisi gibi boş açılıyor.
+   */
+  const defaultAddress = savedAddresses.find((item) => item.is_default) ?? null;
 
   const {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<CheckoutValues>({
     resolver: zodResolver(checkoutSchema),
@@ -40,12 +61,14 @@ export function CheckoutForm({ paymentMethods, minRequestedAt, orderCutoff, eta 
       payment_method: paymentMethods[0] ?? 'cash',
       timing: 'asap',
       requested_at_local: '',
-      address_line1: '',
-      address_district: '',
+      address_line1: defaultAddress?.line1 ?? '',
+      address_district: defaultAddress?.district ?? '',
       // Tek il olduğu için varsayılan doğrudan dolu gelir; kullanıcı
       // değiştiremez.
       address_city: SERVICE_AREA_CITY,
-      address_note: '',
+      address_note: defaultAddress?.note ?? '',
+      address_latitude: '',
+      address_longitude: '',
       customer_note: '',
     },
   });
@@ -54,8 +77,23 @@ export function CheckoutForm({ paymentMethods, minRequestedAt, orderCutoff, eta 
   const timing = watch('timing');
   const isDelivery = deliveryType === 'delivery';
 
+  /**
+   * Haritadan seçilen nokta. Form alanı DEĞİL: React Hook Form metin
+   * girdileri için var, harita ise kendi etkileşimini yönetiyor. Gönderimde
+   * `FormData`'ya elle ekleniyor.
+   */
+  const [pin, setPin] = useState<MapPin | null>(
+    defaultAddress?.latitude != null && defaultAddress.longitude != null
+      ? { latitude: defaultAddress.latitude, longitude: defaultAddress.longitude }
+      : null,
+  );
+
   const onSubmit = handleSubmit((values) => {
     const formData = new FormData();
+    // Koordinat formun bir alanı değil, harita bileşeninin durumu; elle
+    // ekleniyor. Boşken boş dize gidiyor ve sunucu tarafı onu yok sayıyor.
+    formData.set('address_latitude', pin ? String(pin.latitude) : '');
+    formData.set('address_longitude', pin ? String(pin.longitude) : '');
     for (const [key, value] of Object.entries(values)) {
       formData.set(key, String(value ?? ''));
     }
@@ -99,6 +137,53 @@ export function CheckoutForm({ paymentMethods, minRequestedAt, orderCutoff, eta 
       {isDelivery && (
         <section className="space-y-4 bld-card p-5">
           <h2 className="text-lg font-semibold text-neutral-900">Teslimat adresi</h2>
+
+          {/*
+            KAYITLI ADRES SEÇİMİ — W-15.
+
+            Defter boşsa hiç çizilmiyor: tek seçeneği olmayan bir açılır
+            liste, ekranda yer kaplayan bir soru işareti olurdu.
+
+            Seçim formu DOLDURUYOR, kilitlemiyor: müşteri kayıtlı adresi
+            seçip üstünde küçük bir düzeltme yapabilmeli (kat değişmiş,
+            zil bozulmuş). Sipariş adresi zaten kopyalanıyor, deftere
+            bağlanmıyor.
+          */}
+          {savedAddresses.length > 0 && (
+            <div className="mb-4">
+              <label htmlFor="kayitli-adres" className="mb-1 block text-sm font-medium">
+                Kayıtlı adreslerim
+              </label>
+              <select
+                id="kayitli-adres"
+                className={inputClass(false)}
+                defaultValue=""
+                onChange={(event) => {
+                  const chosen = savedAddresses.find(
+                    (item) => String(item.id) === event.target.value,
+                  );
+                  if (!chosen) return;
+
+                  setValue('address_line1', chosen.line1, { shouldValidate: true });
+                  setValue('address_district', chosen.district, { shouldValidate: true });
+                  setValue('address_city', chosen.city, { shouldValidate: true });
+                  setValue('address_note', chosen.note ?? '');
+                  setPin(
+                    chosen.latitude != null && chosen.longitude != null
+                      ? { latitude: chosen.latitude, longitude: chosen.longitude }
+                      : null,
+                  );
+                }}
+              >
+                <option value="">— Yeni adres yaz —</option>
+                {savedAddresses.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label ?? item.line1} — {item.district}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <FormField id="address_line1" label="Adres" error={fieldError('address_line1')}>
             {({ id, describedBy, invalid }) => (
@@ -186,6 +271,23 @@ export function CheckoutForm({ paymentMethods, minRequestedAt, orderCutoff, eta 
               />
             )}
           </FormField>
+
+          {/*
+            HARİTADAN NOKTA — W-16.
+
+            Kurye fişindeki QR (K-14) yalnızca koordinat varken basılıyor.
+            Site bunu hiç toplamadığı için siteden gelen her siparişin
+            kurye fişi QR'sızdı; kurye adresi okuyup elle aramak zorunda
+            kalıyordu.
+
+            İSTEĞE BAĞLI: konum izni vermeyen müşteri de sipariş
+            verebilmeli. Boş bırakılırsa yalnız QR basılmıyor, sipariş
+            normal akıyor.
+          */}
+          <div className="mt-5 border-t pt-5">
+            <p className="text-sm font-medium">Teslimat noktası (isteğe bağlı)</p>
+            <MapPickerLazy value={pin} onChange={setPin} />
+          </div>
         </section>
       )}
 

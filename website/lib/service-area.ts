@@ -38,3 +38,43 @@ export function coversCity(value: string | null | undefined): boolean {
   if (!value) return false;
   return trLower(value.trim()) === trLower(SERVICE_AREA_CITY);
 }
+
+/**
+ * Haritanın hapsedildiği kutu — `packages/core/lib/src/service_area.dart`
+ * ile AYNI değerler (W-16).
+ *
+ * Üç yerde birden duruyor (Dart, PHP, buradaki TypeScript) ve birlikte
+ * değişmek zorundalar; biri unutulursa istemcinin kabul ettiği iğneyi
+ * sunucu reddeder.
+ *
+ * Kenarlar DAHİL: tam sınırdaki bir iğneyi reddetmek, kutuyu bir santimetre
+ * içeriden çizmekle aynı şey olurdu.
+ */
+export const SERVICE_AREA_BOUNDS = {
+  south: 37.8,
+  north: 38.1,
+  west: 32.35,
+  east: 32.75,
+} as const;
+
+/** Harita ilk açıldığında ortalanacak nokta (Konya merkez). */
+export const SERVICE_AREA_CENTER = { latitude: 37.8746, longitude: 32.4932 } as const;
+
+/**
+ * Kutunun tamamını gösteren en uzak seviye. Daha uzağa izin verilirse
+ * "haritayı kutuya hapset" kısıtı sağlanamaz ve harita donmuş gibi davranır.
+ */
+export const SERVICE_AREA_MIN_ZOOM = 12.5;
+
+/** Karo sağlayıcısının (OSM) verdiği en yakın seviye. */
+export const SERVICE_AREA_MAX_ZOOM = 19;
+
+/** Nokta hizmet alanı kutusunun içinde mi? */
+export function containsPoint(latitude: number, longitude: number): boolean {
+  return (
+    latitude >= SERVICE_AREA_BOUNDS.south &&
+    latitude <= SERVICE_AREA_BOUNDS.north &&
+    longitude >= SERVICE_AREA_BOUNDS.west &&
+    longitude <= SERVICE_AREA_BOUNDS.east
+  );
+}

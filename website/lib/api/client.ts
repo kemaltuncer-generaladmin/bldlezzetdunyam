@@ -71,7 +71,13 @@ type CacheDirective =
   { kind: 'revalidate'; seconds: number; tags?: string[] } | { kind: 'no-store' };
 
 export type RequestOptions = {
-  method?: 'GET' | 'POST';
+  /**
+   * `PATCH` ve `DELETE` W-15 ile eklendi: adres defteri güncelleme ve
+   * silme uçları bunları kullanıyor (`docs/openapi.yaml` `/addresses/{id}`).
+   * Sözleşmede başka metot yok; listeyi geniş tutmak, olmayan bir uca
+   * istek atmayı derleme anında yakalanamaz hâle getirirdi.
+   */
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   /** JSON gövdesi; `undefined` ise gövde gönderilmez. */
   body?: unknown;
   /** Müşteri token'ı (`Authorization: Bearer`). */

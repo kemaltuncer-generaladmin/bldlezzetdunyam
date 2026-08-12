@@ -21,6 +21,23 @@ function invalid(message: string, fieldErrors: Record<string, string> = {}): Che
   return { status: 'error', message, fieldErrors };
 }
 
+/**
+ * Metin koordinat çiftini sayıya çevirir — ikisi de geçerliyse.
+ *
+ * Biri boş ya da sayı değilse `{}` döner ve adres koordinatsız gider.
+ * Sunucu da aynı kuralı uyguluyor (`OrderFactory::storeAddress`); buradaki
+ * kopya, yarım bir çiftin ağa hiç çıkmamasını sağlıyor.
+ */
+function pinOf(
+  latitude: string,
+  longitude: string,
+): { latitude: number; longitude: number } | Record<string, never> {
+  const lat = Number.parseFloat(latitude);
+  const lng = Number.parseFloat(longitude);
+
+  return Number.isFinite(lat) && Number.isFinite(lng) ? { latitude: lat, longitude: lng } : {};
+}
+
 function text(formData: FormData, key: string): string {
   const value = formData.get(key);
   return typeof value === 'string' ? value : '';
@@ -47,6 +64,8 @@ export async function createOrderAction(
     address_district: text(formData, 'address_district'),
     address_city: text(formData, 'address_city'),
     address_note: text(formData, 'address_note'),
+    address_latitude: text(formData, 'address_latitude'),
+    address_longitude: text(formData, 'address_longitude'),
     customer_note: text(formData, 'customer_note'),
   });
 
@@ -96,6 +115,14 @@ export async function createOrderAction(
           district: values.address_district,
           city: values.address_city,
           note: values.address_note.length > 0 ? values.address_note : null,
+          /*
+           * Haritadan seçilen nokta (W-16). Kurye fişindeki QR'ın (K-14)
+           * basılabilmesinin tek şartı bu iki alan.
+           *
+           * İKİSİ BİRDEN ya da HİÇBİRİ: yarısı dolu bir koordinat
+           * haritada gösterilemez. `pinOf` bu kuralı tek yerde uyguluyor.
+           */
+          ...pinOf(values.address_latitude, values.address_longitude),
         }
       : null;
 

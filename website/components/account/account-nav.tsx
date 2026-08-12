@@ -4,10 +4,10 @@ import { cn } from '@/lib/utils';
 /**
  * Hesap bölümleri arası gezinme — W-12 / W-13.
  *
- * `/hesabim` artık tek bir profil sayfası değil, dört bölümlü bir merkez:
- * profil, siparişler, cari hesap, abonelikler. Aralarında gezinmenin tek
- * yolu footer olsaydı, cari sayfasından abonelik sayfasına geçmek için
- * sayfanın en altına inmek gerekirdi.
+ * `/hesabim` artık tek bir profil sayfası değil, beş bölümlü bir merkez:
+ * profil, siparişler, adresler, cari hesap, abonelikler. Aralarında
+ * gezinmenin tek yolu footer olsaydı, cari sayfasından abonelik sayfasına
+ * geçmek için sayfanın en altına inmek gerekirdi.
  *
  * SUNUCU BİLEŞENİ: aktif bölüm `usePathname` ile değil prop ile
  * belirleniyor. Her sayfa hangi bölümde olduğunu zaten biliyor; bunun için
@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 const SECTIONS = [
   { key: 'profil', href: '/hesabim', label: 'Profil' },
   { key: 'siparisler', href: '/siparislerim', label: 'Siparişlerim' },
+  { key: 'adresler', href: '/hesabim/adresler', label: 'Adreslerim' },
   { key: 'cari', href: '/hesabim/cari', label: 'Cari hesabım' },
   { key: 'abonelikler', href: '/hesabim/abonelikler', label: 'Aboneliklerim' },
 ] as const;

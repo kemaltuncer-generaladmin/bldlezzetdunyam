@@ -69,6 +69,13 @@ export type LoginRequest = NonNullable<
 export type OtpRequestResponse =
   operations['requestOtp']['responses'][202]['content']['application/json'];
 
+/** Adres defteri (W-15). */
+export type SavedAddress = Schemas['SavedAddress'];
+export type SavedAddressList = JsonOk<operations['listAddresses']>;
+export type SavedAddressInput = NonNullable<
+  operations['createAddress']['requestBody']
+>['content']['application/json'];
+
 /** Cari hesap (W-12). */
 export type AccountSummary = JsonOk<operations['getAccountSummary']>;
 export type AccountStatement = JsonOk<operations['getAccountStatement']>;

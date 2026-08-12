@@ -20,6 +20,20 @@ export const checkoutSchema = z
     address_district: z.string().trim().max(64, 'İlçe en fazla 64 karakter.'),
     address_city: z.string().trim().max(64, 'İl en fazla 64 karakter.'),
     address_note: z.string().trim().max(255, 'Adres notu en fazla 255 karakter.'),
+
+    /*
+     * Haritadan seçilen nokta (W-16). METİN olarak taşınıyor çünkü
+     * `FormData` yalnızca dize taşıyor; boş dize "seçilmedi" demek.
+     *
+     * İSTEĞE BAĞLI: konum izni vermeyen ya da adresi elle yazan müşteri de
+     * sipariş verebilmeli. Yalnız kurye fişindeki harita QR'ı basılmaz.
+     *
+     * İkisinden yalnız biri gelirse ikisi de yok sayılıyor (aşağıdaki
+     * `superRefine`): yarısı dolu bir koordinat haritada gösterilemez ve
+     * kuryeyi yanlış yere götürmektense hiç götürmemek doğru.
+     */
+    address_latitude: z.string().trim(),
+    address_longitude: z.string().trim(),
     customer_note: z.string().trim().max(500, 'Sipariş notu en fazla 500 karakter.'),
   })
   .superRefine((values, ctx) => {

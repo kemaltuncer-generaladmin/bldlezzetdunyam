@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowRight, ReceiptText, Repeat, Wallet } from 'lucide-react';
+import { ArrowRight, MapPin, ReceiptText, Repeat, Wallet } from 'lucide-react';
 import { AccountNav } from '@/components/account/account-nav';
 import { LogoutButton } from '@/components/auth/logout-button';
 import { fetchAccountSummary } from '@/lib/api/account';
@@ -48,7 +48,7 @@ export default async function AccountPage() {
 
       <AccountNav active="profil" />
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-3">
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <ShortcutCard
           href="/siparislerim"
           icon={<ReceiptText aria-hidden="true" className="size-5" />}
@@ -70,6 +70,13 @@ export default async function AccountPage() {
                   : 'Borcunuz yok'
           }
           highlight={balance !== null && balance > 0}
+        />
+
+        <ShortcutCard
+          href="/hesabim/adresler"
+          icon={<MapPin aria-hidden="true" className="size-5" />}
+          title="Adreslerim"
+          detail="Kayıtlı teslimat adresleri"
         />
 
         <ShortcutCard

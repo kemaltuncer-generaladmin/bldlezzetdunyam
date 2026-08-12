@@ -285,6 +285,35 @@ app.post('/api/auth/otp/verify', (req, res) => {
   });
 });
 
+// ──────────────────────────── Adres defteri (W-15) ─────────────────────────
+//
+// Uçlar sözleşmede baştan beri vardı ve mobil kullanıyordu; mock hiç
+// taşımıyordu çünkü site de kullanmıyordu. Site artık kullanıyor.
+
+app.get('/api/addresses', requireCustomer, (req, res) =>
+  res.json({ data: state.addressesOf(req.customerId) }),
+);
+
+app.post('/api/addresses', requireCustomer, (req, res) => {
+  const saved = state.saveAddress(req.customerId, req.body ?? {});
+
+  return res.status(201).json(saved);
+});
+
+app.patch('/api/addresses/:id', requireCustomer, (req, res) => {
+  const updated = state.updateAddress(req.customerId, Number(req.params.id), req.body ?? {});
+  if (!updated) return fail(res, 'NOT_FOUND', 'Adres bulunamadı.');
+
+  return res.json(updated);
+});
+
+app.delete('/api/addresses/:id', requireCustomer, (req, res) => {
+  const removed = state.deleteAddress(req.customerId, Number(req.params.id));
+  if (!removed) return fail(res, 'NOT_FOUND', 'Adres bulunamadı.');
+
+  return res.status(204).end();
+});
+
 // ──────────────────────────── Cari hesap (W-12) ────────────────────────────
 
 app.get('/api/account/summary', requireCustomer, (req, res) =>

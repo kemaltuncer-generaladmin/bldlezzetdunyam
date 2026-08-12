@@ -67,6 +67,74 @@ export class MockState {
 
     this.subscriptions = [];
     this.nextSubscriptionId = 1;
+
+    /** customerId -> kayıtlı adresler (W-15). */
+    this.addresses = new Map();
+    this.nextAddressId = 1;
+  }
+
+  // ── Adres defteri ─────────────────────────────────────────────────────
+
+  addressesOf(customerId) {
+    return this.addresses.get(customerId) ?? [];
+  }
+
+  saveAddress(customerId, input) {
+    const list = this.addressesOf(customerId);
+
+    const saved = {
+      id: this.nextAddressId++,
+      label: input.label ?? null,
+      line1: String(input.line1 ?? ''),
+      district: String(input.district ?? ''),
+      city: String(input.city ?? ''),
+      note: input.note ?? null,
+      // İKİSİ BİRDEN ya da HİÇBİRİ — sözleşme kuralı; yarısı dolu bir
+      // koordinat haritada gösterilemez.
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
+      is_default: input.is_default === true || list.length === 0,
+    };
+
+    if (saved.is_default) {
+      for (const item of list) item.is_default = false;
+    }
+
+    list.push(saved);
+    this.addresses.set(customerId, list);
+
+    return saved;
+  }
+
+  updateAddress(customerId, id, input) {
+    const list = this.addressesOf(customerId);
+    const found = list.find((item) => item.id === id);
+    if (!found) return null;
+
+    for (const key of ['label', 'line1', 'district', 'city', 'note', 'latitude', 'longitude']) {
+      if (key in input) found[key] = input[key];
+    }
+
+    // Aynı anda en fazla bir varsayılan; sunucu bunu kendi garanti ediyor.
+    if (input.is_default === true) {
+      for (const item of list) item.is_default = item.id === id;
+    }
+
+    return found;
+  }
+
+  deleteAddress(customerId, id) {
+    const list = this.addressesOf(customerId);
+    const index = list.findIndex((item) => item.id === id);
+    if (index === -1) return false;
+
+    const [removed] = list.splice(index, 1);
+
+    // Varsayılan silindiyse ilk kalan varsayılan olur; defterde varsayılansız
+    // adres bırakmak ödeme adımında hiçbirini önceden seçmemek demekti.
+    if (removed.is_default && list.length > 0) list[0].is_default = true;
+
+    return true;
   }
 
   // ── Cari hesap ────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ import { isOrderingOpen } from '@/lib/api/catalog';
 import { resolveCart } from '@/lib/cart';
 import { readLocationEta } from '@/lib/eta';
 import { formatPrice } from '@/lib/format';
+import { fetchAddresses } from '@/lib/api/addresses';
 import { requireSession } from '@/lib/require-session';
 import { istanbulNowLocalValue } from '@/lib/timezone';
 
@@ -21,7 +22,16 @@ export const metadata: Metadata = {
 };
 
 export default async function CheckoutPage() {
-  const { customer } = await requireSession('/odeme');
+  const { customer, token } = await requireSession('/odeme');
+
+  /*
+   * Kayıtlı adresler (W-15). Hata YUTULUYOR: adres defteri okunamazsa
+   * ödeme adımının tamamen kapanması orantısız olurdu — müşteri adresini
+   * elle yazıp siparişini yine verebilmeli.
+   */
+  const savedAddresses = await fetchAddresses(token)
+    .then((response) => response.data)
+    .catch(() => []);
   const cart = await resolveCart();
 
   if (cart.lines.length === 0) redirect('/sepet');
@@ -82,6 +92,7 @@ export default async function CheckoutPage() {
             />
           ) : (
             <CheckoutForm
+              savedAddresses={savedAddresses}
               paymentMethods={paymentMethods}
               minRequestedAt={istanbulNowLocalValue(30)}
               orderCutoff={cart.location?.order_cutoff ?? null}

@@ -138,3 +138,18 @@ export const IDLE_SUBSCRIPTION_STATE: SubscriptionActionState = {
   message: null,
   at: 0,
 };
+
+/** Adres defteri eylemlerinin ortak durumu — W-15. */
+export type AddressActionState = {
+  status: 'idle' | 'ok' | 'error';
+  message: string | null;
+  fieldErrors: Record<string, string>;
+  at: number;
+};
+
+export const IDLE_ADDRESS_STATE: AddressActionState = {
+  status: 'idle',
+  message: null,
+  fieldErrors: {},
+  at: 0,
+};
