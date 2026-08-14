@@ -104,6 +104,22 @@ class PrintService {
   /// Bekleyen ama hata almış iş sayısı.
   int failedCount() => _queue.failedCount();
 
+  /// Bekleyen en eski işin zamanı; kuyruk boşsa `null`.
+  DateTime? oldestPendingAt() => _queue.oldestPendingAt();
+
+  /// Son basım/ağ hatasının metni; son deneme başarılıysa `null`.
+  ///
+  /// SAYAÇ DEĞİL METİN, ve sağlık bildirimiyle sunucuya gidiyor (K-22 §3).
+  /// "3 iş hata aldı" yöneticiye ne yapacağını söylemez; "No such file or
+  /// directory: /dev/thermal0" söyler — kablo çıkmış. Hata metni olmadan
+  /// tek yapılabilecek şey mutfağa gitmekti.
+  ///
+  /// BAŞARIDA TEMİZLENİYOR: çözülmüş bir arızayı panelde asılı bırakmak,
+  /// gerçek bir arıza çıktığında kimsenin bakmaması demek.
+  String? get lastError => _lastError;
+
+  String? _lastError;
+
   /// [attempts] başarısız denemeden sonra beklenecek süre.
   Duration retryDelay(int attempts) {
     if (attempts <= 0) return Duration.zero;
@@ -200,6 +216,20 @@ class PrintService {
     return silinen;
   }
 
+  /// Basılmamış **her** işi kuyruktan düşürür (K-22 §2, `clear_queue`).
+  ///
+  /// [clearFailed] yalnız hata almış işleri düşürür; burası bekleyeni de
+  /// düşürür. Gerekçe ve neden ayrı iki komut oldukları
+  /// `PrintQueue.clearPending` yorumunda.
+  int clearQueue() {
+    if (_disposed) return 0;
+
+    final silinen = _queue.clearPending();
+    if (silinen > 0) _emitPending();
+
+    return silinen;
+  }
+
   /// Kuyruğa girmeyen tek seferlik basım — ayarlar ekranındaki test fişi.
   ///
   /// Kuyruğa yazılmaz çünkü tekrar denenmesi İSTENMEZ: yazıcı yokken test
@@ -252,12 +282,19 @@ class PrintService {
 
       final printedAt = _now();
       _queue.markPrinted(job.id, printedAt);
+      _lastError = null;
       // Fişin basılmış olması `ack`'e bağlı değildir; bu yüzden beklenmez.
       unawaited(_ack(job, printedAt));
       return false;
-    } on Object {
+    } on Object catch (error) {
       // Ağ hatası, yazıcı yok, kağıt bitti — hepsi aynı sonucu doğurur:
       // iş kuyrukta kalır ve geri çekilmeyle tekrar denenir.
+      //
+      // İSTİSNA ARTIK TAMAMEN YUTULMUYOR: metni saklanıyor ve sağlık
+      // bildirimiyle sunucuya gidiyor (K-22 §3). Davranış değişmedi —
+      // hata yukarı hâlâ atılmıyor, çünkü kuyruk işçisinin durması
+      // mutfağın hiç fiş görmemesi demek olurdu.
+      _lastError = '#${job.orderId} ${job.type.wireName}: $error';
       _queue.incrementAttempts(job.id);
       return true;
     }

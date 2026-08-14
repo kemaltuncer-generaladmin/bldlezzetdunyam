@@ -736,7 +736,8 @@ Ayarların tamamı sunucudan yönetilir ve sağlık bildiriminin yanıtıyla
 kasaya iner: ses, yoklama aralığı, uyarı eşiği, geciken eşiği, yazıcı
 yolu, kod sayfası, sağlık sıklığı, bağlantı uyarısı aralığı, alarmın
 susturulabilirliği, ses seviyesi, çıkış cihazı, anons ve dokunmatik kip
-(16 alan) — artı K-21 ile gelen 7 kilit alanı (§8.5).
+(16 alan) — artı K-21 ile gelen 7 kilit alanı (§8.5) ve K-22 ile gelen
+olay bazlı sesler (§8.6).
 
 > **Sayı burada sabitlenmez.** Bu paragraf uzun süre "dokuz ayar" dedi ve
 > alan sayısı 16'ya çıktığında kimse belgeyi güncellemedi. Normatif liste
@@ -763,6 +764,9 @@ sonuç bir sonraki bildirimle döner.
 | `clear_failed` | Basılamamış işleri kuyruktan düşürür |
 | `silence_alarm` | Çalan yeni sipariş alarmını susturur |
 | `restart` | Uygulamayı yeniden başlatır (systemd geri getirir) |
+| `update` | Yeni sürümü indirir ve kurar (K-22, §8.6) |
+| `unpair` | Cihaz token'ını siler; kasa eşleme ekranına döner (K-22) |
+| `clear_queue` | Kuyruktaki **bekleyen** işleri de düşürür (K-22) |
 
 > **Ayar değil komut olmaları şart.** Ayar "şu andan itibaren böyle olsun"
 > der ve kalıcıdır; komut "şunu bir kez yap" der ve tüketilir. "Test fişi
@@ -780,13 +784,21 @@ alıp çökmüş olabilir ve komutun hiç çalışmaması sessiz bir başarısı
 arkasına almaktı; açılış kilidi geldiği için ikinci bir parola katmanı
 yalnızca sürtünme üretiyordu. Ayarlar doğrudan açılır.
 
-- Sunucu adresi
-- Yazıcı cihaz yolu + **test fişi bas** butonu
-- Ses açık/kapalı, ses seviyesi
-- Polling aralığı (varsayılan 5 sn)
-- Kuyruk görüntüleme + elle yeniden basma
-- Cihaz eşlemesini sıfırla
-- Sürüm bilgisi + güncelleme kontrolü
+Ekranın bölümleri ve her birinin uzaktan karşılığı (K-22 sonrası):
+
+| Kasadaki bölüm | Uzaktan karşılığı |
+|---|---|
+| Sunucu adresi | **Yok, bilerek** (§8.6) — salt okunur gösterilir |
+| Yazıcı yolu, kod sayfası + *test fişi bas* | `printer_device_path`, `printer_code_page` · `test_receipt` |
+| Ses açık/kapalı, seviye, çıkış, **5 olay tek tek**, alarm tekrarı/üst sınırı, susturulabilirlik + *sesi sustur* | `sound_enabled`, `volume_percent`, `audio_sink`, `disabled_sound_events`, `alarm_repeat_seconds`, `alarm_max_repeats`, `alarm_silenceable` · `silence_alarm` |
+| Anons (TTS) | `tts_enabled`, `tts_rate_percent` |
+| Yoklama, sağlık, bağlantı alarmı | `poll_seconds`, `health_seconds`, `connection_alarm_seconds` |
+| Uyarı/geciken eşiği | `warning_after_minutes`, `late_after_minutes` |
+| Dokunmatik kip | `touch_mode` |
+| Kuyruk + elle yeniden basma | `clear_failed`, `clear_queue` · `reprint` |
+| Cihaz eşlemesini sıfırla | `unpair` (+ sunucu tarafında iptal) |
+| Sürüm bilgisi + güncelleme kontrolü | `update` |
+| — (yalnız uzaktan) | 7 kilit alanı (§8.5) |
 
 ## 8.5 Kilit politikası — K-21 (14.08.2026)
 
@@ -834,9 +846,158 @@ token'ının kapsamı (`kitchen`) ve iptal edilebilirliği. Kilit, yetkili
 personelin yanlışlıkla yapılandırma bozmasını engeller; kötü niyetli
 birini engellemez ve öyle pazarlanmamalıdır.
 
+## 8.6 Ayarlar ekranının tamamı merkezden — K-22 (18.08.2026)
+
+K-21 ayarların 16'sını ve 7 kilidi merkeze taşıdı. Bu tur kalan boşlukları
+kapatıyor: kasadaki ayarlar ekranında elle değiştirilebilen **her şey**, o
+ekrandaki her düğmenin yaptığı iş dahil, Kontrol Merkezi'nden yönetilebilir
+hâle geldi. Tek bilinçli istisna sunucu adresi (aşağıda).
+
+### Olay bazlı sesler — `disabled_sound_events`
+
+Kasadaki beş sesli uyarı tek tek kapatılabiliyordu ama sunucu bunu ne
+görüyor ne değiştirebiliyordu; "yazıcı uyarısı sürekli çalıyor" çağrısına
+verilebilecek tek cevap mutfağa gitmekti.
+
+Tel üzerinde virgülle ayrılmış `KdsSoundEvent` adları:
+`newOrder,lateOrder,printerError,subscriptionReminder,bbdOrder`.
+
+**Üç hâl vardır ve üçü de farklıdır:**
+
+| Değer | Anlamı |
+|---|---|
+| `null` | Yönetici dokunmadı → kasa **kendi** listesini korur |
+| `""` | "Hiçbiri kapalı olmasın" → kasa hepsini açar |
+| Dolu metin | Tam olarak bu olaylar kapalı |
+
+Boş dizenin ayrı bir emir olması `audio_sink`'teki istisnanın aynısıdır:
+`null` "dokunmadı"ya ayrılmış olduğu için, yöneticinin kapattığı bir uyarıyı
+geri açmasının başka yolu yok.
+
+> **`connectionLost` bu listede duramaz.** Sunucu listede görürse **sessizce
+> eler**, hata vermez. İsteği 422 ile geri çevirmek, yöneticinin gerçekten
+> kapatmak istediği diğer dört uyarının da uygulanmaması demek olurdu — tek
+> bir yazım hatası mutfağı hiç kimsenin istemediği bir yerde bırakırdı.
+> Bilinmeyen olay adları da aynı şekilde yok sayılır (sözleşme eklemeli).
+
+Eleme **iki katmanda** yapılıyor, sunucuda ve kasada: elle veritabanı
+düzenlemesi ya da eski bir sunucu sürümü değeri yine de kasaya ulaştırabilir
+ve bağlantı uyarısını kapatmak mutfağı kör bırakır (§5.5).
+
+> **Laravel tuzağı.** `ConvertEmptyStringsToNull` middleware'i gövdedeki her
+> `""` değerini `null`'a çeviriyordu; boş dizeye anlam yükleyen üç ayarın
+> (`audio_sink`, `lock_message`, `disabled_sound_events`) emri tele hiç
+> çıkmıyordu. `Control\DeviceController::restoreEmptyStrings` ham gövdeden
+> yalnız boş dizeleri geri koyuyor; doğrulama yine temizlenmiş veri üzerinde.
+
+### `update` komutu — `pkexec` KULLANMAZ
+
+`.deb` `GET /api/app-version?app_id=mutfakapp` → `download_url` adresinden
+inip kurulur. Kurulum yolu `infra/kasa/` altındaki mevcut akıştır: paket
+`dpkg-deb -x` ile **açılır** (kurulmaz), içerik `~/.local/opt/mutfakapp`
+yerine geçer, `systemctl --user restart mutfakapp` çalışır.
+
+> **`pkexec` uzaktan çalıştırılabilir bir komut için ölümcüldür.** Mutfak
+> ekranının ortasında grafik bir parola kutusu açar; kasada o parolayı
+> girecek kimse yoktur (personel siparişi işler, yönetici ofistedir). Kutu
+> açık kalır, kurulum hiç bitmez, komut sonsuza dek "sonuç bekleniyor"da
+> asılır ve kutu tam ekran KDS'in üstünde durduğu için mutfak o süre
+> boyunca **sipariş de göremez.**
+
+Kök yetkisi zaten gerekmiyor: kurulum bir systemd **kullanıcı** servisi ve
+uygulama kullanıcının kendi dizininde duruyor.
+
+**Başarısızlık güvenli tarafta.** Sürüm sorgusu, indirme, imza doğrulaması
+(`.deb` = `ar` arşivi), çıkarma ve yerleştirme adımlarından herhangi biri
+düşerse hiçbir şey değiştirilmez: kasa **eski sürümde çalışmaya devam eder**
+ve komut gerekçesiyle başarısız döner. Yeni sürüm ancak eksiksiz çıkarılıp
+doğrulandıktan sonra tek bir `rename` ile devreye girer — "yarısı
+kopyalanmış" bir kurulum, hiç güncellenmemiş bir kasadan çok daha kötüdür.
+
+### `unpair` ve `clear_queue`
+
+`unpair`, `revoke` ile aynı şey **değildir**: `revoke` sunucudaki kapıyı
+kapatır ve kasa bunu ancak bir sonraki isteğinde `403` olarak öğrenir;
+`unpair` kasanın kendi eşlemesini bırakmasını sağlar. Kasa değiştirilirken
+ya da bir makine başka bir mutfağa taşınırken gereken budur.
+
+> Komutun sonucu sunucuya ulaşmaz ve bu beklenen davranıştır: sonuçlar bir
+> sonraki sağlık bildirimiyle gidiyor, o bildirimin token'ı ise artık yok.
+> Geri bildirim kaybolmuyor — yönetici kasanın eşlemeden düştüğünü panelde
+> doğrudan görüyor.
+
+`clear_queue`, `clear_failed`'den farklı olarak **bekleyen** işleri de
+düşürür. İkisinin ayrı komut olması bilinçli: `clear_failed` yalnız hata
+almış işleri siler ve yazıcı sırayı yetiştiremediği için bekleyen sağlam
+fişler korunur. Tek düğmede birleştirmek, yıkıcı olanı kazara çalıştırırdı.
+Basılmış satırlara **hiçbiri dokunmaz** — tekillik kısıtı onlara dayanıyor
+ve silinirlerse aynı fiş yeniden basılır.
+
+### Zenginleştirilmiş telemetri
+
+`POST /api/kitchen/health` gövdesine beş **opsiyonel** alan eklendi:
+
+| Alan | Kaynak | Ne söyler |
+|---|---|---|
+| `last_error` (≤255) | `PrintService.lastError` | Son yazıcı/ağ hatasının metni |
+| `alarm_muted` | `AlarmPlayer.isMuted` | Alarm gerçekten duyuluyor mu |
+| `alarm_mute_reason` (≤120) | `AlarmPlayer.muteReason` | Neden duyulmuyor |
+| `queue_oldest_at` (ISO) | `PrintQueue.oldestPendingAt` | En eski bekleyen iş |
+| `sound_ok` | ses açıkken `!isMuted` | Ses altsistemi sağlam mı |
+
+"Kuyrukta 3 iş var" ile "kuyrukta 3 iş var ve en eskisi 40 dakikadır
+bekliyor" mutfakta iki ayrı durumdur: ilki yazıcının sırayı yetiştirememesi,
+ikincisi kâğıdın bitmesi ve kimsenin fark etmemesi. Aradaki fark sahaya
+gitme kararını değiştirir.
+
+> **Hepsi opsiyonel ve `null` "kasa bildirmedi" demektir.** Zorunlu
+> olsalardı sunucu güncellendiği anda sahadaki tüm eski kasaların sağlık
+> bildirimi 422'ye düşerdi — yönetici, kasaların durumunu görmek için
+> eklediği alan yüzünden hiçbirini göremez hâle gelirdi.
+
+> **`sound_ok` ses kapalıyken `null` gider.** Kapalıyken oynatıcı
+> `SilentAlarmPlayer` ve `isMuted` her zaman `true`, ama bu bir arıza değil
+> bir tercih. `false` demek sağlam bir hoparlörü arızalı göstermek, `true`
+> demek hiç denenmemiş bir altsistem için sağlık garantisi vermek olurdu.
+
+**Telemetri bayatlamaz.** Bildirilmeyen alan `null`'a döner —
+`app_version`'ın aksine eski değer korunmaz. Sürüm bir kimliktir (kasa
+bildirmediyse hâlâ o sürümdedir); bunlar anlık ölçümdür ve çözülmüş bir
+arızayı panelde kırmızı bırakmak, gerçek bir arıza çıktığında kimsenin
+bakmaması demek olurdu.
+
+### Sunucu adresi BİLEREK yönetilmiyor
+
+Kasadaki "Sunucuyu değiştir" düğmesinin uzaktan karşılığı **yazılmamıştır ve
+yazılmayacaktır.** Panelde alan **salt okunur** gösterilir ve bu gerekçe
+ekranda yazar.
+
+> **Yanlış bir adres yazıldığı anda kasa yeni adrese gider, oradan hiçbir şey
+> alamaz ve DÜZELTMEYİ DE ALAMAZ** — çünkü düzeltme eski adresten gelecekti.
+> Kasa sahada elle kurtarılana kadar sipariş göremez.
+
+Yönetilen diğer 24 ayarın hepsinde yanlış bir değer geri alınabilir: kasa
+sunucuyla konuşmaya devam eder ve bir sonraki sağlık turunda doğrusunu alır.
+Sunucu adresi, tek bir yazım hatasının bu geri dönüş yolunu **kendisiyle
+birlikte** ortadan kaldırdığı tek ayardır — "geri alınabilirlik" burada
+kaybolduğu için ayar da uzaktan açılmıyor.
+
+Aynı sebep kilitte tersine işliyor: `allow_server_change` (K-21) adresin
+**kasadan** değiştirilmesini kapatabiliyor. Yani adres yalnızca fiziksel
+olarak kasanın başındaki kişi tarafından, yönetici izin verdiyse değişir.
+
 ## 9. Güncelleme
 
-`GET /api/app-version?app_id=mutfakapp` ile kontrol. Yeni sürüm varsa durum çubuğunda bildirim. Kurulum: `.deb` indirilir, kullanıcı onayıyla `pkexec dpkg -i` ile kurulur, servis yeniden başlar. Sürüm `min_supported` altındaysa uygulama engelleyici ekran gösterir.
+`GET /api/app-version?app_id=mutfakapp` ile kontrol. Yeni sürüm varsa durum çubuğunda bildirim. Sürüm `min_supported` altındaysa uygulama engelleyici ekran gösterir.
+
+Kurulum: `.deb` indirilir, doğrulanır, `dpkg-deb -x` ile açılır ve
+`~/.local/opt/mutfakapp` yerine geçer; ardından `systemctl --user restart`.
+Kontrol Merkezi bunu `update` komutuyla uzaktan tetikleyebilir.
+
+> **`pkexec dpkg -i` KULLANILMAZ.** Bu belge uzun süre öyle diyordu; gerekçesi
+> ve yerine ne yapıldığı §8.6'da. Kısaca: `pkexec` kasada parola kutusu açar,
+> kutuyu kapatacak kimse yoktur ve kutu tam ekran KDS'in üstünü kapatır.
+> Kök yetkisi zaten gerekmiyor — kurulum bir systemd **kullanıcı** servisi.
 
 ## 10. Testler
 

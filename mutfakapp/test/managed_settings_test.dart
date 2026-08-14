@@ -6,6 +6,7 @@ import 'package:mutfakapp/src/data/command_runner.dart';
 import 'package:mutfakapp/src/data/kitchen_health.dart';
 import 'package:mutfakapp/src/data/managed_settings.dart';
 import 'package:mutfakapp/src/settings/kds_settings.dart';
+import 'package:mutfakapp/src/sound/kds_sound_event.dart';
 
 const yerel = KdsSettings(
   soundEnabled: true,
@@ -338,12 +339,137 @@ void main() {
     });
   });
 
+  // ── K-22 §1 — olay bazlı sesler ──────────────────────────────────────
+  //
+  // Tel üzerindeki biçim virgülle ayrılmış `KdsSoundEvent` adları. Üç hâl
+  // var ve üçü de farklı: `null` (dokunmadı), boş dize (hepsini aç), dolu
+  // liste (tam olarak bunlar kapalı).
+  group('Olay bazlı sesler', () {
+    KitchenManagedSettings gelen(Object? value) =>
+        KitchenManagedSettings.fromJson(<String, Object?>{
+          'disabled_sound_events': value,
+        });
+
+    final ikisiKapali = yerel.copyWith(
+      disabledSoundEvents: {
+        KdsSoundEvent.printerError,
+        KdsSoundEvent.lateOrder,
+      },
+    );
+
+    test('ANAHTAR YOKKEN yerel liste korunur', () {
+      // Eski bir sunucu sürümü bu anahtarı hiç göndermiyor. Listenin
+      // sessizce boşalması, personelin kapattığı yazıcı uyarısının geri
+      // gelip yeni sipariş sesini bastırması demekti.
+      final sonuc = applyManagedSettings(
+        ikisiKapali,
+        KitchenManagedSettings.fromJson(const <String, Object?>{}),
+      );
+
+      expect(sonuc.disabledSoundEvents, ikisiKapali.disabledSoundEvents);
+    });
+
+    test('null gelirse yerel liste korunur', () {
+      // `null` = "yönetici dokunmadı". "Hepsini aç" DEĞİL.
+      final sonuc = applyManagedSettings(ikisiKapali, gelen(null));
+
+      expect(sonuc.disabledSoundEvents, ikisiKapali.disabledSoundEvents);
+    });
+
+    test('BOŞ DİZE hepsini açar', () {
+      // `audio_sink` ile aynı istisna: `null` "dokunmadı"ya ayrılmış
+      // olduğu için yöneticinin kapattığı uyarıyı geri açmasının başka
+      // yolu yok.
+      final sonuc = applyManagedSettings(ikisiKapali, gelen(''));
+
+      expect(sonuc.disabledSoundEvents, isEmpty);
+      expect(sonuc.soundEnabledFor(KdsSoundEvent.printerError), isTrue);
+    });
+
+    test('liste uygulanır ve yerel listenin YERİNE geçer', () {
+      final sonuc = applyManagedSettings(
+        ikisiKapali,
+        gelen('newOrder,bbdOrder'),
+      );
+
+      expect(sonuc.disabledSoundEvents, {
+        KdsSoundEvent.newOrder,
+        KdsSoundEvent.bbdOrder,
+      });
+      expect(sonuc.soundEnabledFor(KdsSoundEvent.printerError), isTrue);
+      expect(sonuc.soundEnabledFor(KdsSoundEvent.newOrder), isFalse);
+    });
+
+    test('connectionLost ELENİR ama DİĞERLERİ uygulanır', () {
+      // Yöneticinin yazım hatası mutfağı sessiz bırakmamalı: isteği
+      // tamamen reddetmek, gerçekten kapatılmak istenen uyarıların da
+      // açık kalması demek olurdu.
+      final sonuc = applyManagedSettings(
+        yerel,
+        gelen('connectionLost,printerError'),
+      );
+
+      expect(sonuc.disabledSoundEvents, {KdsSoundEvent.printerError});
+      expect(sonuc.soundEnabledFor(KdsSoundEvent.connectionLost), isTrue);
+    });
+
+    test('connectionLost TEK BAŞINA gelirse liste boşalır, hata olmaz', () {
+      final sonuc = applyManagedSettings(ikisiKapali, gelen('connectionLost'));
+
+      expect(sonuc.disabledSoundEvents, isEmpty);
+    });
+
+    test('BİLİNMEYEN olay adı yok sayılır', () {
+      // Sözleşme eklemeli: sunucu kasadan yeni bir sürümde olabilir ve
+      // henüz tanımadığımız bir olay gönderebilir. Ayrıştırmayı
+      // patlatmak, o turdaki diğer ayarların da uygulanmaması demekti.
+      final sonuc = applyManagedSettings(
+        yerel,
+        gelen('newOrder,fisBitti,lateOrder'),
+      );
+
+      expect(sonuc.disabledSoundEvents, {
+        KdsSoundEvent.newOrder,
+        KdsSoundEvent.lateOrder,
+      });
+    });
+
+    test('boşluklu ve tekrarlı liste temizlenir', () {
+      final sonuc = applyManagedSettings(
+        yerel,
+        gelen(' newOrder , newOrder ,lateOrder '),
+      );
+
+      expect(sonuc.disabledSoundEvents, {
+        KdsSoundEvent.newOrder,
+        KdsSoundEvent.lateOrder,
+      });
+    });
+
+    test('ses listesi tek başına gelince DİĞER ayarlar korunur', () {
+      final sonuc = applyManagedSettings(yerel, gelen('newOrder'));
+
+      expect(sonuc.pollSeconds, yerel.pollSeconds);
+      expect(sonuc.printerDevicePath, yerel.printerDevicePath);
+      expect(sonuc.soundEnabled, yerel.soundEnabled);
+    });
+
+    test('boş küme ile null AYNI ŞEY DEĞİLDİR', () {
+      // Model düzeyindeki ayrım: eşitlik ve özet bunları karıştırırsa
+      // "hepsini aç" emri "dokunmadım" sanılıp yutulurdu.
+      expect(gelen(''), isNot(gelen(null)));
+      expect(gelen('').isEmpty, isFalse, reason: 'Boş dize bir emirdir.');
+      expect(gelen(null).isEmpty, isTrue, reason: '`null` dokunmamaktır.');
+    });
+  });
+
   group('Komut çalıştırma', () {
     late List<String> cagrilar;
 
     CommandRunner build({
       Future<String?> Function()? test,
       Future<String?> Function(int, String)? reprint,
+      Future<String?> Function()? update,
     }) => CommandRunner(
       CommandActions(
         printTestReceipt:
@@ -370,6 +496,20 @@ void main() {
           cagrilar.add('restart');
           return null;
         },
+        update:
+            update ??
+            () async {
+              cagrilar.add('update');
+              return null;
+            },
+        unpair: () async {
+          cagrilar.add('unpair');
+          return null;
+        },
+        clearQueue: () async {
+          cagrilar.add('clear_queue');
+          return null;
+        },
       ),
     );
 
@@ -385,6 +525,41 @@ void main() {
 
       expect(cagrilar, ['test', 'clear', 'silence', 'restart']);
       expect(sonuc.map((r) => r.ok), everyElement(isTrue));
+    });
+
+    test('K-22 KOMUTLARI kendi eylemlerine bağlanır', () async {
+      final sonuc = await build().run(const [
+        KitchenCommand(id: 5, command: KitchenCommand.update),
+        KitchenCommand(id: 6, command: KitchenCommand.unpair),
+        KitchenCommand(id: 7, command: KitchenCommand.clearQueue),
+      ]);
+
+      expect(cagrilar, ['update', 'unpair', 'clear_queue']);
+      expect(sonuc.map((r) => r.id), [5, 6, 7]);
+      expect(sonuc.map((r) => r.ok), everyElement(isTrue));
+    });
+
+    test('KUYRUĞU BOŞALT ile BAŞARISIZLARI TEMİZLE ayrı eylemlerdir', () async {
+      // İkisi tek eyleme bağlansaydı, yalnız hatalıları düşürmek isteyen
+      // yönetici bekleyen sağlam fişleri de çöpe atmış olurdu.
+      await build().run(const [
+        KitchenCommand(id: 1, command: KitchenCommand.clearFailed),
+        KitchenCommand(id: 2, command: KitchenCommand.clearQueue),
+      ]);
+
+      expect(cagrilar, ['clear', 'clear_queue']);
+    });
+
+    test('KURULUM BAŞARISIZSA komut gerekçesiyle başarısız döner', () async {
+      // Kasa eski sürümde kalır ve yönetici NEDEN kalındığını panelde
+      // görür; sessiz bir "çalıştı" yanıtı, güncellenmediğini ancak
+      // sürüm sütununa bakan birinin fark etmesi demek olurdu.
+      final sonuc = await build(
+        update: () async => 'Paket açılamadı: bozuk arşiv',
+      ).run(const [KitchenCommand(id: 9, command: KitchenCommand.update)]);
+
+      expect(sonuc.single.ok, isFalse);
+      expect(sonuc.single.message, 'Paket açılamadı: bozuk arşiv');
     });
 
     test('komutlar SIRAYLA çalışır', () async {

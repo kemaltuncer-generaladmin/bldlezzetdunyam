@@ -986,3 +986,106 @@ php artisan igniter:up      # 2026_08_17_000001 + 000002
 - **Açılış parolası hâlâ derleme sabiti** — uzaktan döndürülemiyor.
 - **Pint ile toplu biçimlendirme yine yapılmadı** (önceki turların gerekçesi
   aynen geçerli).
+
+---
+
+# Log — Ayarlar ekranının tamamı merkeze taşındı (K-22, 14.08.2026)
+
+**İstek:** *"kds uygulamasının ayarlar ekranındaki her şeyi, tüm butonlarının
+yaptığı işlemlere kadar yönetecek ayrıntılı bir şey istiyorum. kuru provaya
+gerek yok. daha da işlevsel ayrıntılı hale getir."*
+
+K-21 yirmi üç alan ve beş komut taşıyordu. Bu tur kalan boşlukları kapattı.
+
+## Olay bazlı sesler — `disabled_sound_events`
+
+Kasadaki beş sesli uyarı tek tek kapatılabiliyordu ama sunucu bunu ne görüyor
+ne değiştirebiliyordu. Üç durumlu: `null` = dokunulmadı, `""` = hiçbiri kapalı
+olmasın, dolu = tam olarak bunlar kapalı. `connectionLost` **iki katmanda da
+sessizce eleniyor** — yöneticinin yazım hatası mutfağı sessiz bırakmamalı.
+
+## Üç yeni komut
+
+`update`, `unpair`, `clear_queue`. Ayrıca `KitchenCommand::DESTRUCTIVE`
+listesi eklendi; hangi komutun ayrı izin istediğini sunucu ve Kontrol Merkezi
+tek yerden okuyor.
+
+**`update` `pkexec` KULLANMIYOR.** Kasada etkileşimli parola sorar ve komut
+sonsuza dek asılı kalırdı. Uygulama `~/.local/opt/mutfakapp` altında bir
+systemd **kullanıcı** servisi olduğu için root gerekmiyor: `.deb` imzası
+doğrulanıyor, `dpkg-deb -x` ile açılıyor, iki rename ile takas ediliyor,
+`systemctl --user restart`. **Her hata dalında eski kurulum yerinde kalıyor.**
+
+## Zenginleştirilmiş telemetri
+
+`last_error`, `alarm_muted`, `alarm_mute_reason`, `queue_oldest_at`,
+`sound_ok`. Hepsi opsiyonel — eski kasalar göndermiyor, sunucu `null` yazıyor.
+"Kuyrukta 3 iş var" ile "en eskisi 40 dakikadır bekliyor" arasındaki fark
+sahaya gitme kararını değiştiriyor.
+
+İki bilinçli karar: telemetri **kalıcı değil** (`app_version`in aksine — o bir
+kimlik, bu bir ölçüm), ve ses kapalıyken `sound_ok` `null` (altsistem sağlıklı
+değil, **denenmemiş**).
+
+## Turda yakalanan hata: boş dize sunucuya hiç ulaşmıyordu
+
+Laravel'in `ConvertEmptyStringsToNull` ara katmanı gövdedeki her `""` değerini
+`null`'a çeviriyordu. Sözleşmede `null` "yönetici dokunmadı" demek — yani
+**boş dizeyle yapılan hiçbir sıfırlama kontrol API'sinden geçemiyordu:**
+seçili hoparlörü varsayılana döndürmek, kilit mesajını silmek, kapatılmış bir
+sesi geri açmak. Üçü de sessizce hiçbir şey yapıyordu; K-21'den beri açıktı.
+`Control\DeviceController::restoreEmptyStrings()` yalnız boş dizeleri ham
+gövdeden geri koyuyor, doğrulama temizlenmiş girdi üzerinde koşmaya devam ediyor.
+
+## Sunucu adresi bilerek yönetilmiyor
+
+Kasadaki "Sunucuyu değiştir" düğmesinin uzaktan karşılığı **yazılmadı**.
+Yanlış bir adres yazıldığı anda kasa yeni adrese gider, oradan hiçbir şey
+alamaz ve **düzeltmeyi de alamaz** — çünkü düzeltme eski adresten gelecekti.
+Tek bir yazım hatasının mutfağı durdurduğu tek ayar budur. Gerekçe
+`docs/05-mutfakapp.md` §8.6'da; ters yön (`allow_server_change`) K-21'de var.
+
+## Kuru prova kalktı
+
+Kontrol Merkezi'nde varsayılan kapandı ve panelden şalter kaldırıldı. Sunucu
+ve geçitteki `dry_run` parametresi ile testleri **duruyor** — sözleşme
+additive. Gerekçe zorunluluğu (`reason`, min 10) aynen sürüyor: kuru prova bir
+güvenlik ağıydı, gerekçe denetim kaydıdır.
+
+## Kasa temizliği
+
+Sahada tek gerçek kasa var (MSI Mutfak Kasası). Kalan 20 kayıt deneme
+artığıydı ve **dördünün token'ı 9 gündür kullanılmamasına rağmen hâlâ
+geçerliydi.** Kullanıcı kararıyla silindi; öncesinde tam yedek alındı
+(`/root/kds-yedek-tam-*.json`). İki fiş denetim satırının `device_id`'si
+`NULL`'a çekildi — kayıt korundu, sarkan başvuru kalktı.
+
+## Doğrulama
+
+| Paket | Sonuç |
+|---|---|
+| PHP (`phpunit --testsuite Veykemtu`) | **457 test / 1921 doğrulama**, 1 hata* |
+| `mutfakapp` | **554 test**, `flutter analyze` temiz |
+| `packages/core` | **182 test** — golden fiş baytları değişmedi |
+| Kontrol Merkezi modülleri | **150 test**, depo geneli 2507, ruff temiz |
+
+\* `AddressSuggestTest` — yapısal adres iş kolunun devam eden işi, K-22 ile ilgisiz.
+
+## Dağıtımda yapılacaklar
+
+```bash
+cd platform && php artisan igniter:up   # 2026_08_18_000001
+```
+Kasa yeni komutları ve ayarları ancak **yeniden derlenip kurulunca** tanır
+(`infra/kasa/derle.sh`).
+
+## Bilinçli olarak yapılmayanlar
+
+- **`packages/core` için `dart test` değil `flutter test`** — çalışma alanı
+  `flutter_test` çektiği için `dart pub` sürüm çözemiyor. Belgelerde `dart test`
+  yazan yerler bu turda düzeltilmedi.
+- **Kontrol Merkezi'nde `clear_queue` yıkıcı sayıldı**, BLD'de böyle bir ayrım
+  yok. Gerekçe: `clear_queue` ⊃ `clear_failed`; dışarıda bırakmak dar yetkiliye
+  daha fazlasını yaptırırdı.
+- **`server_url` cihaz künyesinde taşınmıyor.** Panel varsa gösteriyor, yoksa
+  "kasa bildirmiyor" yazıyor. Alan eklemek ayrı bir iş.

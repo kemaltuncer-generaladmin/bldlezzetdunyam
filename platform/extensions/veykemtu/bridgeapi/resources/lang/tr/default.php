@@ -124,7 +124,13 @@ return [
         'command_clear_failed' => 'Başarısız kuyruğu temizle',
         'command_silence_alarm' => 'Alarmı sustur',
         'command_restart' => 'Uygulamayı yeniden başlat',
+        'command_update' => 'Yeni sürümü kur',
+        'command_unpair' => 'Cihaz eşlemesini kasadan sil',
+        'command_clear_queue' => 'Kuyruğu tamamen boşalt',
         'confirm_restart' => 'Mutfak ekranı kapanıp yeniden açılacak. Hazırlanmakta olan siparişler sunucuda durur, ekran birkaç saniye içinde geri gelir. Devam edilsin mi?',
+        'confirm_update' => 'Kasa yeni sürümü indirip kuracak ve yeniden başlayacak. Kurulum başarısız olursa kasa eski sürümde çalışmaya devam eder. Devam edilsin mi?',
+        'confirm_unpair' => 'Kasadaki cihaz token\'ı silinecek ve mutfak ekranı eşleme kodu isteyecek. Yeni bir kod üretip mutfağa okutmadan sipariş göremezler. Devam edilsin mi?',
+        'confirm_clear_queue' => 'Kuyrukta BEKLEYEN fişler de dahil hepsi düşürülecek ve geri gelmeyecek. Yalnız hatalıları düşürmek için "Başarısız kuyruğu temizle" kullanın. Devam edilsin mi?',
 
         // ── Form ───────────────────────────────────────────────────────
         'label_name' => 'Kasa adı',
@@ -163,6 +169,9 @@ return [
         'label_audio_sink' => 'Ses çıkışı',
         'help_audio_sink' => 'PipeWire/PulseAudio çıkış adı ya da düğüm numarası. Boş bırakılırsa sistem varsayılanı kullanılır. Kasadaki Ayarlar ekranı mevcut çıkışları listeler.',
         'text_default_output' => 'Sistem varsayılanı',
+
+        'label_disabled_sound_events' => 'Kapatılan sesli uyarılar',
+        'help_disabled_sound_events' => 'Virgülle ayrılmış olay adları: newOrder, lateOrder, printerError, subscriptionReminder, bbdOrder. Boş bırakılırsa kasa kendi seçimini korur; hepsini açmak için tek bir boşluk yerine Kontrol Merkezi\'ndeki "hepsini aç" düğmesini kullanın. Bağlantı uyarısı (connectionLost) kapatılamaz; yazılsa bile yok sayılır.',
         'label_alarm_repeat_seconds' => 'Alarm tekrarları arası bekleme (saniye)',
         'help_alarm_repeat_seconds' => '0 = aralıksız tekrar. Yeni sipariş alarmı sipariş onaylanana kadar çalar.',
         'label_alarm_max_repeats' => 'En fazla alarm tekrarı',

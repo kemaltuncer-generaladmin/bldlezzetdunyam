@@ -331,6 +331,28 @@ class KitchenController extends ApiController
             'print_queue_pending' => ['required', 'integer', 'min:0', 'max:100000'],
             'print_queue_failed' => ['required', 'integer', 'min:0', 'max:100000'],
             'app_version' => ['sometimes', 'string', 'max:32'],
+
+            /*
+             * ZENGİNLEŞTİRİLMİŞ TELEMETRİ (K-22) — HEPSİ OPSİYONEL.
+             *
+             * Sahadaki kasalar bu alanları göndermeyen bir sürümde ve öyle
+             * kalabilirler. `sometimes` + `nullable`: alan hiç gelmezse
+             * doğrulama karışmaz, `null` gelirse de kabul edilir. Zorunlu
+             * yapmak, sunucu güncellendiği anda TÜM eski kasaların sağlık
+             * bildirimini 422'ye düşürürdü — yani yönetici, kasaların
+             * durumunu görmek için eklediği alan yüzünden hiçbirini
+             * göremez hâle gelirdi.
+             *
+             * Sınırlar sütun genişlikleriyle birebir (göç
+             * `2026_08_18_000001`): MySQL'in sessizce kesmesi yerine
+             * istemci hatayı görsün.
+             */
+            'last_error' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'alarm_muted' => ['sometimes', 'nullable', 'boolean'],
+            'alarm_mute_reason' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'queue_oldest_at' => ['sometimes', 'nullable', 'date'],
+            'sound_ok' => ['sometimes', 'nullable', 'boolean'],
+
             // Bir önceki turda teslim edilen komutların sonuçları.
             'command_results' => ['sometimes', 'array', 'max:50'],
             'command_results.*.id' => ['required', 'integer'],
@@ -354,6 +376,37 @@ class KitchenController extends ApiController
             'print_queue_pending' => (int) $data['print_queue_pending'],
             'print_queue_failed' => (int) $data['print_queue_failed'],
             'app_version' => $data['app_version'] ?? $device->app_version,
+
+            /*
+             * TELEMETRİ ALANLARI GÖNDERİLMEDİĞİNDE `null` YAZILIR —
+             * `app_version` gibi eski değer KORUNMAZ, ve bu bilinçli.
+             *
+             * `app_version` bir KİMLİKTİR: kasa sürümünü bildirmediyse hâlâ
+             * son bildirdiği sürümdedir. Buradakiler ise ANLIK ÖLÇÜMDÜR:
+             * "kuyrukta bekleyen en eski iş 40 dakikalık" bilgisi bir sonraki
+             * bildirimde gelmiyorsa o iş büyük olasılıkla basılmıştır. Eski
+             * değeri korumak, çözülmüş bir arızayı panelde sonsuza kadar
+             * kırmızı bırakırdı — ve gösterge yalan söylüyorsa hiç olmaması
+             * daha iyidir.
+             *
+             * Aynı kural eski kasaları da doğru gösteriyor: alanı hiç
+             * göndermeyen bir kasa için sütun `null` kalır, panel de
+             * "bildirmedi" der; "sorun yok" DEMEZ.
+             */
+            'last_error' => self::trimOrNull($data['last_error'] ?? null, 255),
+            'alarm_muted' => self::boolOrNull($data['alarm_muted'] ?? null),
+            'alarm_mute_reason' => self::trimOrNull($data['alarm_mute_reason'] ?? null, 120),
+            // `BusinessTime::forStorage` ŞART, çıplak `Carbon::parse` DEĞİL:
+            // Eloquent `datetime` alanını yazarken Carbon'un kendi zaman
+            // dilimini kullanıyor ama okurken PHP'nin varsayılanını
+            // (Europe/Istanbul) varsayıyor. Damga üç saat kayar ve panelde
+            // "en eskisi 40 dakikadır bekliyor" yerine "3 saat 40 dakika"
+            // yazardı. Aynı tuzak `printed_at`'te yakalanmıştı — gerekçe
+            // `BusinessTime::forStorage` yorumunda.
+            'queue_oldest_at' => isset($data['queue_oldest_at'])
+                ? BusinessTime::forStorage(Carbon::parse((string) $data['queue_oldest_at']))
+                : null,
+            'sound_ok' => self::boolOrNull($data['sound_ok'] ?? null),
         ])->saveQuietly());
 
         return $this->json([
@@ -370,6 +423,38 @@ class KitchenController extends ApiController
             // sonraki bildirimde `command_results` ile geri gönderir.
             'commands' => $this->takeCommands($device),
         ]);
+    }
+
+    /**
+     * Telemetri metnini kırpar; boş kalırsa `null`.
+     *
+     * BOŞ DİZE `null`'A DÜŞÜYOR — ayarlardaki `audio_sink` istisnasının
+     * TERSİ, ve doğrusu bu: orada boş dize yöneticinin verdiği bir emirdi
+     * ("varsayılan çıkışa dön"), burada ise kasanın "hata yok" demesinin
+     * biçimsiz hâli. Boş dizeyi saklamak, panelde boş bir hata satırı
+     * gösterirdi.
+     */
+    private static function trimOrNull(mixed $value, int $max): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $text = trim((string) $value);
+
+        return $text === '' ? null : mb_substr($text, 0, $max);
+    }
+
+    /**
+     * Üç hâlli bayrak: `null` "bildirmedi", aksi hâlde `bool`.
+     *
+     * `(bool) null` `false` verirdi ve "kasa bildirmedi" ile "kasa kötü
+     * bildirdi" aynı şeye düşerdi — panel de var olmayan bir arıza
+     * gösterirdi.
+     */
+    private static function boolOrNull(mixed $value): ?bool
+    {
+        return $value === null ? null : (bool) $value;
     }
 
     /**

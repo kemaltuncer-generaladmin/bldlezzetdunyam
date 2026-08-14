@@ -219,7 +219,10 @@ class DeviceController extends ControlController
          * burada okunan şey isteğin ham niyeti.
          */
         /** @var array<string, mixed> $sent */
-        $sent = (array) $request->input('settings', []);
+        $sent = $this->restoreEmptyStrings(
+            (array) $request->input('settings', []),
+            $request,
+        );
 
         $known = $this->settingKeys($model);
         $provided = array_intersect_key($sent, array_flip($known));
@@ -377,6 +380,59 @@ class DeviceController extends ControlController
     // ── Yardımcılar ───────────────────────────────────────────────────────
 
     /**
+     * `ConvertEmptyStringsToNull`'ın yuttuğu BOŞ DİZELERİ geri koyar.
+     *
+     * NEDEN GEREKLİ — sessiz ve bu uçta anlam bozan bir tuzak:
+     *
+     * Laravel'in genel `ConvertEmptyStringsToNull` middleware'i (bkz.
+     * `app/Http/Kernel.php`) gövdedeki her `""` değerini `null`'a çeviriyor.
+     * Bu uçta ikisi AYRI EMİRDİR ve karıştırılamaz:
+     *
+     *   * `null` = "yönetici bu ayara dokunmadı" → kasa kendi değerini korur,
+     *   * `""`   = "seçimimi geri al, varsayılana dön".
+     *
+     * Boş dizeye anlam yükleyen üç ayar var: `audio_sink` ("varsayılan
+     * çıkışa dön"), `lock_message` ("özel metni kaldır") ve K-22 ile gelen
+     * `disabled_sound_events` ("hiçbiri kapalı olmasın"). Middleware
+     * yüzünden bu üç emir tele hiç çıkmıyordu: yönetici "hepsini aç"
+     * dediğinde sunucu "dokunmadı" anlıyor ve KASA ESKİ LİSTESİNİ KORUYORDU.
+     * Yani kapatılmış bir uyarıyı Kontrol Merkezi'nden geri açmanın hiçbir
+     * yolu yoktu.
+     *
+     * HAM GÖVDE OKUNUYOR, `$request->json()` DEĞİL: middleware JSON
+     * torbasını da temizliyor (`TransformsRequest::clean`). Ham içerik ise
+     * isteğin geldiği hâliyle duruyor.
+     *
+     * DOĞRULAMA YİNE TEMİZLENMİŞ VERİ ÜZERİNDE koşuyor ve bu sorun değil:
+     * kurallar `nullable` ve boş dize orada `null` olarak zaten geçiyor;
+     * uzunluk sınırları da boş dize için anlamsız. Geri konan tek şey
+     * değerin ORİJİNAL hâli.
+     *
+     * @param  array<string, mixed>  $sent
+     * @return array<string, mixed>
+     */
+    private function restoreEmptyStrings(array $sent, Request $request): array
+    {
+        $raw = json_decode((string) $request->getContent(), true);
+
+        if (!is_array($raw) || !isset($raw['settings']) || !is_array($raw['settings'])) {
+            return $sent;
+        }
+
+        foreach ($raw['settings'] as $key => $value) {
+            // YALNIZ BOŞ DİZEYE dokunuyoruz. Diğer her değer doğrulanmış
+            // ve temizlenmiş hâliyle kalmalı; ham gövdeyi olduğu gibi
+            // kullanmak, `TrimStrings` gibi middleware'leri de baypas edip
+            // bu ucu diğerlerinden farklı davrandırırdı.
+            if (is_string($value) && trim($value) === '' && ($sent[$key] ?? null) === null) {
+                $sent[$key] = '';
+            }
+        }
+
+        return $sent;
+    }
+
+    /**
      * Sözleşmedeki `device` nesnesi.
      *
      * EŞLEME KODU YALNIZ İKİ YERDE AÇILIR: kodu üreten uçların
@@ -417,6 +473,24 @@ class DeviceController extends ControlController
                 'print_queue_pending' => $device->print_queue_pending,
                 'print_queue_failed' => $device->print_queue_failed,
                 'app_version' => $device->app_version,
+
+                /*
+                 * ZENGİNLEŞTİRİLMİŞ TELEMETRİ (K-22).
+                 *
+                 * Sayının yanındaki bu beş alan, "kuyrukta 3 iş var" ile
+                 * "kuyrukta 3 iş var ve en eskisi 40 dakikadır bekliyor"
+                 * arasındaki farkı verir; ikisi arasındaki fark sahaya
+                 * gitme kararını değiştirir.
+                 *
+                 * Hepsi `null` olabilir ve `null` "kasa bildirmedi"
+                 * demektir — eski bir sürümde olan kasa bu alanları hiç
+                 * göndermez. Panel bunu "sorun yok" diye GÖSTERMEMELİ.
+                 */
+                'last_error' => $device->last_error,
+                'alarm_muted' => $device->alarm_muted,
+                'alarm_mute_reason' => $device->alarm_mute_reason,
+                'queue_oldest_at' => self::ts($device->queue_oldest_at),
+                'sound_ok' => $device->sound_ok,
             ],
             'settings' => $settings,
             'settings_updated_at' => self::ts($device->settings_updated_at),
@@ -523,6 +597,23 @@ class DeviceController extends ControlController
                 'max:'.KitchenDeviceSettings::MAX_ALARM_REPEAT_SECONDS],
             'alarm_max_repeats' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:60'],
             'touch_mode' => ['sometimes', 'nullable', 'boolean'],
+
+            /*
+             * OLAY BAZLI SESLER (K-22) — `audio_sink` gibi BOŞ DİZEYİ
+             * KORUR: burada boş dize "hiçbiri kapalı olmasın" emridir ve
+             * `null` "dokunmadı"ya ayrılmış durumda.
+             *
+             * Kural yalnız TİP ve UZUNLUK bakıyor; içeriği `Rule::in` ile
+             * kısıtlamıyoruz. Bilinmeyen ad ve `connectionLost`
+             * `KitchenDeviceSettings::normalizeSoundEvents` içinde SESSİZCE
+             * eleniyor — bilinçli bir sapma: bu alandaki tek bir yazım
+             * hatasının isteği 422'ye düşürmesi, yöneticinin gerçekten
+             * kapatmak istediği diğer uyarıların da uygulanmaması demek
+             * olurdu ve mutfak sessiz kalırdı. Diğer ayarlarda sessiz
+             * kırpma tehlikeli, burada sessiz eleme güvenli tarafta duruyor.
+             */
+            'disabled_sound_events' => ['sometimes', 'nullable', 'string',
+                'max:'.KitchenDeviceSettings::MAX_SOUND_EVENTS_LENGTH],
 
             // Kilit politikası (K-21). `null` = dokunma = serbest.
             'allow_settings' => ['sometimes', 'nullable', 'boolean'],

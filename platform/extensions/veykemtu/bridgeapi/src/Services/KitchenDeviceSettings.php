@@ -50,6 +50,38 @@ class KitchenDeviceSettings
     public const int MAX_TTS_RATE_PERCENT = 200;
 
     /**
+     * Kapatılabilen sesli uyarılar — kasadaki `KdsSoundEvent` adlarıyla
+     * BİREBİR (`mutfakapp/lib/src/sound/kds_sound_event.dart`).
+     *
+     * Adlar bir kez yayımlandıktan sonra DEĞİŞMEZ: kasa bunları ayar
+     * anahtarına (`kds_sound_<ad>_enabled`) çeviriyor ve ad değişirse
+     * kasadaki ayar sessizce varsayılana döner.
+     *
+     * `connectionLost` BU LİSTEDE YOK ve olmayacak (aşağıdaki sabit).
+     *
+     * @var list<string>
+     */
+    public const array SOUND_EVENTS = [
+        'newOrder',
+        'lateOrder',
+        'printerError',
+        'subscriptionReminder',
+        'bbdOrder',
+    ];
+
+    /**
+     * Asla kapatılamayan uyarı (`KdsSoundEvent::canBeDisabled == false`).
+     *
+     * Bağlantı koptuğunda ekran son bilinen listeyi gösterir ve DOĞRU
+     * görünür; yeni sipariş hiç gelmez. Tek uyarıyı kapatmak mutfağı kör
+     * bırakır (`docs/05` §5.5).
+     */
+    public const string UNMUTABLE_SOUND_EVENT = 'connectionLost';
+
+    /** Sütun genişliği; göç `2026_08_18_000001`. */
+    public const int MAX_SOUND_EVENTS_LENGTH = 160;
+
+    /**
      * Cihazın ayarları. Dokunulmamış alanlar `null` döner.
      *
      * @return array<string, mixed>
@@ -73,6 +105,12 @@ class KitchenDeviceSettings
             'alarm_repeat_seconds' => $device->alarm_repeat_seconds,
             'alarm_max_repeats' => $device->alarm_max_repeats,
             'touch_mode' => $device->touch_mode,
+
+            // Olay bazlı sesler (K-22). Virgülle ayrılmış `KdsSoundEvent`
+            // adları. ÜÇ HÂL: `null` "dokunmadı" (kasa kendi listesini
+            // korur), `''` "hiçbiri kapalı olmasın", dolu metin "tam
+            // olarak bunlar kapalı". Gerekçe göç `2026_08_18_000001`'de.
+            'disabled_sound_events' => $device->disabled_sound_events,
 
             // ── Kilit politikası (K-21) ────────────────────────────────
             //
@@ -131,6 +169,8 @@ class KitchenDeviceSettings
             'alarm_repeat_seconds',
             'alarm_max_repeats',
             'touch_mode',
+            // Olay bazlı sesler (K-22).
+            'disabled_sound_events',
             // Kilit politikası (K-21) — diğer ayarlarla aynı yolu izler:
             // yalnız gönderilen anahtar değişir, `null` "dokunmadı"ya döner.
             'allow_settings',
@@ -180,6 +220,18 @@ class KitchenDeviceSettings
             return $value === null ? null : trim((string) $value);
         }
 
+        // OLAY BAZLI SESLER — İKİNCİ BOŞ DİZE İSTİSNASI (K-22).
+        //
+        // `audio_sink` ile aynı gerekçe: boş dize burada da gerçek bir
+        // emirdir ("hiçbir uyarı kapalı olmasın, hepsini aç") ve `null`
+        // zaten "yönetici dokunmadı"ya ayrılmış durumda. Boş dizeyi
+        // `null`'a düşürseydik yöneticinin kapattığı bir uyarıyı geri
+        // açmasının HİÇBİR yolu kalmazdı — listeden çıkarmak için
+        // gönderilen boş liste, "dokunmadım" diye yorumlanırdı.
+        if ($field === 'disabled_sound_events') {
+            return $value === null ? null : $this->normalizeSoundEvents((string) $value);
+        }
+
         if ($value === null || $value === '') {
             return null;
         }
@@ -226,5 +278,52 @@ class KitchenDeviceSettings
             'printer_device_path' => trim((string) $value),
             default => $value,
         };
+    }
+
+    /**
+     * Kapalı ses olayları listesini temizler.
+     *
+     * ÜÇ KURAL, ÜÇÜ DE SESSİZ — hiçbiri isteği reddetmez:
+     *
+     * 1. **Bilinmeyen ad ELENİR.** Sözleşme eklemeli: Kontrol Merkezi
+     *    kasadan yeni bir sürümde olabilir ve henüz yayımlanmamış bir
+     *    olayın adını gönderebilir. Reddetmek, ileriye dönük uyumluluğu
+     *    kırar; elemek yalnızca o adı yok sayar.
+     *
+     * 2. **`connectionLost` ELENİR.** Kapatılamaz bir uyarı
+     *    (`KdsSoundEvent::canBeDisabled`). Yöneticinin listeye yazması
+     *    büyük olasılıkla bir yazım/kopyala-yapıştır hatasıdır ve isteği
+     *    422 ile geri çevirmek, GERÇEKTEN kapatmak istediği diğer dört
+     *    uyarının da uygulanmaması demek olurdu. Kasa tarafı da aynı şeyi
+     *    yapıyor (`KdsSettings::sanitized`) — iki katman da eliyor, çünkü
+     *    elle veritabanı düzenlemesi ya da eski bir sunucu sürümü bu
+     *    değeri yine de kasaya ulaştırabilir.
+     *
+     * 3. **Tekrarlar düşer, sıra sabitlenir.** `SOUND_EVENTS` sırası
+     *    kullanılıyor; böylece "aynı ayarı iki kez yazdım, sütun değişti
+     *    mi?" sorusu hep aynı cevabı verir ve `settings_updated_at`
+     *    boş yere ilerlemez.
+     *
+     * Sonuç boş dize olabilir ve bu GEÇERLİDİR: "hiçbiri kapalı değil".
+     */
+    private function normalizeSoundEvents(string $value): string
+    {
+        $sent = array_map(trim(...), explode(',', $value));
+
+        // Süzgeç BEYAZ LİSTE üzerinden dönüyor, gönderilen liste üzerinden
+        // değil: 1. ve 3. kural bedavaya geliyor (bilinmeyen ad hiç
+        // görülmüyor, sıra ve tekillik beyaz listeden). `connectionLost`
+        // zaten `SOUND_EVENTS` içinde değil; ikinci denetim, birinin onu
+        // bir gün oraya eklemesine karşı duruyor.
+        $kept = array_values(array_filter(
+            self::SOUND_EVENTS,
+            static fn(string $event): bool => $event !== self::UNMUTABLE_SOUND_EVENT
+                && in_array($event, $sent, true),
+        ));
+
+        // Uzunluk sınırı sütunla aynı; beş adın toplamı zaten çok altında
+        // ama sütun genişliğini aşan bir değerin veritabanına ulaşması
+        // MySQL'in kesmesi ya da patlaması demek olurdu.
+        return mb_substr(implode(',', $kept), 0, self::MAX_SOUND_EVENTS_LENGTH);
     }
 }

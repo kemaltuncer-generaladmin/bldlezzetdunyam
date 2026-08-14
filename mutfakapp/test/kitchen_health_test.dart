@@ -77,6 +77,75 @@ void main() {
       expect(report.toJson()['print_queue_pending'], 0);
       expect(report.toJson()['print_queue_failed'], 0);
     });
+
+    // ── Zenginleştirilmiş telemetri (K-22 §3) ──────────────────────────
+
+    test('TELEMETRİ ALANLARI bilinmiyorken HİÇ gönderilmez', () {
+      // Bilinmeyen bir değeri iyimser bir varsayılanla doldurmak
+      // göstergeyi yalancı yapardı; sunucu da bu sütunları üç hâlli
+      // tutuyor (`null` = "kasa bildirmedi").
+      final json = healthy.toJson();
+
+      for (final key in [
+        'last_error',
+        'alarm_muted',
+        'alarm_mute_reason',
+        'queue_oldest_at',
+        'sound_ok',
+      ]) {
+        expect(json.containsKey(key), isFalse, reason: '$key gönderilmemeli');
+      }
+    });
+
+    test('telemetri alanları sözleşmedeki adlarla gider', () {
+      final report = KitchenHealthReport(
+        printerOk: false,
+        printQueuePending: 3,
+        printQueueFailed: 1,
+        lastError: '#42 mutfak: /dev/thermal0 yok',
+        alarmMuted: true,
+        alarmMuteReason: 'Ses oynatıcısı bulunamadı',
+        queueOldestAt: DateTime.utc(2026, 8, 18, 7, 30),
+        soundOk: false,
+      );
+
+      final json = report.toJson();
+
+      expect(json['last_error'], '#42 mutfak: /dev/thermal0 yok');
+      expect(json['alarm_muted'], isTrue);
+      expect(json['alarm_mute_reason'], 'Ses oynatıcısı bulunamadı');
+      expect(json['queue_oldest_at'], '2026-08-18T07:30:00.000Z');
+      expect(json['sound_ok'], isFalse);
+    });
+
+    test('kuyruk damgası UTC olarak gider', () {
+      // Sunucu `date` doğruluyor ve saati Europe/Istanbul'a çeviriyor;
+      // yerel saati damgasız göndermek üç saatlik bir yalan olurdu.
+      final report = KitchenHealthReport(
+        printerOk: true,
+        printQueuePending: 1,
+        printQueueFailed: 0,
+        queueOldestAt: DateTime.utc(2026, 8, 18, 4).toLocal(),
+      );
+
+      expect(report.toJson()['queue_oldest_at'], endsWith('Z'));
+    });
+
+    test('UZUN HATA METNİ kırpılır, bildirim düşmez', () {
+      // Sunucu sütunu 255 karakter. Uzun bir yığın izi yüzünden tüm
+      // sağlık bildiriminin 422 alması, telemetri yüzünden asıl
+      // göstergenin kör kalması demek olurdu.
+      final report = KitchenHealthReport(
+        printerOk: true,
+        printQueuePending: 0,
+        printQueueFailed: 0,
+        lastError: 'x' * 400,
+        alarmMuteReason: 'y' * 200,
+      );
+
+      expect((report.toJson()['last_error']! as String).length, 255);
+      expect((report.toJson()['alarm_mute_reason']! as String).length, 120);
+    });
   });
 
   group('KitchenHealthStatus', () {

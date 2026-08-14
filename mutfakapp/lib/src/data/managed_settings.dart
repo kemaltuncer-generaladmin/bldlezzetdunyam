@@ -9,9 +9,10 @@
 /// korur. `null`'ı "kapat" ya da "varsayılana dön" diye yorumlamak,
 /// yönetici tek bir ayarı değiştirdiğinde diğer sekizini sıfırlardı.
 ///
-/// SES ÇIKIŞI (`audio_sink`) VE KİLİT METNİ (`lock_message`) İSTİSNA: boş
-/// dize gelirse "varsayılana dön" demektir. Yönetici seçtiği çıkışı ya da
-/// yazdığı cümleyi geri alabilmeli ve `null` "dokunmadı" anlamına ayrılmış
+/// SES ÇIKIŞI (`audio_sink`), KİLİT METNİ (`lock_message`) VE OLAY BAZLI
+/// SESLER (`disabled_sound_events`) İSTİSNA: boş dize gelirse "varsayılana
+/// dön" demektir. Yönetici seçtiği çıkışı, yazdığı cümleyi ya da kapattığı
+/// uyarıları geri alabilmeli ve `null` "dokunmadı" anlamına ayrılmış
 /// durumda.
 library;
 
@@ -48,6 +49,12 @@ KdsSettings applyManagedSettings(
     healthSeconds: managed.healthSeconds,
     connectionAlarmSeconds: managed.connectionAlarmSeconds,
     alarmSilenceable: managed.alarmSilenceable,
+    // Olay bazlı sesler (K-22 §1). `copyWith` `null`'ı zaten "değiştirme"
+    // diye okuyor; BOŞ KÜME ise gerçek bir emirdir ("hiçbiri kapalı
+    // olmasın") ve olduğu gibi geçer. `sanitized` aşağıda kapatılamaz
+    // uyarıları eleyecek, yani `connectionLost` listeye sızsa bile
+    // uygulanmaz.
+    disabledSoundEvents: managed.disabledSoundEvents,
     // Kilit politikası (K-21 §2.2). Aynı kural: `null` dokunmadı demek,
     // `false` kilitler. Yerel varsayılan `true` olduğu için yeni alanların
     // gelmesi bugünkü kasaları kilitlemez.

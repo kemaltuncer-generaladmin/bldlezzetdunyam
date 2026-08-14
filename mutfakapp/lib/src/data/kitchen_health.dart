@@ -22,6 +22,8 @@ import 'dart:io';
 
 import 'package:bld_api_client/bld_api_client.dart';
 
+import '../sound/kds_sound_event.dart';
+
 /// Cihazın sunucuya bildirdiği durum.
 ///
 /// Değerlerin **gerçek** olması şart: sabit `true` göndermek göstergeyi
@@ -32,6 +34,11 @@ class KitchenHealthReport {
     required this.printQueuePending,
     required this.printQueueFailed,
     this.appVersion,
+    this.lastError,
+    this.alarmMuted,
+    this.alarmMuteReason,
+    this.queueOldestAt,
+    this.soundOk,
     this.commandResults = const <KitchenCommandResult>[],
   });
 
@@ -39,6 +46,36 @@ class KitchenHealthReport {
   final int printQueuePending;
   final int printQueueFailed;
   final String? appVersion;
+
+  // ── Zenginleştirilmiş telemetri (K-22 §3) ───────────────────────────────
+  //
+  // HEPSİ NULLABLE VE HEPSİ İSTEĞE BAĞLI. `null` "bu kasa bunu
+  // bilmiyor/ölçemiyor" demektir ve sunucuya HİÇ GÖNDERİLMEZ; sunucu da
+  // sütuna `null` yazar. Bilinmeyen bir değeri iyimser bir varsayılanla
+  // (`false`, `true`) doldurmak göstergeyi yalancı yapardı.
+
+  /// Son yazıcı/ağ hatasının metni. Sayaç değil METİN: "3 hata var"
+  /// yöneticiye ne yapacağını söylemez, hatanın kendisi söyler.
+  final String? lastError;
+
+  /// Alarm gerçekten duyuluyor mu? `true` = ses çıkmıyor.
+  final bool? alarmMuted;
+
+  /// Neden duyulmuyor? (ör. "Ses oynatıcısı bulunamadı")
+  final String? alarmMuteReason;
+
+  /// Kuyrukta bekleyen **en eski** işin zamanı.
+  ///
+  /// Sayının yanındaki bu damga, "yoğunluk" ile "tıkanma" arasındaki farkı
+  /// tek bakışta verir: üç iş bekliyorsa sorun yok, üç iştir en eskisi kırk
+  /// dakikadır bekliyorsa kâğıt bitmiştir.
+  final DateTime? queueOldestAt;
+
+  /// Ses altsistemi sağlam mı?
+  ///
+  /// [alarmMuted]'dan AYRI: yönetici sesi kapattıysa alarm susturulmuştur
+  /// ama altsistem sağlamdır. Kapalıyken bilinemediği için `null` gider.
+  final bool? soundOk;
 
   /// Bir önceki turda teslim alınan komutların sonuçları.
   final List<KitchenCommandResult> commandResults;
@@ -50,9 +87,23 @@ class KitchenHealthReport {
     'print_queue_pending': printQueuePending < 0 ? 0 : printQueuePending,
     'print_queue_failed': printQueueFailed < 0 ? 0 : printQueueFailed,
     if (appVersion != null) 'app_version': appVersion,
+    // Sunucu sütun genişliğini doğruluyor (255 / 120); sınırı burada da
+    // uygulamak, uzun bir yığın izinin tüm sağlık bildirimini 422'ye
+    // düşürmesini engeller — telemetri bir yan işlev, ana bildirimi
+    // düşürmemeli.
+    if (lastError != null) 'last_error': _kirp(lastError!, 255),
+    if (alarmMuted != null) 'alarm_muted': alarmMuted,
+    if (alarmMuteReason != null)
+      'alarm_mute_reason': _kirp(alarmMuteReason!, 120),
+    if (queueOldestAt != null)
+      'queue_oldest_at': queueOldestAt!.toUtc().toIso8601String(),
+    if (soundOk != null) 'sound_ok': soundOk,
     if (commandResults.isNotEmpty)
       'command_results': commandResults.map((r) => r.toJson()).toList(),
   };
+
+  static String _kirp(String value, int max) =>
+      value.length <= max ? value : value.substring(0, max);
 }
 
 /// Sunucudan gelen, **yöneticinin panelden yönettiği** kasa ayarları.
@@ -78,6 +129,7 @@ class KitchenManagedSettings {
     this.alarmRepeatSeconds,
     this.alarmMaxRepeats,
     this.touchMode,
+    this.disabledSoundEvents,
     this.allowSettings,
     this.allowServerChange,
     this.allowWindowControls,
@@ -112,6 +164,19 @@ class KitchenManagedSettings {
 
   /// Dokunmatik kip — yönetici uzaktan açabilsin diye burada (K-10).
   final bool? touchMode;
+
+  /// Yöneticinin kapattığı sesli uyarılar (K-22 §1).
+  ///
+  /// ÜÇ HÂL VAR VE ÜÇÜ DE FARKLI:
+  /// * `null` = yönetici dokunmadı → kasa **kendi** listesini korur.
+  /// * boş küme = "hiçbiri kapalı olmasın" → kasa hepsini açar.
+  /// * dolu küme = tam olarak bu olaylar kapalı.
+  ///
+  /// Tel üzerinde virgülle ayrılmış metin (`audio_sink` gibi boş dize
+  /// gerçek bir emirdir); burada kümeye çevriliyor çünkü [KdsSettings]
+  /// da kümeyle çalışıyor ve iki tarafın aynı tipi konuşması, "acaba
+  /// virgülden sonra boşluk var mıydı" sorusunu tamamen ortadan kaldırır.
+  final Set<KdsSoundEvent>? disabledSoundEvents;
 
   // ── Kilit politikası (K-21 §2.2) ────────────────────────────────────────
   //
@@ -162,6 +227,7 @@ class KitchenManagedSettings {
       alarmRepeatSeconds == null &&
       alarmMaxRepeats == null &&
       touchMode == null &&
+      disabledSoundEvents == null &&
       allowSettings == null &&
       allowServerChange == null &&
       allowWindowControls == null &&
@@ -193,6 +259,7 @@ class KitchenManagedSettings {
         alarmRepeatSeconds: _asIntOrNull(json['alarm_repeat_seconds']),
         alarmMaxRepeats: _asIntOrNull(json['alarm_max_repeats']),
         touchMode: _asBoolOrNull(json['touch_mode']),
+        disabledSoundEvents: _asSoundEventsOrNull(json['disabled_sound_events']),
         allowSettings: _asBoolOrNull(json['allow_settings']),
         allowServerChange: _asBoolOrNull(json['allow_server_change']),
         allowWindowControls: _asBoolOrNull(json['allow_window_controls']),
@@ -223,6 +290,9 @@ class KitchenManagedSettings {
       other.alarmRepeatSeconds == alarmRepeatSeconds &&
       other.alarmMaxRepeats == alarmMaxRepeats &&
       other.touchMode == touchMode &&
+      // `Set` kimlik değil İÇERİK karşılaştırılmalı; ayrıca `null` ile boş
+      // kümenin AYRI kalması şart ("dokunmadı" ile "hepsini aç").
+      _sameEvents(other.disabledSoundEvents, disabledSoundEvents) &&
       other.allowSettings == allowSettings &&
       other.allowServerChange == allowServerChange &&
       other.allowWindowControls == allowWindowControls &&
@@ -251,6 +321,10 @@ class KitchenManagedSettings {
     alarmRepeatSeconds,
     alarmMaxRepeats,
     touchMode,
+    // `null` ile boş küme aynı özete düşmemeli: ikisi farklı emirler.
+    disabledSoundEvents == null
+        ? null
+        : Object.hashAllUnordered(disabledSoundEvents!),
     allowSettings,
     allowServerChange,
     allowWindowControls,
@@ -259,6 +333,11 @@ class KitchenManagedSettings {
     allowSalesControl,
     lockMessage,
   ]);
+
+  static bool _sameEvents(Set<KdsSoundEvent>? a, Set<KdsSoundEvent>? b) {
+    if (a == null || b == null) return a == null && b == null;
+    return a.length == b.length && a.containsAll(b);
+  }
 }
 
 /// Sunucudan gelen tek seferlik komut.
@@ -274,6 +353,21 @@ class KitchenCommand {
   static const String clearFailed = 'clear_failed';
   static const String silenceAlarm = 'silence_alarm';
   static const String restart = 'restart';
+
+  // ── K-22 ile gelen üç komut ───────────────────────────────────────────
+  //
+  // Adlar sunucudaki `KitchenCommand::ALL` ile BİREBİR; tel üzerinde düz
+  // metin gidiyor ve bir harf sapması komutu "bu sürüm tanımıyor"a
+  // düşürür.
+
+  /// Yeni sürümü indir ve kur. Başarısızsa kasa eski sürümde kalır.
+  static const String update = 'update';
+
+  /// Cihaz token'ını sil; kasa eşleme ekranına döner.
+  static const String unpair = 'unpair';
+
+  /// Kuyruktaki BEKLEYEN işleri de düşür ([clearFailed] yalnız hatalıları).
+  static const String clearQueue = 'clear_queue';
 
   final int id;
   final String command;
@@ -339,6 +433,39 @@ String? _asStringOrNull(Object? v) {
 /// `printer_device_path` bilerek [_asStringOrNull] kullanmaya devam ediyor:
 /// orada boş dize bir emir değil, bozuk bir değerdir.
 String? _asTextOrNull(Object? v) => v is String ? v.trim() : null;
+
+/// Virgülle ayrılmış `KdsSoundEvent` adlarını kümeye çevirir (K-22 §1).
+///
+/// * Anahtar hiç yoksa / dize değilse → `null` = "yönetici dokunmadı".
+/// * Boş dize → **boş küme** = "hiçbiri kapalı olmasın". [_asTextOrNull]
+///   burada bilinçli kullanılıyor: boş dizeyi `null`'a düşüren
+///   [_asStringOrNull] bu emri yutardı ve yöneticinin kapattığı bir
+///   uyarıyı geri açmasının hiçbir yolu kalmazdı (`audio_sink` ile aynı
+///   istisna).
+/// * **Bilinmeyen ad yok sayılır.** Sözleşme eklemeli: sunucu kasadan yeni
+///   bir sürümde olabilir ve henüz tanımadığımız bir olay gönderebilir.
+///   Ayrıştırmayı patlatmak, o turdaki DİĞER ayarların da uygulanmaması
+///   demek olurdu.
+/// * **`connectionLost` elenir.** Kapatılamaz (`canBeDisabled`); sunucu da
+///   eliyor ama elle veritabanı düzenlemesi ya da eski bir sunucu sürümü
+///   yine de gönderebilir ve bağlantı uyarısını kapatmak mutfağı kör
+///   bırakır.
+Set<KdsSoundEvent>? _asSoundEventsOrNull(Object? v) {
+  final text = _asTextOrNull(v);
+  if (text == null) return null;
+  if (text.isEmpty) return <KdsSoundEvent>{};
+
+  final byName = <String, KdsSoundEvent>{
+    for (final event in KdsSoundEvent.values) event.name: event,
+  };
+
+  return text
+      .split(',')
+      .map((name) => byName[name.trim()])
+      .nonNulls
+      .where((event) => event.canBeDisabled)
+      .toSet();
+}
 
 int _asInt(Object? v) => _asIntOrNull(v) ?? 0;
 

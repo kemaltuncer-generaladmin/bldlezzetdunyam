@@ -18,15 +18,31 @@ class FakeKitchenHealthApi implements KitchenHealthApi {
   /// Gönderilen bildirimler — değerlerin gerçek olduğunu doğrulamak için.
   final List<KitchenHealthReport> reports = <KitchenHealthReport>[];
 
+  /// Yanıtla birlikte inecek ayarlar.
+  KitchenManagedSettings settings = KitchenManagedSettings.empty;
+
+  /// Bir sonraki yanıtta teslim edilecek komutlar.
+  ///
+  /// TESLİM EDİLDİKTEN SONRA BOŞALIYOR — sunucudaki davranışın aynısı
+  /// (`KitchenController::takeCommands` teslim ettiğini işaretliyor). Sabit
+  /// kalsaydı komut her yoklamada yeniden çalışır ve "yeniden başlat"
+  /// testleri sonsuz döngüye girerdi.
+  List<KitchenCommand> commands = const <KitchenCommand>[];
+
   @override
   Future<KitchenHealthStatus> report(KitchenHealthReport report) async {
     reports.add(report);
     if (fails) throw const ApiException.network();
 
+    final teslim = commands;
+    commands = const <KitchenCommand>[];
+
     return KitchenHealthStatus(
       serverTime: DateTime.utc(2026, 8, 5, 12),
       ordersToday: ordersToday,
       ordersActive: ordersActive,
+      settings: settings,
+      commands: teslim,
     );
   }
 }

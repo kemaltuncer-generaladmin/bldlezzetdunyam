@@ -8,6 +8,7 @@ use Igniter\Cart\Models\Order;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\KitchenTestCase;
 use Veykemtu\BridgeApi\Models\ControlAudit;
 use Veykemtu\BridgeApi\Models\KitchenCommand;
@@ -460,6 +461,94 @@ class ControlKdsTest extends KitchenTestCase
         )->assertStatus(422);
     }
 
+    // ── 4.5 K-22 ile gelen üç komut ───────────────────────────────────────
+
+    /**
+     * @return list<array{0: string}>
+     */
+    public static function yeniKomutlar(): array
+    {
+        return [
+            [KitchenCommand::UPDATE],
+            [KitchenCommand::UNPAIR],
+            [KitchenCommand::CLEAR_QUEUE],
+        ];
+    }
+
+    #[DataProvider('yeniKomutlar')]
+    public function test_YENI_KOMUTLAR_kuyruga_girer_ve_kasaya_iner(string $komut): void
+    {
+        $paired = $this->pairedDevice();
+
+        $this->signed(
+            'POST',
+            '/api/control/kds/devices/'.$paired['model']->id.'/commands',
+            $this->intent(['command' => $komut]),
+        )->assertOk()->assertJsonPath('command.command', $komut);
+
+        $commands = $this->withToken($paired['token'])->postJson('/api/kitchen/health', [
+            'printer_ok' => true,
+            'print_queue_pending' => 0,
+            'print_queue_failed' => 0,
+        ], self::HEADERS)->assertOk()->json('commands');
+
+        $this->assertSame($komut, $commands[0]['command']);
+        // Yüksüz komutlar: kasa `payload`'a bakmıyor ve boş dizi bekliyor.
+        $this->assertSame([], $commands[0]['payload']);
+    }
+
+    public function test_KOMUT_SONUCU_GERI_DONER_ve_komut_bir_daha_gonderilmez(): void
+    {
+        // Yönetici panelde "çalıştı" ya da "çalıştırılamadı" görmeli;
+        // sonucu gelmeyen bir komut için aynı düğmeye tekrar basılır.
+        $paired = $this->pairedDevice();
+
+        $this->signed(
+            'POST',
+            '/api/control/kds/devices/'.$paired['model']->id.'/commands',
+            $this->intent(['command' => KitchenCommand::UPDATE]),
+        )->assertOk();
+
+        $commands = $this->withToken($paired['token'])->postJson('/api/kitchen/health', [
+            'printer_ok' => true,
+            'print_queue_pending' => 0,
+            'print_queue_failed' => 0,
+        ], self::HEADERS)->assertOk()->json('commands');
+
+        $this->withToken($paired['token'])->postJson('/api/kitchen/health', [
+            'printer_ok' => true,
+            'print_queue_pending' => 0,
+            'print_queue_failed' => 0,
+            'command_results' => [[
+                'id' => $commands[0]['id'],
+                'ok' => false,
+                'message' => 'Paket açılamadı: bozuk arşiv',
+            ]],
+        ], self::HEADERS)->assertOk()->assertJsonPath('commands', []);
+
+        $this->signed('GET', '/api/control/kds/devices/'.$paired['model']->id.'/commands')
+            ->assertOk()
+            ->assertJsonPath('data.0.command', KitchenCommand::UPDATE)
+            ->assertJsonPath('data.0.succeeded', false)
+            ->assertJsonPath('data.0.result', 'Paket açılamadı: bozuk arşiv');
+    }
+
+    public function test_yeni_komutlarin_hepsi_YIKICI_listesinde(): void
+    {
+        // Kontrol Merkezi bu listeye bakarak `bld_kds.devices` kapısını
+        // uyguluyor; liste eksik kalırsa yıkıcı bir komut yetkisiz bir
+        // kullanıcıya açılırdı.
+        foreach ([KitchenCommand::UPDATE, KitchenCommand::UNPAIR, KitchenCommand::CLEAR_QUEUE] as $komut) {
+            $this->assertContains($komut, KitchenCommand::DESTRUCTIVE);
+            $this->assertContains($komut, KitchenCommand::ALL);
+        }
+
+        // Salt okunur/zararsız olanlar listede OLMAMALI: her komutu yıkıcı
+        // saymak kapının anlamını yok eder.
+        $this->assertNotContains(KitchenCommand::TEST_RECEIPT, KitchenCommand::DESTRUCTIVE);
+        $this->assertNotContains(KitchenCommand::SILENCE_ALARM, KitchenCommand::DESTRUCTIVE);
+    }
+
     // ── 5. Ayarlar ve kilit politikası ────────────────────────────────────
 
     public function test_ayar_yazinca_settings_updated_at_ilerler(): void
@@ -641,6 +730,222 @@ class ControlKdsTest extends KitchenTestCase
         )->assertOk();
 
         $this->assertNull($device->refresh()->allow_settings);
+    }
+
+    // ── 5.5 Olay bazlı sesler (K-22 §1) ───────────────────────────────────
+
+    /** Kasanın gördüğü ayarları döndürür. */
+    private function kasaAyarlari(string $token): array
+    {
+        return $this->withToken($token)->postJson('/api/kitchen/health', [
+            'printer_ok' => true,
+            'print_queue_pending' => 0,
+            'print_queue_failed' => 0,
+        ], self::HEADERS)->assertOk()->json('settings');
+    }
+
+    private function sesAyari(KitchenDevice $device, ?string $value): TestResponse
+    {
+        return $this->signed(
+            'PATCH',
+            '/api/control/kds/devices/'.$device->id.'/settings',
+            $this->intent(['settings' => ['disabled_sound_events' => $value]]),
+        );
+    }
+
+    public function test_ses_olaylari_DOKUNULMAMISKEN_null_gider(): void
+    {
+        // `null` = "yönetici dokunmadı" = kasa KENDİ listesini korur.
+        // Boş dize gitseydi kasa bütün uyarıları açar ve personelin
+        // kapattığı yazıcı uyarısı geri gelirdi.
+        $paired = $this->pairedDevice();
+
+        $settings = $this->kasaAyarlari($paired['token']);
+
+        $this->assertArrayHasKey('disabled_sound_events', $settings);
+        $this->assertNull($settings['disabled_sound_events']);
+    }
+
+    public function test_ses_olaylari_listesi_kasaya_iner(): void
+    {
+        $paired = $this->pairedDevice();
+
+        $this->sesAyari($paired['model'], 'printerError,bbdOrder')->assertOk();
+
+        $this->assertSame(
+            'printerError,bbdOrder',
+            $this->kasaAyarlari($paired['token'])['disabled_sound_events'],
+        );
+    }
+
+    public function test_BOS_DIZE_hepsini_acar_ve_null_ILE_KARISTIRILMAZ(): void
+    {
+        // `audio_sink` ile aynı istisna: `null` "dokunmadı"ya ayrılmış
+        // olduğu için yöneticinin kapattığı uyarıyı geri açmasının başka
+        // yolu yok.
+        $device = $this->makeDevice();
+
+        $this->sesAyari($device, 'newOrder')->assertOk();
+        $this->assertSame('newOrder', $device->refresh()->disabled_sound_events);
+
+        $this->sesAyari($device, '')->assertOk();
+        $this->assertSame(
+            '',
+            $device->refresh()->disabled_sound_events,
+            'Boş dize korunmalı: "hepsini aç" emri.',
+        );
+
+        $this->sesAyari($device, null)->assertOk();
+        $this->assertNull(
+            $device->refresh()->disabled_sound_events,
+            '`null` "dokunmadı"ya geri döndürmeli.',
+        );
+    }
+
+    public function test_CONNECTION_LOST_SESSIZCE_ELENIR_digerleri_uygulanir(): void
+    {
+        // Yöneticinin yazım hatası mutfağı sessiz bırakmamalı: isteği 422
+        // ile geri çevirmek, gerçekten kapatılmak istenen uyarıların da
+        // uygulanmaması demek olurdu.
+        $device = $this->makeDevice();
+
+        $this->sesAyari($device, 'connectionLost,printerError')->assertOk();
+
+        $this->assertSame('printerError', $device->refresh()->disabled_sound_events);
+    }
+
+    public function test_connectionLost_TEK_BASINA_gelirse_liste_bosalir(): void
+    {
+        $device = $this->makeDevice();
+
+        $this->sesAyari($device, KitchenDeviceSettings::UNMUTABLE_SOUND_EVENT)
+            ->assertOk();
+
+        $this->assertSame('', $device->refresh()->disabled_sound_events);
+    }
+
+    public function test_BILINMEYEN_OLAY_ADI_yok_sayilir(): void
+    {
+        // Sözleşme eklemeli: Kontrol Merkezi kasadan yeni bir sürümde
+        // olabilir ve henüz yayımlanmamış bir olayın adını gönderebilir.
+        $device = $this->makeDevice();
+
+        $this->sesAyari($device, 'newOrder,fisBitti,lateOrder')->assertOk();
+
+        $this->assertSame('newOrder,lateOrder', $device->refresh()->disabled_sound_events);
+    }
+
+    public function test_ses_olaylari_bosluklu_ve_tekrarli_gelse_de_temizlenir(): void
+    {
+        $device = $this->makeDevice();
+
+        $this->sesAyari($device, ' lateOrder , newOrder ,lateOrder ')->assertOk();
+
+        // Sıra `SOUND_EVENTS` sırasıdır: aynı ayarı iki kez yazmak sütunu
+        // değiştirmemeli, yoksa `settings_updated_at` boş yere ilerler.
+        $this->assertSame('newOrder,lateOrder', $device->refresh()->disabled_sound_events);
+    }
+
+    // ── 5.6 Zenginleştirilmiş telemetri (K-22 §3) ─────────────────────────
+
+    public function test_ESKI_KASANIN_EKSIK_TELEMETRISI_422_URETMEZ(): void
+    {
+        // GÖÇÜN EN ÖNEMLİ DAVRANIŞI. Alanlar zorunlu olsaydı, sunucu
+        // güncellendiği anda sahadaki tüm kasaların sağlık bildirimi 422'ye
+        // düşerdi — yani yönetici, kasaların durumunu görmek için eklediği
+        // alan yüzünden hiçbirini göremez hâle gelirdi.
+        $paired = $this->pairedDevice();
+
+        $this->withToken($paired['token'])->postJson('/api/kitchen/health', [
+            'printer_ok' => true,
+            'print_queue_pending' => 2,
+            'print_queue_failed' => 0,
+        ], self::HEADERS)->assertOk();
+
+        $device = $paired['model']->refresh();
+
+        // "Bildirmedi" ile "sorun yok" AYRI: eksik alan `null` kalmalı,
+        // `false` olmamalı.
+        $this->assertNull($device->last_error);
+        $this->assertNull($device->alarm_muted);
+        $this->assertNull($device->alarm_mute_reason);
+        $this->assertNull($device->queue_oldest_at);
+        $this->assertNull($device->sound_ok);
+        $this->assertSame(2, $device->print_queue_pending);
+    }
+
+    public function test_telemetri_kaydedilir_ve_kontrol_merkezine_dokulur(): void
+    {
+        $paired = $this->pairedDevice();
+
+        $this->withToken($paired['token'])->postJson('/api/kitchen/health', [
+            'printer_ok' => false,
+            'print_queue_pending' => 3,
+            'print_queue_failed' => 3,
+            'last_error' => '#42 mutfak: /dev/thermal0 yok',
+            'alarm_muted' => true,
+            'alarm_mute_reason' => 'Ses oynatıcısı bulunamadı',
+            'queue_oldest_at' => '2026-08-18T07:30:00Z',
+            'sound_ok' => false,
+        ], self::HEADERS)->assertOk();
+
+        $health = $this->signed('GET', '/api/control/kds/devices')
+            ->assertOk()
+            ->json('data.0.health');
+
+        $this->assertSame('#42 mutfak: /dev/thermal0 yok', $health['last_error']);
+        // BOOLEAN OLARAK GİTMELİ: `1` gelen bir alanı kasa/panel `bool?`
+        // olarak ayrıştıramaz.
+        $this->assertTrue($health['alarm_muted']);
+        $this->assertFalse($health['sound_ok']);
+        $this->assertSame('Ses oynatıcısı bulunamadı', $health['alarm_mute_reason']);
+        $this->assertSame('2026-08-18T07:30:00Z', $health['queue_oldest_at']);
+    }
+
+    public function test_TELEMETRI_BAYATLAMAZ_bildirilmeyen_alan_null_a_doner(): void
+    {
+        // `app_version`'dan FARKLI: sürüm bir kimliktir ve korunur, bunlar
+        // anlık ölçümdür. Çözülmüş bir arızayı panelde sonsuza kadar
+        // kırmızı bırakmak, gerçek bir arıza çıktığında kimsenin bakmaması
+        // demek olurdu.
+        $paired = $this->pairedDevice();
+
+        $this->withToken($paired['token'])->postJson('/api/kitchen/health', [
+            'printer_ok' => false,
+            'print_queue_pending' => 1,
+            'print_queue_failed' => 1,
+            'app_version' => '1.1.0',
+            'last_error' => 'kâğıt bitti',
+            'queue_oldest_at' => '2026-08-18T07:30:00Z',
+        ], self::HEADERS)->assertOk();
+
+        $this->assertSame('kâğıt bitti', $paired['model']->refresh()->last_error);
+
+        $this->withToken($paired['token'])->postJson('/api/kitchen/health', [
+            'printer_ok' => true,
+            'print_queue_pending' => 0,
+            'print_queue_failed' => 0,
+        ], self::HEADERS)->assertOk();
+
+        $device = $paired['model']->refresh();
+
+        $this->assertNull($device->last_error);
+        $this->assertNull($device->queue_oldest_at);
+        $this->assertSame('1.1.0', $device->app_version, 'Sürüm bir kimliktir, korunur.');
+    }
+
+    public function test_SINIR_ASAN_TELEMETRI_METNI_reddedilir(): void
+    {
+        // Sessiz kesme yerine açık hata: MySQL'in sütunu kırpması, panelde
+        // yarım bir hata metni göstermek demek olurdu.
+        $paired = $this->pairedDevice();
+
+        $this->withToken($paired['token'])->postJson('/api/kitchen/health', [
+            'printer_ok' => true,
+            'print_queue_pending' => 0,
+            'print_queue_failed' => 0,
+            'last_error' => str_repeat('x', 300),
+        ], self::HEADERS)->assertStatus(422);
     }
 
     // ── 6. Siparişler ve revizyon ─────────────────────────────────────────

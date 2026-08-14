@@ -223,6 +223,28 @@ class PrintQueue {
     return rows.isEmpty ? null : _fromRow(rows.first);
   }
 
+  /// Bekleyen **en eski** işin oluşturulma zamanı; kuyruk boşsa `null`.
+  ///
+  /// Sağlık bildirimine giden telemetri (K-22 §3). "Kuyrukta 3 iş var" ile
+  /// "kuyrukta 3 iş var ve en eskisi 40 dakikadır bekliyor" mutfakta iki
+  /// ayrı durumdur: ilki yazıcının sırayı yetiştirememesi, ikincisi kâğıdın
+  /// bitmesi ve kimsenin fark etmemesi.
+  ///
+  /// `MIN(created_at)` DEĞİL, `ORDER BY id`: `created_at` metin olarak
+  /// saklanıyor ve elle açılan (`requeue`) bir satırın damgası ondan eski
+  /// bir işten sonra gelebiliyor. Basım sırası `id`'ye göre olduğu için
+  /// "sıradaki iş ne zamandır bekliyor" sorusunun doğru cevabı da odur.
+  DateTime? oldestPendingAt() {
+    final rows = _db.select(
+      'SELECT created_at FROM print_queue '
+      'WHERE printed_at IS NULL ORDER BY id LIMIT 1',
+    );
+
+    return rows.isEmpty
+        ? null
+        : DateTime.tryParse(rows.first['created_at'] as String);
+  }
+
   /// Bekleyen iş sayısı — durum çubuğundaki "Kuyruk: n".
   int pendingCount() =>
       _db
@@ -302,6 +324,29 @@ class PrintQueue {
     _db.execute(
       'DELETE FROM print_queue WHERE printed_at IS NULL AND attempts > 0',
     );
+
+    return _db.updatedRows;
+  }
+
+  /// Basılmamış **her** işi kuyruktan düşürür (K-22 §2).
+  ///
+  /// [clearFailed]'DEN FARKI VE NEDEN AYRI: orası yalnız hata almış işleri
+  /// (`attempts > 0`) siler ve bu bilinçlidir — yazıcı sırayı
+  /// yetiştiremediği için bekleyen sağlam fişleri çöpe atmak yanlış olurdu.
+  /// Ama kâğıt bittiğinde ve yönetici "bu vardiyanın fişlerini boş ver,
+  /// baştan başla" dediğinde hiç denenmemiş işleri de düşürecek bir kapı
+  /// gerekiyor.
+  ///
+  /// İki komutun tek düğmede birleştirilmemesinin sebebi de bu: yıkıcı
+  /// olanı kazara çalıştırmak, mutfağın hiç görmediği siparişlerin fişini
+  /// yok etmek demek. Silinen fiş geri gelmez; sipariş sunucuda durur ve
+  /// karttan elle yeniden bastırılabilir.
+  ///
+  /// BASILMIŞ İŞLERE DOKUNULMAZ: onlar olmuş bitmiş bir olayın kaydı ve
+  /// tekillik kısıtı onlara dayanıyor — silmek, o siparişin fişinin bir
+  /// sonraki tetikte YENİDEN basılmasına yol açardı.
+  int clearPending() {
+    _db.execute('DELETE FROM print_queue WHERE printed_at IS NULL');
 
     return _db.updatedRows;
   }

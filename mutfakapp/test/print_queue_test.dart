@@ -590,6 +590,90 @@ void main() {
       );
     });
 
+    // ── K-22 §2/§3 — `clear_queue` ve telemetri ───────────────────────
+
+    test('KUYRUĞU BOŞALT denenmemiş işi de düşürür', () async {
+      // `clear_failed`'den ayrı olmasının sebebi tam da bu: bu komut
+      // bekleyen sağlam fişleri de siler ve yıkıcı olduğu için ayrı bir
+      // düğmede duruyor.
+      printer.broken = true;
+      kitchen.kitchenReceipts[1] = receiptFor(1);
+      build().start();
+      service.enqueue(1, ReceiptType.mutfak);
+      await settle(150);
+
+      queue.enqueue(
+        orderId: 2,
+        type: ReceiptType.mutfak,
+        createdAt: DateTime.utc(2026, 8, 18),
+      );
+
+      final silinen = service.clearQueue();
+
+      expect(silinen, 2, reason: 'Hem hatalı hem denenmemiş iş düşmeli.');
+      expect(queue.nextPending(), isNull);
+      expect(service.failedCount(), 0);
+    });
+
+    test('KUYRUĞU BOŞALT basılmış işlere DOKUNMAZ', () async {
+      // Basılmış satırlar tekillik kısıtının dayanağı; silinirlerse aynı
+      // siparişin fişi bir sonraki tetikte YENİDEN basılır.
+      kitchen.kitchenReceipts[5] = receiptFor(5);
+      build().start();
+      service.enqueue(5, ReceiptType.mutfak);
+      await settle(200);
+
+      expect(printer.written, hasLength(1));
+
+      service.clearQueue();
+
+      expect(queue.all(), hasLength(1));
+      expect(queue.all().single.printedAt, isNotNull);
+    });
+
+    test('EN ESKİ BEKLEYEN İŞİN zamanı bildirilir', () async {
+      // "Kuyrukta 3 iş var" ile "en eskisi 40 dakikadır bekliyor"
+      // arasındaki fark, sahaya gitme kararını değiştirir.
+      build();
+
+      expect(service.oldestPendingAt(), isNull, reason: 'Boş kuyruk.');
+
+      queue.enqueue(
+        orderId: 1,
+        type: ReceiptType.mutfak,
+        createdAt: DateTime.utc(2026, 8, 18, 7),
+      );
+      queue.enqueue(
+        orderId: 2,
+        type: ReceiptType.mutfak,
+        createdAt: DateTime.utc(2026, 8, 18, 9),
+      );
+
+      expect(service.oldestPendingAt(), DateTime.utc(2026, 8, 18, 7));
+    });
+
+    test('SON HATA METNİ saklanır ve başarıda temizlenir', () async {
+      // Hata metni olmadan yöneticinin yapabileceği tek şey mutfağa
+      // gitmekti; "kuyrukta 3 hata var" ne olduğunu söylemiyor.
+      printer.broken = true;
+      kitchen.kitchenReceipts[3] = receiptFor(3);
+      build().start();
+      service.enqueue(3, ReceiptType.mutfak);
+      await settle(150);
+
+      expect(service.lastError, isNotNull);
+      expect(service.lastError, contains('#3'));
+
+      printer.broken = false;
+      await settle(400);
+
+      expect(
+        service.lastError,
+        isNull,
+        reason: 'Çözülmüş arıza panelde asılı kalmamalı.',
+      );
+    });
+
     test('tek fiş basılırken bekleme eklenmez', () async {
       kitchen.kitchenReceipts[7] = receiptFor(7);
 

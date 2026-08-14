@@ -201,6 +201,18 @@ $config['form']['fields'] = [
         'comment' => 'lang:veykemtu.bridgeapi::default.kds.help_audio_sink',
         'attributes' => ['maxlength' => 128],
     ],
+    // Olay bazlı sesler (K-22). METİN ALANI, onay kutusu listesi DEĞİL:
+    // sütun virgüllü bir metin ve `checkboxlist` boş seçimi boş diziye
+    // çevirirdi — o da "dokunmadım" ile "hepsini aç" ayrımını yok ederdi.
+    // Onay kutusu arayüzü Kontrol Merkezi panelinde.
+    'disabled_sound_events@edit' => [
+        'label' => 'lang:veykemtu.bridgeapi::default.kds.label_disabled_sound_events',
+        'type' => 'text',
+        'span' => 'left',
+        'placeholder' => lang('veykemtu.bridgeapi::default.kds.text_device_default'),
+        'comment' => 'lang:veykemtu.bridgeapi::default.kds.help_disabled_sound_events',
+        'attributes' => ['maxlength' => KitchenDeviceSettings::MAX_SOUND_EVENTS_LENGTH],
+    ],
     'alarm_repeat_seconds@edit' => [
         'label' => 'lang:veykemtu.bridgeapi::default.kds.label_alarm_repeat_seconds',
         'type' => 'number',
@@ -449,6 +461,11 @@ $config['form']['rules'] = [
         'audio_sink',
         'lang:veykemtu.bridgeapi::default.kds.label_audio_sink',
         'nullable|string|max:128',
+    ],
+    [
+        'disabled_sound_events',
+        'lang:veykemtu.bridgeapi::default.kds.label_disabled_sound_events',
+        'nullable|string|max:'.KitchenDeviceSettings::MAX_SOUND_EVENTS_LENGTH,
     ],
     [
         'alarm_repeat_seconds',

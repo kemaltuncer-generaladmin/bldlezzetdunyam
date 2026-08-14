@@ -45,6 +45,40 @@ class KitchenCommand extends Model
     /** Uygulamayı yeniden başlat; systemd geri getirir. */
     public const string RESTART = 'restart';
 
+    /**
+     * Yeni sürümü indir ve kur (K-22).
+     *
+     * `GET /api/app-version?app_id=mutfakapp` → `download_url` → `.deb`.
+     * Kurulum ADIM ADIM DOĞRULANIR ve herhangi bir adım düşerse kasa ESKİ
+     * SÜRÜMDE ÇALIŞMAYA DEVAM EDER; komut gerekçesiyle başarısız döner.
+     * "Yarısı kurulmuş" bir kasa, hiç güncellenmemiş bir kasadan çok daha
+     * kötüdür: mutfak sabaha açılmayan bir ekranla uyanır.
+     */
+    public const string UPDATE = 'update';
+
+    /**
+     * Cihaz token'ını sil; kasa eşleme ekranına döner (K-22).
+     *
+     * `revoke` İLE AYNI ŞEY DEĞİL: `revoke` sunucu tarafında kapıyı kapatır
+     * ve kasa bunu ancak bir sonraki isteğinde `403` olarak öğrenir; bu
+     * komut kasanın kendi tarafındaki eşlemeyi bırakmasını sağlar. Kasa
+     * değiştirilirken ya da bir makine başka bir mutfağa taşınırken
+     * gereken şey budur.
+     */
+    public const string UNPAIR = 'unpair';
+
+    /**
+     * Kuyruktaki BEKLEYEN işleri de düşür (K-22).
+     *
+     * `CLEAR_FAILED` yalnız hata almış işleri düşürür (`attempts > 0`) ve
+     * bilinçli olarak öyle: yazıcı sırayı yetiştiremediği için bekleyen
+     * sağlam fişler çöpe atılmamalı. Ama kâğıt bittiğinde ve yönetici
+     * "bu vardiyanın fişlerini boş ver, baştan başla" dediğinde bekleyeni
+     * de düşürecek bir kapı gerekiyor. AYRI KOMUT olmasının sebebi:
+     * ikisini tek düğmede birleştirmek, yıkıcı olanı kazara çalıştırırdı.
+     */
+    public const string CLEAR_QUEUE = 'clear_queue';
+
     /** @var list<string> */
     public const array ALL = [
         self::TEST_RECEIPT,
@@ -52,6 +86,27 @@ class KitchenCommand extends Model
         self::CLEAR_FAILED,
         self::SILENCE_ALARM,
         self::RESTART,
+        self::UPDATE,
+        self::UNPAIR,
+        self::CLEAR_QUEUE,
+    ];
+
+    /**
+     * Geri alınamayan / mutfağı durdurabilen komutlar.
+     *
+     * Kontrol Merkezi bunları `bld_kds.devices` izninin arkasına koyuyor
+     * (`restart` ile aynı kapı). Liste BURADA duruyor ki panel ile sunucu
+     * aynı tanımı paylaşsın; iki ayrı liste, ilk ayrıştıklarında sessizce
+     * yanlış davranır.
+     *
+     * @var list<string>
+     */
+    public const array DESTRUCTIVE = [
+        self::RESTART,
+        self::UPDATE,
+        self::UNPAIR,
+        self::CLEAR_QUEUE,
+        self::CLEAR_FAILED,
     ];
 
     /**

@@ -28,6 +28,7 @@ import '../printing/print_triggers.dart';
 import '../printing/printer_device.dart';
 import '../settings/kds_settings.dart';
 import '../settings/kds_settings_store.dart';
+import '../update/app_updater.dart';
 import '../lock/unlock_password.dart';
 import 'command_runner.dart';
 import 'managed_settings.dart';
@@ -201,7 +202,53 @@ final commandRunnerProvider = Provider<CommandRunner>((ref) {
         );
         return null;
       },
+
+      // ── K-22 ile gelen üç komut ─────────────────────────────────────
+      update: () => ref.read(appUpdaterProvider).install(),
+
+      unpair: () async {
+        // TOKEN SİLİNİYOR: `deviceSessionProvider` durumu değişince
+        // `AppRoot` eşleme ekranına döner (`app.dart`, `docs/05` §7
+        // adım 5) ve `_PairedRoot` ağacı sökülür.
+        //
+        // SONUCUN SUNUCUYA ULAŞMAMASI BEKLENEN DAVRANIŞ. Komut sonuçları
+        // BİR SONRAKİ sağlık bildirimiyle gidiyor; o bildirimin token'ı
+        // artık yok. Bunu "sessiz başarısızlık" yapan şey eksik bir geri
+        // bildirim değil — yönetici kasanın eşlemeden düştüğünü panelde
+        // doğrudan görür (cihaz çevrimdışına düşer, eşleme kodu ister).
+        // Sonucu bekletmek için token'ı ayakta tutmak, komutun tam da
+        // yapması istenen şeyi geciktirmek olurdu.
+        await ref.read(deviceSessionProvider.notifier).clearToken();
+        return null;
+      },
+
+      clearQueue: () async {
+        ref.read(printServiceProvider).clearQueue();
+        return null;
+      },
     ),
+  );
+});
+
+/// `update` komutunu yürüten kurulum akışı (K-22 §2).
+///
+/// Sağlayıcı olması, testin gerçek ağ ve gerçek `dpkg-deb` olmadan komut
+/// yolunu doğrulayabilmesi için: `AppUpdater`'ın kendi testleri
+/// `app_updater_test.dart` içinde, burada yalnızca bağlantı var.
+final appUpdaterProvider = Provider<AppUpdater>((ref) {
+  return AppUpdater(
+    checkVersion: () =>
+        ref.read(bldApiProvider).appVersion.check(AppConfig.appId),
+    download: downloadBytes,
+    run: runProcess,
+    // `infra/kasa/derle.sh` ve `mutfakapp.service` ile AYNI YOL. Servis
+    // `%h/.local/opt/mutfakapp/mutfakapp` çalıştırıyor; başka bir dizine
+    // kurmak, kurulumun sessizce hiçbir işe yaramaması demek olurdu.
+    installDir: Directory(
+      '${Platform.environment['HOME'] ?? '.'}/.local/opt/mutfakapp',
+    ),
+    workDir: Directory.systemTemp,
+    currentVersion: AppConfig.appVersion,
   );
 });
 
@@ -997,8 +1044,10 @@ class KitchenHealthController extends Notifier<KitchenHealthState> {
   /// bildiriliyordu. Sahada tam olarak bu görüldü: yazıcı takılı, fişler
   /// basılıyor, gösterge "yok" diyor.
   Future<KitchenHealthReport> _collect() async {
-    final probe = PrinterProbe(ref.read(kdsSettingsProvider).printerDevicePath);
+    final settings = ref.read(kdsSettingsProvider);
+    final probe = PrinterProbe(settings.printerDevicePath);
     final service = ref.read(printServiceProvider);
+    final player = ref.read(alarmPlayerProvider);
 
     final results = _pendingResults;
     _pendingResults = const [];
@@ -1008,6 +1057,26 @@ class KitchenHealthController extends Notifier<KitchenHealthState> {
       printQueuePending: ref.read(printQueueProvider).pendingCount(),
       printQueueFailed: service.failedCount(),
       appVersion: AppConfig.appVersion,
+
+      // ── Zenginleştirilmiş telemetri (K-22 §3) ─────────────────────────
+      //
+      // Hepsi kasada ZATEN VAR olan ama sunucuya hiç gitmeyen bilgiler;
+      // yönetici bunları görmek için mutfağa gitmek zorundaydı.
+      lastError: service.lastError,
+      alarmMuted: player.isMuted,
+      alarmMuteReason: player.muteReason,
+      queueOldestAt: service.oldestPendingAt(),
+
+      // SES AÇIKKEN ÖLÇÜLEBİLİR, KAPALIYKEN ÖLÇÜLEMEZ.
+      //
+      // Ses kapalıyken oynatıcı `SilentAlarmPlayer` ve `isMuted` her zaman
+      // `true` — ama bu bir arıza değil, bir tercih. `false` bildirmek
+      // sağlam bir hoparlörü arızalı göstermek, `true` bildirmek ise hiç
+      // denenmemiş bir altsistem için sağlık garantisi vermek olurdu.
+      // İkisi de yalan; `null` ("bilinmiyor") tek dürüst cevap ve sunucu
+      // bu alanı zaten üç hâlli tutuyor.
+      soundOk: settings.soundEnabled ? !player.isMuted : null,
+
       commandResults: results,
     );
   }

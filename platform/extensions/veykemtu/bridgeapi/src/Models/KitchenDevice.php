@@ -43,6 +43,12 @@ use Laravel\Sanctum\HasApiTokens;
  * @property int|null $alarm_repeat_seconds
  * @property int|null $alarm_max_repeats
  * @property bool|null $touch_mode
+ * @property string|null $disabled_sound_events
+ * @property string|null $last_error
+ * @property bool|null $alarm_muted
+ * @property string|null $alarm_mute_reason
+ * @property Carbon|null $queue_oldest_at
+ * @property bool|null $sound_ok
  * @property Carbon|null $settings_updated_at
  */
 class KitchenDevice extends Model
@@ -93,6 +99,22 @@ class KitchenDevice extends Model
         'alarm_repeat_seconds' => 'integer',
         'alarm_max_repeats' => 'integer',
         'touch_mode' => 'boolean',
+
+        // ── Telemetri (K-22) ──────────────────────────────────────────
+        //
+        // ÜÇ HÂLLİ BAYRAKLAR: `null` "kasa bildirmedi", `false` "bildirdi
+        // ve kötü". `printer_ok` ile aynı gerekçe. Dönüşüm olmadan MySQL
+        // `1`/`0` döndürür ve sözleşme bu alanları `boolean | null` ilan
+        // ediyor — `1` gelen bir alanı Dart `bool?` olarak ayrıştıramaz.
+        //
+        // `disabled_sound_events` KASTEN DÖNÜŞTÜRÜLMÜYOR: tele düz metin
+        // olarak çıkıyor (virgülle ayrılmış), ve boş dize ile `null`
+        // arasındaki AYRIM korunmak zorunda. Bir `array` cast'i boş
+        // dizeyi boş diziye çevirir, `null`'ı da — yani "dokunmadı" ile
+        // "hepsini aç" ayırt edilemez hâle gelirdi.
+        'alarm_muted' => 'boolean',
+        'sound_ok' => 'boolean',
+        'queue_oldest_at' => 'datetime',
     ];
 
     /**
