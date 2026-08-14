@@ -2,12 +2,16 @@
 ///
 /// NEDEN dönen halka DEĞİL: boş bir spinner "bir şey yükleniyor" der ama
 /// ekranın nasıl dolacağını göstermez. İçeriğin şeklini taklit eden soluk
-/// bloklar, algılanan bekleme süresini kısaltır ve düzen sıçramasını önler.
+/// bloklar, algılanan bekleme süresini kısaltır ve içerik gelince düzen
+/// sıçramaz. İskelet GERÇEK düzenin kutu sayısını ve yüksekliklerini
+/// yansıtmak zorundadır; yansıtmayan iskelet, sıçramayı önlemek yerine iki
+/// kez sıçratır.
 library;
 
 import 'package:bld_design_system/bld_design_system.dart';
 import 'package:flutter/material.dart';
 
+import '../theme/bld_semantic_colors.dart';
 import '../theme/bld_theme.dart';
 
 /// Alt ağacın üzerinden geçen açık-koyu parıltı. Soluk blokları sarmalayın.
@@ -20,12 +24,33 @@ class Shimmer extends StatefulWidget {
   State<Shimmer> createState() => _ShimmerState();
 }
 
-class _ShimmerState extends State<Shimmer>
-    with SingleTickerProviderStateMixin {
+class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1200),
-  )..repeat();
+    duration: bldDuration(_shimmerPeriodMs),
+  );
+
+  /// Parıltının bir turu. Marka kılavuzu: 1200 ms.
+  static const int _shimmerPeriodMs = 1200;
+
+  /// Hareket azaltma isteği onurlandırılır: sürekli tekrar eden bir parıltı,
+  /// vestibüler duyarlılığı olan kullanıcı için bekleme boyunca kesintisiz
+  /// bir uyarandır. Sabit taban rengi aynı bilgiyi taşıyor.
+  bool _reducedMotion = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Denetleyici `build` içinde değil BURADA başlatılıp durduruluyor: build
+    // yan etkisiz kalmalı, yoksa aynı karede iki kez çizim isteyen bir döngü
+    // kurulabiliyor.
+    _reducedMotion = MediaQuery.disableAnimationsOf(context);
+    if (_reducedMotion) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
 
   @override
   void dispose() {
@@ -35,6 +60,10 @@ class _ShimmerState extends State<Shimmer>
 
   @override
   Widget build(BuildContext context) {
+    final bld = context.bld;
+
+    if (_reducedMotion) return widget.child;
+
     return AnimatedBuilder(
       animation: _controller,
       child: widget.child,
@@ -46,11 +75,7 @@ class _ShimmerState extends State<Shimmer>
             return LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
-              colors: [
-                bldColor(BldColors.neutral100),
-                bldColor(BldColors.neutral200),
-                bldColor(BldColors.neutral100),
-              ],
+              colors: [bld.skeletonBase, bld.skeletonShine, bld.skeletonBase],
               stops: const [0.35, 0.5, 0.65],
               transform: _SlideGradient(dx),
             ).createShader(bounds);
@@ -92,14 +117,17 @@ class SkeletonBox extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: bldColor(BldColors.neutral100),
+        color: context.bld.skeletonBase,
         borderRadius: BorderRadius.circular(radius),
       ),
     );
   }
 }
 
-/// Menü/ürün kartı iskeleti (görsel + iki satır).
+/// Menü/ürün kartı iskeleti.
+///
+/// Kutular gerçek kartı taklit ediyor: 4:3 görsel + `title` (17/24) satırı +
+/// `money-md` (17/24) fiyatı.
 class MenuCardSkeleton extends StatelessWidget {
   const MenuCardSkeleton({super.key});
 
@@ -109,15 +137,18 @@ class MenuCardSkeleton extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SkeletonBox(
-            width: double.infinity,
-            height: 116,
-            radius: BldRadius.md,
+          const AspectRatio(
+            aspectRatio: 4 / 3,
+            child: SkeletonBox(
+              width: double.infinity,
+              height: double.infinity,
+              radius: BldRadius.md,
+            ),
           ),
           const SizedBox(height: BldSpacing.sm),
-          const SkeletonBox(width: 120, height: 14),
+          const SkeletonBox(width: 120, height: BldTextScale.titleLineHeight),
           const SizedBox(height: BldSpacing.xs),
-          const SkeletonBox(width: 64, height: 14),
+          const SkeletonBox(width: 72, height: BldTextScale.moneyMdLineHeight),
         ],
       ),
     );
@@ -136,19 +167,26 @@ class ListRowSkeleton extends StatelessWidget {
       child: Column(
         children: [
           for (var i = 0; i < count; i++)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: BldSpacing.sm),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: BldSpacing.sm),
               child: Row(
                 children: [
-                  const SkeletonBox(width: 48, height: 48, radius: BldRadius.md),
-                  const SizedBox(width: BldSpacing.md),
+                  // Sepet/sipariş satırı görseli 1:1 ve 56 px.
+                  SkeletonBox(width: 56, height: 56, radius: BldRadius.md),
+                  SizedBox(width: BldSpacing.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        SkeletonBox(width: 160, height: 14),
+                      children: [
+                        SkeletonBox(
+                          width: 160,
+                          height: BldTextScale.titleLineHeight,
+                        ),
                         SizedBox(height: BldSpacing.sm),
-                        SkeletonBox(width: 96, height: 12),
+                        SkeletonBox(
+                          width: 96,
+                          height: BldTextScale.bodySmLineHeight,
+                        ),
                       ],
                     ),
                   ),

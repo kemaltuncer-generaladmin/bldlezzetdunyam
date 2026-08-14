@@ -1,0 +1,530 @@
+/*
+ * ÜRETİLDİ — ELLE DÜZENLEME
+ *
+ * Bu dosya `packages/design_system/tokens/bld.tokens.json` dosyasından üretildi.
+ * Değişiklik oraya yazılır, sonra:
+ *   dart run packages/design_system/tool/gen_tokens.dart
+ * Buraya elle yazılan her şey bir sonraki üretimde silinir.
+ */
+
+/*
+ * KATMAN 1 — PRIMITIF
+ *
+ * `@theme` blokları Tailwind'in varsayılan temasından SONRA gelmek
+ * zorundadır, yoksa `--color-neutral-*` gibi çakışan adlarda çekirdek
+ * palet kazanır. Bu yüzden `globals.css` bu dosyayı
+ * `@import 'tailwindcss'` satırından SONRA import eder.
+ */
+@theme {
+  /*
+   * En açık marka yüzeyi — tonal buton ve accent zemini. Metin taşımaz,
+   * üstüne brand800 yazılır. Beyaz üstünde 1,10:1 · neutral50 üstünde 1,02:1
+   * · koyu zemin (#1B120C) üstünde 16,76:1.
+   */
+  --color-brand-50: #fef2e8;
+  /*
+   * Marka yüzeyinin ikinci adımı — skeleton parıltısı, seçili çip zemini.
+   * Beyaz üstünde 1,24:1 · neutral50 üstünde 1,15:1 · koyu zemin (#1B120C)
+   * üstünde 14,87:1.
+   */
+  --color-brand-100: #fde2cc;
+  /*
+   * Koyu temada başlık rengi; açık temada yalnız dekoratif (kenarlık,
+   * ayraç). Beyaz üstünde 1,52:1 · neutral50 üstünde 1,41:1 · koyu zemin
+   * (#1B120C) üstünde 12,15:1.
+   */
+  --color-brand-200: #fcc7a2;
+  /*
+   * Koyu temanın birincil DOLGUSU (üstünde neutral950 yazı) ve görsel yer
+   * tutucusunun buğday çizgisi. Beyaz üstünde 2,00:1 · neutral50 üstünde
+   * 1,86:1 · koyu zemin (#1B120C) üstünde 9,22:1.
+   */
+  --color-brand-300: #f7a470;
+  /*
+   * Koyu temanın birincil METİN/bağlantı rengi. Açık temada metin taşımaz.
+   * Beyaz üstünde 2,65:1 · neutral50 üstünde 2,46:1 · koyu zemin (#1B120C)
+   * üstünde 6,95:1.
+   */
+  --color-brand-400: #e8863f;
+  /*
+   * LOGO gradyanının açık ucu. TUZAK: beyaz metin TAŞIMAZ — 3,72 AA
+   * altındadır. Beyaz üstünde 3,72:1 · neutral50 üstünde 3,46:1 · koyu zemin
+   * (#1B120C) üstünde 4,96:1.
+   */
+  --color-brand-500: #dd5d02;
+  /*
+   * Odak halkası ve açık tema ikonu. Beyaz metin için sınırda: yalnız büyük
+   * metinde kullanılır. Beyaz üstünde 4,91:1 · neutral50 üstünde 4,56:1 ·
+   * koyu zemin (#1B120C) üstünde 3,75:1.
+   */
+  --color-brand-600: #c24a02;
+  /*
+   * Açık temanın birincil DOLGUSU ve bağlantı rengi. Beyaz metin buradan
+   * başlar. Beyaz üstünde 6,72:1 · neutral50 üstünde 6,24:1 · koyu zemin
+   * (#1B120C) üstünde 2,75:1.
+   */
+  --color-brand-700: #a8320a;
+  /*
+   * Birincil butonun hover adımı; tonal buton yazısı (brand50 üstünde).
+   * Beyaz üstünde 8,66:1 · neutral50 üstünde 8,04:1 · koyu zemin (#1B120C)
+   * üstünde 2,13:1.
+   */
+  --color-brand-800: #941c01;
+  /*
+   * LOGO kelime markasının kahvesi. Açık temada BAŞLIK rengi. Beyaz üstünde
+   * 12,75:1 · neutral50 üstünde 11,84:1 · koyu zemin (#1B120C) üstünde
+   * 1,45:1.
+   */
+  --color-brand-900: #5f1b08;
+  /*
+   * En koyu marka adımı — koyu tema zemini bununla aynı ailede kalsın diye
+   * tutuldu. Beyaz üstünde 16,62:1 · neutral50 üstünde 15,44:1 · koyu zemin
+   * (#1B120C) üstünde 1,11:1.
+   */
+  --color-brand-950: #3d0e05;
+
+  /*
+   * Kart, popover ve form alanı zemini. Beyaz üstünde 1,00:1 · neutral50
+   * üstünde 1,08:1 · koyu zemin (#1B120C) üstünde 18,45:1.
+   */
+  --color-neutral-0: #ffffff;
+  /*
+   * Uygulama zemini (açık tema). Saf beyaz değil: kart kenarı görünsün diye.
+   * Beyaz üstünde 1,08:1 · neutral50 üstünde 1,00:1 · koyu zemin (#1B120C)
+   * üstünde 17,13:1.
+   */
+  --color-neutral-50: #faf6f0;
+  /*
+   * Sessiz yüzey (muted) ve skeleton tabanı. Beyaz üstünde 1,18:1 ·
+   * neutral50 üstünde 1,10:1 · koyu zemin (#1B120C) üstünde 15,61:1.
+   */
+  --color-neutral-100: #f2ebe3;
+  /*
+   * DEKORATİF kenarlık ve ayraç. Kontrol kenarlığı DEĞİL (1,38 — 1.4.11
+   * geçmez). Beyaz üstünde 1,38:1 · neutral50 üstünde 1,28:1 · koyu zemin
+   * (#1B120C) üstünde 13,40:1.
+   */
+  --color-neutral-200: #e5dace;
+  /*
+   * Koyu temanın sessiz metni; açık temada devre dışı öğe kenarlığı. Beyaz
+   * üstünde 1,72:1 · neutral50 üstünde 1,60:1 · koyu zemin (#1B120C) üstünde
+   * 10,72:1.
+   */
+  --color-neutral-300: #d2c3b4;
+  /*
+   * İŞLEVSEL kenarlık (form alanı, checkbox). METİN DEĞİLDİR. Beyaz üstünde
+   * 3,26:1 · neutral50 üstünde 3,03:1 · koyu zemin (#1B120C) üstünde 5,66:1.
+   */
+  --color-neutral-400: #a28a78;
+  /*
+   * Placeholder metni. Gövde metni için kullanılmaz. Beyaz üstünde 6,20:1 ·
+   * neutral50 üstünde 5,76:1 · koyu zemin (#1B120C) üstünde 2,98:1.
+   */
+  --color-neutral-500: #7a5a4a;
+  /*
+   * İkincil metin (muted-foreground). Beyaz üstünde 8,22:1 · neutral50
+   * üstünde 7,64:1 · koyu zemin (#1B120C) üstünde 2,24:1.
+   */
+  --color-neutral-600: #6b4636;
+  /*
+   * Vurgulu ikincil metin, ikon. Beyaz üstünde 11,07:1 · neutral50 üstünde
+   * 10,28:1 · koyu zemin (#1B120C) üstünde 1,67:1.
+   */
+  --color-neutral-700: #523527;
+  /*
+   * Koyu yüzey (açık temada ters bant). Beyaz üstünde 14,34:1 · neutral50
+   * üstünde 13,32:1 · koyu zemin (#1B120C) üstünde 1,29:1.
+   */
+  --color-neutral-800: #3b2519;
+  /*
+   * Gövde metni (açık tema). Beyaz üstünde 16,73:1 · neutral50 üstünde
+   * 15,54:1 · koyu zemin (#1B120C) üstünde 1,10:1.
+   */
+  --color-neutral-900: #2a1a12;
+  /*
+   * Koyu temanın zemini ve açık temada en koyu ters bant. Beyaz üstünde
+   * 18,45:1 · neutral50 üstünde 17,13:1 · koyu zemin (#1B120C) üstünde
+   * 1,00:1.
+   */
+  --color-neutral-950: #1b120c;
+
+  /*
+   * Başarı tinti — açık tema. Beyaz üstünde 1,10:1 · neutral50 üstünde
+   * 1,02:1 · koyu zemin (#1B120C) üstünde 16,75:1.
+   */
+  --color-success-50: #ecf7eb;
+  /*
+   * Koyu temanın başarı METNİ. Beyaz üstünde 2,55:1 · neutral50 üstünde
+   * 2,37:1 · koyu zemin (#1B120C) üstünde 7,24:1.
+   */
+  --color-success-400: #6fb268;
+  /*
+   * Beyaz metin taşıyan başarı dolgusu. Beyaz üstünde 4,72:1 · neutral50
+   * üstünde 4,38:1 · koyu zemin (#1B120C) üstünde 3,91:1.
+   */
+  --color-success-600: #3e8237;
+  /*
+   * Açık temanın başarı METNİ. 600 zemin üstünde AA altında kalıyor, o
+   * yüzden metin 700. Beyaz üstünde 6,53:1 · neutral50 üstünde 6,07:1 · koyu
+   * zemin (#1B120C) üstünde 2,82:1.
+   */
+  --color-success-700: #2f6a2a;
+
+  /*
+   * Uyarı tinti — açık tema (çevrimdışı durumu). Beyaz üstünde 1,10:1 ·
+   * neutral50 üstünde 1,03:1 · koyu zemin (#1B120C) üstünde 16,70:1.
+   */
+  --color-warning-50: #faf3e5;
+  /*
+   * Koyu temanın uyarı METNİ. Beyaz üstünde 1,94:1 · neutral50 üstünde
+   * 1,80:1 · koyu zemin (#1B120C) üstünde 9,51:1.
+   */
+  --color-warning-300: #d8b66d;
+  /*
+   * Beyaz metin taşıyan uyarı dolgusu. Beyaz üstünde 5,00:1 · neutral50
+   * üstünde 4,64:1 · koyu zemin (#1B120C) üstünde 3,69:1.
+   */
+  --color-warning-600: #926800;
+  /*
+   * Açık temanın uyarı METNİ. Beyaz üstünde 6,85:1 · neutral50 üstünde
+   * 6,36:1 · koyu zemin (#1B120C) üstünde 2,69:1.
+   */
+  --color-warning-700: #785400;
+
+  /*
+   * Hata tinti — açık tema. Beyaz üstünde 1,15:1 · neutral50 üstünde 1,07:1
+   * · koyu zemin (#1B120C) üstünde 15,99:1.
+   */
+  --color-danger-50: #ffeaea;
+  /*
+   * Koyu temanın hata METNİ ve yıkıcı dolgusu (üstünde neutral950). Beyaz
+   * üstünde 2,40:1 · neutral50 üstünde 2,23:1 · koyu zemin (#1B120C) üstünde
+   * 7,70:1.
+   */
+  --color-danger-300: #f08a93;
+  /*
+   * Onay diyaloğunun yıkıcı dolgusu (beyaz metin). Beyaz üstünde 5,84:1 ·
+   * neutral50 üstünde 5,43:1 · koyu zemin (#1B120C) üstünde 3,16:1.
+   */
+  --color-danger-600: #c12440;
+  /*
+   * Açık temanın hata METNİ ve yerinde yıkıcı eylem yazısı. Beyaz üstünde
+   * 7,46:1 · neutral50 üstünde 6,93:1 · koyu zemin (#1B120C) üstünde 2,47:1.
+   */
+  --color-danger-700: #a51c34;
+
+  /*
+   * Bilgi tinti — açık tema. Beyaz üstünde 1,11:1 · neutral50 üstünde 1,03:1
+   * · koyu zemin (#1B120C) üstünde 16,69:1.
+   */
+  --color-info-50: #eaf5ff;
+  /*
+   * Koyu temanın bilgi METNİ. Beyaz üstünde 1,92:1 · neutral50 üstünde
+   * 1,79:1 · koyu zemin (#1B120C) üstünde 9,59:1.
+   */
+  --color-info-300: #8bbff9;
+  /*
+   * Beyaz metin taşıyan bilgi dolgusu. Beyaz üstünde 4,97:1 · neutral50
+   * üstünde 4,62:1 · koyu zemin (#1B120C) üstünde 3,71:1.
+   */
+  --color-info-600: #2e72b9;
+  /*
+   * Açık temanın bilgi METNİ. Beyaz üstünde 6,80:1 · neutral50 üstünde
+   * 6,31:1 · koyu zemin (#1B120C) üstünde 2,71:1.
+   */
+  --color-info-700: #215d99;
+
+  /*
+   * Çıplak ad = METİN adımı. `text-success` / `BldColors.success` çağrı
+   * yerlerinin tamamı metin ve tint için kullanıyor; dolgu isteyen yer
+   * numaralı adımı açıkça yazar.
+   */
+  --color-success: #2f6a2a;
+  /* Çıplak ad = METİN adımı. */
+  --color-warning: #785400;
+  /* Çıplak ad = METİN adımı. */
+  --color-danger: #a51c34;
+  /* Çıplak ad = METİN adımı. */
+  --color-info: #215d99;
+}
+
+/*
+ * KATMAN 2 — SEMANTİK ROLLER (açık tema)
+ *
+ * shadcn/ui'ın beklediği sözleşme. Bileşenler YALNIZCA bunları
+ * kullanır; tema değiştirmek tek bloğu değiştirmek demektir.
+ */
+:root {
+  /*
+   * Uygulama zemini. Saf beyaz DEĞİL: kart beyazı zeminin üstünde kendi
+   * kenarını gösterebilsin diye.
+   */
+  --background: var(--color-neutral-50);
+  /*
+   * Birinci yükseltme. AÇIK temada yükseltme GÖLGEDİR, açıklık adımı değil —
+   * bu yüzden card ile aynı değer.
+   */
+  --surface-1: var(--color-neutral-0);
+  /* İkinci yükseltme (sheet, dialog). Yine gölge ile ayrışır, renkle değil. */
+  --surface-2: var(--color-neutral-0);
+  /* Gövde metni. background üstünde 15,54:1 (metin eşiği 4,50). */
+  --foreground: var(--color-neutral-900);
+  /*
+   * Başlıklar marka kahvesi — web, mobil ve panelin tek ürün gibi okunmasını
+   * sağlayan en ucuz hamle. background üstünde 11,84:1 (metin eşiği 4,50).
+   */
+  --heading: var(--color-brand-900);
+  /* Sessiz yüzey — bölüm ayracı, sekme zemini. */
+  --muted: var(--color-neutral-100);
+  /* İkincil metin. background üstünde 7,64:1 (metin eşiği 4,50). */
+  --muted-foreground: var(--color-neutral-600);
+  /*
+   * Form alanı yer tutucu metni. muted-foreground ile aynı değil:
+   * placeholder daha sessiz olmalı ama okunur kalmalı. surface-1 üstünde
+   * 6,20:1 (metin eşiği 4,50).
+   */
+  --placeholder: var(--color-neutral-500);
+  /* Kart ve liste satırı zemini. */
+  --card: var(--color-neutral-0);
+  /* Kart içi metin. card üstünde 16,73:1 (metin eşiği 4,50). */
+  --card-foreground: var(--color-neutral-900);
+  /* Açılır katman zemini. */
+  --popover: var(--color-neutral-0);
+  /* Açılır katman metni. popover üstünde 16,73:1 (metin eşiği 4,50). */
+  --popover-foreground: var(--color-neutral-900);
+  /*
+   * Birincil buton dolgusu. brand600 DEĞİL: beyaz etiket 4,91 ile sınırda
+   * kalıyordu. Etiketi (primary-foreground) ile 6,72:1 (metin eşiği 4,50).
+   */
+  --primary: var(--color-brand-700);
+  /* Birincil buton etiketi. */
+  --primary-foreground: var(--color-neutral-0);
+  /*
+   * Birincil butonun hover adımı. Etiketi (primary-foreground) ile 8,66:1
+   * (metin eşiği 4,50).
+   */
+  --primary-hover: var(--color-brand-800);
+  /*
+   * Ghost buton ve marka vurgulu metin. background üstünde 6,24:1 (metin
+   * eşiği 4,50).
+   */
+  --primary-text: var(--color-brand-700);
+  /*
+   * Tonal buton dolgusu. Etiketi (secondary-foreground) ile 7,87:1 (metin
+   * eşiği 4,50).
+   */
+  --secondary: var(--color-brand-50);
+  /* Tonal buton etiketi. */
+  --secondary-foreground: var(--color-brand-800);
+  /*
+   * Vurgu yüzeyi — seçili satır, hover zemini. Etiketi (accent-foreground)
+   * ile 7,87:1 (metin eşiği 4,50).
+   */
+  --accent: var(--color-brand-50);
+  /* Vurgu yüzeyi metni. */
+  --accent-foreground: var(--color-brand-800);
+  /* Sıcak anlatım bandı (hero, öne çıkan bölüm). */
+  --surface-warm: var(--color-brand-50);
+  /* Sıcak bant metni. surface-warm üstünde 15,20:1 (metin eşiği 4,50). */
+  --surface-warm-foreground: var(--color-neutral-900);
+  /*
+   * DEKORATİF ayraç. Kontrol kenarlığı olarak KULLANILMAZ — 1.4.11 eşiğini
+   * geçmez, input rolü onun içindir.
+   */
+  --border: var(--color-neutral-200);
+  /*
+   * İŞLEVSEL kontrol kenarlığı (form alanı, checkbox, radio). WCAG 1.4.11
+   * için >= 3,0 olmak zorunda. card üstünde 3,26:1 (kontrol eşiği 3,00).
+   */
+  --input: var(--color-neutral-400);
+  /*
+   * Odak halkası. 2px + 2px offset ile çizilir. background üstünde 4,56:1
+   * (kontrol eşiği 3,00).
+   */
+  --ring: var(--color-brand-600);
+  /* Bağlantı metni. background üstünde 6,24:1 (metin eşiği 4,50). */
+  --link: var(--color-brand-700);
+  /*
+   * Onay diyaloğundaki dolu yıkıcı buton. Etiketi (destructive-foreground)
+   * ile 5,84:1 (metin eşiği 4,50).
+   */
+  --destructive: var(--color-danger-600);
+  /* Yıkıcı buton etiketi. */
+  --destructive-foreground: var(--color-neutral-0);
+  /*
+   * Başarı METNİ. 600 adımı neutral50 zemininde 4,38 veriyor — AA altı, o
+   * yüzden metin 700. background üstünde 6,07:1 (metin eşiği 4,50).
+   */
+  --success: var(--color-success-700);
+  /* Başarı tinti. */
+  --success-surface: var(--color-success-50);
+  /*
+   * Tint üstündeki başarı metni. success-surface üstünde 5,93:1 (metin eşiği
+   * 4,50).
+   */
+  --success-foreground: var(--color-success-700);
+  /*
+   * Uyarı METNİ (çevrimdışı durumu). background üstünde 6,36:1 (metin eşiği
+   * 4,50).
+   */
+  --warning: var(--color-warning-700);
+  /* Uyarı tinti. */
+  --warning-surface: var(--color-warning-50);
+  /*
+   * Tint üstündeki uyarı metni. warning-surface üstünde 6,20:1 (metin eşiği
+   * 4,50).
+   */
+  --warning-foreground: var(--color-warning-700);
+  /*
+   * Hata METNİ ve yerinde yıkıcı eylem yazısı. background üstünde 6,93:1
+   * (metin eşiği 4,50).
+   */
+  --danger: var(--color-danger-700);
+  /* Hata tinti. */
+  --danger-surface: var(--color-danger-50);
+  /*
+   * Tint üstündeki hata metni. danger-surface üstünde 6,47:1 (metin eşiği
+   * 4,50).
+   */
+  --danger-foreground: var(--color-danger-700);
+  /* Bilgi METNİ. background üstünde 6,31:1 (metin eşiği 4,50). */
+  --info: var(--color-info-700);
+  /* Bilgi tinti. */
+  --info-surface: var(--color-info-50);
+  /*
+   * Tint üstündeki bilgi metni. info-surface üstünde 6,15:1 (metin eşiği
+   * 4,50).
+   */
+  --info-foreground: var(--color-info-700);
+  /* Skeleton tabanı. */
+  --skeleton-base: var(--color-neutral-100);
+  /* Skeleton parıltısı — 1200 ms. */
+  --skeleton-sheen: var(--color-neutral-200);
+
+  color-scheme: light;
+}
+
+/* KATMAN 2 — SEMANTİK ROLLER (koyu tema) */
+.dark {
+  /* Koyu tema zemini. Nötr siyah değil: marka ailesinin en koyu kahvesi. */
+  --background: var(--color-neutral-950);
+  /* Birinci yükseltme. KOYU temada yükseltme AÇIKLIK adımıdır, gölge değil. */
+  --surface-1: #261b14;
+  /* İkinci yükseltme (sheet, dialog, popover). */
+  --surface-2: #32261e;
+  /* Gövde metni. background üstünde 15,61:1 (metin eşiği 4,50). */
+  --foreground: var(--color-neutral-100);
+  /*
+   * TÜRETİLDİ: açık temada başlık brand900 (marka kahvesi). Koyu temada aynı
+   * rolün aynadaki karşılığı marka ailesinin açık ucudur; brand200 seçildi.
+   * background üstünde 12,15:1 (metin eşiği 4,50).
+   */
+  --heading: var(--color-brand-200);
+  /* Sessiz yüzey. */
+  --muted: #32261e;
+  /* İkincil metin. muted üstünde 8,53:1 (metin eşiği 4,50). */
+  --muted-foreground: var(--color-neutral-300);
+  /* Form alanı yer tutucusu. card üstünde 5,16:1 (metin eşiği 4,50). */
+  --placeholder: var(--color-neutral-400);
+  /* Kart zemini = surface-1. */
+  --card: #261b14;
+  /* Kart içi metin. card üstünde 14,22:1 (metin eşiği 4,50). */
+  --card-foreground: var(--color-neutral-100);
+  /* Açılır katman = surface-2. */
+  --popover: #32261e;
+  /* Açılır katman metni. popover üstünde 12,41:1 (metin eşiği 4,50). */
+  --popover-foreground: var(--color-neutral-100);
+  /*
+   * Koyu temanın birincil DOLGUSU. İlişki tersine döner: açık dolgu + koyu
+   * etiket. Etiketi (primary-foreground) ile 9,22:1 (metin eşiği 4,50).
+   */
+  --primary: var(--color-brand-300);
+  /* Birincil buton etiketi (koyu). */
+  --primary-foreground: var(--color-neutral-950);
+  /*
+   * Birincil butonun hover adımı — koyu temada hover DAHA AÇIK olur. Etiketi
+   * (primary-foreground) ile 12,15:1 (metin eşiği 4,50).
+   */
+  --primary-hover: var(--color-brand-200);
+  /*
+   * Ghost buton ve marka vurgulu METİN. Dolgudan farklı ton: brand300 metin
+   * olarak fazla parlak. background üstünde 6,95:1 (metin eşiği 4,50).
+   */
+  --primary-text: var(--color-brand-400);
+  /*
+   * Tonal buton dolgusu. Etiketi (secondary-foreground) ile 6,95:1 (metin
+   * eşiği 4,50).
+   */
+  --secondary: #462314;
+  /* Tonal buton etiketi. */
+  --secondary-foreground: var(--color-brand-300);
+  /* Vurgu yüzeyi. Etiketi (accent-foreground) ile 6,95:1 (metin eşiği 4,50). */
+  --accent: #462314;
+  /* Vurgu yüzeyi metni. */
+  --accent-foreground: var(--color-brand-300);
+  /* Sıcak anlatım bandı. */
+  --surface-warm: #462314;
+  /* Sıcak bant metni. surface-warm üstünde 11,76:1 (metin eşiği 4,50). */
+  --surface-warm-foreground: var(--color-neutral-100);
+  /* DEKORATİF ayraç. */
+  --border: #43352b;
+  /*
+   * İŞLEVSEL kontrol kenarlığı. surface-2 üstünde 2,63 kalıyor — form alanı
+   * surface-2 üstüne KOYULMAZ. background üstünde 3,31:1 (kontrol eşiği
+   * 3,00).
+   */
+  --input: #75655a;
+  /* Odak halkası. background üstünde 6,95:1 (kontrol eşiği 3,00). */
+  --ring: var(--color-brand-400);
+  /* Bağlantı metni. background üstünde 6,95:1 (metin eşiği 4,50). */
+  --link: var(--color-brand-400);
+  /*
+   * Dolu yıkıcı buton — açık dolgu + koyu etiket. Etiketi
+   * (destructive-foreground) ile 7,70:1 (metin eşiği 4,50).
+   */
+  --destructive: var(--color-danger-300);
+  /* Yıkıcı buton etiketi. */
+  --destructive-foreground: var(--color-neutral-950);
+  /* Başarı METNİ. background üstünde 7,24:1 (metin eşiği 4,50). */
+  --success: var(--color-success-400);
+  /* Başarı tinti. */
+  --success-surface: #1f341c;
+  /*
+   * Tint üstündeki başarı metni. success-surface üstünde 5,26:1 (metin eşiği
+   * 4,50).
+   */
+  --success-foreground: var(--color-success-400);
+  /* Uyarı METNİ. background üstünde 9,51:1 (metin eşiği 4,50). */
+  --warning: var(--color-warning-300);
+  /* Uyarı tinti. */
+  --warning-surface: #392c0c;
+  /*
+   * Tint üstündeki uyarı metni. warning-surface üstünde 7,04:1 (metin eşiği
+   * 4,50).
+   */
+  --warning-foreground: var(--color-warning-300);
+  /* Hata METNİ. background üstünde 7,70:1 (metin eşiği 4,50). */
+  --danger: var(--color-danger-300);
+  /* Hata tinti. */
+  --danger-surface: #4b1d20;
+  /*
+   * Tint üstündeki hata metni. danger-surface üstünde 5,86:1 (metin eşiği
+   * 4,50).
+   */
+  --danger-foreground: var(--color-danger-300);
+  /* Bilgi METNİ. background üstünde 9,59:1 (metin eşiği 4,50). */
+  --info: var(--color-info-300);
+  /* Bilgi tinti. */
+  --info-surface: #1a2f46;
+  /*
+   * Tint üstündeki bilgi metni. info-surface üstünde 7,09:1 (metin eşiği
+   * 4,50).
+   */
+  --info-foreground: var(--color-info-300);
+  /* Skeleton tabanı. */
+  --skeleton-base: #32261e;
+  /* Skeleton parıltısı. */
+  --skeleton-sheen: #43352b;
+
+  color-scheme: dark;
+}

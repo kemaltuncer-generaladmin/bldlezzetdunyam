@@ -1,40 +1,57 @@
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Compass } from 'lucide-react';
+import { StatePanel } from '@/components/state-panel';
 import { Button } from '@/components/ui/button';
 import { MAIN_NAV } from '@/content/navigation';
 
+/**
+ * 404.
+ *
+ * ## Ton `empty`, `error` DEĞİL
+ *
+ * Bulunamayan bir adres sitenin arızası değil; kırık bir bağlantı ya da eski
+ * bir yer imi. `error` tonu (kırmızı daire + `role="alert"`) ekran okuyucuyu
+ * keser ve ziyaretçiye bir şeyin bozulduğunu söyler — ikisi de yanlış.
+ *
+ * ## Bölüm listesi neden duruyor?
+ *
+ * Kırık bağlantıdan gelen ziyaretçinin bir sonraki hamlesi adresi elle
+ * denemek oluyor. Üç bölümlük liste bu denemeyi gereksiz kılıyor ve sayfayı
+ * çıkışsız bırakmıyor.
+ */
 export default async function NotFound() {
   const t = await getTranslations('errors');
 
   return (
-    <div className="mx-auto max-w-content px-4 py-24 text-center sm:px-6">
-      <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">404</p>
-      <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-        {t('notFoundTitle')}
-      </h1>
-      <p className="mx-auto mt-4 max-w-md text-base/7 text-muted-foreground">{t('notFoundBody')}</p>
+    <div className="mx-auto max-w-content px-4 py-20 sm:px-6 sm:py-24">
+      <StatePanel
+        tone="empty"
+        icon={<Compass strokeWidth={1.75} aria-hidden="true" />}
+        title={t('notFoundTitle')}
+        message={t('notFoundBody')}
+        action={
+          <div className="flex flex-wrap justify-center gap-3">
+            <Button asChild size="lg">
+              <Link href="/menu">
+                {t('goToMenu')}
+                <ArrowRight strokeWidth={1.75} aria-hidden="true" />
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link href="/teklif-al">{t('goToQuote')}</Link>
+            </Button>
+          </div>
+        }
+      />
 
-      <div className="mt-8 flex flex-wrap justify-center gap-3">
-        <Button asChild size="lg">
-          <Link href="/">
-            {t('goToMenu')}
-            <ArrowRight aria-hidden="true" />
-          </Link>
-        </Button>
-        <Button asChild size="lg" variant="outline">
-          <Link href="/teklif-al">Teklif Al</Link>
-        </Button>
-      </div>
-
-      {/* Kırık bağlantıya düşen ziyaretçi elle URL denemesin diye bölüm listesi. */}
-      <nav aria-label="Site bölümleri" className="mt-12">
+      <nav aria-label="Site bölümleri" className="mt-10">
         <ul className="flex flex-wrap justify-center gap-x-6 gap-y-2">
           {MAIN_NAV.map((item) => (
             <li key={item.href}>
               <Link
                 href={item.href}
-                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                className="text-body-sm text-muted-foreground underline-offset-4 transition-colors duration-(--duration-fast) hover:text-foreground hover:underline"
               >
                 {item.label}
               </Link>

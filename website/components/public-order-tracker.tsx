@@ -3,7 +3,8 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { OrderSteps } from '@/components/order-steps';
-import { formatDateTime, formatPrice } from '@/lib/format';
+import { formatDateTime } from '@/lib/format';
+import { Money } from '@/components/money';
 import {
   deliveryTypeLabel,
   isTerminalStatus,
@@ -74,9 +75,9 @@ export function PublicOrderTracker({ initial, expires, signature }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-neutral-200 bg-white p-5 sm:p-6">
-        <p className="text-sm text-neutral-600">Durum</p>
-        <p className="mt-1 text-2xl font-bold text-neutral-900">
+      <div className="rounded-md border bg-card p-5 text-card-foreground shadow-card sm:p-6 dark:shadow-none dark:inset-ring dark:inset-ring-white/5">
+        <p className="text-label text-muted-foreground">Durum</p>
+        <p className="mt-1 font-display text-h2 font-semibold text-heading">
           {orderStatusLabel(order.status)}
         </p>
 
@@ -85,24 +86,21 @@ export function PublicOrderTracker({ initial, expires, signature }: Props) {
         </div>
       </div>
 
-      <dl className="rounded-2xl border border-neutral-200 bg-white p-5 text-sm sm:p-6">
+      <dl className="rounded-md border bg-card p-5 text-body-sm text-card-foreground shadow-card sm:p-6 dark:shadow-none dark:inset-ring dark:inset-ring-white/5">
         <div className="flex justify-between gap-4 py-1.5">
-          <dt className="text-neutral-600">Teslimat</dt>
-          <dd className="font-medium text-neutral-900">
-            {deliveryTypeLabel(order.delivery_type)}
-          </dd>
+          <dt className="text-muted-foreground">Teslimat</dt>
+          <dd className="font-medium text-foreground">{deliveryTypeLabel(order.delivery_type)}</dd>
         </div>
         <div className="flex justify-between gap-4 py-1.5">
-          <dt className="text-neutral-600">Ödeme</dt>
-          <dd className="font-medium text-neutral-900">
-            {paymentMethodLabel(order.payment.method)} —{' '}
-            {paymentStatusLabel(order.payment.status)}
+          <dt className="text-muted-foreground">Ödeme</dt>
+          <dd className="font-medium text-foreground">
+            {paymentMethodLabel(order.payment.method)} — {paymentStatusLabel(order.payment.status)}
           </dd>
         </div>
-        <div className="flex justify-between gap-4 border-t border-neutral-100 pt-3 mt-2">
-          <dt className="font-semibold text-neutral-900">Toplam</dt>
-          <dd className="text-lg font-bold text-neutral-900">
-            {formatPrice(order.total)}
+        <div className="mt-2 flex justify-between gap-4 border-t border-border pt-3">
+          <dt className="text-label">Toplam</dt>
+          <dd>
+            <Money kurus={order.total} size="lg" />
           </dd>
         </div>
       </dl>
@@ -113,11 +111,11 @@ export function PublicOrderTracker({ initial, expires, signature }: Props) {
         kâğıttan uzun yaşayan bir URL üzerinden ikinci kez göstermek hiçbir
         şey kazandırmıyor. Ayrıntı için giriş yapılır.
       */}
-      <p className="text-center text-sm text-neutral-600">
+      <p className="text-center text-body-sm text-muted-foreground">
         Sipariş ayrıntıları için{' '}
         <a
           href={`/siparis/${order.id}`}
-          className="font-medium text-brand-700 underline underline-offset-2"
+          className="font-medium text-link underline underline-offset-4"
         >
           hesabınıza giriş yapın
         </a>

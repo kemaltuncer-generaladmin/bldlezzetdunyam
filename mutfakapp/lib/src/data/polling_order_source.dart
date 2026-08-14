@@ -12,6 +12,7 @@ library;
 import 'dart:async';
 
 import 'package:bld_api_client/bld_api_client.dart';
+import 'package:bld_core/bld_core.dart';
 
 /// Listenin ne zaman tazelendiğini bildirebilen kaynak.
 ///
@@ -85,10 +86,16 @@ class PollingOrderSource implements OrderSource, TimestampedOrderSource {
 
   /// Bir sonraki başarılı çekme tam liste mi olsun?
   ///
-  /// İlk çekmede ve her kopma sonrasında `true`'dur: artımlı istek yalnızca
-  /// değişenleri getirdiği için kopukluk sırasında kaçan her şey ancak tam
-  /// yenilemeyle toparlanır.
+  /// İlk çekmede, her kopma sonrasında ve **işletme günü değiştiğinde**
+  /// `true`'dur: artımlı istek yalnızca değişenleri getirdiği için kopukluk
+  /// sırasında kaçan her şey ancak tam yenilemeyle toparlanır.
   bool _needsFullRefresh = true;
+
+  /// En son BAŞARILI çekmenin ait olduğu işletme günü (`YYYY-AA-GG`).
+  ///
+  /// Gerekçe [_fetch] içinde. `null` iken karşılaştırma yapılmaz: ilk çekme
+  /// zaten tam yenileme.
+  String? _lastPolledBusinessDay;
 
   Timer? _pollTimer;
   Timer? _heartbeatTimer;
@@ -224,6 +231,42 @@ class PollingOrderSource implements OrderSource, TimestampedOrderSource {
     if (_disposed) return;
     if (_connectionState == OrderSourceConnection.revoked) return;
 
+    /*
+     * GÜN DÖNÜMÜNDE TAM YENİLEME (B-19).
+     *
+     * Kasa kesintisiz çalışıyor (elektrik gelince kendiliğinden açılıyor) ve
+     * tam yenileme yalnızca ilk açılışta ve bağlantı koptuğunda yapılıyordu.
+     * Gece yarısı bunun İKİ ayrı bedeli var:
+     *
+     *   1. DÜNÜN HAYALETLERİ. Sunucu bugünün siparişlerini filtreliyor, yani
+     *      gece yarısından sonra dünkü bir siparişi BİR DAHA HİÇ göndermiyor.
+     *      `_known` haritası temizlenmediği için hâlâ `hazir` durumdaki
+     *      (alınmamış gel-al, kapatılmamış teslimat) dünkü kartlar tahtada
+     *      sonsuza dek kalıyordu.
+     *   2. ÖN SİPARİŞLER GÖRÜNMÜYOR. Günün menüsüyle birlikte müşteri ileri
+     *      tarihe sipariş verebiliyor. Pazartesi verilen cuma siparişinin
+     *      `updated_at`'i pazartesi; cuma günü `updated_at > since` filtresini
+     *      HİÇBİR ZAMAN geçmiyor ve sipariş PİŞECEĞİ GÜN tahtada hiç
+     *      görünmüyordu.
+     *
+     * İşletme günü değiştiği anda tam yenileme ikisini birden kapatıyor:
+     * `_known` sıfırlanıyor ve `since: null` ile o günün tamamı isteniyor.
+     * Sunucu tarafında da bir emniyet kemeri var (imleç gün başlangıcından
+     * eskiyse eski siparişler yanıta katılıyor) ama asıl düzeltme burası:
+     * hayaletleri yalnızca istemci temizleyebilir.
+     */
+    /*
+     * Gün, cihazın zaman dilimine göre DEĞİL `BusinessDate` ile hesaplanıyor:
+     * mutfak kasası yanlış kurulmuş olabilir ve sunucu gün sınırını İstanbul'a
+     * çiziyor (`Support\BusinessTime`). İki taraf aynı günü görmezse tam
+     * yenileme ya erken ya geç tetiklenir.
+     */
+    final businessDay = BusinessDate.fromUtc(_clock());
+    if (_lastPolledBusinessDay != null &&
+        _lastPolledBusinessDay != businessDay) {
+      _needsFullRefresh = true;
+    }
+
     final fullRefresh = _needsFullRefresh;
     if (!_hasSucceeded) _emitConnection(OrderSourceConnection.connecting);
 
@@ -241,6 +284,11 @@ class PollingOrderSource implements OrderSource, TimestampedOrderSource {
       _applyPage(page, replaceAll: fullRefresh);
       _needsFullRefresh = false;
       _hasSucceeded = true;
+      // BAŞARIDAN SONRA işaretleniyor: çekme başarısız olursa gün hâlâ
+      // "işlenmemiş" sayılır ve bir sonraki denemede tam yenileme yeniden
+      // tetiklenir. Önce işaretlenseydi, gün dönümüne denk gelen tek bir ağ
+      // hatası tam yenilemeyi sessizce yutardı.
+      _lastPolledBusinessDay = businessDay;
       _lastUpdatedAt = _clock();
       _consecutiveFailures = 0;
       _emitConnection(OrderSourceConnection.connected);

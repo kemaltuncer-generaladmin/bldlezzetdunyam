@@ -13,8 +13,11 @@ import 'package:bld_api_client/bld_api_client.dart';
 import 'package:bld_core/bld_core.dart';
 import 'package:bld_design_system/bld_design_system.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/providers.dart';
 import '../../l10n/app_localizations.dart';
+import '../../settings/lock_ui.dart';
 import '../../theme/kds_theme.dart';
 import '../board.dart';
 import '../order_progress.dart';
@@ -403,7 +406,27 @@ class _CardActions extends StatelessWidget {
   final VoidCallback? onEdit;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Consumer(
+    // `Consumer` — kart `ref` taşımıyor ve iki kilit bayrağı için tüm
+    // sütun/kart hiyerarşisine parametre eklemek, kilitle ilgisi olmayan
+    // dosyaları da değiştirmek demekti.
+    builder: (context, ref, _) {
+      final settings = ref.watch(kdsSettingsProvider);
+      return _build(
+        context,
+        allowEdit: settings.allowOrderEdit,
+        allowReprint: settings.allowManualReprint,
+        lockText: lockMessageFor(AppL10n.of(context), settings.lockMessage),
+      );
+    },
+  );
+
+  Widget _build(
+    BuildContext context, {
+    required bool allowEdit,
+    required bool allowReprint,
+    required String lockText,
+  }) {
     final l10n = AppL10n.of(context);
     final next = order.nextStatus;
 
@@ -439,13 +462,21 @@ class _CardActions extends StatelessWidget {
         // İlerlet düğmesinin YANINDA ama ondan küçük: düzenleme nadir,
         // ilerletme her siparişte. Aynı boyutta olsalardı acele eden
         // personel yanlışına basardı.
+        //
+        // KİLİTLİYKEN DE ÇİZİLİR. Koşul `onEdit != null` olarak duruyor ve
+        // kilit yalnız `onPressed`'i düşürüyor: `onEdit`'i null'a çekmek
+        // düğmeyi tamamen yok ederdi ve personel düzenleme özelliğinin
+        // kaybolduğunu sanırdı (K-21 §5.4).
         if (onEdit != null) ...[
           const SizedBox(width: BldSpacing.sm),
-          IconButton.filledTonal(
-            tooltip: l10n.editAction,
-            iconSize: touchMode ? 30 : 26,
-            onPressed: busy ? null : onEdit,
-            icon: const Icon(Icons.edit_outlined),
+          LockedAction(
+            locked: !allowEdit,
+            child: IconButton.filledTonal(
+              tooltip: allowEdit ? l10n.editAction : lockText,
+              iconSize: touchMode ? 30 : 26,
+              onPressed: busy || !allowEdit ? null : onEdit,
+              icon: LockedIcon(icon: Icons.edit_outlined, locked: !allowEdit),
+            ),
           ),
         ],
         const SizedBox(width: BldSpacing.sm),
@@ -454,27 +485,45 @@ class _CardActions extends StatelessWidget {
         // bastığını göremiyor. Alt sayfa tam genişlik, büyük satır ve
         // parmağın üstünde açılıyor.
         if (touchMode)
-          IconButton.filledTonal(
-            tooltip: l10n.reprintTooltip,
-            iconSize: 30,
-            onPressed: () =>
-                showReprintSheet(context, onReprint, reprintableTypes(order)),
-            icon: const Icon(Icons.print_outlined),
+          LockedAction(
+            locked: !allowReprint,
+            child: IconButton.filledTonal(
+              tooltip: allowReprint ? l10n.reprintTooltip : lockText,
+              iconSize: 30,
+              onPressed: allowReprint
+                  ? () => showReprintSheet(
+                      context,
+                      onReprint,
+                      reprintableTypes(order),
+                    )
+                  : null,
+              icon: LockedIcon(
+                icon: Icons.print_outlined,
+                locked: !allowReprint,
+              ),
+            ),
           )
         else
-          PopupMenuButton<ReceiptType>(
-            onSelected: onReprint,
-            tooltip: l10n.reprintTooltip,
-            iconSize: 28,
-            padding: const EdgeInsets.all(BldSpacing.md),
-            icon: const Icon(Icons.print_outlined),
-            itemBuilder: (context) => [
-              for (final type in reprintableTypes(order))
-                PopupMenuItem<ReceiptType>(
-                  value: type,
-                  child: Text(reprintLabel(l10n, type)),
-                ),
-            ],
+          LockedAction(
+            locked: !allowReprint,
+            child: PopupMenuButton<ReceiptType>(
+              enabled: allowReprint,
+              onSelected: onReprint,
+              tooltip: allowReprint ? l10n.reprintTooltip : lockText,
+              iconSize: 28,
+              padding: const EdgeInsets.all(BldSpacing.md),
+              icon: LockedIcon(
+                icon: Icons.print_outlined,
+                locked: !allowReprint,
+              ),
+              itemBuilder: (context) => [
+                for (final type in reprintableTypes(order))
+                  PopupMenuItem<ReceiptType>(
+                    value: type,
+                    child: Text(reprintLabel(l10n, type)),
+                  ),
+              ],
+            ),
           ),
       ],
     );

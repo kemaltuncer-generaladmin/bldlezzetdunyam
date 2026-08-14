@@ -18,6 +18,8 @@ import 'package:musteriapp/src/providers/session_provider.dart';
 import 'package:musteriapp/src/widgets/cart_bar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'support/daily_menu_fixtures.dart';
+
 const Location _location = Location(
   id: 1,
   name: 'Benim Lezzet Dünyam',
@@ -35,13 +37,6 @@ const MenuItem _item = MenuItem(
   price: 18500,
   currency: 'TRY',
   isAvailable: true,
-);
-
-const MenuCategory _category = MenuCategory(
-  id: 10,
-  name: 'Ana Yemekler',
-  sort: 1,
-  items: [_item],
 );
 
 class _FakeSession extends SessionNotifier {
@@ -68,10 +63,9 @@ Future<ProviderContainer> _pump(WidgetTester tester) async {
         (ref) async =>
             const LocationSnapshot(location: _location, fromCache: false),
       ),
-      menuProvider(_location.id).overrideWith(
-        (ref) async =>
-            const MenuSnapshot(categories: [_category], fromCache: false),
-      ),
+      // Menü sekmesi artık GÜNÜN MENÜSÜNÜ çiziyor; katalog sağlayıcısını
+      // sahtelemek bu ekranı hiç beslemezdi.
+      ...dailyMenuOverrides(),
     ],
   );
   addTearDown(container.dispose);
@@ -92,8 +86,18 @@ void main() {
 
     // Boş bir "sepetiniz boş" şeridi her ekranda yer kaplar, hiçbir şey
     // söylemez.
+    //
+    // Arama ÇUBUĞUN İÇİNE daraltıldı: ana sayfada artık günün menüsünü
+    // sepete ekleyen kendi `FilledButton`'ı var ve genel bir arama onu
+    // yakalayıp testi sepet çubuğuyla ilgisiz bir sebeple düşürüyordu.
     expect(find.byType(CartBar), findsOneWidget);
-    expect(find.byType(FilledButton), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(CartBar),
+        matching: find.byType(FilledButton),
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets('sepet doluyken çubuk sekme değişse de kalır', (tester) async {
@@ -101,7 +105,12 @@ void main() {
 
     container
         .read(cartProvider.notifier)
-        .add(item: _item, locationId: _location.id, quantity: 2);
+        .add(
+          item: _item,
+          locationId: _location.id,
+          serviceDate: fixedToday,
+          quantity: 2,
+        );
     await tester.pumpAndSettle();
 
     // Ana sayfada görünüyor.

@@ -81,20 +81,16 @@ export default async function PublicTrackingPage({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
-      <h1 className="text-3xl font-bold text-neutral-900">
+      <h1 className="font-display text-h1 font-semibold text-heading">
         Sipariş {order.order_number}
       </h1>
-      <p className="mt-1 text-sm text-neutral-600">
+      <p className="mt-1 text-body-sm text-muted-foreground">
         Benim Lezzet Dünyam — sipariş takibi
       </p>
 
       <div className="mt-6">
         <QueryProvider>
-          <PublicOrderTracker
-            initial={order}
-            expires={expires}
-            signature={signature}
-          />
+          <PublicOrderTracker initial={order} expires={expires} signature={signature} />
         </QueryProvider>
       </div>
     </div>

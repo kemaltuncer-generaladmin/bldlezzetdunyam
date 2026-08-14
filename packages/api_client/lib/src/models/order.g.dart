@@ -10,6 +10,11 @@ _Address _$AddressFromJson(Map<String, dynamic> json) => _Address(
   line1: json['line1'] as String,
   district: json['district'] as String,
   city: json['city'] as String,
+  neighbourhood: json['neighbourhood'] as String?,
+  street: json['street'] as String?,
+  buildingNo: json['building_no'] as String?,
+  floor: json['floor'] as String?,
+  doorNo: json['door_no'] as String?,
   note: json['note'] as String?,
   latitude: (json['latitude'] as num?)?.toDouble(),
   longitude: (json['longitude'] as num?)?.toDouble(),
@@ -19,6 +24,11 @@ Map<String, dynamic> _$AddressToJson(_Address instance) => <String, dynamic>{
   'line1': instance.line1,
   'district': instance.district,
   'city': instance.city,
+  'neighbourhood': ?instance.neighbourhood,
+  'street': ?instance.street,
+  'building_no': ?instance.buildingNo,
+  'floor': ?instance.floor,
+  'door_no': ?instance.doorNo,
   'note': ?instance.note,
   'latitude': ?instance.latitude,
   'longitude': ?instance.longitude,
@@ -32,6 +42,11 @@ _SavedAddress _$SavedAddressFromJson(Map<String, dynamic> json) =>
       city: json['city'] as String,
       isDefault: json['is_default'] as bool,
       label: json['label'] as String?,
+      neighbourhood: json['neighbourhood'] as String?,
+      street: json['street'] as String?,
+      buildingNo: json['building_no'] as String?,
+      floor: json['floor'] as String?,
+      doorNo: json['door_no'] as String?,
       note: json['note'] as String?,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
@@ -45,6 +60,11 @@ Map<String, dynamic> _$SavedAddressToJson(_SavedAddress instance) =>
       'city': instance.city,
       'is_default': instance.isDefault,
       'label': ?instance.label,
+      'neighbourhood': ?instance.neighbourhood,
+      'street': ?instance.street,
+      'building_no': ?instance.buildingNo,
+      'floor': ?instance.floor,
+      'door_no': ?instance.doorNo,
       'note': ?instance.note,
       'latitude': ?instance.latitude,
       'longitude': ?instance.longitude,
@@ -58,6 +78,11 @@ _SavedAddressInput _$SavedAddressInputFromJson(Map<String, dynamic> json) =>
       label: json['label'] as String?,
       note: json['note'] as String?,
       isDefault: json['is_default'] as bool?,
+      neighbourhood: json['neighbourhood'] as String?,
+      street: json['street'] as String?,
+      buildingNo: json['building_no'] as String?,
+      floor: json['floor'] as String?,
+      doorNo: json['door_no'] as String?,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
     );
@@ -70,8 +95,39 @@ Map<String, dynamic> _$SavedAddressInputToJson(_SavedAddressInput instance) =>
       'label': ?instance.label,
       'note': ?instance.note,
       'is_default': ?instance.isDefault,
+      'neighbourhood': instance.neighbourhood,
+      'street': instance.street,
+      'building_no': instance.buildingNo,
+      'floor': instance.floor,
+      'door_no': instance.doorNo,
       'latitude': instance.latitude,
       'longitude': instance.longitude,
+    };
+
+_AddressSuggestion _$AddressSuggestionFromJson(Map<String, dynamic> json) =>
+    _AddressSuggestion(
+      label: json['label'] as String,
+      line1: json['line1'] as String,
+      district: json['district'] as String,
+      city: json['city'] as String,
+      latitude: (json['latitude'] as num).toDouble(),
+      longitude: (json['longitude'] as num).toDouble(),
+      source: json['source'] as String,
+      neighbourhood: json['neighbourhood'] as String?,
+      street: json['street'] as String?,
+    );
+
+Map<String, dynamic> _$AddressSuggestionToJson(_AddressSuggestion instance) =>
+    <String, dynamic>{
+      'label': instance.label,
+      'line1': instance.line1,
+      'district': instance.district,
+      'city': instance.city,
+      'latitude': instance.latitude,
+      'longitude': instance.longitude,
+      'source': instance.source,
+      'neighbourhood': ?instance.neighbourhood,
+      'street': ?instance.street,
     };
 
 _OrderCreateItem _$OrderCreateItemFromJson(Map<String, dynamic> json) =>
@@ -109,6 +165,7 @@ _OrderCreateRequest _$OrderCreateRequestFromJson(Map<String, dynamic> json) =>
       address: json['address'] == null
           ? null
           : Address.fromJson(json['address'] as Map<String, dynamic>),
+      serviceDate: json['service_date'] as String?,
       requestedAt: json['requested_at'] == null
           ? null
           : DateTime.parse(json['requested_at'] as String),
@@ -125,6 +182,7 @@ Map<String, dynamic> _$OrderCreateRequestToJson(
     instance.paymentMethod,
   ),
   'address': ?instance.address?.toJson(),
+  'service_date': ?instance.serviceDate,
   'requested_at': ?instance.requestedAt?.toIso8601String(),
   'customer_note': ?instance.customerNote,
 };
@@ -172,6 +230,7 @@ _OrderSummary _$OrderSummaryFromJson(Map<String, dynamic> json) =>
       currency: json['currency'] as String,
       itemCount: (json['item_count'] as num).toInt(),
       createdAt: DateTime.parse(json['created_at'] as String),
+      serviceDate: json['service_date'] as String?,
       subscriptionId: (json['subscription_id'] as num?)?.toInt(),
     );
 
@@ -184,6 +243,7 @@ Map<String, dynamic> _$OrderSummaryToJson(_OrderSummary instance) =>
       'currency': instance.currency,
       'item_count': instance.itemCount,
       'created_at': instance.createdAt.toIso8601String(),
+      'service_date': ?instance.serviceDate,
       'subscription_id': ?instance.subscriptionId,
     };
 
@@ -197,6 +257,9 @@ _OrderItem _$OrderItemFromJson(Map<String, dynamic> json) => _OrderItem(
       (json['options'] as List<dynamic>?)?.map((e) => e as String).toList() ??
       const <String>[],
   note: json['note'] as String?,
+  role: json['role'] as String? ?? 'item',
+  includedIn: (json['included_in'] as num?)?.toInt(),
+  dailyMenuId: (json['daily_menu_id'] as num?)?.toInt(),
 );
 
 Map<String, dynamic> _$OrderItemToJson(_OrderItem instance) =>
@@ -208,6 +271,9 @@ Map<String, dynamic> _$OrderItemToJson(_OrderItem instance) =>
       'line_total': instance.lineTotal,
       'options': instance.options,
       'note': ?instance.note,
+      'role': instance.role,
+      'included_in': ?instance.includedIn,
+      'daily_menu_id': ?instance.dailyMenuId,
     };
 
 _StatusHistoryEntry _$StatusHistoryEntryFromJson(Map<String, dynamic> json) =>
@@ -247,6 +313,7 @@ _OrderDetail _$OrderDetailFromJson(Map<String, dynamic> json) => _OrderDetail(
   requestedAt: json['requested_at'] == null
       ? null
       : DateTime.parse(json['requested_at'] as String),
+  serviceDate: json['service_date'] as String?,
   customerNote: json['customer_note'] as String?,
   subscriptionId: (json['subscription_id'] as num?)?.toInt(),
 );
@@ -268,6 +335,7 @@ Map<String, dynamic> _$OrderDetailToJson(
   'created_at': instance.createdAt.toIso8601String(),
   'address': ?instance.address?.toJson(),
   'requested_at': ?instance.requestedAt?.toIso8601String(),
+  'service_date': ?instance.serviceDate,
   'customer_note': ?instance.customerNote,
   'subscription_id': ?instance.subscriptionId,
 };

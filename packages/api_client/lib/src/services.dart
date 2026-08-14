@@ -11,6 +11,7 @@ import 'package:bld_core/bld_core.dart';
 import 'models/account.dart';
 import 'models/auth.dart';
 import 'models/catalog.dart';
+import 'models/daily_menu.dart';
 import 'models/kitchen.dart';
 import 'models/order.dart';
 import 'models/subscription.dart';
@@ -38,6 +39,26 @@ abstract interface class CatalogService {
   Future<List<Location>> locations();
 
   Future<List<MenuCategory>> menu(int locationId);
+
+  /// Bir günün menüsü — satılabilir olan yalnız budur (B-19).
+  ///
+  /// [date] `YYYY-AA-GG`; verilmezse **bugün**. Menüsü olmayan gün de
+  /// başarıyla döner ([DailyMenu.exists] yanlış) — boş gün bir hata değil,
+  /// bir cevaptır ve istemciyi hata ekranına sokmaz.
+  Future<DailyMenu> dailyMenu(int locationId, {String? date});
+
+  /// Bir aralıktaki günlerin durumu — gün seçiciyi çizmek için.
+  ///
+  /// [from] verilmezse bugün, [to] verilmezse `from` + 30 gün. Aralık en
+  /// fazla **92 gün**; daha genişi `VALIDATION_FAILED` atar.
+  ///
+  /// Yalnız menüsü olan ya da kapalı olan günler döner; listede olmayan gün
+  /// "o gün bir şey yok" demektir.
+  Future<List<MenuCalendarDay>> menuCalendar(
+    int locationId, {
+    String? from,
+    String? to,
+  });
 }
 
 /// Adres defteri — `docs/openapi.yaml` §Adresler. Müşteri token'ı gerektirir.
@@ -52,6 +73,29 @@ abstract interface class AddressService {
 
   /// Silinen adres varsayılansa kalanlardan biri varsayılan yapılır.
   Future<void> delete(int id);
+
+  /// Adres önerisi — müşteri yazarken açılan liste (B-21).
+  ///
+  /// Sonuçlar hizmet alanına kilitlidir; kutu dışı eşleşmeler yanıta hiç
+  /// girmez. Sağlayıcıya ulaşılamazsa **hata değil, boş liste** döner:
+  /// öneri bir kolaylıktır, adres alanları elle de doldurulabiliyor. İstemci
+  /// bu yüzden öneri listesini hiçbir zaman zorunlu bir adım yapmaz — liste
+  /// boşken form yine gönderilebilir olmalıdır.
+  ///
+  /// [query] 3 karakterden kısaysa **ağa hiç çıkılmaz** ve boş liste döner;
+  /// gerekçe uygulamada. [limit] 1..10 aralığına kısılır.
+  Future<List<AddressSuggestion>> suggest(String query, {int limit = 5});
+
+  /// Koordinattan adres (ters geocoding) — haritaya iğne bırakıldığında.
+  ///
+  /// `null` döner: sağlayıcı o noktayı bilmiyor ya da şu an erişilemiyor.
+  /// İkisinde de doğru davranış aynıdır — **iğne korunur**, metin alanları
+  /// elle doldurulur.
+  ///
+  /// Hizmet alanı dışındaki nokta `VALIDATION_FAILED` atar (`details.reason
+  /// = "out_of_service_area"`): kullanıcı haritayı gördü ve teslimat
+  /// yapmadığımız bir yeri kasten seçti; söylenecek net bir şey var.
+  Future<AddressSuggestion?> reverse(double lat, double lng);
 }
 
 /// Müşteri sipariş uçları.
@@ -141,6 +185,17 @@ abstract interface class SubscriptionService {
 }
 
 /// Cari hesap uçları — müşteri token'ı gerektirir.
+///
+/// **MÜŞTERİ ARAYÜZLERİNDEN ÇAĞRILMIYOR, BİLEREK.** Cari hesap B-19'da web
+/// ve mobil yüzeylerden kaldırıldı; bakiye ve ekstre artık yalnızca admin
+/// panelinde görülüyor. Arka uç, uçlar ve panel AYNEN duruyor — bu yüzden
+/// arayüz de silinmedi: silmek yayınlanmış bir sözleşme parçasını kaldırmak
+/// olurdu (`AGENTS.md` §2.3, yalnızca ekleme yapılır) ve panelin okuduğu
+/// veriyi istemci tarafında görünmez kılmak, yarın geri açılacağı zaman
+/// yeniden yazmak demekti.
+///
+/// Yeni bir müşteri ekranı bunu çağırmadan önce kararın değiştiğini
+/// doğrulayın: bugün doğru davranış çağırmamaktır.
 abstract interface class AccountService {
   Future<AccountSummary> summary();
 

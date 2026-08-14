@@ -11,12 +11,15 @@ use Igniter\System\Models\Settings;
 use Igniter\User\Facades\AdminAuth;
 use Igniter\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 use Veykemtu\BridgeApi\Admin\AdminRegistrar;
 use Veykemtu\BridgeApi\Admin\BldSettings;
 use Veykemtu\BridgeApi\Admin\LiraField;
 use Veykemtu\BridgeApi\Admin\OperationsSnapshot;
 use Veykemtu\BridgeApi\Admin\SettingsRepository;
+use Veykemtu\BridgeApi\Models\ClosedDay;
+use Veykemtu\BridgeApi\Models\DailyMenu;
 use Veykemtu\BridgeApi\Models\KitchenDevice;
 use Veykemtu\BridgeApi\Models\PrintJob;
 use Veykemtu\BridgeApi\Services\LocationGate;
@@ -501,20 +504,123 @@ class AdminSettingsTest extends TestCase
      */
     public function test_gosterge_parcacigi_cizilir(): void
     {
+        $html = $this->renderStatusWidget();
+
+        $this->assertStringContainsString('widget-bldstatus', $html);
+        // Çeviri anahtarı ham hâliyle ekrana düşmemeli.
+        $this->assertStringNotContainsString('veykemtu.bridgeapi::', $html);
+    }
+
+    // ── Günün menüsü boşlukları (B-19) ────────────────────────────────────
+
+    /**
+     * Şalter kapalıyken menüsüz gün bir eksiklik DEĞİL.
+     *
+     * Günün menüsü rejimi açılmamış bir kurulumda her gün "menü yok" der ve
+     * uyarı ilk günden görmezden gelinmeye başlardı.
+     */
+    public function test_gunun_menusu_kapaliyken_menu_bosluklari_SAYILMAZ(): void
+    {
+        [, $gate, $location] = $this->wiring();
+        $gate->setDailyMenuEnabled($location, false);
+
         $snapshot = resolve(OperationsSnapshot::class)->collect();
 
-        $html = view()->file(
+        $this->assertFalse($snapshot['daily_menu_enabled']);
+        $this->assertSame([], $snapshot['missing_menu_days']);
+    }
+
+    /**
+     * Gece üretimi 22:00'de YARIN için koşuyor; yarının menüsü yoksa hem
+     * abonelik üretimi düşer hem müşteri o güne sipariş veremez.
+     */
+    public function test_yayinlanmamis_gunler_ozette_listelenir(): void
+    {
+        [, $gate, $location] = $this->wiring();
+        $gate->setDailyMenuEnabled($location, true);
+
+        $today = BusinessTime::now()->startOfDay();
+
+        // Bugün ve yarın yayınlandı; üçüncü gün KAPALI (eksiklik sayılmaz).
+        $this->publishMenu($today);
+        $this->publishMenu($today->copy()->addDay());
+        ClosedDay::create([
+            'closed_on' => $today->copy()->addDays(2)->toDateString(),
+            'description' => 'Kurban Bayramı',
+        ]);
+
+        $snapshot = resolve(OperationsSnapshot::class)->collect();
+
+        $this->assertTrue($snapshot['daily_menu_enabled']);
+        $this->assertSame([
+            $today->copy()->addDays(3)->toDateString(),
+            $today->copy()->addDays(4)->toDateString(),
+            $today->copy()->addDays(5)->toDateString(),
+            $today->copy()->addDays(6)->toDateString(),
+        ], $snapshot['missing_menu_days']);
+
+        // Yönetici hangi günü açacağını GÜN ADIYLA görmeli; "4 günde menü
+        // yok" tek başına hiçbir işe yaramaz.
+        $html = $this->renderStatusWidget();
+        $this->assertStringContainsString(
+            $today->copy()->addDays(3)->locale('tr')->isoFormat('D'),
+            $html,
+        );
+        $this->assertStringContainsString('alert-danger', $html);
+        // Uyarı satırının çeviri anahtarları da çözülmeli; bu dal yalnızca
+        // boşluk varken çiziliyor ve öteki çizim testi onu hiç görmüyor.
+        $this->assertStringNotContainsString('veykemtu.bridgeapi::', $html);
+    }
+
+    public function test_tum_gunlerin_menusu_varsa_uyari_cikmaz(): void
+    {
+        [, $gate, $location] = $this->wiring();
+        $gate->setDailyMenuEnabled($location, true);
+
+        $today = BusinessTime::now()->startOfDay();
+        for ($offset = 0; $offset < OperationsSnapshot::MENU_LOOKAHEAD_DAYS; $offset++) {
+            $this->publishMenu($today->copy()->addDays($offset));
+        }
+
+        $snapshot = resolve(OperationsSnapshot::class)->collect();
+
+        $this->assertSame([], $snapshot['missing_menu_days']);
+        $this->assertStringNotContainsString('alert-danger', $this->renderStatusWidget());
+    }
+
+    private function publishMenu(Carbon $date): void
+    {
+        DailyMenu::create([
+            'location_id' => $this->wiring()[2]->location_id,
+            'menu_date' => $date->toDateString(),
+            'title' => 'Ev Yemeği Menüsü',
+            'status' => DailyMenu::STATUS_PUBLISHED,
+            'published_at' => BusinessTime::forStorage(BusinessTime::now()),
+        ]);
+    }
+
+    /**
+     * Parçacığın şablonunu, `BldStatus::render()` içindeki değişkenlerin
+     * aynılarıyla çizer.
+     *
+     * `missingMenuLabel` burada düz birleştirmeyle üretiliyor: parçacığın
+     * Türkçe gruplaması ("15, 17 ve 18 Ağustos") onun kendi işi; testin
+     * ölçtüğü şey şablonun ÇİZİLEBİLDİĞİ ve gün adlarının HTML'e düştüğü.
+     */
+    private function renderStatusWidget(): string
+    {
+        $snapshot = resolve(OperationsSnapshot::class)->collect();
+
+        return view()->file(
             dirname(__DIR__, 2).'/resources/views/_partials/admin/dashboardwidgets/bldstatus/bldstatus.blade.php',
             [
                 'bld' => $snapshot,
                 'revenueToday' => 0.0,
                 'settingsUrl' => admin_url('extensions/edit/veykemtu/bridgeapi/settings'),
+                'missingMenuLabel' => implode(', ', $snapshot['missing_menu_days']),
+                'dailyMenusUrl' => admin_url(AdminRegistrar::DAILY_MENUS_URI),
             ],
         )->render();
-
-        $this->assertStringContainsString('widget-bldstatus', $html);
-        // Çeviri anahtarı ham hâliyle ekrana düşmemeli.
-        $this->assertStringNotContainsString('veykemtu.bridgeapi::', $html);
     }
 
     // ── Kayıt tanımları ───────────────────────────────────────────────────

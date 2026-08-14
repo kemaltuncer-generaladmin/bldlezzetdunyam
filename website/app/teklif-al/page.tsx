@@ -59,8 +59,8 @@ export default async function TeklifAlPage() {
         </div>
 
         <aside className="space-y-8">
-          <div className="rounded-2xl border bg-card p-6">
-            <h2 className="font-display text-lg font-semibold tracking-tight">
+          <div className="bld-card p-6">
+            <h2 className="font-display text-h3 font-semibold tracking-tight text-heading">
               Sonrasında ne oluyor?
             </h2>
             <ol className="mt-5 space-y-5">
@@ -68,16 +68,16 @@ export default async function TeklifAlPage() {
                 <li key={step.title} className="flex gap-4">
                   <span
                     aria-hidden="true"
-                    className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-sm font-semibold text-accent-foreground"
+                    className="grid size-9 shrink-0 place-items-center rounded-sm bg-accent text-label text-accent-foreground"
                   >
                     {index + 1}
                   </span>
                   <span>
-                    <span className="flex items-center gap-2 text-sm font-semibold">
-                      <step.icon aria-hidden="true" className="size-4 text-primary" />
+                    <span className="flex items-center gap-2 text-label">
+                      <step.icon aria-hidden="true" className="size-4 text-primary-text" />
                       {step.title}
                     </span>
-                    <span className="mt-1 block text-sm/6 text-muted-foreground">{step.body}</span>
+                    <span className="mt-1 block text-body text-muted-foreground">{step.body}</span>
                   </span>
                 </li>
               ))}
@@ -86,29 +86,29 @@ export default async function TeklifAlPage() {
 
           {/* Doğrudan iletişim bloğu yalnızca gerçek bir kanal girilmişse basılır. */}
           {(contact.phone || contact.whatsapp) && (
-            <div className="rounded-2xl border bg-surface-warm p-6 text-surface-warm-foreground">
-              <h2 className="font-display text-lg font-semibold tracking-tight">
+            <div className="rounded-md border bg-surface-warm p-6 text-surface-warm-foreground">
+              <h2 className="font-display text-h3 font-semibold tracking-tight">
                 Form yerine konuşalım
               </h2>
-              <p className="mt-2 text-sm/6 opacity-80">
+              <p className="mt-2 text-body opacity-80">
                 İşiniz acilse doğrudan arayın, form beklemesin.
               </p>
               <div className="mt-4 space-y-2">
                 {contact.phone && (
                   <a
                     href={contact.phone.href}
-                    className="flex min-h-11 items-center gap-2 text-sm font-semibold text-primary"
+                    className="flex min-h-11 items-center gap-2 text-label text-primary-text"
                   >
-                    <Phone aria-hidden="true" className="size-4" />
+                    <Phone strokeWidth={1.75} aria-hidden="true" className="size-4" />
                     {contact.phone.display}
                   </a>
                 )}
                 {contact.whatsapp && (
                   <a
                     href={contact.whatsapp.href}
-                    className="flex min-h-11 items-center gap-2 text-sm font-semibold text-primary"
+                    className="flex min-h-11 items-center gap-2 text-label text-primary-text"
                   >
-                    <MessageSquare aria-hidden="true" className="size-4" />
+                    <MessageSquare strokeWidth={1.75} aria-hidden="true" className="size-4" />
                     WhatsApp ile yazın
                   </a>
                 )}
@@ -116,7 +116,7 @@ export default async function TeklifAlPage() {
             </div>
           )}
 
-          <div className="text-xs/6 text-muted-foreground">
+          <div className="text-caption text-muted-foreground">
             <p>Formda yazdıklarınız yalnızca teklif hazırlamak ve size dönmek için kullanılıyor.</p>
           </div>
         </aside>

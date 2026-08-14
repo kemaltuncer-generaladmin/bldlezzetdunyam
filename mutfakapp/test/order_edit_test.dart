@@ -298,6 +298,82 @@ void main() {
       );
     });
 
+    testWidgets('ADET DEĞİŞİNCE SEÇENEK KİMLİKLERİ geri gönderilir', (
+      tester,
+    ) async {
+      // SESSİZ KAYIP BURADAYDI. Kimlikler geri gönderilmeyince sunucu
+      // satırı seçeneksiz yeniden fiyatlıyor: müşteri eksik
+      // ücretlendiriliyor ve seçenek mutfak fişinden düşüyor — yemek
+      // yanlış çıkıyor ve hiçbir hata dönmüyor.
+      final api = FakeOrderEditApi(
+        order: const EditableOrder(
+          id: 5012,
+          orderNumber: 'S-5012',
+          status: OrderStatus.onaylandi,
+          deliveryType: DeliveryType.delivery,
+          items: [
+            EditableItem(
+              menuId: 1,
+              name: 'Mercimek Çorbası',
+              quantity: 20,
+              options: ['Bol'],
+              optionValueIds: [22],
+            ),
+            EditableItem(menuId: 2, name: 'Pilav', quantity: 3),
+          ],
+        ),
+      );
+      await pumpEdit(tester, api);
+
+      await tester.tap(rowButton('Mercimek Çorbası', Icons.remove));
+      await tester.pump();
+      await saveWithReason(tester);
+
+      final sent = api.lastRevision!.items.firstWhere((i) => i.menuId == 1);
+
+      expect(sent.quantity, 19);
+      expect(sent.optionValueIds, [22]);
+      expect(sent.toRequest()['option_value_ids'], [22]);
+
+      // Seçeneksiz kalem gövdeyi kirletmez.
+      final plain = api.lastRevision!.items.firstWhere((i) => i.menuId == 2);
+      expect(plain.toRequest().containsKey('option_value_ids'), isFalse);
+    });
+
+    testWidgets('SEÇENEKLİ KALEM SİLİNİRSE seçeneğiyle birlikte gider', (
+      tester,
+    ) async {
+      final api = FakeOrderEditApi(
+        order: const EditableOrder(
+          id: 5012,
+          orderNumber: 'S-5012',
+          status: OrderStatus.onaylandi,
+          deliveryType: DeliveryType.delivery,
+          items: [
+            EditableItem(
+              menuId: 1,
+              name: 'Mercimek Çorbası',
+              quantity: 2,
+              options: ['Bol'],
+              optionValueIds: [22],
+            ),
+            EditableItem(menuId: 2, name: 'Pilav', quantity: 3),
+          ],
+        ),
+      );
+      await pumpEdit(tester, api);
+
+      await tester.tap(rowButton('Mercimek Çorbası', Icons.delete_outline));
+      await tester.pumpAndSettle();
+      await saveWithReason(tester);
+
+      expect(
+        api.lastRevision!.items.where((i) => i.menuId == 1),
+        isEmpty,
+        reason: 'Kaldırılan kalem seçeneğiyle birlikte gitmeli.',
+      );
+    });
+
     testWidgets('kaydedince sipariş kaynağı TAZELENİR', (tester) async {
       // Tazelenmezse fişler bir yoklama turu geç tetiklenir.
       final api = FakeOrderEditApi();
@@ -627,6 +703,69 @@ void main() {
       );
 
       expect(item.toRequest()['note'], 'Az tuzlu');
+    });
+
+    test('SEÇENEK KİMLİĞİ sunucudan okunur ve aynen geri gönderilir', () {
+      final item = EditableItem.fromJson(const {
+        'order_menu_id': 77,
+        'menu_id': 1,
+        'name': 'Mercimek Çorbası',
+        'quantity': 3,
+        'options': ['Bol'],
+        'option_value_ids': [22, 31],
+        'note': null,
+      });
+
+      // Adlar personele, kimlikler sunucuya.
+      expect(item.options, ['Bol']);
+      expect(item.optionValueIds, [22, 31]);
+      expect(item.toRequest()['option_value_ids'], [22, 31]);
+    });
+
+    test('ADET DEĞİŞİNCE seçenek kimlikleri korunur', () {
+      // Kayıp tam olarak burada oluşuyordu.
+      const item = EditableItem(
+        menuId: 1,
+        name: 'Çorba',
+        quantity: 3,
+        options: ['Bol'],
+        optionValueIds: [22],
+      );
+
+      expect(item.copyWith(quantity: 1).optionValueIds, [22]);
+      expect(item.copyWith(quantity: 1).toRequest()['option_value_ids'], [22]);
+    });
+
+    test('SEÇENEKSİZ kalemde alan hiç gönderilmez', () {
+      // Boş dizi "seçenekleri boşalt" demek; alan yokluğu "seçeneği yok".
+      const item = EditableItem(menuId: 1, name: 'Çorba', quantity: 3);
+
+      expect(item.toRequest().containsKey('option_value_ids'), isFalse);
+    });
+
+    test('eski sunucu yanıtında alan yoksa boş dizi olur', () {
+      // Alan sözleşmeye yeni eklendi; onsuz yanıt çökertmemeli.
+      final item = EditableItem.fromJson(const {
+        'menu_id': 1,
+        'name': 'Çorba',
+        'quantity': 3,
+        'options': <String>[],
+        'note': null,
+      });
+
+      expect(item.optionValueIds, isEmpty);
+    });
+
+    test('SEÇENEK FARKI bir değişikliktir', () {
+      const a = EditableItem(menuId: 1, name: 'Çorba', quantity: 3);
+      const b = EditableItem(
+        menuId: 1,
+        name: 'Çorba',
+        quantity: 3,
+        optionValueIds: [22],
+      );
+
+      expect(a, isNot(b));
     });
 
     test('eşitlik adet ve nota bakar — ad değişimi fark değildir', () {

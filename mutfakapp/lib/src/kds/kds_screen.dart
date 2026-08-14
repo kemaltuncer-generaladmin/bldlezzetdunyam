@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/providers.dart';
 import '../l10n/app_localizations.dart';
+import '../settings/lock_ui.dart';
 import 'board.dart';
 import 'new_order_highlights.dart';
 import 'widgets/kds_alert_banner.dart';
@@ -111,12 +112,28 @@ class KdsScreen extends ConsumerWidget {
           unawaited(refreshBoard(context, ref)),
       const SingleActivator(LogicalKeyboardKey.f6): () =>
           unawaited(showHealthPanelDialog(context)),
+      // KISAYOL DA KİLİTLENİR (K-21 §5.4): alt sayfadaki satış satırı
+      // pasifken F7 ekranı açmaya devam etseydi kilit hiç var olmazdı —
+      // klavyeli kasada yasak, dokunmatikte serbest bir kural olurdu.
       const SingleActivator(LogicalKeyboardKey.f7): () =>
-          unawaited(Navigator.of(context).push(SalesControlScreen.route())),
+          openSalesControl(context, ref),
       const SingleActivator(LogicalKeyboardKey.f8): () =>
           unawaited(Navigator.of(context).push(SubscriptionPlanScreen.route())),
     };
   }
+}
+
+/// Satış kontrolü ekranını açar — kilitliyse açmaz, sebebini söyler.
+///
+/// Kilit ekranın KAPISINDA: içerideki düğmeler de ayrıca kapanıyor
+/// (`SalesControlScreen`), ama personelin boşuna gidip gelmesi gerekmesin.
+void openSalesControl(BuildContext context, WidgetRef ref) {
+  if (!ref.read(kdsSettingsProvider).allowSalesControl) {
+    showLockMessage(context, ref);
+    return;
+  }
+
+  unawaited(Navigator.of(context).push(SalesControlScreen.route()));
 }
 
 /// Seçili kartı bir adım ilerletir ve sonucu personele bildirir.
@@ -431,17 +448,13 @@ class _Board extends ConsumerWidget {
                     .toggle(order.id, index),
                 onReprint: (order, type) => _reprint(context, ref, order, type),
                 touchMode: touchMode,
+                // KİLİTLİYKEN DE BAĞLANIR: düğmeyi `OrderCard` pasifleştirir
+                // (K-21 §5.4). Burada `null` geçmek düğmeyi yok ederdi.
                 onEdit: (order) => unawaited(_edit(context, ref, order.id)),
                 // Dokunmatikte uzun bas / sola kaydır: fiş menüsü. K-14'te
                 // "Düzenle" de buraya girecek.
                 onDetails: touchMode
-                    ? (order) => unawaited(
-                        showReprintSheet(
-                          context,
-                          (type) => _reprint(context, ref, order, type),
-                          reprintableTypes(order),
-                        ),
-                      )
+                    ? (order) => _openReprintSheet(context, ref, order)
                     : null,
               ),
             ),
@@ -456,8 +469,40 @@ class _Board extends ConsumerWidget {
   /// Dönüşte listeyi tazelemiyoruz: ekranın kendisi kaydettikten sonra
   /// `orderSource.refresh()` çağırıyor ve iki tazeleme arka arkaya iki
   /// istek demek.
+  ///
+  /// KİLİT BURADA DA SORULUYOR: karttaki düğme zaten pasif, ama düzenlemeye
+  /// açılan başka bir yol eklendiğinde (jest, kısayol) kilidin kendiliğinden
+  /// geçerli olması gerekiyor.
   Future<void> _edit(BuildContext context, WidgetRef ref, int orderId) async {
+    if (!ref.read(kdsSettingsProvider).allowOrderEdit) {
+      showLockMessage(context, ref);
+      return;
+    }
+
     await Navigator.of(context).push(OrderEditScreen.route(orderId));
+  }
+
+  /// Uzun basma / sola kaydırma ile açılan fiş menüsü.
+  ///
+  /// Jest KİLİTLENMEZ, cevabı değişir: elini kartın üstünde gezdiren
+  /// personel hiçbir tepki alamazsa ekranın donduğunu sanır.
+  void _openReprintSheet(
+    BuildContext context,
+    WidgetRef ref,
+    KitchenOrder order,
+  ) {
+    if (!ref.read(kdsSettingsProvider).allowManualReprint) {
+      showLockMessage(context, ref);
+      return;
+    }
+
+    unawaited(
+      showReprintSheet(
+        context,
+        (type) => _reprint(context, ref, order, type),
+        reprintableTypes(order),
+      ),
+    );
   }
 
   /// Fişi kuyruğa geri koyar. Basımın kendisi kuyruk işçisinin işidir; bu
@@ -469,6 +514,14 @@ class _Board extends ConsumerWidget {
     KitchenOrder order,
     ReceiptType type,
   ) {
+    // ELLE BASMA KİLİTLİYSE KÂĞIT ÇIKMAZ. Otomatik basım etkilenmez
+    // (`print_triggers`): kilit personelin kâğıt üretmesini kısıtlıyor,
+    // siparişin fişini değil.
+    if (!ref.read(kdsSettingsProvider).allowManualReprint) {
+      showLockMessage(context, ref);
+      return;
+    }
+
     // Karttaki siparişin GÜNCEL revizyonu: personel elindeki siparişin
     // fişini istiyor, eski bir sürümünü değil.
     ref

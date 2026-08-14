@@ -26,6 +26,35 @@ class KdsSettingsStore {
   static const String ttsRateKey = 'kds_tts_rate_percent';
   static const String touchModeKey = 'kds_touch_mode';
 
+  // ── Sunucudan yönetilen ama diske YAZILMAYAN dört alan (K-21) ──────────
+  //
+  // Bu dördü sözleşmede ve modelde vardı, yalnızca burada yoktu: kasa her
+  // yeniden başlatıldığında derleme varsayılanına dönüyor, sunucu bir
+  // sağlık turu sonra düzeltiyordu. Aradaki pencerede YANLIŞ KOD SAYFASIYLA
+  // fiş basılıyor ve Türkçe harfler boşluğa dönüyordu.
+  static const String printerCodePageKey = 'kds_printer_code_page';
+  static const String healthSecondsKey = 'kds_health_seconds';
+  static const String connectionAlarmKey = 'kds_connection_alarm_seconds';
+  static const String alarmSilenceableKey = 'kds_alarm_silenceable';
+
+  // ── Kilit politikası (K-21 §2.2) ───────────────────────────────────────
+  //
+  // KİLİT DE DİSKE YAZILIR. Ağsız açılan bir kasa sunucuya ulaşamaz ve ilk
+  // sağlık turu `healthSeconds` (varsayılan 60 sn) sonra gelir. Kilit
+  // yalnızca bellekte tutulsaydı kasa o pencerede SERBEST açılırdı — ve
+  // kilidi aşmak isteyen için yapılacak tek şey kasayı kapatıp açmak
+  // olurdu, yani kilidin amacı tam da bu pencerede boşa çıkardı.
+  //
+  // Ters yönde risk yok: anahtar hiç yazılmamışsa okuma `defaults`a
+  // düşer, o da serbesttir (`KdsSettings.allow*` = `true`).
+  static const String allowSettingsKey = 'kds_allow_settings';
+  static const String allowServerChangeKey = 'kds_allow_server_change';
+  static const String allowWindowControlsKey = 'kds_allow_window_controls';
+  static const String allowOrderEditKey = 'kds_allow_order_edit';
+  static const String allowManualReprintKey = 'kds_allow_manual_reprint';
+  static const String allowSalesControlKey = 'kds_allow_sales_control';
+  static const String lockMessageKey = 'kds_lock_message';
+
   final SharedPreferencesAsync _preferences;
 
   /// Kayıtlı ayarları okur; eksik her alan için [defaults] kullanılır.
@@ -68,10 +97,42 @@ class KdsSettingsStore {
       alarmMaxRepeats:
           await _preferences.getInt(alarmMaxRepeatsKey) ??
           defaults.alarmMaxRepeats,
-      ttsEnabled: await _preferences.getBool(ttsEnabledKey) ?? defaults.ttsEnabled,
+      ttsEnabled:
+          await _preferences.getBool(ttsEnabledKey) ?? defaults.ttsEnabled,
       ttsRatePercent:
           await _preferences.getInt(ttsRateKey) ?? defaults.ttsRatePercent,
       touchMode: await _preferences.getBool(touchModeKey) ?? defaults.touchMode,
+      printerCodePage:
+          await _preferences.getInt(printerCodePageKey) ??
+          defaults.printerCodePage,
+      healthSeconds:
+          await _preferences.getInt(healthSecondsKey) ?? defaults.healthSeconds,
+      connectionAlarmSeconds:
+          await _preferences.getInt(connectionAlarmKey) ??
+          defaults.connectionAlarmSeconds,
+      alarmSilenceable:
+          await _preferences.getBool(alarmSilenceableKey) ??
+          defaults.alarmSilenceable,
+      allowSettings:
+          await _preferences.getBool(allowSettingsKey) ??
+          defaults.allowSettings,
+      allowServerChange:
+          await _preferences.getBool(allowServerChangeKey) ??
+          defaults.allowServerChange,
+      allowWindowControls:
+          await _preferences.getBool(allowWindowControlsKey) ??
+          defaults.allowWindowControls,
+      allowOrderEdit:
+          await _preferences.getBool(allowOrderEditKey) ??
+          defaults.allowOrderEdit,
+      allowManualReprint:
+          await _preferences.getBool(allowManualReprintKey) ??
+          defaults.allowManualReprint,
+      allowSalesControl:
+          await _preferences.getBool(allowSalesControlKey) ??
+          defaults.allowSalesControl,
+      lockMessage:
+          await _preferences.getString(lockMessageKey) ?? defaults.lockMessage,
     );
 
     return stored.sanitized(fallback: defaults);
@@ -89,6 +150,43 @@ class KdsSettingsStore {
     await _preferences.setBool(ttsEnabledKey, settings.ttsEnabled);
     await _preferences.setInt(ttsRateKey, settings.ttsRatePercent);
     await _preferences.setBool(touchModeKey, settings.touchMode);
+    await _preferences.setInt(healthSecondsKey, settings.healthSeconds);
+    await _preferences.setInt(
+      connectionAlarmKey,
+      settings.connectionAlarmSeconds,
+    );
+    await _preferences.setBool(alarmSilenceableKey, settings.alarmSilenceable);
+    await _preferences.setBool(allowSettingsKey, settings.allowSettings);
+    await _preferences.setBool(
+      allowServerChangeKey,
+      settings.allowServerChange,
+    );
+    await _preferences.setBool(
+      allowWindowControlsKey,
+      settings.allowWindowControls,
+    );
+    await _preferences.setBool(allowOrderEditKey, settings.allowOrderEdit);
+    await _preferences.setBool(
+      allowManualReprintKey,
+      settings.allowManualReprint,
+    );
+    await _preferences.setBool(
+      allowSalesControlKey,
+      settings.allowSalesControl,
+    );
+    // Boş dize de yazılır: "özel metin yok" bir değerdir ve anahtarı silmek
+    // onu "hiç ayarlanmadı"dan ayırt edilemez kılardı.
+    await _preferences.setString(lockMessageKey, settings.lockMessage);
+
+    // Kod sayfasının YEREL VARSAYILANI YOK (`KdsSettings.printerCodePage`
+    // yorumu): `null` "derleme değerini kullan" demek. 0 yazmak geçerli
+    // ama YANLIŞ bir kod sayfası dayatırdı, bu yüzden anahtar silinir.
+    final codePage = settings.printerCodePage;
+    if (codePage == null) {
+      await _preferences.remove(printerCodePageKey);
+    } else {
+      await _preferences.setInt(printerCodePageKey, codePage);
+    }
 
     final sink = settings.audioSinkName;
     if (sink == null) {

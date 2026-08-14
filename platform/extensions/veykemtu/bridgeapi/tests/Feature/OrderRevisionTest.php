@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\KitchenTestCase;
 use Veykemtu\BridgeApi\Services\AccountLedger;
 use Veykemtu\BridgeApi\Services\OrderStatusTransition;
+use Veykemtu\BridgeApi\Support\Money;
 
 /**
  * Sipariş düzenleme (K-12) ve iade (K-13).
@@ -119,6 +120,91 @@ class OrderRevisionTest extends KitchenTestCase
         $this->assertCount(1, $rows);
         $this->assertSame($corba, (int) $rows->first()->menu_id);
         $this->assertNotSame($tavuk, (int) $rows->first()->menu_id);
+    }
+
+    public function test_SECENEK_ADET_DEGISINCE_KORUNUR_ve_tutara_yansir(): void
+    {
+        /*
+         * SESSİZ KAYIP. `editable()` yalnız seçenek ADLARINI döndürüyordu;
+         * kimlik hiç dışarı çıkmadığı için KDS onu geri gönderemiyor,
+         * `LineResolver` satırı **seçeneksiz** yeniden fiyatlıyordu.
+         *
+         * Sonuç: personel yalnız adedi değiştirdiğinde müşteri eksik
+         * ücretlendiriliyor ve seçenek satırı mutfak fişinden düşüyordu —
+         * hiçbir hata dönmeden, yemek yanlış çıkarak.
+         */
+        $menuId = $this->menuId('Tavuk Sote');
+        $valueId = $this->bolPorsiyonOption($menuId);
+
+        // 4 × (185,00 + 25,00) = 840,00. Teslimat ücreti ayrı satır;
+        // burada sınanan şey kalem fiyatlaması, tarife değil.
+        $order = $this->confirmedOrder(quantity: 4, optionValueIds: [$valueId]);
+        $this->assertSame(84000, $this->subtotalKurus($order));
+
+        $editable = $this->asKitchen()
+            ->getJson("/api/kitchen/orders/{$order->order_id}/editable", self::HEADERS)
+            ->assertOk()
+            ->json('data');
+
+        // Ekran seçeneği personele ADLA yazıyor, kimlikle değil.
+        $this->assertSame(['Bol'], $editable['items'][0]['options']);
+
+        // PERSONEL SEÇENEĞE DOKUNMUYOR: yalnız adet düşüyor. İstemci
+        // sunucudan geleni aynen geri gönderiyor (`EditableItem.toRequest`).
+        $items = $this->revisionItemsFrom($editable);
+        $items[0]['quantity'] = 2;
+
+        $this->asKitchen()->postJson(
+            "/api/kitchen/orders/{$order->order_id}/revisions",
+            ['reason' => 'Müşteri talebi', 'items' => $items],
+            self::HEADERS,
+        )->assertOk();
+
+        // (a) SEÇENEK KORUNUR — kimlik satırda duruyor.
+        $this->assertSame(
+            [$valueId],
+            DB::table('order_menu_options')
+                ->where('order_id', $order->order_id)
+                ->pluck('menu_option_value_id')
+                ->map(intval(...))
+                ->all(),
+            'Personel seçeneğe dokunmadı; seçenek aynen korunmalı.',
+        );
+
+        // (b) TUTAR SEÇENEK FARKINI İÇERİR: 2 × (185,00 + 25,00) = 420,00.
+        // Seçenek düşmüş olsaydı 2 × 185,00 = 370,00 çıkardı ve aradaki
+        // 50,00 sessizce müşterinin lehine kaybolurdu.
+        $this->assertSame(42000, $this->subtotalKurus($order->refresh()));
+    }
+
+    public function test_KIMLIKSIZ_ESKI_SATIR_revizyonu_cokertmez(): void
+    {
+        // Kimlik `order_menu_options` tablosundan okunuyor. Göç öncesi ya
+        // da başka bir yoldan yazılmış satırlarda o kayıt olmayabilir;
+        // düzenleme yine de çalışmalı — seçeneksiz, ama çökmeden.
+        $menuId = $this->menuId('Tavuk Sote');
+        $valueId = $this->bolPorsiyonOption($menuId);
+        $order = $this->confirmedOrder(quantity: 3, optionValueIds: [$valueId]);
+
+        DB::table('order_menu_options')->where('order_id', $order->order_id)->delete();
+
+        $editable = $this->asKitchen()
+            ->getJson("/api/kitchen/orders/{$order->order_id}/editable", self::HEADERS)
+            ->assertOk()
+            ->json('data');
+
+        $this->assertSame([], $editable['items'][0]['option_value_ids']);
+
+        $items = $this->revisionItemsFrom($editable);
+        $items[0]['quantity'] = 1;
+
+        $this->asKitchen()->postJson(
+            "/api/kitchen/orders/{$order->order_id}/revisions",
+            ['reason' => 'Müşteri talebi', 'items' => $items],
+            self::HEADERS,
+        )->assertOk();
+
+        $this->assertSame(18500, $this->subtotalKurus($order->refresh()));
     }
 
     public function test_bos_kalem_listesi_reddedilir(): void
@@ -288,15 +374,99 @@ class OrderRevisionTest extends KitchenTestCase
         $this->assertSame($receipt['total'], $receipt['collect_amount']);
     }
 
-    /** Onaylanmış (düzenlenebilir) bir sipariş üretir. */
+    /**
+     * Düzenleme ekranının gördüğünü olduğu gibi revizyon gövdesine çevirir.
+     *
+     * KDS'in `EditableItem.toRequest()` davranışının birebir karşılığı:
+     * personel dokunmadığı sürece sunucudan geleni AYNEN geri gönderir.
+     * Test bu köprüyü taklit etmezse asıl hata (kimliğin yolda düşmesi)
+     * hiç sınanmamış olur.
+     *
+     * @param  array<string, mixed>  $editable
+     * @return list<array<string, mixed>>
+     */
+    private function revisionItemsFrom(array $editable): array
+    {
+        return array_map(static fn(array $item): array => [
+            'menu_id' => $item['menu_id'],
+            'quantity' => $item['quantity'],
+            'option_value_ids' => $item['option_value_ids'] ?? [],
+            'note' => $item['note'],
+        ], $editable['items']);
+    }
+
+    /** Kalemlerin toplamı — teslimat ücreti hariç. */
+    private function subtotalKurus(Order $order): int
+    {
+        return Money::toKurus(
+            DB::table('order_totals')
+                ->where('order_id', $order->order_id)
+                ->where('code', 'subtotal')
+                ->value('value'),
+        );
+    }
+
+    /**
+     * Ürüne "Porsiyon: Bol (+25,00)" seçeneği takar ve değer kimliğini döner.
+     *
+     * Demo menüde seçenek yok — seçenek kaybını sınayan test kendi
+     * kurulumunu yapmak zorunda.
+     */
+    private function bolPorsiyonOption(int $menuId): int
+    {
+        $optionId = DB::table('menu_options')->insertGetId([
+            'option_name' => 'Porsiyon',
+            'display_type' => 'radio',
+            'priority' => 0,
+        ]);
+
+        $optionValueId = DB::table('menu_option_values')->insertGetId([
+            'option_id' => $optionId,
+            'name' => 'Bol',
+            'price' => Money::toDecimal(2500),
+            'priority' => 0,
+        ]);
+
+        $menuOptionId = DB::table('menu_item_options')->insertGetId([
+            'option_id' => $optionId,
+            'menu_id' => $menuId,
+            'is_required' => false,
+            'priority' => 0,
+            'min_selected' => 0,
+            'max_selected' => 1,
+            'free_quantity' => 0,
+        ]);
+
+        return (int) DB::table('menu_item_option_values')->insertGetId([
+            'menu_option_id' => $menuOptionId,
+            'option_value_id' => $optionValueId,
+            'override_price' => null,
+            'priority' => 0,
+            'is_default' => false,
+            'free_quantity' => 0,
+        ]);
+    }
+
+    /**
+     * Onaylanmış (düzenlenebilir) bir sipariş üretir.
+     *
+     * @param  list<int>  $optionValueIds
+     */
     private function confirmedOrder(
         int $quantity = 2,
         string $deliveryType = 'delivery',
         string $payment = 'cash',
+        array $optionValueIds = [],
     ): Order {
+        $item = ['menu_id' => $this->menuId('Tavuk Sote'), 'quantity' => $quantity];
+
+        if ($optionValueIds !== []) {
+            $item['option_value_ids'] = $optionValueIds;
+        }
+
         $payload = [
             'location_id' => $this->locationId(),
-            'items' => [['menu_id' => $this->menuId('Tavuk Sote'), 'quantity' => $quantity]],
+            'items' => [$item],
             'delivery_type' => $deliveryType,
             'payment_method' => $payment,
         ];

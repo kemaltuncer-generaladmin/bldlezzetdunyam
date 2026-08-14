@@ -53,6 +53,38 @@
             </span>
         </div>
 
+        {{--
+            GÜNÜN MENÜSÜ BOŞLUKLARI.
+
+            Gece üretimi 22:00'de YARIN için koşuyor; yarının menüsü o saate
+            kadar yayınlanmamışsa hem abonelik üretimi düşer hem müşteri o
+            güne sipariş veremez. Bu yüzden uyarı sayı kartlarının ÜSTÜNDE:
+            ciro rakamının altına düşen bir satır, sabah panele bakan
+            yöneticinin gözünden kaçardı.
+
+            Yalnızca günün menüsü rejimi AÇIKKEN çiziliyor — kapalıyken boş
+            günler bir eksiklik değil.
+        --}}
+        @if($bld['daily_menu_enabled'])
+            @if($bld['missing_menu_days'])
+                <div class="alert alert-danger py-2 px-3 mb-3">
+                    <i class="fa fa-triangle-exclamation"></i>
+                    {{ trans('veykemtu.bridgeapi::default.dashboard.text_missing_menus', [
+                        'count' => count($bld['missing_menu_days']),
+                    ]) }}
+                    <strong>{{ $missingMenuLabel }}</strong>
+                    <a class="ms-1" href="{{ $dailyMenusUrl }}">
+                        @lang('veykemtu.bridgeapi::default.dashboard.text_open_daily_menus')
+                    </a>
+                </div>
+            @else
+                <p class="text-success small mb-3">
+                    <i class="fa fa-circle-check"></i>
+                    @lang('veykemtu.bridgeapi::default.dashboard.text_menus_ready')
+                </p>
+            @endif
+        @endif
+
         <div class="row row-cols-2 row-cols-lg-3 g-3">
             <div class="col">
                 <div class="fs-4 fw-bold">{{ $bld['orders_today'] }}</div>

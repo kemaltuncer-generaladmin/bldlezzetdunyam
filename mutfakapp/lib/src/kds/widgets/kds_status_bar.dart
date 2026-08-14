@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/printer_probe.dart';
 import '../../data/providers.dart';
 import '../../l10n/app_localizations.dart';
+import '../../settings/lock_ui.dart';
 import '../../settings/settings_screen.dart';
 import '../../window/kiosk_window.dart';
 import '../kds_screen.dart';
@@ -33,6 +34,10 @@ class KdsStatusBar extends ConsumerWidget {
         PrinterAvailability.unavailable;
     final queueCount = ref.watch(printQueueCountProvider).value ?? 0;
     final failedCount = ref.watch(printQueueFailedCountProvider);
+    // Ayarlar kilitliyse düğme YERİNDE KALIR, pasifleşir (K-21 §5.4).
+    final allowSettings = ref.watch(
+      kdsSettingsProvider.select((settings) => settings.allowSettings),
+    );
 
     return Container(
       color: const Color(KdsColors.surface),
@@ -87,6 +92,9 @@ class KdsStatusBar extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: BldSpacing.lg),
+          // Kilit rozeti: personel neden bazı düğmelerin kapalı olduğunu
+          // tek bakışta anlasın. Kilit yoksa hiç çizilmez.
+          const LockBadge(),
           const _BusyToggle(),
           const SizedBox(width: BldSpacing.lg),
           const _Clock(),
@@ -120,13 +128,23 @@ class KdsStatusBar extends ConsumerWidget {
             icon: const Icon(Icons.apps),
             onPressed: () => unawaited(showActionsSheet(context)),
           ),
-          TextButton.icon(
-            onPressed: () =>
-                unawaited(Navigator.of(context).push(SettingsScreen.route())),
-            icon: const Icon(Icons.settings_outlined, size: 22),
-            label: Text(
-              l10n.settings,
-              style: const TextStyle(fontSize: KdsTextScale.statusBar),
+          LockedAction(
+            locked: !allowSettings,
+            child: TextButton.icon(
+              onPressed: allowSettings
+                  ? () => unawaited(
+                      Navigator.of(context).push(SettingsScreen.route()),
+                    )
+                  : null,
+              icon: LockedIcon(
+                icon: Icons.settings_outlined,
+                locked: !allowSettings,
+                size: 22,
+              ),
+              label: Text(
+                l10n.settings,
+                style: const TextStyle(fontSize: KdsTextScale.statusBar),
+              ),
             ),
           ),
           const _WindowButtons(),
@@ -379,14 +397,14 @@ class _BusyToggleState extends ConsumerState<_BusyToggle> {
 /// Kasa kiosk modunda açılır ama arada masaüstüne inmek gerekiyor —
 /// yazıcı ayarı, ağ, güncelleme. Bunu yapmanın tek yolu servisi durdurmak
 /// olmamalı.
-class _WindowButtons extends StatefulWidget {
+class _WindowButtons extends ConsumerStatefulWidget {
   const _WindowButtons();
 
   @override
-  State<_WindowButtons> createState() => _WindowButtonsState();
+  ConsumerState<_WindowButtons> createState() => _WindowButtonsState();
 }
 
-class _WindowButtonsState extends State<_WindowButtons> {
+class _WindowButtonsState extends ConsumerState<_WindowButtons> {
   static const _window = KioskWindow();
 
   bool _fullScreen = true;
@@ -394,21 +412,38 @@ class _WindowButtonsState extends State<_WindowButtons> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppL10n.of(context);
+    // Kiosk'tan çıkış yöneticiye kapatılabilir: kasanın masaüstüne inmesi
+    // istenmiyorsa iki düğme de pasifleşir — ama görünür kalır.
+    final allowed = ref.watch(
+      kdsSettingsProvider.select((settings) => settings.allowWindowControls),
+    );
+    final lockText = watchLockMessage(context, ref);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        IconButton(
-          onPressed: () => unawaited(_window.minimize()),
-          tooltip: l10n.windowMinimize,
-          icon: const Icon(Icons.remove),
+        LockedAction(
+          locked: !allowed,
+          child: IconButton(
+            onPressed: allowed ? () => unawaited(_window.minimize()) : null,
+            tooltip: allowed ? l10n.windowMinimize : lockText,
+            icon: LockedIcon(icon: Icons.remove, locked: !allowed),
+          ),
         ),
-        IconButton(
-          onPressed: _toggle,
-          tooltip: _fullScreen
-              ? l10n.windowFullScreenOff
-              : l10n.windowFullScreenOn,
-          icon: Icon(_fullScreen ? Icons.fullscreen_exit : Icons.fullscreen),
+        LockedAction(
+          locked: !allowed,
+          child: IconButton(
+            onPressed: allowed ? _toggle : null,
+            tooltip: allowed
+                ? (_fullScreen
+                      ? l10n.windowFullScreenOff
+                      : l10n.windowFullScreenOn)
+                : lockText,
+            icon: LockedIcon(
+              icon: _fullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
+              locked: !allowed,
+            ),
+          ),
         ),
       ],
     );

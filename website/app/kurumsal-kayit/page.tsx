@@ -42,21 +42,23 @@ export default async function CorporateRegisterPage({
     <div className="bg-linear-to-b from-brand-50 to-neutral-50">
       <div className="mx-auto grid w-full max-w-content gap-10 px-4 py-10 sm:px-6 sm:py-16 lg:grid-cols-[1.3fr_1fr] lg:gap-16">
         <div>
-          <h1 className="font-display text-3xl font-bold sm:text-4xl">Kurumsal kayıt</h1>
-          <p className="mt-3 max-w-prose text-muted-foreground">
+          <h1 className="font-display text-h1 font-semibold text-heading sm:text-display">
+            Kurumsal kayıt
+          </h1>
+          <p className="mt-3 max-w-prose text-body-lg text-muted-foreground">
             Firmanız için bir hesap açın. Kaydınız tamamlanır tamamlanmaz menüden sipariş
             verebilirsiniz — onay beklemenize gerek yok.
           </p>
 
-          <div className="mt-8 rounded-xl border bg-card p-5 shadow-sm sm:p-6">
+          <div className="mt-8 bld-card p-5 sm:p-6">
             <CorporateRegisterForm next={next} />
           </div>
         </div>
 
         <aside className="lg:pt-24">
-          <div className="rounded-xl border bg-card p-6 shadow-sm">
-            <h2 className="text-base font-semibold">Kayıttan sonra</h2>
-            <ul className="mt-4 space-y-4 text-sm">
+          <div className="bld-card p-6">
+            <h2 className="font-display text-h3 font-semibold text-heading">Kayıttan sonra</h2>
+            <ul className="mt-4 space-y-4 text-body-sm">
               {[
                 {
                   title: 'Hemen sipariş verebilirsiniz',
@@ -68,7 +70,12 @@ export default async function CorporateRegisterPage({
                 },
                 {
                   title: 'Kapıda ödeme veya kart',
-                  body: 'Cari hesap (veresiye) ayrı bir anlaşmadır; talep ederseniz tanımlarız.',
+                  /*
+                   * Sitenin sunduğu iki yöntem bunlar (B-19). Cari hesap
+                   * ayrı bir anlaşma ve site üzerinden yürümüyor — bakiyeyi
+                   * göstermediğimiz bir seçeneği ödeme adımında sunmuyoruz.
+                   */
+                  body: 'Cari hesap (veresiye) ayrı bir anlaşmadır ve site üzerinden değil, doğrudan bizimle yürütülür.',
                 },
                 {
                   title: 'Düzenli sipariş verecekseniz abonelik',
@@ -77,6 +84,7 @@ export default async function CorporateRegisterPage({
               ].map((item) => (
                 <li key={item.title} className="flex gap-3">
                   <CheckCircle2
+                    strokeWidth={1.75}
                     aria-hidden="true"
                     className="mt-0.5 size-5 shrink-0 text-success"
                   />

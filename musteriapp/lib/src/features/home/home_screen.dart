@@ -2,10 +2,13 @@
 ///
 /// NEDEN VAR: uygulama doğrudan düz bir ürün listesiyle açılıyordu. Liste
 /// doğruydu ama uygulamayı ilk açan kullanıcıya ne yapabileceğini
-/// anlatmıyordu: teslimat ne kadar sürüyor, hangi kategoriler var, dün ne
-/// sipariş ettim. Bu ekran o soruları kaydırmadan cevaplıyor.
+/// anlatmıyordu: teslimat ne kadar sürüyor, bugün ne pişti, dün ne sipariş
+/// ettim. Bu ekran o soruları kaydırmadan cevaplıyor.
 ///
-/// Menü ekranı KALDIRILMADI: burası vitrin, sipariş hâlâ menüde veriliyor.
+/// **KATEGORİ VE ÖNE ÇIKANLAR ŞERİTLERİ KALDIRILDI (B-19).** İkisi de genel
+/// ürün kataloğundan besleniyordu; katalog artık müşteri yüzeyinde yok. Yerini
+/// BUGÜNÜN MENÜSÜ aldı — satılan tek şey o. Menü sekmesi duruyor: burası
+/// vitrin, gün seçimi ve sipariş orada.
 library;
 
 import 'package:bld_api_client/bld_api_client.dart';
@@ -18,20 +21,22 @@ import 'package:go_router/go_router.dart';
 import '../../core/api_error_text.dart';
 import '../../core/eta_text.dart';
 import '../../l10n/app_localizations.dart';
-import '../../providers/account_providers.dart';
 import '../../providers/catalog_providers.dart';
 import '../../providers/infra_providers.dart';
 import '../../providers/order_providers.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/subscription_providers.dart';
 import '../../router/app_router.dart';
+import '../../theme/bld_semantic_colors.dart';
 import '../../theme/bld_theme.dart';
 import '../../widgets/bld_card.dart';
+import '../../widgets/money_text.dart';
 import '../../widgets/network_food_image.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/skeletons.dart';
 import '../../widgets/status_views.dart';
 import '../cart/cart_controller.dart';
+import '../menu/daily_menu_cart.dart';
 import 'reorder.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -64,11 +69,12 @@ class _Body extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final menuAsync = ref.watch(menuProvider(location.id));
+    final today = ref.watch(businessTodayProvider);
+    final menuAsync = ref.watch(dailyMenuProvider(today));
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(menuProvider(location.id));
+        ref.invalidate(dailyMenuProvider(today));
         ref.invalidate(ordersProvider);
       },
       child: ListView(
@@ -76,32 +82,28 @@ class _Body extends ConsumerWidget {
         children: [
           const SizedBox(height: BldSpacing.md),
           _Hero(location: location),
-          const _CorporateShortcuts(),
+          const _SubscriptionShortcut(),
           const _LastOrderCard(),
+          SectionHeader(
+            title: l10n.homeTodaysMenu,
+            actionLabel: l10n.homeSeeAll,
+            onAction: () => context.go(Routes.menu),
+          ),
           menuAsync.when(
             loading: () => const Padding(
-              padding: EdgeInsets.only(top: BldSpacing.lg),
-              child: _FeaturedSkeleton(),
+              padding: EdgeInsets.symmetric(horizontal: BldSpacing.md),
+              child: MenuCardSkeleton(),
             ),
             error: (error, _) => Padding(
               padding: const EdgeInsets.all(BldSpacing.md),
               child: ErrorView(
                 error: error,
-                onRetry: () => ref.invalidate(menuProvider(location.id)),
+                onRetry: () => ref.invalidate(dailyMenuProvider(today)),
               ),
             ),
-            data: (snapshot) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SectionHeader(
-                  title: l10n.homeCategories,
-                  actionLabel: l10n.homeSeeAll,
-                  onAction: () => context.go(Routes.menu),
-                ),
-                _CategoryStrip(categories: snapshot.categories),
-                SectionHeader(title: l10n.homeFeatured),
-                _FeaturedStrip(categories: snapshot.categories),
-              ],
+            data: (snapshot) => _TodaysMenuCard(
+              menu: snapshot.menu,
+              location: location,
             ),
           ),
         ],
@@ -161,7 +163,7 @@ class _Hero extends StatelessWidget {
               right: -8,
               bottom: -18,
               child: Icon(
-                Icons.restaurant,
+                Icons.restaurant_outlined,
                 size: 104,
                 color: bldColor(BldColors.neutral0).withValues(alpha: 0.14),
               ),
@@ -178,7 +180,7 @@ class _Hero extends StatelessWidget {
                 if (etaText != null) ...[
                   const SizedBox(height: BldSpacing.md),
                   _HeroChip(
-                    icon: Icons.schedule,
+                    icon: Icons.schedule_outlined,
                     label: '${etaText.title}: ${etaText.value}',
                   ),
                 ],
@@ -227,20 +229,28 @@ class _HeroChip extends StatelessWidget {
   }
 }
 
-/// Kurumsal kısayollar — aktif abonelik + cari bakiye.
+/// Abonelik kısayolu — yalnız giriş yapmış kullanıcıya çıkar (B2B).
 ///
-/// Yalnız giriş yapmış kullanıcıya çıkar (B2B). İki kartlık şerit: soldan
-/// aboneliğe, sağdan cari ekstreye gider. Bakiye/adet sunucudan gelir;
-/// istemci hesaplamaz.
-class _CorporateShortcuts extends ConsumerWidget {
-  const _CorporateShortcuts();
+/// Eskiden yanında CARİ BAKİYE kartı vardı ve ikisi eşit genişlikte bir
+/// şeritti. Cari hesap müşteri arayüzünden kaldırıldığında (B-19) yarım kalan
+/// şerit yerine tek ve tam genişlikte bir kart bırakıldı: yanında boşluk
+/// duran bir kart, silinmiş bir şeyin izini taşır.
+class _SubscriptionShortcut extends ConsumerWidget {
+  const _SubscriptionShortcut();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
     final signedIn = ref.watch(
       sessionProvider.select((s) => s.valueOrNull?.isSignedIn ?? false),
     );
     if (!signedIn) return const SizedBox.shrink();
+
+    final subs = ref.watch(subscriptionsProvider).valueOrNull;
+    final active = subs == null
+        ? null
+        : subs.where((s) => s.isActive).firstOrNull ?? subs.firstOrNull;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -249,97 +259,42 @@ class _CorporateShortcuts extends ConsumerWidget {
         BldSpacing.md,
         0,
       ),
-      // IntrinsicHeight: iki kart eşit yükseklikte olur ve dikey ListView'in
-      // sınırsız yüksekliği `stretch`'e sonsuz kısıt vermez.
-      child: IntrinsicHeight(
+      child: BldCard(
+        onTap: () => context.go(
+          active != null
+              ? Routes.subscriptionDetail(active.id)
+              : Routes.subscriptions,
+        ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: const [
-            Expanded(child: _SubscriptionShortcut()),
-            SizedBox(width: BldSpacing.md),
-            Expanded(child: _BalanceShortcut()),
+          children: [
+            Icon(
+              Icons.event_repeat_outlined,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: BldSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(l10n.navSubscriptions, style: theme.textTheme.bodySmall),
+                  const SizedBox(height: 2),
+                  Text(
+                    active != null
+                        ? l10n.subscriptionQuantityLabel(active.defaultQuantity)
+                        : l10n.subscriptionsNew,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleSmall,
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_outlined,
+              color: context.bld.decorativeBorder,
+            ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _SubscriptionShortcut extends ConsumerWidget {
-  const _SubscriptionShortcut();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    final textTheme = Theme.of(context).textTheme;
-    final subs = ref.watch(subscriptionsProvider).valueOrNull;
-
-    final active = subs == null
-        ? null
-        : subs.where((s) => s.isActive).firstOrNull ?? subs.firstOrNull;
-
-    return BldCard(
-      onTap: () => context.go(
-        active != null
-            ? Routes.subscriptionDetail(active.id)
-            : Routes.subscriptions,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.event_repeat, color: bldColor(BldColors.brand700)),
-          const SizedBox(height: BldSpacing.sm),
-          Text(l10n.navSubscriptions, style: textTheme.bodySmall),
-          const SizedBox(height: 2),
-          Text(
-            active != null
-                ? l10n.subscriptionQuantityLabel(active.defaultQuantity)
-                : l10n.subscriptionsNew,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: textTheme.titleSmall,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BalanceShortcut extends ConsumerWidget {
-  const _BalanceShortcut();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    final textTheme = Theme.of(context).textTheme;
-    final summary = ref.watch(accountSummaryProvider).valueOrNull;
-
-    return BldCard(
-      onTap: () => context.push(Routes.accountStatement),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.account_balance_wallet_outlined,
-            color: bldColor(BldColors.brand700),
-          ),
-          const SizedBox(height: BldSpacing.sm),
-          Text(l10n.accountBalanceLabel, style: textTheme.bodySmall),
-          const SizedBox(height: 2),
-          Text(
-            summary != null ? Money.format(summary.balance.abs()) : '—',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: textTheme.titleMedium?.copyWith(
-              color: bldColor(
-                summary != null && summary.hasDebt
-                    ? BldColors.danger
-                    : BldColors.neutral900,
-              ),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -353,6 +308,10 @@ class _LastOrderCard extends ConsumerWidget {
   /// Liste ucu yalnızca özet döndürüyor (`OrderSummary`) ve özette kalemler
   /// yok — yalnızca kaç kalem olduğu var. Tekrar sipariş için hangi ürünler
   /// olduğunu bilmek şart, o yüzden dokunulduğunda detay isteniyor.
+  ///
+  /// Hedef gün her zaman **BUGÜN**: eski siparişin kendi servis günü geçmiş
+  /// ve o günün menüsü bir daha satılmıyor. Kalemler bugünün menüsünde
+  /// aranıyor, bulunmayanlar sayılıp kullanıcıya söyleniyor.
   Future<void> _reorder(
     BuildContext context,
     WidgetRef ref,
@@ -362,12 +321,13 @@ class _LastOrderCard extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final cart = ref.read(cartProvider.notifier);
+    final today = ref.read(businessTodayProvider);
 
     final OrderDetail order;
-    final MenuSnapshot menu;
+    final DailyMenuSnapshot menu;
     try {
       order = await ref.read(apiProvider).orders.get(summary.id);
-      menu = await ref.read(menuProvider(locationId).future);
+      menu = await ref.read(dailyMenuProvider(today).future);
     } on ApiException catch (error) {
       if (!context.mounted) return;
       messenger.showSnackBar(
@@ -376,11 +336,25 @@ class _LastOrderCard extends ConsumerWidget {
       return;
     }
 
+    // Paket de aday: `packageAsMenuItem` onu ürün karşılığına çeviriyor, ki
+    // "geçen hafta menüyü almıştım, aynısını ver" isteği çalışsın.
+    final candidates = <MenuItem>[
+      ...menu.menu.items,
+      if (menu.menu.packageAsMenuItem != null) menu.menu.packageAsMenuItem!,
+    ];
+
     final outcome = reorderInto(
       order: order,
-      menu: menu.categories,
-      addToCart: (item, quantity) =>
-          cart.add(item: item, locationId: locationId, quantity: quantity),
+      menuItems: menu.menu.isOrderable ? candidates : const <MenuItem>[],
+      addToCart: (item, quantity) => cart.add(
+        item: item,
+        locationId: locationId,
+        serviceDate: today,
+        quantity: quantity,
+        packageComponents: item.id == menu.menu.package?.menuId
+            ? menu.menu.package!.components
+            : const <DailyMenuPackageComponent>[],
+      ),
     );
 
     if (!context.mounted) return;
@@ -429,7 +403,7 @@ class _LastOrderCard extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(BldRadius.md),
                   ),
                   child: Icon(
-                    Icons.receipt_long,
+                    Icons.receipt_long_outlined,
                     size: 22,
                     color: bldColor(BldColors.brand700),
                   ),
@@ -458,7 +432,7 @@ class _LastOrderCard extends ConsumerWidget {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _reorder(context, ref, order, locationId),
-                    icon: const Icon(Icons.replay, size: 18),
+                    icon: const Icon(Icons.replay_outlined, size: 18),
                     label: Text(l10n.homeReorder),
                   ),
                 ),
@@ -471,143 +445,147 @@ class _LastOrderCard extends ConsumerWidget {
   }
 }
 
-class _CategoryStrip extends StatelessWidget {
-  const _CategoryStrip({required this.categories});
 
-  final List<MenuCategory> categories;
-
-  @override
-  Widget build(BuildContext context) {
-    if (categories.isEmpty) return const SizedBox.shrink();
-
-    return SizedBox(
-      height: 40,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: BldSpacing.md),
-        itemCount: categories.length,
-        separatorBuilder: (_, _) => const SizedBox(width: BldSpacing.sm),
-        itemBuilder: (context, index) => ActionChip(
-          label: Text(categories[index].name),
-          onPressed: () => context.go(Routes.menu),
-        ),
-      ),
-    );
-  }
-}
-
-/// Görseli olan ve satışta olan ürünler — premium yatay şerit.
+/// Bugünün menüsü — ana sayfadaki tek satış yüzeyi.
 ///
-/// Görselsiz ürün ALINMAZ: fotoğraf şeridinde gri kutu menüyü eksik gösterir.
-/// Görselsiz ürünler menü ekranında zaten listeleniyor.
-class _FeaturedStrip extends StatelessWidget {
-  const _FeaturedStrip({required this.categories});
+/// Menü ekranının küçültülmüş hâli DEĞİL, ona giden kapı: paket varsa fiyatı
+/// ve "sepete ekle" düğmesiyle bir kart, yoksa günün kalemlerinden bir özet.
+/// Gün seçimi, takvim ve tek tek kalemler menü sekmesinde — burada tek bir
+/// karar var: "bugünkünü alayım mı?"
+class _TodaysMenuCard extends ConsumerWidget {
+  const _TodaysMenuCard({required this.menu, required this.location});
 
-  final List<MenuCategory> categories;
-
-  static const int _max = 8;
+  final DailyMenu menu;
+  final Location location;
 
   @override
-  Widget build(BuildContext context) {
-    final items = <MenuItem>[
-      for (final category in categories)
-        for (final item in category.items)
-          if (item.isAvailable && item.imageUrl != null) item,
-    ];
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
 
-    if (items.isEmpty) return const SizedBox.shrink();
-    final shown = items.take(_max).toList();
-
-    return SizedBox(
-      height: 232,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
+    if (menu.isEmpty) {
+      return Padding(
         padding: const EdgeInsets.symmetric(horizontal: BldSpacing.md),
-        itemCount: shown.length,
-        separatorBuilder: (_, _) => const SizedBox(width: BldSpacing.md),
-        itemBuilder: (context, index) => _FeaturedCard(item: shown[index]),
-      ),
-    );
-  }
-}
+        child: BldCard(
+          onTap: () => context.go(Routes.menu),
+          child: Row(
+            children: [
+              Icon(
+                menu.closed
+                    ? Icons.event_busy_outlined
+                    : Icons.restaurant_menu_outlined,
+                color: context.bld.placeholder,
+              ),
+              const SizedBox(width: BldSpacing.md),
+              Expanded(
+                child: Text(
+                  menu.closed
+                      ? l10n.dailyMenuClosedTitle
+                      : l10n.dailyMenuMissingTitle,
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
-class _FeaturedCard extends StatelessWidget {
-  const _FeaturedCard({required this.item});
+    final package = menu.package;
+    final saving = menu.packageSavingKurus;
 
-  final MenuItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return SizedBox(
-      width: 168,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: BldSpacing.md),
       child: BldCard(
-        padding: const EdgeInsets.all(BldSpacing.sm),
-        onTap: () => context.push(Routes.productDetail(item.id)),
+        padding: EdgeInsets.zero,
+        onTap: () => context.go(Routes.menu),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            NetworkFoodImage(
-              url: item.imageUrl,
-              height: 120,
-              width: double.infinity,
-              radius: BldRadius.md,
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(BldRadius.md),
+              ),
+              child: NetworkFoodImage(
+                url: menu.imageUrl,
+                aspectRatio: 16 / 9,
+                radius: 0,
+              ),
             ),
-            const SizedBox(height: BldSpacing.sm),
-            Text(
-              item.name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: textTheme.titleSmall,
-            ),
-            const Spacer(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  Money.format(item.price),
-                  style: textTheme.titleMedium?.copyWith(
-                    color: bldColor(BldColors.brand700),
-                    fontWeight: FontWeight.w700,
+            Padding(
+              padding: const EdgeInsets.all(BldSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    menu.title ?? package?.name ?? l10n.dailyMenuTitle,
+                    style: theme.textTheme.titleLarge,
                   ),
-                ),
-                Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    color: bldColor(BldColors.brand500),
-                    borderRadius: BorderRadius.circular(BldRadius.sm),
+                  const SizedBox(height: BldSpacing.xs),
+                  Text(
+                    // Kalem ADLARI, sayısı değil: "4 kalem" iştah açmıyor,
+                    // "Mercimek çorbası · Etli nohut · Pilav" açıyor.
+                    menu.items.map((item) => item.name).join(' · '),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall,
                   ),
-                  child: Icon(
-                    Icons.add,
-                    size: 18,
-                    color: bldColor(BldColors.neutral0),
-                  ),
-                ),
-              ],
+                  if (package != null) ...[
+                    const SizedBox(height: BldSpacing.md),
+                    Row(
+                      children: [
+                        MoneyText(package.price, scale: MoneyScale.md),
+                        if (saving != null) ...[
+                          const SizedBox(width: BldSpacing.sm),
+                          Expanded(
+                            child: Text(
+                              l10n.dailyMenuSaving(Money.format(saving)),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: context.bld.successFg,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: BldSpacing.md),
+                    FilledButton.icon(
+                      onPressed:
+                          menu.isOrderable &&
+                              package.isAvailable &&
+                              location.acceptsOrders
+                          ? () => _addPackage(context, ref)
+                          : null,
+                      icon: const Icon(
+                        Icons.add_shopping_cart_outlined,
+                        size: 18,
+                      ),
+                      label: Text(l10n.dailyMenuPackageAdd),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),
       ),
     );
   }
-}
 
-class _FeaturedSkeleton extends StatelessWidget {
-  const _FeaturedSkeleton();
+  void _addPackage(BuildContext context, WidgetRef ref) {
+    final item = menu.packageAsMenuItem;
+    if (item == null) return;
 
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 232,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: BldSpacing.md),
-        itemCount: 4,
-        separatorBuilder: (_, _) => const SizedBox(width: BldSpacing.md),
-        itemBuilder: (_, _) =>
-            const SizedBox(width: 168, child: MenuCardSkeleton()),
-      ),
-    );
+    final result = ref
+        .read(cartProvider.notifier)
+        .add(
+          item: item,
+          locationId: location.id,
+          serviceDate: menu.date,
+          packageComponents: menu.package!.components,
+        );
+
+    showCartAddFeedback(context, result, itemName: item.name, date: menu.date);
   }
 }

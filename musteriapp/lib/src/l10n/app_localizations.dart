@@ -208,6 +208,12 @@ abstract class AppLocalizations {
   /// **'Beklenmeyen bir hata oluştu.'**
   String get errorUnknown;
 
+  /// Hata ekranının başlığı. Ayrıntıyı hata KODUNA göre seçilen mesaj taşır; başlık sabittir ve kullanıcıya ekranın dolamadığını tek bakışta söyler.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bir şeyler ters gitti'**
+  String get errorTitle;
+
   /// No description provided for @splashChecking.
   ///
   /// In tr, this message translates to:
@@ -399,30 +405,6 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'Hesabım'**
   String get navAccount;
-
-  /// No description provided for @menuTitle.
-  ///
-  /// In tr, this message translates to:
-  /// **'Menü'**
-  String get menuTitle;
-
-  /// No description provided for @menuSearchHint.
-  ///
-  /// In tr, this message translates to:
-  /// **'Ürün ara'**
-  String get menuSearchHint;
-
-  /// No description provided for @menuSearchEmpty.
-  ///
-  /// In tr, this message translates to:
-  /// **'Aramanıza uygun ürün yok.'**
-  String get menuSearchEmpty;
-
-  /// No description provided for @menuEmpty.
-  ///
-  /// In tr, this message translates to:
-  /// **'Menü şu anda boş.'**
-  String get menuEmpty;
 
   /// No description provided for @menuItemUnavailable.
   ///
@@ -717,12 +699,6 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'En kısa sürede'**
   String get checkoutRequestedAtAsap;
-
-  /// No description provided for @checkoutPickDateTime.
-  ///
-  /// In tr, this message translates to:
-  /// **'Zaman seç'**
-  String get checkoutPickDateTime;
 
   /// No description provided for @checkoutClearRequestedAt.
   ///
@@ -1282,18 +1258,6 @@ abstract class AppLocalizations {
   /// **'Bugün ne yesek?'**
   String get homeGreeting;
 
-  /// Kategori şeridi başlığı
-  ///
-  /// In tr, this message translates to:
-  /// **'Kategoriler'**
-  String get homeCategories;
-
-  /// Öne çıkan ürünler şeridi başlığı
-  ///
-  /// In tr, this message translates to:
-  /// **'Bugün öne çıkanlar'**
-  String get homeFeatured;
-
   /// Menüye giden bağlantı
   ///
   /// In tr, this message translates to:
@@ -1413,12 +1377,6 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'Aboneliklerim'**
   String get accountSubscriptions;
-
-  /// No description provided for @accountStatementShortcut.
-  ///
-  /// In tr, this message translates to:
-  /// **'Cari hesabım'**
-  String get accountStatementShortcut;
 
   /// No description provided for @accountCompanyLabel.
   ///
@@ -1720,95 +1678,221 @@ abstract class AppLocalizations {
   /// **'Paz'**
   String get daySun;
 
-  /// No description provided for @accountStatementTitle.
-  ///
-  /// In tr, this message translates to:
-  /// **'Cari hesabım'**
-  String get accountStatementTitle;
-
-  /// No description provided for @accountBalanceLabel.
-  ///
-  /// In tr, this message translates to:
-  /// **'Güncel bakiye'**
-  String get accountBalanceLabel;
-
-  /// No description provided for @accountBalanceDebtNote.
-  ///
-  /// In tr, this message translates to:
-  /// **'Ödenmemiş bakiye'**
-  String get accountBalanceDebtNote;
-
-  /// No description provided for @accountBalanceCreditNote.
-  ///
-  /// In tr, this message translates to:
-  /// **'Lehinize bakiye'**
-  String get accountBalanceCreditNote;
-
-  /// No description provided for @accountBalanceZeroNote.
-  ///
-  /// In tr, this message translates to:
-  /// **'Bakiye sıfır'**
-  String get accountBalanceZeroNote;
-
-  /// No description provided for @accountStatementEmpty.
-  ///
-  /// In tr, this message translates to:
-  /// **'Bu aralıkta hareket yok.'**
-  String get accountStatementEmpty;
-
-  /// No description provided for @accountStatementEntries.
-  ///
-  /// In tr, this message translates to:
-  /// **'Hareketler'**
-  String get accountStatementEntries;
-
-  /// No description provided for @accountDebit.
-  ///
-  /// In tr, this message translates to:
-  /// **'Borç'**
-  String get accountDebit;
-
-  /// No description provided for @accountCredit.
-  ///
-  /// In tr, this message translates to:
-  /// **'Alacak'**
-  String get accountCredit;
-
-  /// No description provided for @accountSourceOrder.
-  ///
-  /// In tr, this message translates to:
-  /// **'Sipariş'**
-  String get accountSourceOrder;
-
-  /// No description provided for @accountSourceSubscription.
-  ///
-  /// In tr, this message translates to:
-  /// **'Abonelik'**
-  String get accountSourceSubscription;
-
-  /// No description provided for @accountSourcePayment.
-  ///
-  /// In tr, this message translates to:
-  /// **'Tahsilat'**
-  String get accountSourcePayment;
-
-  /// No description provided for @accountSourceManual.
-  ///
-  /// In tr, this message translates to:
-  /// **'Elle giriş'**
-  String get accountSourceManual;
-
-  /// No description provided for @accountSourceAdjustment.
-  ///
-  /// In tr, this message translates to:
-  /// **'Düzeltme'**
-  String get accountSourceAdjustment;
-
   /// Mutfağın günlük tükendi işareti (K-11).
   ///
   /// In tr, this message translates to:
   /// **'Bugünlük tükendi'**
   String get productSoldOutToday;
+
+  /// Adet sayacındaki artı düğmesinin ekran okuyucu etiketi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bir artır'**
+  String get commonIncrease;
+
+  /// Adet sayacındaki eksi düğmesinin ekran okuyucu etiketi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bir azalt'**
+  String get commonDecrease;
+
+  /// Gün şeridindeki ilk kutu.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bugün'**
+  String get dayToday;
+
+  /// Gün şeridindeki ikinci kutu.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yarın'**
+  String get dayTomorrow;
+
+  /// Menü sekmesinin başlığı (B-19).
+  ///
+  /// In tr, this message translates to:
+  /// **'Günün menüsü'**
+  String get dailyMenuTitle;
+
+  /// Menü başlığındaki takvim düğmesinin ipucu ve ekran okuyucu etiketi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Takvimden gün seç'**
+  String get dailyMenuCalendarOpen;
+
+  /// Takvim sayfasının başlığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Gün seçin'**
+  String get dailyMenuCalendarTitle;
+
+  /// Takvim açıklaması.
+  ///
+  /// In tr, this message translates to:
+  /// **'Menü var'**
+  String get dailyMenuLegendHasMenu;
+
+  /// Takvim açıklaması.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kapalı'**
+  String get dailyMenuLegendClosed;
+
+  /// Takvimin altındaki, kapalı günleri nedenleriyle listeleyen bölüm.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kapalı günler'**
+  String get dailyMenuClosedDays;
+
+  /// Kapalı günün boş durumu.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu gün kapalıyız'**
+  String get dailyMenuClosedTitle;
+
+  /// Kapalı günün boş durum mesajı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Başka bir gün seçerek menüleri inceleyebilirsiniz.'**
+  String get dailyMenuClosedBody;
+
+  /// Menüsü olmayan günün boş durumu.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu güne menü girilmedi'**
+  String get dailyMenuMissingTitle;
+
+  /// Menüsü olmayan günün boş durum mesajı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Menü hazırlandığında burada görünecek. Takvimden başka bir güne bakabilirsiniz.'**
+  String get dailyMenuMissingBody;
+
+  /// Sunucunun bildirdiği sebep tanınmadığında kullanılan genel metin.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu güne şu anda sipariş verilemiyor.'**
+  String get dailyMenuNotOrderable;
+
+  /// Paket kartının rozeti.
+  ///
+  /// In tr, this message translates to:
+  /// **'Günün menüsü'**
+  String get dailyMenuPackageBadge;
+
+  /// Paketin içindeki yemeklerin başlığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Menüde neler var'**
+  String get dailyMenuPackageIncludes;
+
+  /// Paketi sepete ekleme düğmesi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Menüyü sepete ekle'**
+  String get dailyMenuPackageAdd;
+
+  /// Paket satılabilir değilken ve sunucu sebep bildirmediğinde.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bugünün menüsü tükendi.'**
+  String get dailyMenuPackageSoldOut;
+
+  /// Paket fiyatının kalemlerin toplamından ne kadar ucuz olduğu.
+  ///
+  /// In tr, this message translates to:
+  /// **'{amount} avantajlı'**
+  String dailyMenuSaving(String amount);
+
+  /// Menü kalemlerinin listesinin başlığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Tek tek almak isterseniz'**
+  String get dailyMenuItemsSection;
+
+  /// Günün menüsü önbellekten geldiğinde.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu menü cihazınızdaki kopyadan gösteriliyor; sipariş vermek için bağlantı gerekir.'**
+  String get dailyMenuOffline;
+
+  /// Derin bağlantı o gün olmayan bir kaleme işaret ettiğinde.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu yemek {date} menüsünde yer almıyor.'**
+  String dailyMenuItemMissing(String date);
+
+  /// Kalem detayında hangi günün menüsüne bakıldığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'{date} menüsü'**
+  String dailyMenuOfDay(String date);
+
+  /// Sepetin bağlı olduğu servis günü.
+  ///
+  /// In tr, this message translates to:
+  /// **'{date} menüsü'**
+  String cartServiceDate(String date);
+
+  /// Başka bir güne ait sepet boşaltıldığında.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sepetiniz {date} gününe taşındı. Önceki güne eklediğiniz ürünler kaldırıldı.'**
+  String cartDayChanged(String date);
+
+  /// Sepetin servis günü geçersiz olduğunda gösterilen başlık.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sepet bu haliyle gönderilemiyor'**
+  String get cartDayInvalidTitle;
+
+  /// Dolu sepette servis günü yokken.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sepetinizin hangi güne ait olduğu belirlenemedi. Sepeti boşaltıp yeniden seçim yapın.'**
+  String get cartDayMissing;
+
+  /// Sepetin servis günü geçmişte kaldığında.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sepetiniz {date} gününe ait ve o gün geçti. Sepeti boşaltıp yeniden seçim yapın.'**
+  String cartDayPast(String date);
+
+  /// Ödeme ekranındaki servis günü bandı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bugünün menüsü için sipariş veriyorsunuz.'**
+  String get checkoutServiceDateToday;
+
+  /// İleri tarihli siparişte ödeme ekranındaki servis günü bandı.
+  ///
+  /// In tr, this message translates to:
+  /// **'{date} menüsü için sipariş veriyorsunuz.'**
+  String checkoutServiceDateFuture(String date);
+
+  /// İstenen teslim saatini seçme düğmesi. Gün seçilmez; sepet zaten bir güne bağlı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Saat seç'**
+  String get checkoutPickTime;
+
+  /// Sipariş listesinde siparişin hangi güne verildiği.
+  ///
+  /// In tr, this message translates to:
+  /// **'{date} menüsü'**
+  String ordersServiceDate(String date);
+
+  /// Sipariş takibindeki alan adı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Servis günü'**
+  String get trackingServiceDate;
+
+  /// Ana sayfadaki bölüm başlığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bugünün menüsü'**
+  String get homeTodaysMenu;
 }
 
 class _AppLocalizationsDelegate

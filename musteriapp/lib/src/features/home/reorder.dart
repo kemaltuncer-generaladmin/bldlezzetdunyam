@@ -26,31 +26,43 @@ class ReorderOutcome {
   bool get isPartial => added > 0 && missing > 0;
 }
 
-/// [order] kalemlerini [menu] içinde arar ve bulunanları [addToCart] ile ekler.
+/// [order] kalemlerini [menuItems] içinde arar ve bulunanları [addToCart] ile
+/// ekler.
 ///
-/// Fiyat ve seçenek farkları TAŞINMAZ: sepete bugünkü menü kalemi eklenir.
-/// Dünkü fiyatı taşımak, sunucunun hesapladığı tutarla çelişen bir sepet
-/// üretirdi (`docs/openapi.yaml` `createOrder` — tutarda sunucu haklıdır).
+/// **Kaynak artık GÜNÜN MENÜSÜ, genel katalog değil** (B-19): satılabilir olan
+/// tek şey o. Dünkü siparişin bugün menüde olmayan yarısı [ReorderOutcome.missing]
+/// olarak sayılır ve çağıran bunu kullanıcıya söyler.
+///
+/// Fiyat ve seçenek farkları TAŞINMAZ: sepete bugünkü kalem eklenir. Dünkü
+/// fiyatı taşımak, sunucunun hesapladığı tutarla çelişen bir sepet üretirdi
+/// (`docs/openapi.yaml` `createOrder` — tutarda sunucu haklıdır).
 ///
 /// Seçenekler de taşınmıyor: sipariş kaydı seçenekleri yalnızca metin olarak
 /// tutuyor (`OrderItem.options`), kimliklerini değil. Metinden kimliğe geri
 /// eşleme, adı değişmiş bir seçeneği yanlış eşleştirip müşteriye istemediği
-/// ürünü satardı. Kullanıcı seçeneklerini ürün ekranında yeniden seçer.
+/// ürünü satardı. Kullanıcı seçeneklerini kalem ekranında yeniden seçer.
+///
+/// **Paketin BİLEŞEN satırları atlanır.** Onlar siparişte paketin altında
+/// duran sıfır fiyatlı satırlar; ayrıca eklenselerdi menü hem paket olarak
+/// hem de içindekiler tek tek olarak iki kez sepete girer, müşteri iki kat
+/// öderdi. Paketin ÜST satırı ise sıradan bir kalem gibi ele alınıyor: o da
+/// bir `menu_id` ve bugün menüde varsa yeniden alınabilir.
 ReorderOutcome reorderInto({
   required OrderDetail order,
-  required List<MenuCategory> menu,
+  required List<MenuItem> menuItems,
   required void Function(MenuItem item, int quantity) addToCart,
 }) {
   final available = <int, MenuItem>{
-    for (final category in menu)
-      for (final item in category.items)
-        if (item.isAvailable) item.id: item,
+    for (final item in menuItems)
+      if (item.isAvailable) item.id: item,
   };
 
   var added = 0;
   var missing = 0;
 
   for (final line in order.items) {
+    if (line.isPackageComponent) continue;
+
     final item = available[line.menuId];
     if (item == null) {
       missing++;

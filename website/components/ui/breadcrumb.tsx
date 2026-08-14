@@ -6,7 +6,7 @@ import { ChevronRightIcon, MoreHorizontalIcon } from 'lucide-react';
 
 function Breadcrumb({ className, ...props }: React.ComponentProps<'nav'>) {
   return (
-    <nav aria-label="breadcrumb" data-slot="breadcrumb" className={cn(className)} {...props} />
+    <nav aria-label="Sayfa yolu" data-slot="breadcrumb" className={cn(className)} {...props} />
   );
 }
 
@@ -15,7 +15,7 @@ function BreadcrumbList({ className, ...props }: React.ComponentProps<'ol'>) {
     <ol
       data-slot="breadcrumb-list"
       className={cn(
-        'flex flex-wrap items-center gap-1.5 text-sm wrap-break-word text-muted-foreground',
+        'flex flex-wrap items-center gap-1.5 text-body-sm wrap-break-word text-muted-foreground',
         className,
       )}
       {...props}
@@ -45,7 +45,11 @@ function BreadcrumbLink({
   return (
     <Comp
       data-slot="breadcrumb-link"
-      className={cn('transition-colors hover:text-foreground', className)}
+      className={cn(
+        'rounded-xs transition-colors duration-(--duration-fast) hover:text-foreground',
+        'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-hidden',
+        className,
+      )}
       {...props}
     />
   );
@@ -58,7 +62,7 @@ function BreadcrumbPage({ className, ...props }: React.ComponentProps<'span'>) {
       role="link"
       aria-disabled="true"
       aria-current="page"
-      className={cn('font-normal text-foreground', className)}
+      className={cn('font-semibold text-foreground', className)}
       {...props}
     />
   );
@@ -70,10 +74,10 @@ function BreadcrumbSeparator({ children, className, ...props }: React.ComponentP
       data-slot="breadcrumb-separator"
       role="presentation"
       aria-hidden="true"
-      className={cn('[&>svg]:size-3.5', className)}
+      className={cn('[&>svg]:size-4', className)}
       {...props}
     >
-      {children ?? <ChevronRightIcon />}
+      {children ?? <ChevronRightIcon strokeWidth={1.75} />}
     </li>
   );
 }
@@ -87,8 +91,8 @@ function BreadcrumbEllipsis({ className, ...props }: React.ComponentProps<'span'
       className={cn('flex size-5 items-center justify-center [&>svg]:size-4', className)}
       {...props}
     >
-      <MoreHorizontalIcon />
-      <span className="sr-only">More</span>
+      <MoreHorizontalIcon strokeWidth={1.75} />
+      <span className="sr-only">Ara adımlar</span>
     </span>
   );
 }

@@ -69,6 +69,26 @@ class LocationGate
     /** Durdurma sebebi — müşteriye gösterilir. */
     private const string KEY_PAUSE_REASON = 'bld_ordering_pause_reason';
 
+    // ── Günün menüsü (B-19) ────────────────────────────────────────────────
+
+    /**
+     * Satış günün menüsü üzerinden mi yürüyor?
+     *
+     * SUNUCU TARAFI ŞALTER, BİLEREK. İstemciler bu akışa geçmeden önce bir
+     * ay ileriye menü girilmiş olmalı. Şalter olmasaydı geri dönmek üç
+     * uygulamayı birden yeniden yayınlamak demekti; şimdi tek satır.
+     */
+    private const string KEY_DAILY_MENU = 'bld_daily_menu_enabled';
+
+    /** Bugünden kaç gün sonrasına sipariş alınır. */
+    private const string KEY_LOOKAHEAD = 'bld_max_lookahead_days';
+
+    /** "Günün Menüsü" paket ürününün kimliği (göç yazar). */
+    private const string KEY_PACKAGE_MENU = 'bld_daily_package_menu_id';
+
+    /** Yönetici bir değer girmediyse geçerli ileri görüş penceresi. */
+    public const int DEFAULT_LOOKAHEAD_DAYS = 30;
+
     // ── Teslimat süresi tahmini ────────────────────────────────────────────
     private const string KEY_PREP_MINUTES = 'bld_prep_minutes';
 
@@ -221,6 +241,52 @@ class LocationGate
     public function minOrderTotal(Location $location): int
     {
         return (int) $this->option($location, self::KEY_MIN_TOTAL, 0);
+    }
+
+    // ── Günün menüsü (B-19) ────────────────────────────────────────────────
+
+    public function dailyMenuEnabled(Location $location): bool
+    {
+        return (bool) $this->option($location, self::KEY_DAILY_MENU, false);
+    }
+
+    public function setDailyMenuEnabled(Location $location, bool $enabled): void
+    {
+        $this->setOption($location, self::KEY_DAILY_MENU, $enabled);
+    }
+
+    /**
+     * Bugünden kaç gün sonrasına sipariş alınır.
+     *
+     * Sıfır geçerli bir değer: "yalnız bugüne sipariş alınır". Bu yüzden
+     * `?:` değil `??` ile varsayılana düşülüyor — sıfırı varsayılanla
+     * değiştirmek, yöneticinin bilinçli kararını sessizce iptal ederdi.
+     */
+    public function maxLookaheadDays(Location $location): int
+    {
+        $value = $this->option($location, self::KEY_LOOKAHEAD, null);
+
+        return is_numeric($value)
+            ? max(0, (int) $value)
+            : self::DEFAULT_LOOKAHEAD_DAYS;
+    }
+
+    public function setMaxLookaheadDays(Location $location, int $days): void
+    {
+        $this->setOption($location, self::KEY_LOOKAHEAD, max(0, $days));
+    }
+
+    /**
+     * "Günün Menüsü" paket ürününün kimliği; yapılandırılmamışsa `null`.
+     *
+     * Göç yazıyor (`2026_08_15_000004`). Ürünü ADIYLA aramak, yönetici adı
+     * değiştirdiği gün kırılırdı.
+     */
+    public function dailyPackageMenuId(Location $location): ?int
+    {
+        $value = $this->option($location, self::KEY_PACKAGE_MENU, null);
+
+        return is_numeric($value) && (int) $value > 0 ? (int) $value : null;
     }
 
     /**

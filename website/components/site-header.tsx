@@ -33,13 +33,9 @@ export async function SiteHeader() {
         <Link
           href="/"
           aria-label={`${brand.name} — ana sayfa`}
-          className="shrink-0 rounded-md focus-visible:ring-2"
+          className="shrink-0 rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-hidden"
         >
-          <BrandMark
-            brandName={brand.name}
-            brandShortName={brand.shortName}
-            logoSrc={brand.logoSrc}
-          />
+          <BrandMark brandName={brand.name} logoSrc={brand.logoSrc} />
         </Link>
 
         <div className="ml-auto flex items-center gap-2">
@@ -62,7 +58,7 @@ export async function SiteHeader() {
           {contact.phone && (
             <Button asChild variant="ghost" size="sm" className="hidden xl:inline-flex">
               <a href={contact.phone.href}>
-                <Phone aria-hidden="true" />
+                <Phone aria-hidden="true" strokeWidth={1.75} />
                 {contact.phone.display}
               </a>
             </Button>
@@ -78,7 +74,7 @@ export async function SiteHeader() {
           <Button
             asChild
             size="sm"
-            className="hidden min-[400px]:inline-flex sm:h-11 sm:px-4 sm:text-sm"
+            className="hidden min-[400px]:inline-flex sm:h-11 sm:px-4 sm:text-label"
           >
             <Link href={PRIMARY_CTA.href}>{PRIMARY_CTA.label}</Link>
           </Button>
@@ -90,7 +86,6 @@ export async function SiteHeader() {
            */}
           <MobileNav
             brandName={brand.name}
-            brandShortName={brand.shortName}
             logoSrc={brand.logoSrc}
             channels={[
               contact.phone && { kind: 'phone' as const, ...contact.phone },

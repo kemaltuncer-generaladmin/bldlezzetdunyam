@@ -13,7 +13,20 @@ import { coversCity, coversDistrict } from '@/lib/service-area';
 export const checkoutSchema = z
   .object({
     delivery_type: z.enum(['delivery', 'pickup']),
-    payment_method: z.enum(['online', 'cash', 'account']),
+    /*
+     * `account` LİSTEDE YOK (B-19).
+     *
+     * Sözleşmede duruyor (`PaymentMethod` üç değer taşıyor) ve panelden
+     * girilen bir vitrinin açık yöntemleri arasında hâlâ gelebilir; site onu
+     * ARTIK SUNMUYOR çünkü cari hesap müşteri arayüzünden kaldırıldı —
+     * borcunu göremeyeceği bir hesaba yazdırma seçeneği sunmak, müşteriyi
+     * ölçemediği bir yükümlülüğe sokmak olurdu.
+     *
+     * Şemadan çıkarmak, `app/odeme/page.tsx`'teki süzgeci ATLAYAN bir
+     * gönderimi de reddediyor: liste sunucuda tekrar denetleniyor
+     * (`createOrderAction`), ama elle kurcalanmış bir form buraya takılıyor.
+     */
+    payment_method: z.enum(['online', 'cash']),
     timing: z.enum(['asap', 'scheduled']),
     requested_at_local: z.string().trim(),
     address_line1: z.string().trim().max(255, 'Adres en fazla 255 karakter.'),
@@ -75,3 +88,15 @@ export const checkoutSchema = z
   });
 
 export type CheckoutValues = z.infer<typeof checkoutSchema>;
+
+/**
+ * Sitenin SUNDUĞU ödeme yöntemleri — sözleşmedeki `PaymentMethod`'un alt
+ * kümesi. Ayrı bir ad taşıyor ki "vitrin ne diyor" ile "site ne gösteriyor"
+ * ayrımı tiplerde de görünsün.
+ */
+export type CheckoutPaymentMethod = CheckoutValues['payment_method'];
+
+/** Vitrinin açık yöntemlerinden sitenin sunduklarını süzer. */
+export function isOfferedPaymentMethod(method: string): method is CheckoutPaymentMethod {
+  return method === 'online' || method === 'cash';
+}

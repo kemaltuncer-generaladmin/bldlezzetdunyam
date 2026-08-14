@@ -712,4 +712,769 @@ void main() {
       expect(statement.entries.last.description, isNull);
     });
   });
+
+  // ─────────────────────────── Günün menüsü (B-19) ──────────────────────────
+
+  group('DailyMenu', () {
+    Map<String, dynamic> build() => {
+      'id': 77,
+      'date': '2026-08-20',
+      'title': 'Ev Yemeği Menüsü',
+      'description': 'Çorba, ana yemek, pilav, tatlı',
+      'image_url': null,
+      'package': {
+        'menu_id': 900,
+        'name': 'Günün Menüsü',
+        'price': 22000,
+        'is_available': true,
+        'sold_out_reason': null,
+        'components': [
+          {
+            'menu_id': 101,
+            'name': 'Mercimek Çorbası',
+            'quantity': 1,
+            'image_url': null,
+            'allergens': ['gluten'],
+          },
+          {'menu_id': 102, 'name': 'Tavuk Sote', 'quantity': 2},
+        ],
+      },
+      'items_total': 26500,
+      'currency': 'TRY',
+      'closed': false,
+      'is_orderable': true,
+      'unavailable_reason': null,
+      'items': [
+        {
+          'id': 101,
+          'name': 'Mercimek Çorbası',
+          'price': 6500,
+          'currency': 'TRY',
+          'is_available': true,
+        },
+        {
+          'id': 102,
+          'name': 'Tavuk Sote',
+          'price': 20000,
+          'currency': 'TRY',
+          'is_available': true,
+        },
+      ],
+    };
+
+    test('sözleşme örneği ayrıştırılır', () {
+      final menu = DailyMenu.fromJson(build());
+
+      expect(menu.id, 77);
+      expect(menu.date, '2026-08-20');
+      expect(menu.exists, isTrue);
+      expect(menu.isOrderable, isTrue);
+      expect(menu.unavailableReason, DailyMenuUnavailableReason.none);
+      expect(menu.items, hasLength(2));
+      expect(menu.package?.menuId, 900);
+      expect(menu.package?.components, hasLength(2));
+      expect(menu.package?.components.first.allergens, ['gluten']);
+      // Bileşen `quantity` alanı porsiyon sayısıdır, adet değil.
+      expect(menu.package?.portionCount, 3);
+    });
+
+    test('JSON gidiş-dönüşü alan kaybetmez', () {
+      final menu = DailyMenu.fromJson(build());
+      final again = DailyMenu.fromJson(menu.toJson());
+
+      expect(again, menu);
+      expect(again.package, menu.package);
+      expect(again.items, menu.items);
+    });
+
+    test('itemFor kimliğe göre kalemi bulur, yoksa null döner', () {
+      final menu = DailyMenu.fromJson(build());
+
+      expect(menu.itemFor(101)?.name, 'Mercimek Çorbası');
+      // Dünkü bir derin bağlantı bugün olmayan bir kaleme işaret edebilir;
+      // ekran "bulunamadı" gösterebilmeli, çökmemeli.
+      expect(menu.itemFor(999), isNull);
+    });
+
+    test('paket ÜRÜN karşılığına çevrilir', () {
+      final menu = DailyMenu.fromJson(build());
+      final item = menu.packageAsMenuItem!;
+
+      // Sipariş satırına giden kimlik PAKETİN kimliği; sunucu içindekileri
+      // kendisi açıyor.
+      expect(item.id, 900);
+      expect(item.name, 'Günün Menüsü');
+      expect(item.price, 22000);
+      expect(item.currency, 'TRY');
+      expect(item.isAvailable, isTrue);
+
+      // Paketin seçeneği yok: kalemleri o günün menüsünde sabit.
+      expect(item.options, isEmpty);
+    });
+
+    test('paket satılmayan günde ürün karşılığı da yoktur', () {
+      final menu = DailyMenu.fromJson({...build(), 'package': null});
+
+      expect(menu.sellsPackage, isFalse);
+      expect(menu.packageAsMenuItem, isNull);
+    });
+
+    test('tükenmiş paketin ürün karşılığı da satışta DEĞİLDİR', () {
+      // Sepet kapısı `MenuItem.is_available`'a bakıyor; bayrak taşınmazsa
+      // tükenmiş menü sepete girer ve sunucu siparişi reddederdi.
+      final menu = DailyMenu.fromJson({
+        ...build(),
+        'package': <String, dynamic>{
+          ...(build()['package']! as Map<String, dynamic>),
+          'is_available': false,
+          'sold_out_reason': 'Bugünün menüsü tükendi',
+        },
+      });
+
+      final item = menu.packageAsMenuItem!;
+      expect(item.isAvailable, isFalse);
+      expect(item.soldOutReason, 'Bugünün menüsü tükendi');
+    });
+
+    test('paket avantajı yalnızca POZİTİFKEN gösterilir', () {
+      final ucuz = DailyMenu.fromJson(build());
+      expect(ucuz.packageSavingKurus, 4500);
+
+      // Yönetici paket fiyatını kalemlerin toplamından yüksek girebilir;
+      // "−45,00 ₺ avantaj" yazmak müşteriye paketi almamasını söylerdi.
+      final pahali = DailyMenu.fromJson({
+        ...build(),
+        'items_total': 20000,
+        'package': <String, dynamic>{
+          ...(build()['package']! as Map<String, dynamic>),
+          'price': 22000,
+        },
+      });
+      expect(pahali.packageSavingKurus, isNull);
+    });
+
+    test('menüsü olmayan gün 200 döner ve çökertmez', () {
+      final menu = DailyMenu.fromJson({
+        'id': null,
+        'date': '2026-08-21',
+        'title': null,
+        'description': null,
+        'image_url': null,
+        'package': null,
+        'items_total': null,
+        'currency': 'TRY',
+        'closed': false,
+        'is_orderable': false,
+        'unavailable_reason': 'not_published',
+        'items': <dynamic>[],
+      });
+
+      expect(menu.exists, isFalse);
+      expect(menu.isEmpty, isTrue);
+      expect(menu.sellsPackage, isFalse);
+      expect(menu.packageSavingKurus, isNull);
+      expect(
+        menu.unavailableReason,
+        DailyMenuUnavailableReason.notPublished,
+      );
+    });
+
+    test('sözleşmedeki bütün sebepler tanınır', () {
+      const beklenen = {
+        'closed_day': DailyMenuUnavailableReason.closedDay,
+        'not_published': DailyMenuUnavailableReason.notPublished,
+        'cutoff_passed': DailyMenuUnavailableReason.cutoffPassed,
+        'past': DailyMenuUnavailableReason.past,
+        'too_far': DailyMenuUnavailableReason.tooFar,
+      };
+
+      for (final entry in beklenen.entries) {
+        final menu = DailyMenu.fromJson({
+          ...build(),
+          'is_orderable': false,
+          'unavailable_reason': entry.key,
+        });
+        expect(menu.unavailableReason, entry.value, reason: entry.key);
+        expect(
+          dailyMenuUnavailableLabelsTr[menu.unavailableReason],
+          isNotEmpty,
+          reason: '${entry.key} için gösterilecek metin yok.',
+        );
+      }
+    });
+
+    test('bilinmeyen sebep çökertmez (gevşek enum)', () {
+      // Sunucu ileride "kontenjan doldu" gibi bir sebep ekleyebilir; eski
+      // uygulamanın gün seçiciyi çizmeyi bırakmasının anlamı yok.
+      final menu = DailyMenu.fromJson({
+        ...build(),
+        'is_orderable': false,
+        'unavailable_reason': 'kontenjan_doldu',
+      });
+
+      expect(menu.unavailableReason, DailyMenuUnavailableReason.unknown);
+      expect(menu.isOrderable, isFalse);
+      expect(
+        dailyMenuUnavailableLabelsTr[menu.unavailableReason],
+        isNotEmpty,
+      );
+    });
+
+    test('HER sebebin bir Türkçe karşılığı vardır', () {
+      // Sözleşmeye yeni bir sebep eklendiğinde enum'a üye eklemek yetmez;
+      // metni de yazılmalı. Yazılmazsa `dailyMenuUnavailableLabelsTr[...]`
+      // `null` döner ve gün seçici sebebi hiç göstermez — kullanıcı günün
+      // neden kapalı olduğunu asla öğrenemez. Bu döngü onu derleme değil
+      // ama TEST zamanında yakalar.
+      for (final reason in DailyMenuUnavailableReason.values) {
+        expect(
+          dailyMenuUnavailableLabelsTr.containsKey(reason),
+          isTrue,
+          reason: '$reason için metin tablosunda karşılık yok.',
+        );
+      }
+
+      // `none` bilerek boştur: sebep yokken cümle de yoktur.
+      expect(dailyMenuUnavailableLabelsTr[DailyMenuUnavailableReason.none], '');
+      for (final reason in DailyMenuUnavailableReason.values) {
+        if (reason == DailyMenuUnavailableReason.none) continue;
+        expect(
+          dailyMenuUnavailableLabelsTr[reason],
+          isNotEmpty,
+          reason: '$reason gösterilebilir bir cümle taşımıyor.',
+        );
+      }
+    });
+
+    test('bilinmeyen sebep sunucuya GERİ GÖNDERİLMEZ', () {
+      // `unknown.wireName` null: kodunu bilmediğimiz bir sebebi saklayıp geri
+      // yollamak, saklamamaktan daha dürüst olmazdı. Gidiş-dönüşte alan
+      // düşer ve bu KAYIP KABUL EDİLMİŞTİR — sebep yalnızca okunur.
+      final menu = DailyMenu.fromJson({
+        ...build(),
+        'is_orderable': false,
+        'unavailable_reason': 'kontenjan_doldu',
+      });
+
+      expect(menu.toJson().containsKey('unavailable_reason'), isFalse);
+    });
+
+    test('alan hiç gelmezse sebep "yok"tur', () {
+      final json = build()..remove('unavailable_reason');
+      expect(
+        DailyMenu.fromJson(json).unavailableReason,
+        DailyMenuUnavailableReason.none,
+      );
+    });
+
+    test('tükenmiş kalem listede kalır ama sepete eklenemez', () {
+      final json = build();
+      (json['items']! as List<dynamic>)[1] = {
+        'id': 102,
+        'name': 'Tavuk Sote',
+        'price': 20000,
+        'currency': 'TRY',
+        'is_available': false,
+        'sold_out_today': true,
+        'sold_out_reason': 'Tavuk bitti.',
+      };
+
+      final menu = DailyMenu.fromJson(json);
+
+      expect(menu.items, hasLength(2), reason: 'Kalem listeden DÜŞMEZ.');
+      expect(menu.availableItems, hasLength(1));
+      expect(menu.items.last.soldOutToday, isTrue);
+    });
+
+    test('paket fiyatı kalem fiyatlarından bağımsızdır', () {
+      final menu = DailyMenu.fromJson(build());
+      final kalemToplami = menu.items.fold(0, (sum, i) => sum + i.price);
+
+      expect(kalemToplami, 26500);
+      expect(menu.package!.price, 22000);
+      expect(menu.package!.price, lessThan(kalemToplami));
+    });
+  });
+
+  group('MenuCalendarDay', () {
+    test('sözleşme örneği ayrıştırılır ve gidiş-dönüş yapar', () {
+      final gun = MenuCalendarDay.fromJson({
+        'date': '2026-08-20',
+        'has_menu': true,
+        'closed': false,
+        'is_orderable': true,
+        'title': 'Ev Yemeği Menüsü',
+        'package_price': 22000,
+        'note': null,
+      });
+
+      expect(gun.date, '2026-08-20');
+      expect(gun.hasMenu, isTrue);
+      expect(gun.packagePrice, 22000);
+      expect(MenuCalendarDay.fromJson(gun.toJson()), gun);
+    });
+
+    test('kapalı gün menüsüz gelir, notu taşır', () {
+      final gun = MenuCalendarDay.fromJson({
+        'date': '2026-08-22',
+        'has_menu': false,
+        'closed': true,
+        'is_orderable': false,
+        'title': null,
+        'package_price': null,
+        'note': 'Kurban Bayramı',
+      });
+
+      expect(gun.closed, isTrue);
+      expect(gun.isOrderable, isFalse);
+      expect(gun.isBrowsable, isFalse);
+      expect(gun.note, 'Kurban Bayramı');
+    });
+
+    test('menüsü olan ama sipariş alınmayan gün GÖRÜNTÜLENEBİLİR', () {
+      // Kesim saati geçmiş bugünün menüsüne bakabilmeli; sepete ekleme
+      // kapısı `is_orderable`.
+      final gun = MenuCalendarDay.fromJson({
+        'date': '2026-08-13',
+        'has_menu': true,
+        'closed': false,
+        'is_orderable': false,
+      });
+
+      expect(gun.isBrowsable, isTrue);
+      expect(gun.isOrderable, isFalse);
+    });
+  });
+
+  group('Location — günün menüsü şalteri', () {
+    Map<String, dynamic> base() => {
+      'id': 1,
+      'name': 'BLD',
+      'slug': 'catering',
+      'is_open': true,
+      'ordering_enabled': true,
+      'min_order_total': 0,
+      'payment_methods': ['cash'],
+    };
+
+    test('alanlar okunur', () {
+      final location = Location.fromJson({
+        ...base(),
+        'daily_menu_enabled': true,
+        'max_lookahead_days': 14,
+      });
+
+      expect(location.dailyMenuEnabled, isTrue);
+      expect(location.maxLookaheadDays, 14);
+    });
+
+    test('eski sunucu yanıtında şalter KAPALI, pencere 30 gündür', () {
+      // Alanlar sözleşmeye sonradan eklendi; gelmediğinde eski katalog
+      // akışı çalışmalı — kendiliğinden açılan bir şalter, menüsü girilmemiş
+      // bir vitrini satılamaz hâle getirirdi.
+      final location = Location.fromJson(base());
+
+      expect(location.dailyMenuEnabled, isFalse);
+      expect(location.maxLookaheadDays, 30);
+    });
+  });
+
+  group('OrderCreateRequest — servis günü', () {
+    test('service_date sözleşmedeki adla gider', () {
+      const request = OrderCreateRequest(
+        locationId: 1,
+        items: [OrderCreateItem(menuId: 900, quantity: 1)],
+        deliveryType: DeliveryType.pickup,
+        paymentMethod: PaymentMethod.cash,
+        serviceDate: '2026-08-20',
+      );
+
+      expect(request.toJson()['service_date'], '2026-08-20');
+    });
+
+    test('gün seçilmezse alan gövdeye HİÇ girmez', () {
+      // Sunucu o zaman `requested_at`in gününü, o da yoksa bugünü kullanır.
+      // `null` göndermek de aynı sonucu verirdi ama gövdeyi kirletirdi.
+      const request = OrderCreateRequest(
+        locationId: 1,
+        items: [OrderCreateItem(menuId: 101, quantity: 1)],
+        deliveryType: DeliveryType.pickup,
+        paymentMethod: PaymentMethod.cash,
+      );
+
+      expect(request.toJson().containsKey('service_date'), isFalse);
+    });
+
+    test('paket, sıradan bir satır gibi menu_id ile sipariş edilir', () {
+      // İstek BİÇİMİ değişmedi: paketin kimliği DailyMenu.package.menu_id.
+      const request = OrderCreateRequest(
+        locationId: 1,
+        items: [OrderCreateItem(menuId: 900, quantity: 2)],
+        deliveryType: DeliveryType.delivery,
+        paymentMethod: PaymentMethod.cash,
+        serviceDate: '2026-08-20',
+        address: Address(line1: 'a', district: 'b', city: 'c'),
+      );
+
+      final items = request.toJson()['items']! as List<dynamic>;
+      final first = items.single as Map<String, dynamic>;
+      expect(first['menu_id'], 900);
+      expect(first['quantity'], 2);
+      expect(first.containsKey('role'), isFalse, reason: 'Rol İSTEKTE yok.');
+    });
+  });
+
+  group('OrderItem — satır rolü', () {
+    Map<String, dynamic> orderJson() => {
+      'id': 5013,
+      'order_number': 'S-5013',
+      'status': 'yeni',
+      'items': [
+        {
+          'menu_id': 900,
+          'name': 'Günün Menüsü (20.08)',
+          'quantity': 1,
+          'unit_price': 22000,
+          'line_total': 22000,
+          'role': 'package',
+          'included_in': null,
+          'daily_menu_id': 77,
+        },
+        {
+          'menu_id': 101,
+          'name': 'Mercimek Çorbası',
+          'quantity': 1,
+          'unit_price': 0,
+          'line_total': 0,
+          'role': 'component',
+          'included_in': 0,
+          'daily_menu_id': 77,
+        },
+        {
+          'menu_id': 102,
+          'name': 'Tavuk Sote',
+          'quantity': 2,
+          'unit_price': 0,
+          'line_total': 0,
+          'role': 'component',
+          'included_in': 0,
+          'daily_menu_id': 77,
+        },
+        {
+          'menu_id': 105,
+          'name': 'Ayran',
+          'quantity': 1,
+          'unit_price': 2500,
+          'line_total': 2500,
+          'role': 'item',
+        },
+      ],
+      'subtotal': 24500,
+      'delivery_fee': 0,
+      'total': 24500,
+      'currency': 'TRY',
+      'delivery_type': 'pickup',
+      'service_date': '2026-08-20',
+      'payment': {'method': 'cash', 'status': 'pending'},
+      'status_history': [
+        {'status': 'yeni', 'at': '2026-08-13T11:30:00Z'},
+      ],
+      'created_at': '2026-08-13T11:30:00Z',
+    };
+
+    test('roller ve servis günü ayrıştırılır', () {
+      final order = OrderDetail.fromJson(orderJson());
+
+      expect(order.serviceDate, '2026-08-20');
+      expect(order.items, hasLength(4));
+      expect(order.items[0].isPackageHeader, isTrue);
+      expect(order.items[1].isPackageComponent, isTrue);
+      expect(order.items[3].isPlainItem, isTrue);
+      expect(order.items[0].dailyMenuId, 77);
+    });
+
+    test('parayı paket satırı taşır, bileşenler sıfırdır', () {
+      final order = OrderDetail.fromJson(orderJson());
+
+      expect(order.items[0].lineTotal, 22000);
+      expect(order.items[1].lineTotal, 0);
+      expect(order.items[2].lineTotal, 0);
+      // Toplam sunucudan gelir; satırlardan toplanmaz.
+      expect(order.total, 24500);
+    });
+
+    test('bileşenler paketin ALTINA yerleşir, listede ayrı satır olmaz', () {
+      final order = OrderDetail.fromJson(orderJson());
+
+      expect(order.topLevelItems.map((i) => i.name), [
+        'Günün Menüsü (20.08)',
+        'Ayran',
+      ]);
+      expect(order.componentsOf(0).map((i) => i.name), [
+        'Mercimek Çorbası',
+        'Tavuk Sote',
+      ]);
+      expect(order.componentsOf(3), isEmpty);
+    });
+
+    test('ROL YOKKEN VARSAYILAN item — eski sunucu yanıtı kırmaz', () {
+      // Sözleşmedeki `default: item` budur. Alan gelmediğinde satırlar düz
+      // listeye düşer ve ekran bugünkü gibi çizilir; bir satırın rolsüz
+      // gelmesi onu gizlemeye ya da bedava göstermeye YOL AÇMAMALI.
+      final item = OrderItem.fromJson({
+        'menu_id': 101,
+        'name': 'Tavuk Sote',
+        'quantity': 2,
+        'unit_price': 18500,
+        'line_total': 37000,
+      });
+
+      expect(item.role, 'item');
+      expect(item.isPlainItem, isTrue);
+      expect(item.isPackageHeader, isFalse);
+      expect(item.isPackageComponent, isFalse);
+      expect(item.includedIn, isNull);
+      expect(item.dailyMenuId, isNull);
+    });
+
+    test('bilinmeyen rol sıradan satır sayılır', () {
+      // Rolü tanımadığımız bir satırı gizlemek, siparişten bir yemeği yok
+      // etmek olurdu.
+      final item = OrderItem.fromJson({
+        'menu_id': 101,
+        'name': 'Tavuk Sote',
+        'quantity': 1,
+        'unit_price': 18500,
+        'line_total': 18500,
+        'role': 'gift',
+      });
+
+      expect(item.isPlainItem, isTrue);
+      expect(item.isPackageHeader, isFalse);
+    });
+
+    test('JSON gidiş-dönüşü rolü ve bağı korur', () {
+      final item = OrderItem.fromJson({
+        'menu_id': 101,
+        'name': 'Mercimek Çorbası',
+        'quantity': 1,
+        'unit_price': 0,
+        'line_total': 0,
+        'role': 'component',
+        'included_in': 0,
+        'daily_menu_id': 77,
+      });
+
+      expect(OrderItem.fromJson(item.toJson()), item);
+    });
+
+    test('service_date gelmeyen eski yanıt çökertmez', () {
+      final json = orderJson()..remove('service_date');
+      expect(OrderDetail.fromJson(json).serviceDate, isNull);
+    });
+  });
+
+  group('OrderSummary — servis günü', () {
+    Map<String, dynamic> build() => {
+      'id': 5013,
+      'order_number': 'S-5013',
+      'status': 'yeni',
+      'total': 24500,
+      'currency': 'TRY',
+      'item_count': 2,
+      'created_at': '2026-08-13T11:30:00Z',
+      'service_date': '2026-08-20',
+    };
+
+    test('sipariş günü ile servis günü AYRIDIR', () {
+      final summary = OrderSummary.fromJson(build());
+
+      expect(summary.createdAt, DateTime.utc(2026, 8, 13, 11, 30));
+      expect(summary.serviceDate, '2026-08-20');
+      expect(
+        BusinessDate.fromUtc(summary.createdAt),
+        isNot(summary.serviceDate),
+        reason: 'İleri tarihli siparişte ikisi aynı gün değildir.',
+      );
+    });
+
+    test('alan gelmezse null, çökme yok', () {
+      final json = build()..remove('service_date');
+      expect(OrderSummary.fromJson(json).serviceDate, isNull);
+    });
+  });
+
+  // ────────────────────── Yapılandırılmış adres (B-21) ──────────────────────
+
+  group('AddressSuggestion', () {
+    Map<String, dynamic> build() => {
+      'label': 'Feritpaşa Mah., Kültür Sk. No:12, Selçuklu / Konya',
+      'line1': 'Feritpaşa Mah. Kültür Sk. No:12',
+      'neighbourhood': 'Feritpaşa Mah.',
+      'street': 'Kültür Sk.',
+      'district': 'Selçuklu',
+      'city': 'Konya',
+      'latitude': 37.8842,
+      'longitude': 32.4931,
+      'source': 'osm_nominatim',
+    };
+
+    test('sözleşme örneği ayrıştırılır ve gidiş-dönüş yapar', () {
+      final suggestion = AddressSuggestion.fromJson(build());
+
+      expect(suggestion.district, 'Selçuklu');
+      expect(suggestion.latitude, 37.8842);
+      expect(suggestion.source, 'osm_nominatim');
+      expect(AddressSuggestion.fromJson(suggestion.toJson()), suggestion);
+    });
+
+    test('bilinmeyen sağlayıcı çökertmez — source kapalı enum değil', () {
+      final suggestion = AddressSuggestion.fromJson({
+        ...build(),
+        'source': 'google_places',
+      });
+      expect(suggestion.source, 'google_places');
+    });
+
+    test('öneri kayda çevrilirken gösterim satırı ETİKET olmaz', () {
+      // Aksi halde defterde "Feritpaşa Mah., Kültür Sk. No:12, Selçuklu /
+      // Konya" ADINDA bir adres oluşurdu; etiket müşterinin verdiği addır.
+      final input = AddressSuggestion.fromJson(build()).toInput();
+
+      expect(input.label, isNull);
+      expect(input.line1, 'Feritpaşa Mah. Kültür Sk. No:12');
+      expect(input.neighbourhood, 'Feritpaşa Mah.');
+      expect(input.street, 'Kültür Sk.');
+      expect(input.latitude, 37.8842);
+    });
+
+    test('müşterinin verdiği ad korunur', () {
+      final input = AddressSuggestion.fromJson(
+        build(),
+      ).toInput(addressLabel: 'Ofis', note: 'Zili çalmayın');
+
+      expect(input.label, 'Ofis');
+      expect(input.note, 'Zili çalmayın');
+    });
+  });
+
+  group('Yapılandırılmış adres alanları', () {
+    test('sipariş adresi beş alanı da taşır', () {
+      final address = Address.fromJson({
+        'line1': 'Feritpaşa Mah. Kültür Sk. No:12/A Kat:3 D:7',
+        'neighbourhood': 'Feritpaşa Mah.',
+        'street': 'Kültür Sk.',
+        'building_no': '12/A',
+        'floor': '3',
+        'door_no': '7',
+        'district': 'Selçuklu',
+        'city': 'Konya',
+      });
+
+      expect(address.neighbourhood, 'Feritpaşa Mah.');
+      expect(address.buildingNo, '12/A');
+      expect(address.floor, '3');
+      expect(address.doorNo, '7');
+      expect(Address.fromJson(address.toJson()), address);
+    });
+
+    test('kat METİN olarak taşınır — "Zemin" geçerli bir değerdir', () {
+      final address = Address.fromJson({
+        'line1': 'a',
+        'district': 'b',
+        'city': 'c',
+        'floor': 'Zemin',
+      });
+      expect(address.floor, 'Zemin');
+    });
+
+    test('eski kayıtta alanlar null gelir ve öyle kalır', () {
+      final saved = SavedAddress.fromJson({
+        'id': 1,
+        'line1': 'Atatürk Caddesi No:12',
+        'district': 'Nilüfer',
+        'city': 'Bursa',
+        'is_default': true,
+      });
+
+      expect(saved.neighbourhood, isNull);
+      expect(saved.doorNo, isNull);
+      expect(saved.line1, 'Atatürk Caddesi No:12');
+    });
+
+    test('defterden siparişe kopyalanırken yapılandırılmış alanlar taşınır', () {
+      // Taşınmazsa kurye fişinde daire numarası kaybolur ve müşteri, adres
+      // defterinde doğru yazdığı kapıyı bulamayan bir kuryeyle karşılaşır.
+      const saved = SavedAddress(
+        id: 1,
+        line1: 'Feritpaşa Mah. Kültür Sk. No:12/A',
+        district: 'Selçuklu',
+        city: 'Konya',
+        isDefault: true,
+        neighbourhood: 'Feritpaşa Mah.',
+        street: 'Kültür Sk.',
+        buildingNo: '12/A',
+        floor: 'Zemin',
+        doorNo: '2',
+      );
+
+      final order = saved.toOrderAddress();
+
+      expect(order.neighbourhood, 'Feritpaşa Mah.');
+      expect(order.street, 'Kültür Sk.');
+      expect(order.buildingNo, '12/A');
+      expect(order.floor, 'Zemin');
+      expect(order.doorNo, '2');
+    });
+
+    test('girdide beş alan da AÇIKÇA null gönderilir', () {
+      // Koordinatlarla aynı kural: alan yok = koru, alan null = sil. Onsuz
+      // müşteri yanlış girdiği kat numarasını boşaltamazdı.
+      const input = SavedAddressInput(
+        line1: 'Atatürk Caddesi No:12',
+        district: 'Nilüfer',
+        city: 'Bursa',
+      );
+
+      final json = input.toJson();
+
+      for (final key in [
+        'neighbourhood',
+        'street',
+        'building_no',
+        'floor',
+        'door_no',
+      ]) {
+        expect(
+          json.containsKey(key),
+          isTrue,
+          reason: '$key gönderilemezse alan hiç silinemez.',
+        );
+        expect(json[key], isNull);
+      }
+
+      // İstisna diğer alanlara SIZMAMALI (bkz. address_pin_test.dart).
+      expect(json.containsKey('label'), isFalse);
+    });
+
+    test('dolu alanlar gövdeye girer', () {
+      const input = SavedAddressInput(
+        line1: 'Feritpaşa Mah. Kültür Sk. No:12/A',
+        district: 'Selçuklu',
+        city: 'Konya',
+        neighbourhood: 'Feritpaşa Mah.',
+        street: 'Kültür Sk.',
+        buildingNo: '12/A',
+        floor: 'Zemin',
+        doorNo: '2',
+      );
+
+      final json = input.toJson();
+
+      expect(json['neighbourhood'], 'Feritpaşa Mah.');
+      expect(json['building_no'], '12/A');
+      expect(json['floor'], 'Zemin');
+      expect(json['door_no'], '2');
+    });
+  });
 }

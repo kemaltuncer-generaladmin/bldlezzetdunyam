@@ -159,6 +159,22 @@ class Subscriptions extends AdminController
             return;
         }
 
+        /*
+         * GÜNÜN MENÜSÜ MODUNDA SATIR YAZILMAZ.
+         *
+         * Formdaki `trigger` repeater'ı yalnızca GİZLİYOR; alan DOM'da
+         * kalıyor ve içi doluysa gönderiliyor. Modu `fixed_list`ten
+         * `daily_menu`ye çevirip kaydeden yönetici, görmediği satırların
+         * kaydedildiğini fark etmezdi — ve o satırlar hiçbir zaman
+         * okunmayacağı için panelde gerçekle çelişen bir içerik listesi
+         * gösterirdi.
+         */
+        if ($model->menu_mode === Subscription::MENU_DAILY) {
+            $this->pendingLines = null;
+
+            return;
+        }
+
         foreach ($this->pendingLines as $row) {
             $menuId = (int) ($row['menu_id'] ?? 0);
             $quantity = (int) ($row['quantity'] ?? 0);

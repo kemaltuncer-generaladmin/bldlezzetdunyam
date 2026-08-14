@@ -25,8 +25,29 @@ info:
     |---|---|
     | `/auth/*` | 10 istek / dakika / IP |
     | `POST /orders` | 20 istek / saat / hesap |
-    | `/kitchen/*` | 1200 istek / saat / cihaz (5 sn polling = 720/saat, üstüne heartbeat ve durum trafiği) |
+    | `/kitchen/*` | 2000 istek / saat / cihaz (5 sn polling = 720/saat, üstüne BBD kuyruğu, heartbeat, sağlık, satış şalteri ve durum trafiği) |
+    | `/control/kds/*` | 1200 istek / saat / **IP** (`bld-control`, K-21) |
+    | `/addresses/suggest`, `/addresses/reverse` | 30 istek / dakika / **hesap** |
     | Diğer | 120 istek / dakika / IP |
+
+    Mutfak sınırı **12.08.2026'da 1200'den 2000'e çıktı** ve bu tablo o gün
+    güncellenmeden kalmıştı. Kasanın sürekli döngüleri tek başına 1140
+    istek/saat ediyor (yoklama 720 + BBD kuyruğu 180 + heartbeat 60 + sağlık
+    60 + satış şalteri 60 + abonelik 60); kalan pay F5, yeniden basma ve
+    düzenleme ekranı gibi patlamalı kullanıcı trafiği için. Sınır aşıldığında
+    kasa `429` alıyor ve **mutfak sipariş görmüyor** — ağ sağlam, sunucu
+    ayakta, yalnız sayaç dolmuş olduğu için sahada teşhisi en zor arızalardan
+    biri. Kaynak: `Extension::registerRateLimiters()`.
+
+    Kontrol Merkezi sınırı neden **IP** başına: o yüzeyin kimliğini istek
+    başına hesaplanan bir **imza** taşıyor, sabit bir anahtar değil — sayacı
+    bağlayacak bir hesap kimliği yok. Kontrol Merkezi tek sunucudan çıkıyor,
+    yani IP zaten o sistemin kendisi.
+
+    Adres uçlarının sınırı neden **hesap** başına: dışarıdaki geocoder'a giden
+    tek yol bu iki uç ve fatura orada doğuyor. IP başına sayılsaydı tek NAT
+    arkasından çıkan bir ofisin çalışanları birbirini kilitlerdi — kurumsal
+    müşterinin tipik ağı tam olarak budur.
 
     Sınır aşılırsa `429 RATE_LIMITED`.
   license:
@@ -48,6 +69,10 @@ tags:
     description: Müşteri kaydı, giriş, oturum. Token `customer` kapsamlıdır.
   - name: Katalog
     description: Vitrin ve menü. Kimlik gerektirmez; web sitesi bunları SSR ile çeker.
+  - name: Adresler
+    description: |
+      Müşterinin adres defteri ve adres yazmayı kolaylaştıran yardımcı uçlar.
+      Tümü kimlik gerektirir; müşteri yalnız kendi defterini görür.
   - name: Sipariş
     description: Müşterinin kendi siparişleri. Başkasının siparişi `404` döner.
   - name: Mutfak
@@ -69,6 +94,34 @@ tags:
     description: Kurumsal müşteri cari bakiye ve ekstre (B2B).
   - name: Abonelik
     description: Kurumsal öğle yemeği aboneliği — sipariş üreten kural (B2B).
+  - name: Ortak
+    description: |
+      BLD'nin **istemcisi olmayan**, ayrı bir sistemle paylaşılan uçlar.
+      Şu an tek üye BBD Store köprüsü (`POST /partner/bbd/orders`, K-16).
+      Kimlik doğrulama paylaşılan sırla üretilen bir **HMAC imzasıdır**,
+      token değil; `X-App-Id` / `X-App-Version` başlıkları istenmez —
+      karşı taraf bizim uygulamamız değil.
+
+      (Bu tanım K-21'de eklendi: etiket uçlarda kullanılıyordu ama `tags`
+      listesinde tanımı yoktu ve üretilen belgede başlıksız bir bölüm
+      olarak çıkıyordu.)
+  - name: Kontrol Merkezi
+    description: |
+      **Yöneten** yüzey (K-21) — `/control/kds/*`. Ayrı bir depoda duran
+      Kontrol Merkezi paneli mutfak kasalarını buradan yönetir: kasa açar,
+      eşleme kodu üretir, iptal eder, ayar ve **kilit** iter, komut kuyruklar,
+      sipariş revize eder ve durum geçirir.
+
+      Kimlik doğrulama `ControlSignature`; cihaz token'ı **değil** ve
+      `bbd.signature` **değil** (ikisinin de gerekçesi güvenlik şemasının
+      açıklamasında). `X-App-Id` / `X-App-Version` / `Accept-Language`
+      başlıkları **istenmez**: Kontrol Merkezi bir müşteri istemcisi değil,
+      yöneten bir sistem.
+
+      **Bu etiketteki her yazma ucu** `actor` + `reason` ister, `dry_run`
+      kabul eder ve `veykemtu_control_audit` tablosuna **silinmeyen** bir
+      denetim satırı bırakır. Fiyat gizliliği (ADR-08) burada geçerli
+      **değildir**: kural mutfak kapsamına aitti, yönetim yüzeyine değil.
 
 security:
   - CustomerToken: []
@@ -395,6 +448,101 @@ paths:
                     items: { $ref: '#/components/schemas/MenuCategory' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /locations/{id}/daily-menu:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+      - name: date
+        in: query
+        required: false
+        description: |
+          İşletme takvimindeki gün (Europe/Istanbul). Verilmezse **bugün**.
+        schema: { type: string, format: date }
+    get:
+      tags: [Katalog]
+      summary: Günün menüsü
+      description: |
+        Bir günün menüsü: paket olarak satılan bütün ve onu oluşturan kalemler.
+
+        **Satılabilir olan yalnız budur.** `/locations/{id}/menu` bütün
+        katalogu döndürmeye devam eder ama sipariş yalnız o günün menüsünden
+        verilebilir; sunucu bunu `POST /orders` üzerinde yeniden denetler.
+
+        Yayınlanmamış (taslak) bir gün **yokmuş gibi** döner (`id: null`,
+        `items: []`). Yönetici bir ay öncesinden plan giriyor; yarım kalmış
+        bir günün müşteriye görünmesi, pişmeyecek bir yemeğin satılması
+        demek olurdu.
+
+        `items[].price`, o gün için **geçerli** birim fiyattır: ürünün kendi
+        fiyatı ya da o güne girilmiş fiyat istisnası. İstemci gördüğü fiyatla
+        ödenecek fiyatı ayrı hesaplamaz.
+      operationId: getDailyMenu
+      security: []
+      responses:
+        '200':
+          description: O günün menüsü. Menü yoksa da 200 döner — boş gün bir hata değildir.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/DailyMenu' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /locations/{id}/menu-calendar:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+      - name: from
+        in: query
+        required: false
+        description: Başlangıç günü. Verilmezse bugün.
+        schema: { type: string, format: date }
+      - name: to
+        in: query
+        required: false
+        description: |
+          Bitiş günü (dahil). Verilmezse `from` + 30 gün. Aralık en fazla
+          **92 gün** olabilir; daha genişi `422 VALIDATION_FAILED`.
+        schema: { type: string, format: date }
+    get:
+      tags: [Katalog]
+      summary: Menü takvimi
+      description: |
+        Bir aralıktaki günlerin durumu — gün seçiciyi çizmek için.
+
+        Yalnız **menüsü olan ya da kapalı olan** günler döner; hiçbir şeyi
+        olmayan gün listede yer almaz. Yüz günlük boş bir dizi göndermek,
+        istemciye "her gün bir şey var" izlenimi verip her birini ayrı
+        sorgulatırdı.
+      operationId: getMenuCalendar
+      security: []
+      responses:
+        '200':
+          description: Günler
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/MenuCalendarDay' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
   # ─────────────────────────────── Sipariş ──────────────────────────────
 
   /addresses:
@@ -450,6 +598,178 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+
+  # Sabit parçalı iki yol, `/addresses/{id}` ÖNÜNDE tanımlıdır ve sunucuda da
+  # o sırayla kaydedilmelidir. `{id}` tamsayı olarak yazılı olsa bile yönlendirici
+  # önce eşleşeni alır; `/addresses/{id}` üstte kalsaydı `suggest` bir kimlik
+  # sanılıp `404` dönerdi.
+
+  /addresses/suggest:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: q
+        in: query
+        required: true
+        description: |
+          Aranan serbest metin — mahalle, sokak, bina adı ya da bunların
+          karışımı.
+
+          **En az 3 karakter.** Tek harfe geocoder çağırmak sağlayıcı kotasını
+          "k", "ka" gibi hiçbir şey ayırt etmeyen sorgularla yakar ve
+          önbelleği de aynı çöple doldurur.
+
+          İstemci yazarken **300 ms debounce** uygular ve 3 karakterin altında
+          hiç çağırmaz. Sunucu kuralı yine de denetler: istemcideki debounce
+          bir kolaylıktır, kota koruması değildir.
+        schema:
+          type: string
+          minLength: 3
+          maxLength: 120
+          examples: ['Feritpaşa Kültür']
+      - name: limit
+        in: query
+        required: false
+        description: |
+          Kaç öneri dönsün. Üst sınır **10**: liste bir metin alanının altında
+          açılan bir katman ve telefonda onuncu satır zaten klavyenin altında
+          kalıyor. Ayrıca her satır sağlayıcıdan gelen bir yük.
+        schema: { type: integer, minimum: 1, maximum: 10, default: 5 }
+    get:
+      tags: [Adresler]
+      summary: Adres önerisi
+      description: |
+        Müşteri adresi yazarken açılan öneri listesi. Seçilen öneri hem metin
+        alanlarını hem de harita iğnesini tek dokunuşta doldurur.
+
+        **Sonuçlar hizmet alanı kutusuna kilitlidir** (`docs/00-genel-bakis.md`
+        §hizmet alanı; sunucudaki karşılığı `Services\ServiceArea`). Kutu
+        dışındaki eşleşmeler yanıttan **düşürülür**, "teslimat yok" diye
+        işaretlenip gösterilmez: müşteriye seçebileceğini sandığı bir satır
+        gösterip ödeme ekranında reddetmek, o satırı hiç göstermemekten daha
+        kötüdür.
+
+        Öneri nesnesindeki `latitude`/`longitude` **her zaman doludur** —
+        kutuya göre eleme zaten koordinat üzerinden yapılıyor, koordinatı
+        olmayan bir aday listeye giremez.
+
+        ## Sağlayıcıya ulaşılamazsa: `200` + boş `data`
+
+        Geocoder çöktüğünde, zaman aşımına uğradığında ya da kotası dolduğunda
+        bu uç **hata döndürmez**; boş bir liste döner. Öneri bir
+        **kolaylıktır**: adres alanları elle de doldurulabiliyor ve harita
+        iğnesi isteğe bağlı. Sağlayıcı arızasını `5xx` yapmak, dışarıdaki bir
+        servisin kendi sipariş akışımızı durdurabilmesi demek olurdu.
+
+        Boş liste iki farklı şeyi anlatır ve istemci ikisini **ayırt etmez**:
+        "bu metne uyan adres yok" ve "şu an öneri veremiyoruz". İkisinde de
+        doğru davranış aynıdır — alanları elle doldurtmak. Ayrım sunucu
+        günlüğüne yazılır, kullanıcıya değil.
+
+        İstemci bu yüzden öneri listesini **hiçbir zaman zorunlu bir adım**
+        yapmaz: liste boşsa form yine gönderilebilir olmalıdır.
+
+        ## `422` ne zaman
+
+        Yalnızca isteğin kendisi bozuksa: `q` yok ya da 3 karakterden kısa.
+        Bu bir istemci hatasıdır (debounce kapısı sızdırmış demektir), kullanıcı
+        hatası değil — sağlayıcı arızasıyla aynı yanıta karışmasın diye ayrı
+        tutuluyor.
+      operationId: suggestAddresses
+      security:
+        - CustomerToken: []
+      responses:
+        '200':
+          description: |
+            Öneri listesi. Eşleşme yoksa **ya da** sağlayıcıya ulaşılamıyorsa
+            `data: []` — ikisi de `200`.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 10
+                    items: { $ref: '#/components/schemas/AddressSuggestion' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /addresses/reverse:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: lat
+        in: query
+        required: true
+        description: İğnenin enlemi.
+        schema: { type: number, format: double, minimum: -90, maximum: 90 }
+      - name: lng
+        in: query
+        required: true
+        description: |
+          İğnenin boylamı. `lat` ile birlikte **zorunludur**; yarısı gelen bir
+          çift `422` döner. Kayıtlı adreste yarım koordinat sessizce `null`'a
+          düşüyor (bkz. `SavedAddressInput`) ama burada çifti tamamlamanın
+          yolu yok — sorulacak bir nokta yoksa soru da yoktur.
+        schema: { type: number, format: double, minimum: -180, maximum: 180 }
+    get:
+      tags: [Adresler]
+      summary: Koordinattan adres (ters geocoding)
+      description: |
+        Haritaya iğne bırakıldığında adres metnini kendiliğinden doldurur.
+        `/addresses/suggest`'in tersi: orada metinden noktaya, burada noktadan
+        metne gidiliyor.
+
+        **Yanıttaki `latitude`/`longitude`, isteğin kendi koordinatlarıdır** —
+        sağlayıcının oturttuğu (snap) nokta değil. Geocoder tipik olarak
+        sokak ya da bina merkezine oturtur; istemci o noktayı iğneye
+        yazsaydı iğne kullanıcının parmağının altından birkaç on metre
+        kayardı. Kapıyı müşteri biliyor, geocoder değil: sağlayıcıdan yalnız
+        **metin** alınır.
+
+        Kutu dışı nokta `422 VALIDATION_FAILED` döner
+        (`details.reason = "out_of_service_area"`). Bu bir kolaylık ucu olsa da
+        buradaki `422` doğru yanıttır: kullanıcı haritayı gördü ve teslimat
+        yapmadığımız bir yeri kasten seçti; sessiz bir boş yanıt "arıza var"
+        gibi okunur, oysa söylenecek net bir şey var.
+
+        Sağlayıcıya ulaşılamazsa `200` + `data: null` — gerekçe
+        `/addresses/suggest` ile aynıdır. Aynı şey, sağlayıcının o noktada
+        adres bilmediği durumda da döner (arazi, yeni yapılan yol): istemci
+        iğneyi **korur** ve metin alanlarını elle doldurtur. İki durumun
+        ayrımı kullanıcı için bir fark yaratmaz.
+      operationId: reverseGeocodeAddress
+      security:
+        - CustomerToken: []
+      responses:
+        '200':
+          description: |
+            Tek öneri nesnesi. `data: null` = sağlayıcı o noktayı bilmiyor ya
+            da şu an erişilemiyor.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    oneOf:
+                      - $ref: '#/components/schemas/AddressSuggestion'
+                      - type: 'null'
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422':
+          description: |
+            `lat`/`lng` eksik, aralık dışı ya da hizmet alanı kutusunun
+            dışında (`details.reason = "out_of_service_area"`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /addresses/{id}:
     parameters:
@@ -1574,7 +1894,25 @@ paths:
                       quantity: { type: integer, minimum: 1, maximum: 999 }
                       option_value_ids:
                         type: array
-                        items: { type: integer }
+                        items: { type: integer, format: int64, minimum: 1 }
+                        description: |
+                          Kalemde seçili seçenek değerlerinin kimlikleri.
+                          `options` aynı seçeneklerin insana gösterilen
+                          adlarıdır; ikisi eşleniktir. İstemci düzenlemede
+                          bunu `GET .../editable` yanıtındaki
+                          `items[].option_value_ids` alanından **AYNEN geri
+                          göndermelidir** — göndermezse sunucu satırı
+                          seçeneksiz yeniden fiyatlar ve seçenek sessizce
+                          kaybolur. Kimlik kaydı bulunmayan eski satırlarda
+                          `editable` **boş dizi** döner.
+
+                          Değerler `menu_option_value_id`'dir
+                          (`LineResolver::resolve`); ürün seçicideki
+                          `options[].values[].id` alanı da aynı kimliği
+                          taşır.
+
+                          `required` listesinde **yoktur**: alan sonradan
+                          eklendi ve seçeneksiz ürünlerde hiç gönderilmez.
                       note: { type: [string, 'null'], maxLength: 255 }
                 requested_at: { type: [string, 'null'], format: date-time }
                 customer_note: { type: [string, 'null'], maxLength: 1000 }
@@ -2026,6 +2364,868 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
 
+  # ══════════════════ KONTROL MERKEZİ (K-21) ══════════════════
+  #
+  # Tam URL'ler `/api/control/kds/...`; buradaki yollar `servers[].url`
+  # içindeki `/api` önekine GÖREDİR (dosyanın geri kalanıyla aynı kural).
+  # İMZA HESABI YOLU `/api` ÖNEKİYLE ALIR — kanonik yükün ikinci satırı
+  # `/api/control/kds/devices`'tır, `/control/kds/devices` değil.
+  #
+  # Hiçbirinde `X-App-Id` / `X-App-Version` / `Accept-Language` yoktur.
+
+  /control/kds/overview:
+    parameters:
+      - $ref: '#/components/parameters/ControlTimestamp'
+      - $ref: '#/components/parameters/ControlNonce'
+    get:
+      tags: [Kontrol Merkezi]
+      summary: Panel açılış özeti
+      description: |
+        Tek istekte cihaz, sipariş ve fiş sayıları. Üçünü ayrı ayrı çekip
+        saydırmak panel her açıldığında üç ağır sorgu demekti; sayılar da
+        istemcide hesaplanırdı ve "kaç sipariş aktif" sorusunun cevabı
+        istemci sürümüne göre değişirdi.
+
+        **BURADAKİ SAYILAR TANIMDIR, TAHMİN DEĞİL.** Her birinin tanımı
+        `ControlOverview` şemasında alan alan yazılı.
+      operationId: controlKdsOverview
+      security: [{ ControlSignature: [] }]
+      responses:
+        '200':
+          description: Özet
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ControlOverview' }
+        '401': { $ref: '#/components/responses/ControlUnauthenticated' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /control/kds/devices:
+    parameters:
+      - $ref: '#/components/parameters/ControlTimestamp'
+      - $ref: '#/components/parameters/ControlNonce'
+    get:
+      tags: [Kontrol Merkezi]
+      summary: Kasa listesi
+      description: |
+        Bütün kasalar — **iptal edilmişler dâhil**. İptal satırı silinmiyor
+        (`veykemtu_kitchen_devices` satırı yerinde kalır); `revoked_at`
+        dolu olan kayıt listede durur ve `online` her zaman `false` döner.
+      operationId: controlKdsListDevices
+      security: [{ ControlSignature: [] }]
+      responses:
+        '200':
+          description: Kasalar
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, server_time]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ControlDevice' }
+                  server_time: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/ControlUnauthenticated' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    post:
+      tags: [Kontrol Merkezi]
+      summary: Kasa aç (+ ilk eşleme kodu)
+      description: |
+        Kayıt açılır ve **hemen ardından** ilk eşleme kodu üretilir; admin
+        ekranındaki `formAfterCreate` ile aynı gerekçe: "cihazı ekledim ama
+        eşleyemiyorum" diye ikinci bir adım aranmasın.
+
+        Yanıttaki `device.pairing.code` bu uçta **açıkça döner** — kodu
+        üreten uçların yanıtı, kodun okunabildiği iki yerden biri.
+      operationId: controlKdsCreateDevice
+      security: [{ ControlSignature: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ControlIntent'
+                - type: object
+                  required: [name]
+                  properties:
+                    name: { type: string, maxLength: 64 }
+      responses:
+        '200':
+          description: Kasa açıldı (ya da kuru prova sonucu)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ControlWriteEnvelope'
+                  - type: object
+                    properties:
+                      device: { $ref: '#/components/schemas/ControlDevice' }
+                      would:
+                        type: object
+                        properties:
+                          action: { type: string, const: device.create }
+                          name: { type: string }
+                          pairing_ttl_minutes: { type: integer, examples: [10] }
+        '401': { $ref: '#/components/responses/ControlUnauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /control/kds/devices/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ControlTimestamp'
+      - $ref: '#/components/parameters/ControlNonce'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    patch:
+      tags: [Kontrol Merkezi]
+      summary: Kasayı yeniden adlandır
+      description: |
+        **Yalnız ad.** Ayarlar ayrı uçtan yazılır ve kilitler de o ucun
+        içindedir (`PATCH /control/kds/devices/{id}/settings`).
+      operationId: controlKdsRenameDevice
+      security: [{ ControlSignature: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ControlIntent'
+                - type: object
+                  required: [name]
+                  properties:
+                    name: { type: string, maxLength: 64 }
+      responses:
+        '200':
+          description: Ad değişti (ya da kuru prova sonucu)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ControlWriteEnvelope'
+                  - type: object
+                    properties:
+                      device: { $ref: '#/components/schemas/ControlDevice' }
+                      would:
+                        type: object
+                        properties:
+                          action: { type: string, const: device.rename }
+                          from: { type: string }
+                          to: { type: string }
+        '401': { $ref: '#/components/responses/ControlUnauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /control/kds/devices/{id}/pairing-code:
+    parameters:
+      - $ref: '#/components/parameters/ControlTimestamp'
+      - $ref: '#/components/parameters/ControlNonce'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      tags: [Kontrol Merkezi]
+      summary: Yeni eşleme kodu üret
+      description: |
+        Kod biçimi `XXXX-XXXX` (`^[A-Z0-9]{4}-[A-Z0-9]{4}$`), **10 dakika**
+        ömürlü ve **tek kullanımlık**. Karıştırılması kolay karakterler
+        (`0`/`O`, `1`/`I`) alfabede yoktur — kod mutfakta elle, çoğu zaman
+        kötü ışıkta giriliyor.
+
+        **İPTAL EDİLMİŞ KASAYA KOD ÜRETİLMEZ (`422`).** Üretilse bile
+        `pairingCodeIsUsable()` iptali eleyip kodu geçersiz sayardı, yani
+        sessizce çalışmayan bir kod verilmiş olurdu.
+      operationId: controlKdsRefreshPairingCode
+      security: [{ ControlSignature: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ControlIntent' }
+      responses:
+        '200':
+          description: Yeni kod (ya da kuru prova sonucu)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ControlWriteEnvelope'
+                  - type: object
+                    properties:
+                      device: { $ref: '#/components/schemas/ControlDevice' }
+                      would:
+                        type: object
+                        properties:
+                          action: { type: string, const: device.pairing_code }
+                          device_id: { type: integer, format: int64 }
+                          pairing_ttl_minutes: { type: integer, examples: [10] }
+        '401': { $ref: '#/components/responses/ControlUnauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          description: |
+            Doğrulama hatası ya da kasa **iptal edilmiş**. Denetim satırı
+            yine yazılır: gerçek gönderimde `result = "failed"`, kuru
+            provada `result = "dry_run"` kalır ve sebep
+            `payload_json.error` alanına düşer.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /control/kds/devices/{id}/revoke:
+    parameters:
+      - $ref: '#/components/parameters/ControlTimestamp'
+      - $ref: '#/components/parameters/ControlNonce'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      tags: [Kontrol Merkezi]
+      summary: Kasayı iptal et
+      description: |
+        **SATIR DA TOKEN DA SİLİNMEZ**, yalnız `revoked_at` damgalanır.
+
+        Token kasten bırakılıyor: silinseydi `findToken()` `null` döner ve
+        istek `401 UNAUTHENTICATED` ile biterdi — KDS'in beklediği
+        `403 DEVICE_REVOKED` dalına hiç ulaşılmaz, mutfak "eşleme iptal
+        edildi" yerine genel bir oturum hatası görürdü. Erişim yine kapalı:
+        her mutfak ucu `bld.auth` içinde `isRevoked()` denetiminden geçiyor.
+
+        **İKİNCİ İPTAL DAMGAYI OYNATMAZ.** `revoked_at` "ne zaman iptal
+        edildi" sorusunun cevabı ve denetim değeri ilk damgadadır; istek
+        yine `200` döner ve `would.already_revoked` / denetim yükü durumu
+        anlatır.
+      operationId: controlKdsRevokeDevice
+      security: [{ ControlSignature: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ControlIntent' }
+      responses:
+        '200':
+          description: İptal edildi (ya da kuru prova sonucu)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ControlWriteEnvelope'
+                  - type: object
+                    properties:
+                      device: { $ref: '#/components/schemas/ControlDevice' }
+                      would:
+                        type: object
+                        properties:
+                          action: { type: string, const: device.revoke }
+                          device_id: { type: integer, format: int64 }
+                          already_revoked: { type: boolean }
+        '401': { $ref: '#/components/responses/ControlUnauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /control/kds/devices/{id}/settings:
+    parameters:
+      - $ref: '#/components/parameters/ControlTimestamp'
+      - $ref: '#/components/parameters/ControlNonce'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    patch:
+      tags: [Kontrol Merkezi]
+      summary: Yönetilen ayarları ve kilitleri yaz
+      description: |
+        **YAZIM KISMİDİR.** Gönderilmeyen anahtar değişmez; `null`
+        gönderilen anahtar "yönetici dokunmadı"ya geri döner.
+
+        **AYARLAR `settings` NESNESİNİN ALTINDADIR**, gövdenin kökünde
+        değil. Kökte olsalardı `reason` / `actor` / `dry_run` ile aynı ad
+        alanını paylaşırlardı ve `reason` adında bir ayar eklemek imkânsız
+        hâle gelirdi. Ayrıca `GET /control/kds/devices` yanıtındaki
+        `device.settings` ile simetrik: okunan biçim ile yazılan biçim aynı.
+
+        **TANINMAYAN ANAHTAR SESSİZCE YUTULMAZ → `422`.** Bu uç kilit
+        yazıyor: `allow_settngs: false` gibi bir yazım hatası göz ardı
+        edilseydi yönetici kilidi koyduğunu sanır, kasa serbest kalır ve
+        yanlışlığı ancak birinin o ekrana girmesiyle öğrenirdik.
+
+        **BOŞ `settings` NESNESİ DE `422`** — yönetilen anahtarlardan
+        hiçbiri gövdede yoksa istek bir şey söylemiyor demektir.
+
+        **SINIR DIŞI DEĞER SESSİZCE KIRPILMAZ → `422`.** Servis (
+        `KitchenDeviceSettings`) değeri zaten kırpıyor; buradaki kuralların
+        işi kırpmayı önlemek değil **görünür** kılmak. Makine istemcisinde
+        sessiz kırpma daha tehlikeli: Kontrol Merkezi 70 yazıp 60
+        kaydedildiğini fark etmez ve ekranında yanlış değeri gösterirdi.
+
+        **`late_after_minutes` yine de sunucuda düzeltilir:** uyarı
+        eşiğinden küçük bırakılırsa uyarı eşiğine çekilir — küçük olsaydı
+        kart hiç kırmızıya dönmezdi.
+
+        Yazma başarılıysa `device.settings_updated_at` ilerler ve kasa yeni
+        değerleri **bir sonraki sağlık bildiriminin yanıtında** alır
+        (`GET /kitchen/health`); anında değil.
+      operationId: controlKdsUpdateDeviceSettings
+      security: [{ ControlSignature: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ControlIntent'
+                - type: object
+                  required: [settings]
+                  properties:
+                    settings:
+                      allOf:
+                        - $ref: '#/components/schemas/KitchenSettings'
+                        - type: object
+                          description: |
+                            `updated_at` **yazılamaz** (sunucu damgalar) ve
+                            gönderilirse "tanınmayan anahtar" sayılır.
+      responses:
+        '200':
+          description: Ayarlar yazıldı (ya da kuru prova sonucu)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ControlWriteEnvelope'
+                  - type: object
+                    properties:
+                      device: { $ref: '#/components/schemas/ControlDevice' }
+                      would:
+                        type: object
+                        properties:
+                          action: { type: string, const: device.settings }
+                          device_id: { type: integer, format: int64 }
+                          settings:
+                            type: object
+                            additionalProperties: true
+                            description: |
+                              İsteğin **tanınan** anahtarları, ham hâliyle.
+                              Kırpma burada uygulanmaz; kırpılacak bir değer
+                              zaten `422` alırdı.
+        '401': { $ref: '#/components/responses/ControlUnauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          description: |
+            Tanınmayan anahtar, boş `settings` nesnesi, sınır dışı değer ya
+            da tip hatası (`VALIDATION_FAILED`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /control/kds/devices/{id}/commands:
+    parameters:
+      - $ref: '#/components/parameters/ControlTimestamp'
+      - $ref: '#/components/parameters/ControlNonce'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      tags: [Kontrol Merkezi]
+      summary: Komut geçmişi (son 50)
+      description: |
+        En yeni önce. Üç damga, üç ayrı soru: **gönderildi mi**
+        (`created_at`), **kasaya ulaştı mı** (`delivered_at`), **çalıştı mı**
+        (`executed_at` + `succeeded`)? Tek bir "durum" alanı "kasa aldı ama
+        çalıştıramadı" hâlini anlatamazdı.
+      operationId: controlKdsListDeviceCommands
+      security: [{ ControlSignature: [] }]
+      responses:
+        '200':
+          description: Komutlar
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, server_time]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 50
+                    items: { $ref: '#/components/schemas/ControlCommandLog' }
+                  server_time: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/ControlUnauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    post:
+      tags: [Kontrol Merkezi]
+      summary: Kasaya tek seferlik komut kuyrukla
+      description: |
+        **ANINDA DEĞİL.** Komut kasanın bir sonraki **sağlık bildiriminin
+        yanıtına** biniyor (`GET /kitchen/health`). Yanıttaki
+        `arrives_within_seconds` bunu açıkça söylüyor — söylenmeseydi
+        Kontrol Merkezi'ndeki kullanıcı "olmadı" deyip aynı düğmeye tekrar
+        basar ve **iki fiş** çıkardı. Değer kasanın `health_seconds`
+        ayarıdır (dokunulmamışsa derleme varsayılanı).
+
+        `reprint` komutu `payload.order_id` **ve** `payload.type` ister;
+        eksikse `422`. Diğer komutlarda yük gönderilse bile `null`'a
+        indirgenir.
+
+        **İPTAL EDİLMİŞ KASAYA KOMUT GÖNDERİLEMEZ (`422`)** — kasa hiçbir
+        uca giremediği için komut sonsuza kadar kuyrukta kalırdı.
+      operationId: controlKdsSendDeviceCommand
+      security: [{ ControlSignature: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ControlIntent'
+                - type: object
+                  required: [command]
+                  properties:
+                    command:
+                      type: string
+                      enum: [test_receipt, reprint, clear_failed, silence_alarm, restart]
+                    payload:
+                      type: [object, 'null']
+                      description: 'Yalnız `reprint` için zorunlu.'
+                      properties:
+                        order_id: { type: integer, format: int64, minimum: 1 }
+                        type: { $ref: '#/components/schemas/ReceiptType' }
+      responses:
+        '200':
+          description: Komut kuyruğa girdi (ya da kuru prova sonucu)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ControlWriteEnvelope'
+                  - type: object
+                    properties:
+                      command:
+                        type: object
+                        required: [id, command, payload]
+                        properties:
+                          id: { type: integer, format: int64 }
+                          command: { type: string }
+                          payload:
+                            type: object
+                            additionalProperties: true
+                          created_at: { type: [string, 'null'], format: date-time }
+                      arrives_within_seconds:
+                        type: integer
+                        description: |
+                          Komutun kasaya en geç ne kadar sürede varacağı —
+                          cihazın `health_seconds` ayarı.
+                      would:
+                        type: object
+                        properties:
+                          action: { type: string, const: device.command }
+                          device_id: { type: integer, format: int64 }
+                          command: { type: string }
+                          payload: { type: [object, 'null'], additionalProperties: true }
+                          arrives_within_seconds: { type: integer }
+        '401': { $ref: '#/components/responses/ControlUnauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          description: |
+            Tanımsız komut, yüksüz `reprint` ya da **iptal edilmiş kasa**.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /control/kds/print-jobs:
+    parameters:
+      - $ref: '#/components/parameters/ControlTimestamp'
+      - $ref: '#/components/parameters/ControlNonce'
+      - name: device_id
+        in: query
+        required: false
+        schema: { type: integer, format: int64, minimum: 1 }
+      - name: order_id
+        in: query
+        required: false
+        schema: { type: integer, format: int64, minimum: 1 }
+      - name: limit
+        in: query
+        required: false
+        description: |
+          Tavan **200**: denetim ekranı sayfalıyor ve sınırsız bir liste yıl
+          sonunda on binlerce satır döndürürdü.
+        schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    get:
+      tags: [Kontrol Merkezi]
+      summary: Fiş denetim kaydı
+      description: |
+        **BU BİR KUYRUK DEĞİLDİR.** `veykemtu_print_jobs` yalnızca
+        **denetim** tablosudur: hangi fiş, hangi kasada, ne zaman basıldı.
+        KDS'in kalıcı kuyruğu **kasanın diskindedir** ve sunucuda karşılığı
+        yoktur — buradan bir işi silmek ya da yeniden sıraya almak mümkün
+        değil, çünkü silinecek bir sıra yok.
+
+        "Kaç iş bekliyor / kaçı başarısız" sorusunun cevabı cihaz
+        sağlığından okunur (`device.health.print_queue_pending` /
+        `print_queue_failed`) ve o değerleri kasa **beyan eder**; sunucu
+        doğrulayamaz.
+
+        Bir işi yeniden bastırmanın tek yolu `reprint` komutudur
+        (`POST /control/kds/devices/{id}/commands`).
+
+        En yeni önce sıralanır: denetim sorusu neredeyse her zaman "az önce
+        ne basıldı" biçiminde geliyor.
+      operationId: controlKdsListPrintJobs
+      security: [{ ControlSignature: [] }]
+      responses:
+        '200':
+          description: Fiş kayıtları
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, server_time]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ControlPrintJob' }
+                  server_time: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/ControlUnauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /control/kds/orders:
+    parameters:
+      - $ref: '#/components/parameters/ControlTimestamp'
+      - $ref: '#/components/parameters/ControlNonce'
+      - name: since
+        in: query
+        required: false
+        description: |
+          Artımlı imleç. **Durum değişimlerini de yakalar** (`updated_at`
+          üzerinden); yalnız yeni siparişleri isteyen bir imleç, düzenlenmiş
+          bir siparişi kaçırırdı.
+        schema: { type: string, format: date-time }
+      - name: include_completed
+        in: query
+        required: false
+        description: |
+          Terminal siparişleri de getir. **`boolean` değil `string` enum:**
+          sorgu dizesinde boolean ancak metin olarak ifade edilebilir ve
+          Laravel'in `boolean` kuralı `"true"` dizgesini reddeder. Aynı hata
+          mutfak ucunda KDS'i kör etmişti.
+        schema: { type: string, enum: ['1', '0', 'true', 'false'] }
+    get:
+      tags: [Kontrol Merkezi]
+      summary: Sipariş listesi
+      description: |
+        **KAPSAM MUTFAK PANOSUYLA AYNI** (`GET /kitchen/orders`): işletme
+        gününe ait siparişler, terminal olanlar hariç. Kontrol
+        Merkezi'ndeki ekran mutfağın gördüğünü göstermek için var; iki uç
+        farklı bir küme dönseydi "bende görünüyor, mutfakta yok"
+        tartışması çözülemezdi.
+
+        Yanıt `KitchenOrder` şemasıdır — yani **fiyat taşımaz**. Fiyatın
+        gerektiği tek yer düzenleme ekranının ürün seçicisidir
+        (`GET /control/kds/menu`).
+      operationId: controlKdsListOrders
+      security: [{ ControlSignature: [] }]
+      responses:
+        '200':
+          description: Siparişler
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, server_time]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/KitchenOrder' }
+                  server_time: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/ControlUnauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /control/kds/orders/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ControlTimestamp'
+      - $ref: '#/components/parameters/ControlNonce'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      tags: [Kontrol Merkezi]
+      summary: Tek sipariş — düzenlenebilir görünüm
+      description: |
+        `GET /kitchen/orders/{id}/editable` ile **aynı şema**. Kalemlerdeki
+        `option_value_ids` revizyon gövdesine aynen geri gönderilmelidir.
+      operationId: controlKdsShowOrder
+      security: [{ ControlSignature: [] }]
+      responses:
+        '200':
+          description: Sipariş
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, server_time]
+                properties:
+                  data: { $ref: '#/components/schemas/EditableOrder' }
+                  server_time: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/ControlUnauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /control/kds/orders/{id}/revisions:
+    parameters:
+      - $ref: '#/components/parameters/ControlTimestamp'
+      - $ref: '#/components/parameters/ControlNonce'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      tags: [Kontrol Merkezi]
+      summary: Revizyon geçmişi
+      description: |
+        Mutfaktaki karşılığından (`GET /kitchen/orders/{id}/revisions`) tek
+        farkı `created_by_device_id` alanını da taşıması: revizyonun
+        **kasadan mı merkezden mi** geldiği buradan okunur (`null` =
+        merkez).
+
+        **`server_time` DÖNMEZ** — bu uç bir imleç taşımıyor.
+      operationId: controlKdsListOrderRevisions
+      security: [{ ControlSignature: [] }]
+      responses:
+        '200':
+          description: Revizyonlar
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ControlOrderRevision' }
+        '401': { $ref: '#/components/responses/ControlUnauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    post:
+      tags: [Kontrol Merkezi]
+      summary: Siparişi düzenle (yeni revizyon)
+      description: |
+        Gövde `POST /kitchen/orders/{id}/revisions` ile **birebir aynı**,
+        üstüne `actor` + `dry_run`. `reason` burada da **160 karakteri**
+        aşamaz: aynı metin `veykemtu_order_revisions.reason` sütununa da
+        yazılıyor ve taşan gerekçe sessizce kırpılmak yerine `422` alır.
+
+        İş mantığı `OrderEditor`'da — mutfak kasasının kullandığı sınıfın
+        **ta kendisi**. Ayrı bir kopya yazılsaydı sipariş merkezden
+        düzenlendiğinde cari hesap ya da iade kaydı sessizce oluşmayabilirdi.
+
+        `items` **tam listedir**, delta değil. Fark göndermek iki tarafın
+        "şu anki hâl" konusunda anlaşmasını gerektirirdi; eşzamanlı bir kasa
+        düzenlemesiyle yarışan bir merkez isteği sessizce yanlış sipariş
+        üretirdi. **Boş liste `422`** — siparişi boşaltmak iptal değildir ve
+        iptalin kendi durumu, kendi cari kaydı vardır.
+
+        **ÇAĞIRAN AYRIMI:** `created_by_device_id` **NULL** kalır (kasa yok)
+        ve revizyon **notunun başına** `Kontrol Merkezi · <actor>` etiketi
+        yazılır. Etiket `created_by_staff` sütununa yazılamıyor: o sütun
+        `unsignedBigInteger` (bir yönetici kimliği) ve tipini değiştirmek
+        yayınlanmış bir şemayı kırmak olurdu.
+
+        **KURU PROVA GERÇEKTEN DENETLER:** teslim edilmiş ya da iptal
+        edilmiş sipariş `dry_run: true` ile de `422` alır. Yalnız isteği
+        yankılasaydı, "kuru prova geçti" diyen bir ekran gerçek gönderimde
+        patlardı.
+      operationId: controlKdsCreateOrderRevision
+      security: [{ ControlSignature: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ControlOrderIntent'
+                - type: object
+                  required: [items]
+                  properties:
+                    note: { type: [string, 'null'], maxLength: 1000 }
+                    items:
+                      type: array
+                      minItems: 1
+                      items:
+                        type: object
+                        required: [menu_id, quantity]
+                        properties:
+                          menu_id: { type: integer, format: int64, minimum: 1 }
+                          quantity: { type: integer, minimum: 1, maximum: 999 }
+                          option_value_ids:
+                            type: array
+                            items: { type: integer, format: int64, minimum: 1 }
+                            description: |
+                              `GET /control/kds/orders/{id}` yanıtındaki
+                              `items[].option_value_ids` **aynen geri
+                              gönderilir**; gönderilmezse sunucu satırı
+                              seçeneksiz yeniden fiyatlar ve seçenek
+                              sessizce kaybolur. Kimlikler ürün seçicideki
+                              `options[].values[].id` ile aynı uzaydadır.
+                          note: { type: [string, 'null'], maxLength: 255 }
+                    requested_at: { type: [string, 'null'], format: date-time }
+                    customer_note: { type: [string, 'null'], maxLength: 1000 }
+      responses:
+        '200':
+          description: Revizyon uygulandı (ya da kuru prova sonucu)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ControlWriteEnvelope'
+                  - type: object
+                    properties:
+                      order: { $ref: '#/components/schemas/KitchenOrder' }
+                      revision: { $ref: '#/components/schemas/OrderRevisionResult' }
+                      would:
+                        type: object
+                        properties:
+                          action: { type: string, const: order.revise }
+                          order_id: { type: integer, format: int64 }
+                          next_revision_no: { type: integer, minimum: 1 }
+                          items:
+                            type: array
+                            items: { type: object, additionalProperties: true }
+        '401': { $ref: '#/components/responses/ControlUnauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          description: |
+            Düzenlenemez sipariş (teslim edilmiş / iptal), boş kalem listesi,
+            160 karakteri aşan gerekçe ya da doğrulama hatası.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /control/kds/orders/{id}/status:
+    parameters:
+      - $ref: '#/components/parameters/ControlTimestamp'
+      - $ref: '#/components/parameters/ControlNonce'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      tags: [Kontrol Merkezi]
+      summary: Durum geçişi
+      description: |
+        Kararı `OrderStatusTransition` verir — mutfağın kullandığı sınıfın
+        **ta kendisi**: aynı matris, aynı 120 saniyelik geri alma penceresi,
+        aynı iptal ters kaydı. Geçersiz geçiş `422 INVALID_TRANSITION` ve
+        **kuru provada da** aynı yanıt gelir.
+
+        Gerekçe `status_history`'ye yorum olarak da düşer, başına
+        `Kontrol Merkezi · <actor>` etiketiyle: "bu sipariş neden iptal
+        edildi" sorusunun cevabı siparişin **kendi geçmişinde** durmalı,
+        yalnız ayrı bir denetim tablosunda değil.
+
+        `user_id` **yazılmaz**: geçişi bir admin kullanıcısı değil, Kontrol
+        Merkezi yaptı ve o kişinin BLD'de hesabı yok.
+      operationId: controlKdsSetOrderStatus
+      security: [{ ControlSignature: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ControlOrderIntent'
+                - type: object
+                  required: [status]
+                  properties:
+                    status: { $ref: '#/components/schemas/OrderStatus' }
+      responses:
+        '200':
+          description: Durum değişti (ya da kuru prova sonucu)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ControlWriteEnvelope'
+                  - type: object
+                    properties:
+                      order: { $ref: '#/components/schemas/KitchenOrder' }
+                      would:
+                        type: object
+                        properties:
+                          action: { type: string, const: order.status }
+                          order_id: { type: integer, format: int64 }
+                          from: { $ref: '#/components/schemas/OrderStatus' }
+                          to: { $ref: '#/components/schemas/OrderStatus' }
+        '401': { $ref: '#/components/responses/ControlUnauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          description: |
+            Geçersiz geçiş (`INVALID_TRANSITION`) ya da doğrulama hatası
+            (`VALIDATION_FAILED`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /control/kds/menu:
+    parameters:
+      - $ref: '#/components/parameters/ControlTimestamp'
+      - $ref: '#/components/parameters/ControlNonce'
+    get:
+      tags: [Kontrol Merkezi]
+      summary: Ürün seçici (düzenleme ekranı için)
+      description: |
+        **NEDEN VAR:** revizyon ucu `menu_id` istiyor ve o sayı kimsenin
+        ezberinde değil. Seçici olmadan elle yazılan bir kimlik siparişe
+        başka bir ürün koyar ve bunu ancak mutfak, tabağı hazırlarken fark
+        eder.
+
+        Yalnız **eklenebilir** ürünler listelenir (`listed = true`);
+        satıştan kaldırılmış bir ürünü seçtirmek düzenlemeyi kaydetme anında
+        hataya çevirirdi. Bugünlük tükenmiş ürün listede **kalır ama
+        işaretlidir** (`sold_out`): gizlemek "ürün nerede" sorusunu
+        doğururdu, işaretsiz bırakmak mutfağın bugün yapamayacağı bir kalemi
+        siparişe koydururdu.
+
+        **FİYAT VE SEÇENEKLER BURADA VAR, `/kitchen/menu`'DE YOK — bilinçli.**
+        ADR-08 **mutfak kapsamını** para görmekten men ediyor; kasa ekranı
+        gün boyu mutfakta açık duruyor ve fiyat orada yalnız sızıntı riski.
+        Kontrol Merkezi ise bir yönetim yüzeyi: revizyonun **iade mi ek
+        tahsilat mı** üreteceğini göndermeden önce görebilmek gerekiyor.
+        Seçenekler ise zorunlu: `LineResolver` satırı `option_value_ids` ile
+        fiyatlıyor ve kimlikler gönderilmezse seçenekli bir ürün seçeneksiz
+        yeniden fiyatlanır.
+      operationId: controlKdsMenu
+      security: [{ ControlSignature: [] }]
+      responses:
+        '200':
+          description: Ürünler
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, server_time]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ControlMenuItem' }
+                  server_time: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/ControlUnauthenticated' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
 # ══════════════════════════════ COMPONENTS ══════════════════════════════
 
 components:
@@ -2041,6 +3241,102 @@ components:
       description: |
         Cihaz token'ı (`kitchen` kapsamı). `POST /kitchen/pair` ile alınır.
         Fiyat, müşteri iletişim bilgisi ve rapor uçlarına erişemez.
+
+    ControlSignature:
+      type: apiKey
+      in: header
+      name: X-Control-Signature
+      description: |
+        Kontrol Merkezi imzası (K-21) — `/control/kds/*` uçlarının tamamı.
+        Uygulaması `Http\Middleware\VerifyControlSignature`.
+
+        ## Üç başlık birden gönderilir
+
+        | Başlık | Değer |
+        |---|---|
+        | `X-Control-Timestamp` | UNIX saniye, **yalnız rakam** |
+        | `X-Control-Nonce` | isteğe özgü rastgele dize, **16–128 karakter** |
+        | `X-Control-Signature` | `^sha256=[0-9a-f]{64}$` |
+
+        `X-Control-Signature` bu şemanın kendisidir; diğer ikisi her yolda
+        zorunlu başlık parametresi olarak ayrıca tanımlıdır. Üçünden biri
+        eksikse istek `401 UNAUTHENTICATED` alır.
+
+        ## Kanonik yük
+
+        ```
+        METOT \n YOL \n ZAMAN \n NONCE \n sha256_hex(ham gövde)
+        ```
+
+        ```
+        imza = 'sha256=' + HMAC_SHA256(BLD_CONTROL_SECRET, kanonik_yük)
+        ```
+
+        - **METOT** büyük harf (`GET`, `POST`, `PATCH`).
+        - **YOL** `/api` öneki **dâhil**, sorgu dizesi **hariç**
+          (`/api/control/kds/devices/7/revoke`). Sorgu dizesi imzaya
+          girmez: iki taraf parametre sırasını tutturamazdı ve süzgeçler
+          yalnız okuma uçlarında var — yazma uçlarının tamamı gövdeli.
+        - **Gövde ham hâliyle** özetlenir; gövdesiz isteklerde boş dizenin
+          SHA-256'sı kullanılır. JSON yeniden serileştirilmez — boşluk ya
+          da anahtar sırası imzayı değiştirir.
+
+        ## Tekrar (replay) saldırısına kapalı
+
+        - **Zaman penceresi ±300 saniye.** Dışındaki istek reddedilir
+          (saat kayması payı dâhil).
+        - **Nonce 600 saniye (pencerenin iki katı) hatırlanır** ve aynı
+          nonce ikinci kez **kabul edilmez**. Pencere kadar tutmak
+          yetmezdi: pencerenin son saniyesinde imzalanmış bir istek,
+          unutulduktan sonra hâlâ zaman denetiminden geçebilirdi.
+        - Nonce **imza doğrulandıktan sonra** işaretlenir. Tersi olsaydı
+          imzasız bir istemci rastgele nonce'lar göndererek meşru
+          istemcinin nonce'unu "kullanılmış" işaretleyip onu
+          kilitleyebilirdi.
+        - Metot ve yol imzaya girdiği için `POST .../revoke` imzası
+          `GET .../devices` olarak yeniden kullanılamaz.
+
+        ## Neden `bbd.signature` DEĞİL
+
+        Aynı deseni taşısalar da **ayrı sır, ayrı şema** ve ayrılık
+        bilinçli:
+
+        - **Yön ters.** BBD bize sipariş **yazıyor** (tek uç, tek işlem).
+          Kontrol Merkezi **yönetiyor**: kasa iptal ediyor, ayar itiyor,
+          sipariş revize ediyor, durum geçiriyor.
+        - **Yetki seviyesi farklı.** Tek sırrı iki seviye için kullanmak,
+          BBD'nin sırrını ele geçiren birine mutfağı yönetme hakkı da
+          verirdi.
+        - **Kapsam farklı.** `bbd.signature` yalnız **gövdeyi** imzalar;
+          zaman damgası ve nonce yoktur, yani ağı dinleyen biri geçerli
+          bir isteği sınırsız kez oynatabilir. Orada etki `external_id`
+          tekilliğiyle sınırlı kalıyor; burada kalmazdı — "cihazı iptal
+          et" isteğini tekrar oynatmak mutfağı sipariş göremez hâle
+          getirir.
+
+        ## Neden cihaz token'ı DEĞİL
+
+        `/kitchen/*` uçları bir **kasanın** token'ıyla korunuyor ve her
+        istek o kasanın `last_seen_at` alanını tazeliyor. Kontrol Merkezi
+        oraya eşleşerek girseydi, panelde açık duran bir ekran mutfakta
+        olmayan bir kasayı "çevrimiçi" gösterir ve yöneticinin gördüğü
+        tablo kendi kendini doğrulardı.
+
+        ## Sır tanımlı değilse uç KAPALIDIR
+
+        `BLD_CONTROL_SECRET` boşsa her istek `401` alır. Boş sırla imza
+        doğrulamak herkesin geçtiği bir kapıdır.
+
+        ## Red sebepleri ayrıştırılır
+
+        `bbd.signature`'ın aksine `error.message` hangi denetimin
+        düştüğünü söyler ("İstek zaman penceresinin dışında.", "Bu istek
+        daha önce işlendi.", "İmza doğrulanamadı.", "İmza başlıkları
+        eksik.", "Kontrol Merkezi entegrasyonu yapılandırılmamış."). Bu uç
+        bir saldırgana değil, bakımını yaptığımız **tek** istemciye hizmet
+        ediyor ve "saat kaymış" ile "sır yanlış" ayrımı olmadan sahada
+        teşhis imkânsız. Mesajların hiçbiri sırrın varlığını ya da
+        uzunluğunu ele vermez; `error.code` her hâlde `UNAUTHENTICATED`.
 
   parameters:
     AppId:
@@ -2058,6 +3354,27 @@ components:
       in: header
       required: true
       schema: { type: string, default: tr }
+    ControlTimestamp:
+      name: X-Control-Timestamp
+      in: header
+      required: true
+      description: |
+        İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+        saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+        yükün üçüncü satırıdır — bkz. `ControlSignature`.
+      schema: { type: string, pattern: '^[0-9]{1,11}$' }
+      examples: { simdi: { value: '1755432000' } }
+    ControlNonce:
+      name: X-Control-Nonce
+      in: header
+      required: true
+      description: |
+        İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+        (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+        koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+        önbelleği şişiren bir istemciye kapı açardı.
+      schema: { type: string, minLength: 16, maxLength: 128 }
+      examples: { hex: { value: 'a3f1c09b77e24d5088ba61fe' } }
     Page:
       name: page
       in: query
@@ -2104,6 +3421,23 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
     RateLimited:
       description: Çok fazla istek (`RATE_LIMITED`)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ControlUnauthenticated:
+      description: |
+        Kontrol Merkezi imzası kabul edilmedi (`UNAUTHENTICATED`). Beş ayrı
+        sebep aynı kodu döner, ayrımı yalnız `message` taşır:
+
+        | `message` | Sebep |
+        |---|---|
+        | `İmza başlıkları eksik.` | Üç başlıktan biri yok |
+        | `İstek zaman penceresinin dışında.` | \|şimdi − timestamp\| > 300 sn |
+        | `Bu istek daha önce işlendi.` | Nonce tekrar kullanıldı |
+        | `İmza doğrulanamadı.` | HMAC tutmadı, timestamp rakam değil ya da nonce 16–128 aralığı dışında |
+        | `Kontrol Merkezi entegrasyonu yapılandırılmamış.` | `BLD_CONTROL_SECRET` boş |
+
+        **Denetim satırı YAZILMAZ** — istek kapıdan hiç geçmedi.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
@@ -2429,8 +3763,19 @@ components:
         default_quantity: { type: integer, minimum: 1, maximum: 9999 }
         delivery_time_from: { type: string, examples: ['12:00'] }
         delivery_time_to: { type: string, examples: ['13:00'] }
+        menu_mode:
+          type: string
+          enum: [fixed_list, daily_menu]
+          default: fixed_list
+          description: >-
+            Porsiyonun içeriği nereden gelir. `fixed_list` aboneliğin kendi
+            `lines` satırlarını kullanır; `daily_menu` o günün yayınlanmış
+            menüsünü kullanır ve `lines` GÖNDERİLEMEZ (gönderilirse 422).
+            Her iki modda da fiyat aboneliğin anlaşmalı porsiyon fiyatıdır.
         lines:
           type: array
+          description: >-
+            Yalnız `menu_mode = fixed_list` içindir.
           items:
             type: object
             required: [menu_id, quantity]
@@ -2489,6 +3834,24 @@ components:
           type: [string, 'null']
           format: date-time
           description: Süreli durdurmanın bitişi; süresizse `null`.
+        daily_menu_enabled:
+          type: boolean
+          default: false
+          description: |
+            Satış **günün menüsü** üzerinden mi yürüyor? (B-19)
+
+            Sunucu tarafı şalter, bilerek: istemciler günün menüsü akışına
+            geçerken bir ay ileriye menü girilmiş olması gerekiyor. Şalter
+            olmasaydı, geri dönmek üç uygulamayı birden yeniden yayınlamak
+            demekti. `false` iken eski katalog akışı aynen çalışır.
+        max_lookahead_days:
+          type: integer
+          minimum: 0
+          default: 30
+          description: |
+            Bugünden itibaren kaç gün sonrasına sipariş alınabileceği.
+            Gün seçici takvimi bu kadar ileriye çizer; sunucu aynı sınırı
+            `POST /orders` üzerinde yeniden uygular.
         order_cutoff:
           type: [string, 'null']
           pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
@@ -2706,6 +4069,71 @@ components:
             Dokunmatik monitör kipi: dokunma hedefleri büyür, açılır menüler
             alt sayfaya döner, klavye gerektiren alanlarda ekran klavyesi
             açılır.
+
+        # ── Kilit politikası (K-21) ─────────────────────────────────────
+        #
+        # `required` listesine EKLENMEDİ ve eklenmeyecek: alanlar
+        # `2026_08_17_000001` göçüyle geldi ve göçten önce yazılmış
+        # istemciler bunları hiç görmüyor.
+        allow_settings:
+          type: [boolean, 'null']
+          description: |
+            Kasadaki **ayarlar ekranının tamamı** açılabilir mi?
+
+            **`null` = yönetici dokunmadı = SERBEST.** Üç hâlin üçü de
+            ayrı: `null` "kimse karar vermedi", `true` "yönetici açıkça
+            izin verdi", `false` "kilitli". `null`'ı `true` ile
+            birleştirmek ileride varsayılanı sıkılaştırmayı imkânsız
+            kılardı. Aynı semantik aşağıdaki altı alanın hepsinde geçerli.
+
+            **Kilit ancak açıkça `false` yazılınca doğar.** Sütunlara
+            `false` varsayılanı konsaydı göç koştuğu saniyede sahadaki
+            bütün kasalar kilitlenir, mutfak ayar ekranına giremez ve
+            kimse sebebini anlamazdı.
+
+            Kasa tarafında düğme **gizlenmez, pasifleşir**
+            (`docs/05-mutfakapp.md` §8): gizlenen düğme personeli
+            "bozuldu" sanısına iter ve destek çağrısı üretir.
+        allow_server_change:
+          type: [boolean, 'null']
+          description: |
+            Sunucu adresini değiştirme ve eşlemeyi sıfırlama.
+            **En yıkıcı olanı:** yanlış adres yazılan kasa hiçbir sipariş
+            göremez ve geri dönüş yolu yine aynı ekrandan geçer.
+        allow_window_controls:
+          type: [boolean, 'null']
+          description: |
+            Tam ekrandan çıkma / pencereyi küçültme. Kiosk kipinin tek
+            kaçış kapısı.
+        allow_order_edit:
+          type: [boolean, 'null']
+          description: |
+            Kasadan sipariş düzenleme (K-12 revizyonu). **Para hareketi
+            üretir:** iade ve ek tahsilat buradan doğuyor.
+        allow_manual_reprint:
+          type: [boolean, 'null']
+          description: Karttan ya da ayarlardan elle yeniden fiş bastırma.
+        allow_sales_control:
+          type: [boolean, 'null']
+          description: |
+            Satış şalteri ve "bugün tükendi" işaretleri (K-11).
+            **Ciroyu kapatan tuş.**
+        lock_message:
+          type: [string, 'null']
+          maxLength: 160
+          description: |
+            Kilitli bir düğmeye basınca kasada gösterilecek metin.
+
+            Neden ayrı bir alan: metin kasaya gömülseydi ("Bu işlem
+            yönetici tarafından kapatılmıştır") mutfak **kime
+            başvuracağını** bilemezdi. Yöneticinin "Kapatıldı — Ahmet
+            Bey'i arayın, 0532..." yazabilmesi gerekiyor.
+
+            160 karakter: kasa bunu tek satırlık bir uyarı şeridinde
+            gösteriyor, paragraf değil. Boş dize `null`'a düşer —
+            `audio_sink`'in aksine burada "boş metin" diye anlamlı bir
+            değer yok; metin yoksa kasa kendi genel uyarısını gösterir.
+
         updated_at: { type: [string, 'null'], format: date-time }
 
     BbdOrderRequest:
@@ -2878,6 +4306,24 @@ components:
               options:
                 type: array
                 items: { type: string }
+              option_value_ids:
+                type: array
+                items: { type: integer, format: int64, minimum: 1 }
+                description: |
+                  Kalemde seçili seçenek değerlerinin kimlikleri. `options`
+                  aynı seçeneklerin insana gösterilen adlarıdır; ikisi
+                  eşleniktir. İstemci düzenlemede bunu revizyon gövdesindeki
+                  `items[].option_value_ids` alanına **AYNEN geri
+                  göndermelidir** — göndermezse sunucu satırı seçeneksiz
+                  yeniden fiyatlar ve seçenek sessizce kaybolur. Kimlik
+                  kaydı bulunmayan eski satırlarda **boş dizi** döner.
+
+                  Adları kimliğe geri çevirmek seçenek değildir: aynı adı
+                  taşıyan iki değer (iki ayrı grupta "Bol") yanlış eşleşir
+                  ve sessiz kaybın yerini sessiz **yanlışlık** alırdı.
+
+                  `required` listesinde **yoktur**: alan K-21 ile eklendi
+                  ve ondan önce yazılmış istemciler onu hiç görmüyor.
               note: { type: [string, 'null'] }
 
     OrderRevision:
@@ -2981,7 +4427,40 @@ components:
           type: [string, 'null']
           description: Müşterinin verdiği ad — "Ev", "Ofis", "Şantiye".
           examples: ['Ofis']
-        line1: { type: string, maxLength: 255 }
+        line1:
+          type: string
+          maxLength: 255
+          description: |
+            Adresin **tek satırlık** hâli ve bugüne kadarki tek biçimi.
+            Zorunlu kalır ve kalmaya devam edecek: fiş, kurye ekranı ve eski
+            istemci sürümleri yalnız bunu okuyor.
+
+            Aşağıdaki yapılandırılmış alanlar doluysa sunucu `line1`'i
+            onlardan **türetebilir**; müşteri yine de kendi yazdığını
+            görebilmeli diye türetme yalnızca `line1` boş geldiğinde çalışır.
+        neighbourhood:
+          type: [string, 'null']
+          maxLength: 96
+          description: |
+            Mahalle. `line1`'i parçalarına ayıran alanların ilki (B-21);
+            eski kayıtlarda `null`'dır ve öyle kalır — geçmiş adresleri
+            geriye dönük ayrıştırmak, ayrıştırmanın yanlış olduğu her satırda
+            kuryeyi yanlış kapıya götürürdü.
+          examples: ['Feritpaşa Mah.']
+        street:
+          type: [string, 'null']
+          maxLength: 128
+          description: Cadde / sokak / bulvar.
+          examples: ['Kültür Sk.']
+        building_no:
+          type: [string, 'null']
+          maxLength: 24
+          description: |
+            Bina / dış kapı numarası. Metin, sayı değil: `12/A`, `3-5` gibi
+            değerler sahada yaygın.
+          examples: ['12/A']
+        floor: { type: [string, 'null'], maxLength: 16, description: 'Kat. `Zemin`, `Bodrum` gibi değerler de geçerli — bu yüzden metin.' }
+        door_no: { type: [string, 'null'], maxLength: 16, description: 'Daire / iç kapı numarası.' }
         district: { type: string, maxLength: 96 }
         city: { type: string, maxLength: 96 }
         note:
@@ -3006,7 +4485,32 @@ components:
       required: [line1, district, city]
       properties:
         label: { type: [string, 'null'], maxLength: 64 }
-        line1: { type: string, maxLength: 255 }
+        line1:
+          type: string
+          maxLength: 255
+          description: |
+            **Zorunlu kalır.** Yapılandırılmış alanlar (`neighbourhood` …
+            `door_no`) eklendi diye `line1` isteğe bağlı yapılamaz: bugün
+            sahada olan istemci sürümleri yalnız bu alanı gönderiyor ve
+            zorunluluğu kaldırmak `SavedAddress.line1`'i de fiilen
+            boşaltılabilir hâle getirirdi (`docs/03` §1.4).
+
+            Formu yapılandırılmış alanlarla dolduran yeni istemci `line1`'i
+            de gönderir; göndermezse sunucu dolu alanlardan türetir.
+        neighbourhood: { type: [string, 'null'], maxLength: 96 }
+        street: { type: [string, 'null'], maxLength: 128 }
+        building_no: { type: [string, 'null'], maxLength: 24 }
+        floor: { type: [string, 'null'], maxLength: 16 }
+        door_no:
+          type: [string, 'null']
+          maxLength: 16
+          description: |
+            Beş yapılandırılmış alanın hepsi **isteğe bağlıdır** ve
+            `latitude`/`longitude` ile aynı güncelleme kuralını izler:
+            `null` göndermek alanı **siler**, alanı hiç göndermemek mevcut
+            değeri **korur**. Bunlar birbirinden bağımsızdır — koordinat
+            çiftinin aksine yarısının dolu olması geçerli bir durumdur
+            (kat bilinip daire no bilinmemesi olağan).
         district: { type: string, maxLength: 96 }
         city: { type: string, maxLength: 96 }
         note: { type: [string, 'null'], maxLength: 255 }
@@ -3022,6 +4526,204 @@ components:
             kaldıran müşterinin eski noktası kayıtta kalmasın diye bu ikisi
             ayrı davranışlardır.
         longitude: { type: [number, 'null'], format: double, minimum: -180, maximum: 180 }
+
+    AddressSuggestion:
+      type: object
+      required: [label, line1, district, city, latitude, longitude, source]
+      description: |
+        Geocoder'dan gelen tek bir adres adayı. `/addresses/suggest` bunlardan
+        bir liste, `/addresses/reverse` tek tanesini döndürür.
+
+        **Bu bir kayıt değildir**, bir öneridir: hiçbir yerde saklanmaz ve
+        kimliği yoktur. Müşteri seçtiğinde istemci alanları forma taşır;
+        kaydedilen şey `SavedAddressInput`'tur. Öneriye kimlik verip
+        `SavedAddress`'e bağlamak, sağlayıcı o kimliği değiştirdiği ya da
+        sürücü Google Places'e geçtiği gün defterdeki adresleri kırardı.
+
+        Alan adları `SavedAddress` ile **birebir aynıdır** — istemci öneriyi
+        forma alan alan kopyalar, arada eşleme tablosu tutmaz.
+      properties:
+        label:
+          type: string
+          description: |
+            Listede gösterilecek tek satırlık metin. Sunucu kurar; istemci
+            parçaları birleştirip kendi satırını yazmaz — aynı öneri web'de
+            ve mobilde farklı görünmesin.
+
+            **CSS `text-transform` ile büyütülmez** (`docs/03` §1.1): Türkçe
+            metin böyle büyütüldüğünde `İ`/`ı` kırılır ve mahalle adlarının
+            yarısı bu harfleri taşır.
+          examples: ['Feritpaşa Mah., Kültür Sk. No:12, Selçuklu / Konya']
+        line1:
+          type: string
+          maxLength: 255
+          description: |
+            Önerinin tek satırlık hâli — doğrudan `SavedAddressInput.line1`'e
+            yazılabilir. `label`'dan farkı: `label` ilçe ve ili de içerir,
+            `line1` içermez (onlar ayrı alanlar ve formda ayrı kutular).
+          examples: ['Feritpaşa Mah. Kültür Sk. No:12']
+        neighbourhood: { type: [string, 'null'], maxLength: 96 }
+        street: { type: [string, 'null'], maxLength: 128 }
+        district:
+          type: string
+          maxLength: 96
+          description: |
+            **Her zaman hizmet alanındaki ilçelerden biridir**; başkası
+            yanıta hiç girmez. İstemci bu değeri ilçe seçicisine doğrudan
+            yazabilir.
+          examples: ['Selçuklu']
+        city:
+          type: string
+          maxLength: 96
+          description: 'Faz 1''de her zaman `Konya` — hizmet alanı tek il.'
+          examples: ['Konya']
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+          description: |
+            **Null olamaz.** Hizmet alanı elemesi koordinat üzerinden
+            yapılıyor; koordinatı olmayan bir aday listeye zaten giremez.
+            İstemci bu yüzden her öneride iğneyi güvenle yerleştirebilir.
+
+            `/addresses/reverse` yanıtında bu değer **isteğin kendi
+            koordinatıdır**, sağlayıcının oturttuğu nokta değil.
+        longitude: { type: number, format: double, minimum: -180, maximum: 180 }
+        source:
+          type: string
+          description: |
+            Öneriyi üreten sürücü. Bugünkü tek değer `osm_nominatim`.
+
+            **Kapalı bir enum DEĞİL, bilerek.** Sürücü değişebilir (docs/11
+            §F2-01 Google Places'i planlıyor) ve enum'a üye eklemek
+            istemcilerdeki kapsayıcı `switch`'i ve üretilen TypeScript
+            birleşimini kırardı — `ErrorCode` için verilen kararın aynısı.
+            İstemci bu alanı **dallanma için kullanmaz**; sağlayıcı atıfını
+            göstermek ve günlükte hangi sürücünün konuştuğunu bilmek için
+            var.
+          examples: ['osm_nominatim']
+
+    DailyMenu:
+      type: object
+      required: [date, closed, is_orderable, currency, items]
+      description: |
+        Bir günün menüsü. Paket olarak da, kalem kalem de satılır.
+      properties:
+        id:
+          type: [integer, 'null']
+          format: int64
+          description: |
+            O günün yayınlanmış menüsünün kimliği. **`null` ise o gün menü
+            yok** — `package` ve `items` boş döner, `is_orderable` yanlıştır.
+        date: { type: string, format: date }
+        title:
+          type: [string, 'null']
+          description: 'Günün adı, örn. "Ev Yemeği Menüsü".'
+        description: { type: [string, 'null'] }
+        image_url: { type: [string, 'null'], format: uri }
+        package:
+          oneOf:
+            - $ref: '#/components/schemas/DailyMenuPackage'
+            - type: 'null'
+          description: |
+            Menünün bütün olarak satılan hâli. O gün paket satılmıyorsa
+            (yönetici paket fiyatı girmediyse) `null` — kalemler yine tek
+            tek satılabilir.
+        items_total:
+          oneOf:
+            - $ref: '#/components/schemas/Money'
+            - type: 'null'
+          description: |
+            Kalemlerin tek tek alınması hâlindeki toplam. `package.price` ile
+            arasındaki fark müşteriye "paketle şu kadar avantaj" olarak
+            gösterilebilir. Sunucu hesaplar; istemci çıkarma yapmak zorunda
+            kalmasın diye alan olarak veriliyor — para hesabı tek yerde.
+        currency: { $ref: '#/components/schemas/Currency' }
+        closed:
+          type: boolean
+          default: false
+          description: |
+            İşletmenin kapalı olduğu gün (`veykemtu_closed_days`). Menü
+            girilmiş olsa bile bu gün sipariş alınmaz: kapalı gün kazanır.
+        is_orderable:
+          type: boolean
+          description: |
+            Bu güne **şu anda** sipariş verilebilir mi? Menünün yayında
+            olmasını, günün kapalı olmamasını, kesim saatinin geçmemiş
+            olmasını ve azami ileri görüş penceresinin aşılmamasını birlikte
+            özetler. Bağlayıcı olan yine `POST /orders` anındaki denetimdir.
+        unavailable_reason:
+          type: [string, 'null']
+          enum: [null, closed_day, not_published, cutoff_passed, past, too_far]
+          description: |
+            `is_orderable` yanlışken sebebin makine okunur hâli. Kullanıcıya
+            gösterilecek metni istemci kendi diliyle yazar — sunucudan gelen
+            cümleyi ekrana basmak, arayüz metnini sunucu sürümüne bağlar.
+        items:
+          type: array
+          description: |
+            Menüyü oluşturan kalemler, yöneticinin verdiği sırada.
+            `price` **o gün için geçerli** birim fiyattır (ürünün kendi
+            fiyatı ya da o güne girilmiş istisna).
+          items: { $ref: '#/components/schemas/MenuItem' }
+
+    DailyMenuPackage:
+      type: object
+      required: [menu_id, name, price, is_available, components]
+      properties:
+        menu_id:
+          type: integer
+          format: int64
+          description: |
+            **Sipariş verirken `items[].menu_id` alanına yazılacak değer.**
+            Paket, sözleşme açısından bir ürün gibi sipariş edilir; sunucu
+            bu kimliği tanır ve fiyatı o günün paket fiyatından alır.
+        name: { type: string }
+        price:
+          allOf: [$ref: '#/components/schemas/Money']
+          description: Paketin o günkü fiyatı.
+        is_available:
+          type: boolean
+          description: |
+            Paket bugün satılabilir mi? İçindeki **zorunlu** bir kalem
+            "bugün tükendi" işaretlendiyse paket de düşer: ana yemeği
+            olmayan bir menüyü satmak, kırk telefon özrü demek.
+        sold_out_reason: { type: [string, 'null'] }
+        components:
+          type: array
+          description: Paketin içindekiler — mutfağın pişireceği yemekler.
+          items:
+            type: object
+            required: [menu_id, name, quantity]
+            properties:
+              menu_id: { type: integer, format: int64 }
+              name: { type: string }
+              quantity:
+                type: integer
+                minimum: 1
+                description: Bir pakette bu kalemden kaç porsiyon var.
+              image_url: { type: [string, 'null'], format: uri }
+              allergens:
+                type: array
+                items: { type: string }
+
+    MenuCalendarDay:
+      type: object
+      required: [date, has_menu, closed, is_orderable]
+      properties:
+        date: { type: string, format: date }
+        has_menu: { type: boolean }
+        closed: { type: boolean }
+        is_orderable: { type: boolean }
+        title: { type: [string, 'null'] }
+        package_price:
+          oneOf:
+            - $ref: '#/components/schemas/Money'
+            - type: 'null'
+        note:
+          type: [string, 'null']
+          description: 'Kapalı günün açıklaması ("Kurban Bayramı") ya da `null`.'
 
     MenuCategory:
       type: object
@@ -3102,7 +4804,32 @@ components:
       type: object
       required: [line1, district, city]
       properties:
-        line1: { type: string, minLength: 1 }
+        line1:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: |
+            Siparişin **değişmez** adres kopyası, tek satır. Zorunlu kalır:
+            mutfak fişi, kurye fişi ve `OrderPresenter` bu alanı basıyor ve
+            hiçbiri aşağıdaki yapılandırılmış alanları okumak zorunda
+            bırakılmamalı.
+
+            İstemci yapılandırılmış alanları gönderip `line1`'i boş bırakırsa
+            sunucu onlardan türetir.
+        neighbourhood:
+          type: [string, 'null']
+          maxLength: 96
+          description: |
+            Mahalle. Beş yapılandırılmış alanın hepsi **isteğe bağlıdır**
+            (B-21, additive): adresi elle tek satır yazan müşteri de sipariş
+            verebilmeli. Dolu geldiklerinde sipariş kopyasına aynen yazılır —
+            adres defterindeki kayıt sonradan düzelse bile geçmiş siparişin
+            kopyası değişmez.
+          examples: ['Feritpaşa Mah.']
+        street: { type: [string, 'null'], maxLength: 128, description: 'Cadde / sokak.' }
+        building_no: { type: [string, 'null'], maxLength: 24, description: 'Bina / dış kapı no. Metin: `12/A` yaygın.' }
+        floor: { type: [string, 'null'], maxLength: 16, description: 'Kat. `Zemin` gibi değerler de geçerli.' }
+        door_no: { type: [string, 'null'], maxLength: 16, description: 'Daire / iç kapı no.' }
         district: { type: string, minLength: 1 }
         city: { type: string, minLength: 1 }
         note: { type: [string, 'null'] }
@@ -3133,16 +4860,42 @@ components:
         items:
           type: array
           minItems: 1
+          description: |
+            Sepet satırları. Şekil **değişmedi**: menü paketi de bir
+            `menu_id` ile sipariş edilir — paketin kimliği
+            `DailyMenu.package.menu_id` alanında gelir. Böylece istemci
+            "paket mi ürün mü" ayrımını istek biçiminde taşımaz; sunucu
+            o kimliği tanır, fiyatı o günün paket fiyatından alır ve
+            içindekileri satırın altına açar.
           items:
             type: object
             required: [menu_id, quantity]
             properties:
-              menu_id: { type: integer, format: int64 }
+              menu_id:
+                type: integer
+                format: int64
+                description: |
+                  Ürün ya da menü paketi. **Yalnızca o günün yayınlanmış
+                  menüsünde yer alan kimlikler kabul edilir**; başkası
+                  `422 ITEM_UNAVAILABLE` döner.
               quantity: { type: integer, minimum: 1 }
               option_value_ids:
                 type: array
+                description: Paket satırında yok sayılır — paketin seçeneği olmaz.
                 items: { type: integer, format: int64 }
               note: { type: [string, 'null'], maxLength: 255 }
+        service_date:
+          type: [string, 'null']
+          format: date
+          description: |
+            Siparişin **hangi gün için** olduğu (Europe/Istanbul).
+            Verilmezse `requested_at`'in işletme saatindeki tarihi, o da
+            yoksa bugün.
+
+            `requested_at` ile birlikte gönderilirse **ikisinin günü aynı
+            olmak zorundadır**, yoksa `422 VALIDATION_FAILED`. Aksi hâlde
+            "cuma menüsünü perşembe saat 12:00'ye" gibi, mutfağın
+            karşılayamayacağı bir sipariş doğardı.
         delivery_type: { $ref: '#/components/schemas/DeliveryType' }
         address:
           oneOf:
@@ -3198,6 +4951,14 @@ components:
         currency: { $ref: '#/components/schemas/Currency' }
         item_count: { type: integer, minimum: 1 }
         created_at: { type: string, format: date-time }
+        service_date:
+          type: string
+          format: date
+          description: |
+            Siparişin **hangi gün için** olduğu (Europe/Istanbul). Sipariş
+            listesinde "20 Ağustos menüsü" yazabilmek için gerekiyor:
+            `created_at` siparişin verildiği andır ve ileri tarihli
+            siparişte o gün ile servis günü ayrıdır.
         subscription_id:
           type: [integer, 'null']
           format: int64
@@ -3218,6 +4979,33 @@ components:
           allOf: [$ref: '#/components/schemas/Money']
           description: Seçenek farkları **dahil** birim fiyat.
         line_total: { $ref: '#/components/schemas/Money' }
+        role:
+          type: string
+          default: item
+          enum: [item, package, component]
+          description: |
+            Satırın rolü:
+
+            * `item` — sıradan ürün satırı (varsayılan; eski istemciler
+              alanı hiç görmese de davranış değişmez).
+            * `package` — menü paketi. Parayı **bu satır taşır**.
+            * `component` — paketin içindeki yemek. `unit_price` ve
+              `line_total` **sıfırdır**; parası paket satırındadır.
+              Bu satırlar mutfağa "ne pişecek" bilgisini verir ve üretim
+              listesinde gerçek `menu_id`'leriyle toplanır.
+
+            İstemci toplamı satırlardan hesaplamaz (hiçbir zaman
+            hesaplamıyordu) — `subtotal`/`total` sunucudan gelir.
+        included_in:
+          type: [integer, 'null']
+          description: |
+            `role: component` satırlarında, ait olduğu paket satırının
+            `items` dizisindeki sırası. Diğer satırlarda `null`.
+            İstemci paketi ve içindekileri iç içe gösterebilsin diye.
+        daily_menu_id:
+          type: [integer, 'null']
+          format: int64
+          description: Satır o günün menüsünden geldiyse menünün kimliği.
 
     StatusHistoryEntry:
       type: object
@@ -3252,6 +5040,13 @@ components:
             - type: 'null'
           description: '`pickup` siparişte `null`.'
         requested_at: { type: [string, 'null'], format: date-time }
+        service_date:
+          type: string
+          format: date
+          description: |
+            Siparişin hangi gün için olduğu (Europe/Istanbul). `requested_at`
+            doluysa onun işletme saatindeki tarihi, boşsa siparişin verildiği
+            gün. Mutfak panosu ve üretim listesi bu güne göre çalışır.
         customer_note: { type: [string, 'null'] }
         payment: { $ref: '#/components/schemas/Payment' }
         status_history:
@@ -3969,3 +5764,411 @@ components:
           description: |
             Sitenin bildirdiği gönderim anı. `created_at` ile aynı olmak
             zorunda değil: site kuyruğa alıp gecikmeli iletebilir.
+
+    # ── Kontrol Merkezi (K-21) ──────────────────────────────────────────
+
+    ControlIntent:
+      type: object
+      required: [actor, reason]
+      description: |
+        **Her yazma ucunun taşımak zorunda olduğu üç alan.** Okuma uçları
+        bunları istemez.
+
+        Gövde eksikse istek `422` alır ve **denetim satırı yazılmaz** —
+        geçerli bir istek hiç oluşmadı.
+      properties:
+        actor:
+          type: string
+          minLength: 2
+          maxLength: 120
+          description: |
+            İşlemi yapan kişi — **serbest metin**. BLD'de bir hesaba
+            bağlanmıyor ve bağlanmayacak: Kontrol Merkezi ayrı bir depo,
+            ayrı bir kullanıcı tablosu. Yabancı anahtar vermek iki sistemi
+            birbirine bağlardı. Doğruluğu Kontrol Merkezi'nin
+            sorumluluğundadır; imza zaten isteğin oradan geldiğini
+            kanıtlıyor.
+          examples: ['Ayşe Yönetici']
+        reason:
+          type: string
+          minLength: 10
+          maxLength: 500
+          description: |
+            Gerekçe — `veykemtu_control_audit.reason` sütununa yazılır.
+
+            **En az 10 karakter.** Sınır olmasaydı "ok" yazıp geçmek
+            serbest olurdu ve denetim izi, doldurulmuş ama hiçbir şey
+            anlatmayan bir sütuna dönerdi. On karakter bir cümlenin
+            başlangıcını zorluyor.
+          examples: ['Sahada denetim için yapıldı']
+        dry_run:
+          type: boolean
+          default: false
+          description: |
+            **Kuru prova.** `true` ise **hiçbir yazma yapılmaz**; yanıt
+            `would` nesnesiyle "ne olurdu"yu döner. Ön denetimler yine
+            çalışır (iptal edilmiş kasa, düzenlenemez sipariş, geçersiz
+            durum geçişi hâlâ `422` verir).
+
+            **Denetim satırı YİNE YAZILIR**, `result = "dry_run"` ile.
+            "Denedim ama uygulamadım" bir eylemdir ve yanlış kasaya kilit
+            uygulamaya çalışan birinin ilk adımı çoğu zaman odur.
+
+    ControlOrderIntent:
+      type: object
+      required: [actor, reason]
+      description: |
+        `ControlIntent` ile aynı, tek farkla: **`reason` en fazla 160
+        karakter.**
+
+        `veykemtu_order_revisions.reason` 160 karakterlik bir sütun ve aynı
+        metin oraya da yazılıyor. Kabuğun 500'lük sınırı sipariş uçlarında
+        160'a daralıyor; taşan gerekçe **sessizce kırpılmak yerine `422`**
+        alıyor.
+      properties:
+        actor: { type: string, minLength: 2, maxLength: 120 }
+        reason: { type: string, minLength: 10, maxLength: 160 }
+        dry_run: { type: boolean, default: false }
+
+    ControlWriteEnvelope:
+      type: object
+      required: [ok, dry_run, audit_id]
+      description: |
+        **Her yazma ucunun ortak yanıt zarfı.** Eyleme özgü alanlar
+        (`device`, `order`, `revision`, `command`, `would`) bu zarfın
+        **yanına**, kökte durur.
+      properties:
+        ok: { type: boolean, const: true }
+        dry_run:
+          type: boolean
+          description: 'İsteğin kuru prova olarak işlenip işlenmediği.'
+        audit_id:
+          type: integer
+          format: int64
+          description: |
+            Bu istek için açılan `veykemtu_control_audit` satırının kimliği.
+            **Kuru provada da doludur.** Satır işlemden **önce** açılıyor:
+            sonra açılsaydı yarıda kalan bir yazma (veritabanı hatası,
+            zaman aşımı) hiçbir iz bırakmazdı — oysa "denendi ve olmadı"
+            tam da soruşturulması gereken hâldir.
+        would:
+          type: object
+          additionalProperties: true
+          description: |
+            **Yalnız `dry_run: true` iken vardır.** Uygulansaydı ne olacağı.
+            Gerçek gönderimde bu anahtar hiç gelmez; onun yerine eylemin
+            kendi sonucu (`device` / `order` / `revision` / `command`)
+            döner.
+
+    ControlDevice:
+      type: object
+      required: [id, name, online, pairing, health, settings, pending_command_count]
+      description: |
+        Kontrol Merkezi'nin gördüğü kasa. Admin panelindeki kasa ekranının
+        makine okunur karşılığı; **davranış birebir aynı** — iki yüzey aynı
+        modeli ve aynı servisi çağırıyor.
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string, maxLength: 64 }
+        online:
+          type: boolean
+          description: |
+            `last_seen_at` son **3 dakika** içinde **VE** kasa iptal
+            edilmemiş. İptal edilmiş bir kasa dakikalar önce görülmüş
+            olabilir ama artık hiçbir uca giremez; onu "çevrimiçi"
+            göstermek yöneticiye çalışan bir mutfak ekranı olduğunu
+            düşündürürdü.
+        last_seen_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: [string, 'null'], format: date-time }
+        revoked_at:
+          type: [string, 'null']
+          format: date-time
+          description: |
+            Dolu ise kasa iptal edilmiştir. **Satır silinmez**; ikinci bir
+            iptal isteği bu damgayı oynatmaz.
+        pairing:
+          type: object
+          required: [usable]
+          properties:
+            code:
+              type: [string, 'null']
+              pattern: '^[A-Z0-9]{4}-[A-Z0-9]{4}$'
+              description: |
+                Eşleme kodu, biçim `XXXX-XXXX` (**9 karakter**; sütun
+                `varchar(16)`). Karıştırılması kolay karakterler (`0`/`O`,
+                `1`/`I`) alfabede yoktur.
+
+                **YALNIZ İKİ YERDE AÇILIR:** kodu üreten uçların
+                yanıtlarında (`POST /control/kds/devices`,
+                `POST /control/kds/devices/{id}/pairing-code`) ve listede
+                kod hâlâ **kullanılabilirken**. Kullanılmış ya da süresi
+                dolmuş bir kodu göstermek yöneticiye çalışmayan bir kod
+                okutur ve "kod yanlış" diye destek çağrısı üretirdi.
+              examples: ['K7QP-3MXR']
+            expires_at: { type: [string, 'null'], format: date-time }
+            usable:
+              type: boolean
+              description: |
+                Kod var, süresi geçmemiş ve kasa iptal edilmemiş.
+        health:
+          type: object
+          description: |
+            **Kasanın BEYAN ettiği** sağlık. Sunucu hiçbirini doğrulayamaz;
+            fiş kuyruğu kasanın diskinde ve sunucuda karşılığı yok.
+          properties:
+            reported_at: { type: [string, 'null'], format: date-time }
+            printer_ok:
+              type: [boolean, 'null']
+              description: |
+                **Üç hâl ayrıdır:** `null` "kasa hiç bildirmedi", `false`
+                "arızalı", `true` "sağlam". `null` ile `false`'u
+                birleştirmek, yeni kurulan her kasa için var olmayan bir
+                yazıcı arızası aratırdı.
+            print_queue_pending: { type: [integer, 'null'], minimum: 0 }
+            print_queue_failed: { type: [integer, 'null'], minimum: 0 }
+            app_version: { type: [string, 'null'] }
+        settings:
+          allOf:
+            - $ref: '#/components/schemas/KitchenSettings'
+          description: |
+            Yönetilen ayarlar **ve kilitler**. `updated_at` anahtarı burada
+            **yoktur**; damga nesnenin kendi `settings_updated_at` alanında
+            duruyor ve iki yerde taşımak sözleşmedeki anahtar listesine
+            yazılamayan bir anahtar daha eklerdi.
+        settings_updated_at: { type: [string, 'null'], format: date-time }
+        pending_command_count:
+          type: integer
+          minimum: 0
+          description: |
+            Kasaya henüz teslim edilmemiş komut sayısı. Sonucu gelmeyen
+            komut 10 dakika sonra yeniden gönderilir.
+
+    ControlCommandLog:
+      type: object
+      required: [id, command, payload]
+      description: |
+        Komut geçmişi satırı. `KitchenCommand` şeması kasaya **giden**
+        komuttur; bu ise Kontrol Merkezi'nin gördüğü **kayıttır** ve üç
+        damgayı da taşır.
+      properties:
+        id: { type: integer, format: int64 }
+        command:
+          type: string
+          enum: [test_receipt, reprint, clear_failed, silence_alarm, restart]
+        payload:
+          type: object
+          additionalProperties: true
+          description: '`reprint` için `order_id` ve `type`; diğerlerinde boş.'
+        created_at:
+          type: [string, 'null']
+          format: date-time
+          description: '**Gönderildi mi?** — komut kuyruğa girdiği an.'
+        delivered_at:
+          type: [string, 'null']
+          format: date-time
+          description: '**Kasaya ulaştı mı?** — sağlık yanıtına bindiği an.'
+        executed_at:
+          type: [string, 'null']
+          format: date-time
+          description: '**Çalıştı mı?** — kasanın sonucu bildirdiği an.'
+        succeeded:
+          type: [boolean, 'null']
+          description: |
+            Sonuç. `null` = kasa henüz bildirmedi. Tek bir "durum" alanı
+            "kasa aldı ama çalıştıramadı" hâlini anlatamazdı.
+        result: { type: [string, 'null'], maxLength: 255 }
+
+    ControlPrintJob:
+      type: object
+      required: [id, order_id, type, revision]
+      description: |
+        Fiş **denetim** satırı — kuyruk değil (bkz. `GET /control/kds/print-jobs`).
+        Tekillik `(order_id, type, revision)` üçlüsüdür.
+      properties:
+        id: { type: integer, format: int64 }
+        order_id: { type: integer, format: int64 }
+        order_number:
+          type: [string, 'null']
+          description: |
+            Sipariş silinmişse (`veykemtu:siparis-temizle`) **`null`**;
+            denetim satırı yerinde kalır, numara boşalır.
+        type: { $ref: '#/components/schemas/ReceiptType' }
+        revision:
+          type: integer
+          minimum: 0
+          description: 'K-20 öncesi satırlarda `0`: düzenlenmemiş siparişin ilk basımı.'
+        printed_at: { type: [string, 'null'], format: date-time }
+        device_id: { type: [integer, 'null'], format: int64 }
+        device_name: { type: [string, 'null'] }
+
+    ControlOverview:
+      type: object
+      required: [devices, orders, print_jobs, server_time]
+      description: |
+        Panel açılış özeti. **Sayılar tanımdır, tahmin değil.**
+      properties:
+        devices:
+          type: object
+          required: [total, online, revoked, printer_fault, queue_pending, queue_failed]
+          properties:
+            total:
+              type: integer
+              minimum: 0
+              description: 'Bütün kasalar — iptal edilmişler **dâhil**.'
+            online:
+              type: integer
+              minimum: 0
+              description: 'İptal edilmemiş ve son 3 dakika içinde görülmüş kasalar.'
+            revoked: { type: integer, minimum: 0 }
+            printer_fault:
+              type: integer
+              minimum: 0
+              description: |
+                `printer_ok === false` olan **iptal edilmemiş** kasalar.
+                **`null` SAYILMAZ:** hiç sağlık bildirmemiş bir kasa arızalı
+                değil, sessizdir. İkisini toplamak yeni kurulan her kasayı
+                arıza sayacına yazardı.
+            queue_pending:
+              type: integer
+              minimum: 0
+              description: |
+                Kasaların **beyan ettiği** bekleyen fiş sayısının toplamı.
+                Sunucu doğrulayamaz — fiş kuyruğu kasanın diskinde.
+            queue_failed: { type: integer, minimum: 0 }
+        orders:
+          type: object
+          required: [active, by_status, today, late]
+          properties:
+            active:
+              type: integer
+              minimum: 0
+              description: 'Terminal olmayan siparişler. `by_status` toplamına eşittir.'
+            by_status:
+              type: object
+              description: |
+                Aktif siparişlerin durum dağılımı.
+
+                **TERMİNAL KODLAR ANAHTAR OLARAK BULUNMAZ:**
+                `teslim_edildi` ve `iptal` zaten aktif kümenin dışında ve
+                her seferinde `0` dönerlerdi. Kalan beş kod ise sipariş
+                yokken bile `0` ile durur — istemcinin eksik anahtar için
+                savunma yazmasına gerek kalmasın.
+              required: [yeni, onaylandi, hazirlaniyor, hazir, yolda]
+              properties:
+                yeni: { type: integer, minimum: 0 }
+                onaylandi: { type: integer, minimum: 0 }
+                hazirlaniyor: { type: integer, minimum: 0 }
+                hazir: { type: integer, minimum: 0 }
+                yolda: { type: integer, minimum: 0 }
+            today:
+              type: integer
+              minimum: 0
+              description: |
+                Bugün oluşturulan sipariş sayısı — **iptaller hariç**. Gün
+                sınırı Europe/Istanbul: UTC gece yarısı kullanılsaydı
+                00:00–03:00 arası siparişler "dün" sayılırdı ve catering'de
+                gece siparişi olağan.
+            late:
+              type: integer
+              minimum: 0
+              description: |
+                **Planlanan teslim saati geçmiş ve hâlâ teslim edilmemiş**
+                aktif sipariş. Sunucunun kendi başına bilebileceği tek
+                dürüst tanım bu.
+
+                **Kasanın `late_after_minutes` eşiği KULLANILMAZ:** o eşik
+                cihaz başına ayarlanıyor ve `null` bırakıldığında kasanın
+                kendi derleme varsayılanı geçerli oluyor — sunucu o
+                varsayılanı bilmiyor. İki kasanın farklı eşiği olduğunda
+                "hangi kasanın gecikmesi" diye bir soru doğardı; oysa
+                buradaki sayı **işletmenin tamamına** ait.
+
+                **"En kısa sürede" siparişler SAYILMAZ.** Planlanmış bir
+                saati yoktur; onları saymak için bir bekleme eşiği uydurmak
+                gerekirdi ve uydurulan her eşik yanlış bir alarm üretirdi.
+        print_jobs:
+          type: object
+          required: [today]
+          properties:
+            today:
+              type: integer
+              minimum: 0
+              description: 'İşletme günü içinde basıldığı bildirilen fiş sayısı.'
+        server_time: { type: string, format: date-time }
+
+    ControlOrderRevision:
+      type: object
+      required: [revision_no, reason]
+      description: |
+        `OrderRevision` ile aynı, üstüne `created_by_device_id`.
+      properties:
+        revision_no: { type: integer, minimum: 1 }
+        reason: { type: string, maxLength: 160 }
+        note:
+          type: [string, 'null']
+          description: |
+            Merkezden yapılan revizyonlarda **ilk satır**
+            `Kontrol Merkezi · <actor>` etiketidir; personelin notu varsa
+            alt satıra yazılır.
+        refund_kurus: { $ref: '#/components/schemas/Money' }
+        extra_charge_kurus: { $ref: '#/components/schemas/Money' }
+        created_by_device_id:
+          type: [integer, 'null']
+          format: int64
+          description: |
+            Revizyonu yazan kasa. **`null` = Kontrol Merkezi'nden yapıldı**
+            (kasa yok). "Kasadan mı merkezden mi" ayrımı hem bu alandan hem
+            `note` etiketinden okunabilir.
+        created_at: { type: [string, 'null'], format: date-time }
+
+    ControlMenuItem:
+      type: object
+      required: [menu_id, name, price_kurus, sold_out, options]
+      description: |
+        Düzenleme ekranının ürün seçicisindeki kalem. `KitchenMenuItem`'in
+        aksine **fiyat ve seçenek kimlikleri taşır** — gerekçesi
+        `GET /control/kds/menu` açıklamasında.
+      properties:
+        menu_id: { type: integer, format: int64 }
+        name: { type: string }
+        price_kurus: { $ref: '#/components/schemas/Money' }
+        sold_out:
+          type: boolean
+          description: 'Mutfağın günlük kararı. Tükenmiş ürün listede kalır, işaretlenir.'
+        options:
+          type: array
+          items: { $ref: '#/components/schemas/ControlMenuOption' }
+
+    ControlMenuOption:
+      type: object
+      required: [id, name, values]
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: '`menu_option_id`.'
+        name: { type: string }
+        type:
+          type: string
+          description: 'Görüntüleme tipi (`radio`, `checkbox`, `select`, `quantity`…).'
+        required: { type: boolean }
+        values:
+          type: array
+          items:
+            type: object
+            required: [id, name, price_delta_kurus]
+            properties:
+              id:
+                type: integer
+                format: int64
+                description: |
+                  `menu_option_value_id` — revizyon gövdesindeki
+                  `items[].option_value_ids` alanına **doğrudan
+                  konabilecek** kimlik (`LineResolver::resolve`). Yalnız adı
+                  döndürmek, seçeneğin kaydedilirken sessizce düşmesine yol
+                  açardı.
+              name: { type: string }
+              price_delta_kurus:
+                allOf:
+                  - $ref: '#/components/schemas/Money'
+                description: 'Seçeneğin birim fiyata eklediği fark.'

@@ -1,73 +1,62 @@
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ArrowRight, UtensilsCrossed } from 'lucide-react';
+import { AddToDayCart } from '@/components/menu/add-to-day-cart';
+import { Money } from '@/components/money';
 import { ProductImage } from '@/components/product-image';
 import { Section, SectionHeading } from '@/components/site/section';
-import { AddToCartForm } from '@/components/add-to-cart-form';
-import { fetchCatalog, flattenItems, isOrderingOpen } from '@/lib/api/catalog';
-import { formatPrice } from '@/lib/format';
-import { productPath } from '@/lib/slug';
-import type { MenuItem } from '@/lib/api/types';
+import { Button } from '@/components/ui/button';
+import { canOrderDay, fetchDailyMenu, packageAdvantageKurus } from '@/lib/api/daily-menu';
+import { fetchPrimaryLocation } from '@/lib/api/catalog';
+import { businessToday, formatLongDate } from '@/lib/business-date';
+import type { DailyMenu, Location } from '@/lib/api/types';
 
 /**
- * Ana sayfadaki "bugün mutfakta" bandı — **canlı katalog**.
+ * Ana sayfadaki "bugün mutfakta" bandı — **bugünün menüsü** (B-19).
  *
  * ## Neden ayrı bileşen?
  *
  * Ana sayfanın geri kalanı kurumsal içerikten besleniyor ve sipariş API'si
- * kapalıyken de açılmak zorunda. Bu bölüm ise gerçek menüyü gösteriyor, yani o
- * API'ye bağımlı. İkisini aynı dosyada tutmak, tek bir 500 yüzünden vitrinin
- * tamamının hata ekranına düşmesi demekti.
+ * kapalıyken de açılmak zorunda. Bu bölüm ise gerçek menüyü gösteriyor, yani
+ * o API'ye bağımlı. İkisini aynı dosyada tutmak, tek bir 500 yüzünden
+ * vitrinin tamamının hata ekranına düşmesi demekti. Hata burada YUTULUYOR:
+ * menü alınamazsa bölüm hiç basılmıyor.
  *
- * Burada hata **yutuluyor**: menü alınamazsa bölüm hiç basılmıyor. Ziyaretçi
- * eksik bir şey görmüyor, kırık bir şey de görmüyor.
+ * ## Neden `'isr'` okuyor, `'fresh'` değil?
  *
- * ## Neden fiyat gösteriyoruz?
+ * Ana sayfa SEO yüzeyi ve önbellekli kalmalı; burada `'fresh'` okumak
+ * sayfanın tamamını her ziyaretçi için yeniden çizdirirdi. Bir dakikalık
+ * pencere yalnızca GÖSTERİMİ etkiliyor: "sepete ekle"ye basıldığında sunucu
+ * eylemi menüyü taze okuyup kararı yeniden veriyor
+ * (`app/actions/cart.ts`). Yani ekranda eskimiş bir menü olabilir, ama
+ * eskimiş bir menüden sipariş alınamaz.
  *
- * Kurumsal catering fiyatı teklife bağlı ve sitede liste vermiyoruz. Ama
- * `/menu` üzerinden verilen porsiyon siparişinin fiyatı bellidir ve zaten
- * menüde yazıyor; burada saklamak ziyaretçiyi bir tık daha uzaklaştırırdı.
+ * ## Katalog gitti
  *
- * ## v2.0: buradan sipariş verilebiliyor (W-10)
- *
- * Önceki sürümde kartlar yalnızca ürün sayfasına bağlanıyordu; sipariş
- * vermek isteyen ziyaretçi ana sayfa → ürün → sepet diye üç adım atıyordu.
- * Artık seçeneği olmayan ürünler doğrudan sepete ekleniyor.
- *
- * SEÇENEĞİ OLAN ÜRÜN HÂLÂ DETAY SAYFASINA GİDİYOR: zorunlu bir seçenek
- * (porsiyon boyu, acı derecesi) sorulmadan sepete eklenen satır, ödeme
- * adımında reddedilirdi. Aynı ayrım `ProductCard` içinde de var.
- *
- * KART ARTIK BİR BAĞLANTI DEĞİL. Tüm kartı saran `<a>` içine buton koymak
- * geçersiz HTML üretiyor ve tıklama hedefleri iç içe giriyor; başlık
- * bağlantı, gövde düz içerik.
+ * Eskiden altı ürün kartı çiziliyor ve her biri ürün detay sayfasına
+ * bağlanıyordu. Ürün listeleme ve detay sayfaları kaldırıldı; bugünün menüsü
+ * TEK bir teklif ve bandın işi onu göstermek.
  */
-
-/** Ana sayfada gösterilecek ürün sayısı — üç sütuna tam oturan altı kart. */
-const LIMIT = 6;
-
 export async function TodaysMenu() {
-  let items: MenuItem[] = [];
-  let orderingOpen = false;
+  const today = businessToday();
 
+  let location: Location | null;
+  let menu: DailyMenu;
   try {
-    const { categories, location } = await fetchCatalog();
-
-    // Şalter kapalıyken kart yine çiziliyor ama düğme pasif: menüyü
-    // gizlemek SEO'yu ve "bugün ne var" sorusunu birlikte kaybettirirdi
-    // (`docs/06` — `ordering_enabled=false` kuralı).
-    orderingOpen = isOrderingOpen(location);
-
-    items = flattenItems(categories)
-      // Tükenen ürün ana sayfada gösterilmez: burası vitrin, sipariş ekranı
-      // değil. `/menu` içinde soluk hâliyle kalmaya devam ediyor.
-      .filter((item) => item.is_available)
-      .slice(0, LIMIT);
+    location = await fetchPrimaryLocation('isr');
+    if (!location) return null;
+    menu = await fetchDailyMenu(location.id, today, 'isr');
   } catch {
     return null;
   }
 
-  if (items.length === 0) return null;
+  // Menüsü olmayan gün: bant hiç çizilmiyor. "Bugün menü yok" demek ana
+  // sayfanın ortasında negatif bir mesaj olurdu; ziyaretçi takvime
+  // gidebilir.
+  if (menu.items.length === 0) return null;
+
+  const daily = menu.package ?? null;
+  const advantage = packageAdvantageKurus(menu);
+  const canOrder = canOrderDay(location, menu);
 
   return (
     <Section aria-labelledby="bugun-baslik">
@@ -75,78 +64,107 @@ export async function TodaysMenu() {
         <SectionHeading
           id="bugun-baslik"
           eyebrow="Bugün mutfakta"
-          title="Tek tabak da satıyoruz"
-          description="Kurumsal siparişin yanında porsiyon usulü de veriyoruz. Menü her gün buradan güncelleniyor."
+          title={menu.title ?? 'Bugünün menüsü'}
+          description={menu.description ?? `${formatLongDate(today)} için hazırladıklarımız.`}
           className="!mb-0"
         />
 
         <Button asChild variant="outline" size="lg" className="hidden sm:inline-flex">
           <Link href="/menu">
-            Menünün tamamı
-            <ArrowRight aria-hidden="true" />
+            Takvim ve diğer günler
+            <ArrowRight strokeWidth={1.75} aria-hidden="true" />
           </Link>
         </Button>
       </div>
 
-      <ul className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((item) => {
-          const hasOptions = (item.options ?? []).some((option) => option.required);
+      <div className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+        <div className="overflow-hidden rounded-md bg-card text-card-foreground shadow-card dark:shadow-none dark:inset-ring dark:inset-ring-white/5">
+          <div className="relative aspect-3/2">
+            <ProductImage src={menu.image_url} alt="" sizes="(max-width: 1024px) 100vw, 640px" />
+          </div>
 
-          return (
-            <li
-              key={item.id}
-              className="group flex h-full bld-reveal flex-col overflow-hidden rounded-2xl border bg-card text-card-foreground transition-all hover:shadow-lg motion-safe:hover:-translate-y-0.5"
-            >
-              <Link
-                href={productPath(item)}
-                className="relative block aspect-4/3 overflow-hidden bg-muted"
-              >
-                <ProductImage
-                  src={item.image_url}
-                  alt=""
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
-                  className="transition-transform duration-500 motion-safe:group-hover:scale-105"
+          <ul className="grid gap-2 p-5 sm:grid-cols-2">
+            {menu.items.map((item) => (
+              <li key={item.id} className="flex items-start justify-between gap-3 text-body">
+                <span className="flex items-start gap-2">
+                  <UtensilsCrossed
+                    aria-hidden="true"
+                    strokeWidth={1.75}
+                    className="mt-0.5 size-4 shrink-0 text-neutral-400"
+                  />
+                  {item.name}
+                </span>
+                <Money kurus={item.price} size="sm" tone="muted" />
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="flex h-fit flex-col rounded-md bg-surface-warm p-5 text-surface-warm-foreground sm:p-6">
+          {daily ? (
+            <>
+              <h3 className="font-display text-h3 font-semibold text-heading">{daily.name}</h3>
+              <p className="mt-1 text-body-sm text-muted-foreground">
+                Menünün tamamı tek fiyatla. İçindekileri tek tek de alabilirsiniz.
+              </p>
+
+              <div className="mt-4 flex flex-wrap items-end gap-3">
+                <Money
+                  kurus={daily.price}
+                  was={
+                    advantage > 0 && typeof menu.items_total === 'number'
+                      ? menu.items_total
+                      : undefined
+                  }
+                  size="lg"
                 />
-              </Link>
-
-              <div className="flex flex-1 flex-col p-5">
-                <h3 className="font-display text-lg font-semibold tracking-tight">
-                  <Link href={productPath(item)} className="hover:text-primary">
-                    {item.name}
-                  </Link>
-                </h3>
-                {item.description && (
-                  <p className="mt-1.5 flex-1 text-sm/6 text-muted-foreground">
-                    {item.description}
+                {advantage > 0 && (
+                  <p className="bld-badge bg-success-surface text-success-foreground">
+                    Paketle <Money kurus={advantage} size="sm" className="mx-1" /> avantaj
                   </p>
                 )}
-                <p className="mt-4 text-lg font-bold tabular-nums">{formatPrice(item.price)}</p>
-
-                <div className="mt-4">
-                  {hasOptions ? (
-                    <Button asChild variant="outline" className="w-full">
-                      <Link href={productPath(item)}>Seçenekleri gör</Link>
-                    </Button>
-                  ) : (
-                    <AddToCartForm
-                      menuId={item.id}
-                      disabled={!orderingOpen || item.sold_out_today}
-                      disabledReason={item.sold_out_today ? 'Tükendi' : 'Sipariş kapalı'}
-                      showMessage
-                    />
-                  )}
-                </div>
               </div>
-            </li>
-          );
-        })}
-      </ul>
+
+              <div className="mt-5">
+                <AddToDayCart
+                  menuId={daily.menu_id}
+                  serviceDate={today}
+                  label="Menüyü sepete ekle"
+                  disabled={!canOrder || !daily.is_available}
+                  disabledReason={
+                    !daily.is_available
+                      ? 'Bugünlük tükendi'
+                      : menu.is_orderable
+                        ? 'Sipariş alımı kapalı'
+                        : 'Bugüne sipariş alınmıyor'
+                  }
+                  showMessage
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <h3 className="font-display text-h3 font-semibold text-heading">
+                Bugün tek tek satıyoruz
+              </h3>
+              <p className="mt-1 text-body-sm text-muted-foreground">
+                Bu gün için paket fiyatı girilmedi; yemekleri menü sayfasından tek tek sepete
+                ekleyebilirsiniz.
+              </p>
+            </>
+          )}
+
+          <Button asChild variant="secondary" className="mt-4 w-full">
+            <Link href="/menu">Günün menüsünü aç</Link>
+          </Button>
+        </div>
+      </div>
 
       <div className="mt-10 sm:hidden">
         <Button asChild variant="outline" size="lg" className="w-full">
           <Link href="/menu">
-            Menünün tamamı
-            <ArrowRight aria-hidden="true" />
+            Takvim ve diğer günler
+            <ArrowRight strokeWidth={1.75} aria-hidden="true" />
           </Link>
         </Button>
       </div>

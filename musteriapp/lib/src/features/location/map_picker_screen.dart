@@ -94,7 +94,9 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   /// Hizmet alanı daraldığında kutunun dışında kalmış eski bir iğne olabilir;
   /// öyle bir noktadan açmak haritayı ilk karede sıçratırdı. Dışarıdaysa
   /// merkeze düşülür.
-  late LatLng _center = _insideArea(widget.initial) ? widget.initial! : _fallback;
+  late LatLng _center = _insideArea(widget.initial)
+      ? widget.initial!
+      : _fallback;
 
   static bool _insideArea(LatLng? point) =>
       point != null &&
@@ -232,12 +234,10 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 40),
                 child: Icon(
-                  Icons.location_on,
+                  Icons.location_on_outlined,
                   size: 40,
                   color: bldColor(BldColors.brand600),
-                  shadows: const [
-                    Shadow(blurRadius: 6, color: Colors.black38),
-                  ],
+                  shadows: const [Shadow(blurRadius: 6, color: Colors.black38)],
                 ),
               ),
             ),
@@ -259,7 +259,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.my_location),
+                  : const Icon(Icons.my_location_outlined),
             ),
           ),
 
@@ -296,7 +296,10 @@ class _Panel extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(l10n.mapPickerHint, style: Theme.of(context).textTheme.bodyMedium),
+              Text(
+                l10n.mapPickerHint,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
               const SizedBox(height: BldSpacing.xs),
 
               // Harita zaten kutuya hapsedilmiş durumda; bu satır kullanıcıya
@@ -316,9 +319,8 @@ class _Panel extends StatelessWidget {
               const SizedBox(height: BldSpacing.md),
 
               FilledButton(
-                onPressed: () => Navigator.of(
-                  context,
-                ).pop(MapPickerResult.picked(center)),
+                onPressed: () =>
+                    Navigator.of(context).pop(MapPickerResult.picked(center)),
                 child: Text(l10n.mapPickerConfirm),
               ),
             ],

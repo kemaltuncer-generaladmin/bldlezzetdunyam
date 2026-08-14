@@ -23,6 +23,17 @@
       ayrı "REVİZE #N" kâğıdı yerine tek güncel fiş + 20 sn birleştirme penceresi.
       İki kez düzenlenmiş adrese gönderim: 7 kâğıt → 2. Ayrıca fişe teslim QR'ı eklendi ve
       takip QR'ının giriş duvarına çarpan hatası düzeltildi.
+[x] kds ekranını yukarıdan yönetebilmek, sipariş revizeleri olsun her şey olsun, mutfak
+    personelinin yapabildiğinin çok daha fazlasını yapabilmek. kds uygulamasını artık
+    kilitliycez. ikisi senkron çalışmalı
+    → K-21. İmzalı kontrol API'si (16 uç), 7 alanlı kilit politikası, Kontrol Merkezi'nde
+      geçit + KDS Yönetimi paneli. Uzaktan yönetim altyapısı K-09'dan beri vardı; eksik
+      olan makine okunur yönetim ucuydu.
+[x] revize edilse dahi zaten aşamalı çıkıyor, revize onaylanır onaylanmaz mutfak fişi çıkar,
+    kuryeye de en en en son hazıra basınca çıkar — şu an arka arkaya fiş basılıyor
+    → K-21. Eşikler doğruydu; iki eşik aynı turda aşılabildiği için kâğıtlar peş peşe
+      çıkıyordu. Kural: turda sipariş başına tek fiş, mutfak önce, ertelenen bir sonraki
+      turda ve sipariş panodan düşse bile çıkar.
 
 # Web-Admin
 [x] api subdomaininde farklı bir bld sitesi yatıyor bu site kaldırılacak. orijinal anadomain olacak
@@ -811,3 +822,167 @@ php artisan igniter:up          # veykemtu_print_jobs.revision göçü
   eski satırlar tipe göre ayrıştırılıyor; enum değeri kalksaydı eski bir
   kurye satırı mutfak fişi olarak yeniden basılırdı. Otomatik tetiği ve KDS
   menüsündeki seçeneği kalktı, uç elle yeniden basım için duruyor.
+
+---
+
+# Log — KDS'in Kontrol Merkezi'nden yönetimi (K-21, 14.08.2026)
+
+**İstek:** *"kds ekranını buradan yukarıdan yönetebilmek, sipariş revizeleri
+olsun her şey olsun, mutfak personelinin yapabildiğinin çok daha fazlasını
+yapabilmek. KDS uygulamasını artık kilitleyeceğiz. İkisi senkron çalışmalı."*
+
+Artı iki fiş şikâyeti: *"1 kurye 1 de mutfak fişi çıkacak, kurye siparişi
+müşteriye teslim edilecek, kuryede kalmayacak"* ve *"revize onaylanır
+onaylanmaz mutfak fişi çıkar, kuryeye de en en en son hazıra basınca çıkar —
+şu an arka arkaya fiş basılıyor."*
+
+## Bulunan durum: altyapının çoğu zaten vardı
+
+Uzaktan yönetim K-09'dan beri çalışıyordu — 16 yönetilen ayar, 5 komut, cihaz
+kaydı/iptali, sağlık telemetrisi. **Eksik olan tek şey makine okunur bir
+yönetim ucuydu:** `/api/kitchen/*` bir KASANIN token'ına bağlı, yönetim tarafı
+ise yalnızca HTML admin ekranı. Kontrol Merkezi oraya kasa gibi eşleşseydi,
+panelde açık duran bir ekran mutfakta olmayan bir kasayı "çevrimiçi"
+gösterirdi ve yöneticinin gördüğü tablo kendi kendini doğrulardı.
+
+## K-21 — Kontrol Merkezi kapısı
+
+**Yeni imza şeması `X-Control-Signature`**, sır `BLD_CONTROL_SECRET`.
+`bbd.signature` YENİDEN KULLANILMADI: yönü ters (BBD bize yazıyor, Kontrol
+Merkezi yönetiyor) ve aynı sırrı iki yetki seviyesi için kullanmak, BBD'nin
+sırrını ele geçiren birine mutfağı yönetme hakkı da verirdi.
+
+**Tekrar saldırısına kapalı.** `bbd.signature` yalnız gövdeyi imzalıyor;
+orada etki `external_id` tekilliğiyle sınırlı kalıyor. Burada kalmazdı —
+"cihazı iptal et" isteğini tekrar oynatmak mutfağı sipariş göremez hâle
+getirir. İmza dört şeyi birden kapsıyor:
+
+    METOT \n YOL \n ZAMAN \n NONCE \n sha256(gövde)
+
+Metot ve yol imzada olmasaydı, gövdesiz iki farklı uç aynı imzayı paylaşırdı —
+ki iptal ucunun gövdesi boş. Zaman penceresi ±300 sn, nonce 600 sn hatırlanır
+(`Cache::add` atomik; `has`+`put` ikilisi arada yarış bırakırdı).
+
+**16 uç** `/api/control/kds/*`: cihaz listesi/ekleme/adlandırma/eşleme
+kodu/iptal, ayar itme, komut gönderme ve geçmişi, fiş denetim kaydı,
+siparişler, revizyon, durum ilerletme, ürün kataloğu.
+
+**İş mantığı yeniden yazılmadı:** `OrderEditor`, `OrderStatusTransition`,
+`KitchenDeviceSettings`, `KitchenDevice`, `KitchenCommand`, `OrderPresenter`
+aynen kullanılıyor. Uçlar yalnız kabuk. Böylece kasadan ve merkezden yapılan
+aynı iş aynı kodu koşuyor ve ikisi ayrışamıyor.
+
+**Her yazma `reason` (min 10) + `actor` ister** ve `veykemtu_control_audit`'e
+satır yazar; kuru provada da yazar (`result="dry_run"`). Satır silinmez.
+`created_by_staff` = "Kontrol Merkezi · <aktör>" — kasadan mı merkezden mi
+yapıldığı denetim izinde ayrışıyor.
+
+## Kilit politikası — 7 yeni yönetilen ayar
+
+`allow_settings`, `allow_server_change`, `allow_window_controls`,
+`allow_order_edit`, `allow_manual_reprint`, `allow_sales_control`,
+`lock_message`. Ayrıntı ve gerekçeler `docs/05-mutfakapp.md` §8.5.
+
+**Varsayılan `null` = serbest.** Alanların eklenmesi sahadaki hiçbir kasayı
+kilitlemez; tersi olsaydı sunucu güncellemesi mutfağı bir gecede kilitlerdi.
+
+**Kilit diske yazılıyor.** Kasa ağsız açıldığında ilk sağlık turu 60 sn sonra
+gelir; kilit yalnız bellekte dursaydı kasa o pencerede serbest açılırdı ve
+kilidi aşmanın yolu "kapat–aç" olurdu. Aynı turda, bugüne kadar diske hiç
+yazılmayan dört ayar da kalıcı hâle geldi (`printer_code_page`,
+`health_seconds`, `connection_alarm_seconds`, `alarm_silenceable`) — kod
+sayfası yeniden başlatmada varsayılana döndüğü için arada basılan fişlerde
+Türkçe harfler boşluğa dönüyordu.
+
+**Kilit sipariş akışına dokunmaz:** durum ilerletme, geri alma, alarm
+susturma, arama ve yenileme her koşulda açık. Kilitli düğme gizlenmez,
+pasifleşir — gizlemek personele "bozuldu" dedirtir ve mutfaktan telefon
+açtırır.
+
+## Fiş şikâyeti: tasarım doğruydu, aşamalar çöküyordu
+
+K-20 zaten sipariş başına iki kâğıda indirmişti ve eşikler doğruydu (mutfak
+`onaylandi`, müşteri/kurye `hazir`). Şikâyetin sebebi **iki eşiğin aynı turda
+aşılabilmesiydi**; o anda iki kâğıt 1200 ms arayla peş peşe çıkıyordu. Üç yol:
+
+1. Sipariş iki yoklama arasında `yeni`→`hazir` atlarsa KDS onu ilk kez `hazir`
+   görür ve her iki eşiği aynı turda geçer. **Bu davranış test edilmiş ve
+   "doğru" sayılıyordu** — testler güncellendi, silinmedi.
+2. Revizyon bekletmesi salınırken basılmış tiplerin hepsi aynı turda dökülüyordu.
+3. Bekletmedeki revize mutfak fişi ile hiç basılmamış ilk müşteri fişi aynı
+   tura denk gelebiliyordu.
+
+**Kural: turda sipariş başına tek fiş, mutfak önce.** Ertelenen tip bir
+sonraki turda çıkar. Ayrıntı `docs/05-mutfakapp.md` §5.5.
+
+> **ERTELEMEK KAYBETMEK DEĞİLDİR.** İki incelik testle çakıldı: erteleme
+> `_acceptedOrders`/`_readyOrders` kümesini İŞARETLEMEZ (işaretlemek fişi
+> bastırmaz, tamamen kaybettirirdi), ve ertelenen iş sipariş listesinden
+> BAĞIMSIZ salınır — sipariş `teslim_edildi` olup panodan düşse bile kurye
+> fişi çıkar. Kurye kâğıtsız yola çıkarsa müşterinin elinde tek belge kalmaz.
+
+## Turda yakalanan üç hata (hepsi mevcut, hiçbiri bu turun ürünü değil)
+
+1. **Seçenek KİMLİĞİ kayboluyordu.** `OrderPresenter::editable()` seçeneklerin
+   yalnız adını döndürüyor, `LineResolver` ise `option_value_ids` istiyor.
+   Sonuç: seçenekli bir sipariş KDS'ten düzenlenince satır **seçeneksiz
+   yeniden fiyatlanıyor** — müşteri eksik ücretlendiriliyor ve fişten seçenek
+   satırı düşüyor. Kimlikler `order_menu_options`'ta duruyordu; `editable()`
+   artık tek sorguda okuyup `option_value_ids` olarak veriyor (additive).
+2. **Seçenek ADI boş kaydediliyordu.** `LineResolver::resolveOptions()`
+   `option_value->value` okuyordu; `menu_option_values` sütununun adı `name`.
+   Eloquent tanımsız özniteliğe `null` dönüyor, `?? ''` boş dizgeye çeviriyor.
+   Fiyat farkı doğru işlendiği için toplam tutuyordu ve hata görünmüyordu.
+3. **`audio_sink` boş dizesi tele hiç ulaşmıyordu.** Sözleşme "boş dize =
+   varsayılan çıkışa dön" diyor ve testi de vardı — ama test nesneyi doğrudan
+   kuruyordu; sunucudan gelen yolda `_asStringOrNull` boş dizeyi `null`'a
+   çeviriyor, `null` da "dokunmadı" demek. Yani yönetici seçtiği hoparlörü
+   panelden geri alamıyordu. Düzeltme geri alınıp testin gerçekten düştüğü
+   görülerek doğrulandı.
+
+## Doğrulama
+
+| Paket | Sonuç |
+|---|---|
+| PHP (`phpunit --testsuite Veykemtu`) | **441 test / 1842 doğrulama**, 1 hata* |
+| `ControlKdsTest` + `OrderRevisionTest` | **66 test / 311 doğrulama**, temiz |
+| `mutfakapp` | **519 test**, `flutter analyze` temiz |
+| `packages/api_client` | **100 test** |
+| `packages/core` | golden fiş baytları **değişmedi** |
+
+\* `AddressSuggestTest::test_oneri_doner_ve_satiri_sunucu_kurar` — adres
+birleştirmede fazladan virgül. Test dosyası ve `StructuredAddress.php`
+untracked, yani yapısal adres iş kolunun devam eden işi; K-21 diff'i adres
+yolunun hiçbir yerine değmiyor.
+
+## Dağıtımda yapılacaklar
+
+```bash
+cd platform
+php artisan igniter:up      # 2026_08_17_000001 + 000002
+```
+
+- **Yeni `.env` girdisi: `BLD_CONTROL_SECRET`** (`openssl rand -hex 32`).
+  `BBD_WEBHOOK_SECRET` ile AYNI OLMAMALI. Boşsa `/api/control/kds/*` 401
+  döner ve Kontrol Merkezi hiçbir şey yönetemez.
+- Aynı değer Kontrol Merkezi'nin kasasına `server.bld.control_secret` adıyla
+  girilir.
+- `docker-compose.coolify.yml` güncellendi; Coolify'da değişken tanımlanmalı.
+
+## Bilinçli olarak yapılmayanlar
+
+- **`CatalogController.php:394` düzeltilmedi.** Hata 2 numaranın birebir
+  kopyası (`option_value->value`) ve müşteri menüsündeki seçenek adlarını
+  boşaltıyor. Dosya şu an başka bir iş kolunda değişiklik altında; tek
+  satırlık düzeltme için çakışma riskine girilmedi. **Açık madde.**
+- **Geriye dönük veri düzeltmesi yapılmadı.** 1 ve 2 numaralı düzeltmeler
+  yalnız bundan sonra yazılan satırları etkiler; veritabanında boş adla duran
+  mevcut `order_menus.option_values` / `order_menu_options.order_option_name`
+  kayıtları öyle kalır. Düzeltmek ayrı bir göç ister.
+- **Yeni komut eklenmedi.** `update` (uzaktan `.deb` kurulumu) ve makine
+  yeniden başlatma hâlâ yok; `restart` yalnız uygulamayı öldürüyor.
+- **WebSocket'e geçilmedi.** Kontrol Merkezi de yoklamayla çalışıyor;
+  ADR-05'in Faz 1.5 kararı değişmedi.
+- **Açılış parolası hâlâ derleme sabiti** — uzaktan döndürülemiyor.
+- **Pint ile toplu biçimlendirme yine yapılmadı** (önceki turların gerekçesi
+  aynen geçerli).

@@ -30,7 +30,7 @@ export function OrderSteps({ status, deliveryType }: Props) {
     return (
       <p
         role="status"
-        className="rounded-card bg-danger/10 px-4 py-3 text-sm font-medium text-danger"
+        className="rounded-card bg-danger-surface px-4 py-3 text-sm font-medium text-danger-foreground"
       >
         Bu sipariş iptal edildi.
       </p>
@@ -61,20 +61,16 @@ export function OrderSteps({ status, deliveryType }: Props) {
                 aria-hidden="true"
                 className={cn(
                   'h-0.5 flex-1',
-                  index === 0
-                    ? 'bg-transparent'
-                    : done || active
-                      ? 'bg-brand-500'
-                      : 'bg-neutral-200',
+                  index === 0 ? 'bg-transparent' : done || active ? 'bg-primary' : 'bg-muted',
                 )}
               />
               <span
                 aria-hidden="true"
                 className={cn(
                   'grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 text-xs font-bold',
-                  done && 'border-brand-500 bg-brand-500 text-neutral-0',
-                  active && 'border-brand-500 bg-neutral-0 text-brand-700',
-                  !done && !active && 'border-neutral-200 bg-neutral-0 text-neutral-400',
+                  done && 'border-primary bg-primary text-primary-foreground',
+                  active && 'border-primary bg-card text-primary-text',
+                  !done && !active && 'border-border bg-card text-neutral-400',
                 )}
               >
                 {done ? '✓' : active ? '●' : index + 1}
@@ -83,18 +79,14 @@ export function OrderSteps({ status, deliveryType }: Props) {
                 aria-hidden="true"
                 className={cn(
                   'h-0.5 flex-1',
-                  index === flow.length - 1
-                    ? 'bg-transparent'
-                    : done
-                      ? 'bg-brand-500'
-                      : 'bg-neutral-200',
+                  index === flow.length - 1 ? 'bg-transparent' : done ? 'bg-primary' : 'bg-muted',
                 )}
               />
             </div>
             <span
               className={cn(
                 'text-xs leading-tight',
-                active ? 'font-semibold text-neutral-900' : 'text-neutral-600',
+                active ? 'font-semibold text-foreground' : 'text-muted-foreground',
               )}
             >
               {step.label}

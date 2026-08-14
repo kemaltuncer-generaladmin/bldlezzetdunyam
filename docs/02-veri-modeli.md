@@ -25,12 +25,75 @@ TastyIgniter'ın kendi şeması (menü, kategori, müşteri, sipariş, vitrin) *
 | Kolon | Tip | Açıklama |
 |---|---|---|
 | `id` | bigint PK | |
-| `name` | varchar | "Mutfak Kasası 1" |
-| `pairing_code` | varchar(12) null | Tek kullanımlık eşleme kodu; kullanılınca null |
-| `token_hash` | varchar null | Cihaz token'ının hash'i |
-| `last_seen_at` | timestamp null | Son istek zamanı |
-| `revoked_at` | timestamp null | İptal edilmişse dolu |
+| `name` | varchar(64) | "Mutfak Kasası 1" |
+| `pairing_code` | varchar(16) null UNIQUE | Tek kullanımlık eşleme kodu; kullanılınca null |
+| `pairing_expires_at` | timestamp null | Kodun son geçerlilik anı (üretimden **10 dk** sonra) |
+| `last_seen_at` | timestamp null | Son istek zamanı (indeksli) |
+| `revoked_at` | timestamp null | İptal edilmişse dolu → `403 DEVICE_REVOKED` |
 | `created_at`, `updated_at` | timestamp | |
+
+**DÜZELTME (14.08.2026): `token_hash` diye bir kolon YOK** ve hiç olmadı.
+Bu satır belgede duruyordu ama karşılığı `2026_08_04_000002` göçünde de,
+`KitchenDevice` modelinde de bulunmuyor. Cihaz token'ları **Sanctum'un
+`personal_access_tokens` tablosunda** yaşıyor (`kitchen` kapsamıyla);
+`KitchenDevice::issueToken()` orayı yazıyor ve eski token'ları silerek bir
+cihazın aynı anda tek token taşımasını sağlıyor.
+
+Ayrımın pratik sonucu var: **kasa iptal edilirken token satırı kasten
+silinmiyor.** Silinseydi `findToken()` `null` döner, istek
+`401 UNAUTHENTICATED` ile biter ve KDS'in beklediği `403 DEVICE_REVOKED`
+dalına hiç ulaşılmazdı — mutfak "eşleme iptal edildi" yerine genel bir
+oturum hatası görürdü. Erişim yine kapalı: her mutfak ucu `bld.auth`
+içinde `isRevoked()` denetiminden geçiyor.
+
+**DÜZELTME (14.08.2026): eşleme kodu `varchar(12)` değil `varchar(16)`.**
+Üretilen kodun biçimi `XXXX-XXXX`, yani **9 karakter**
+(`^[A-Z0-9]{4}-[A-Z0-9]{4}$`); sütun 16'ya kadar yer bırakıyor. Alfabede
+karıştırılması kolay karakterler (`0`/`O`, `1`/`I`) **yok** — kod mutfakta
+elle, çoğu zaman kötü ışıkta giriliyor. (`docs/05-mutfakapp.md` §7 adım 2 hâlâ "12
+karakter" diyor; o dosya bu görevin kapsamı dışında ve düzeltilmesi
+gerekiyor.)
+
+Tabloya sonradan eklenen **yönetilen ayar** kolonları (`poll_seconds`,
+`sound_enabled`, ses/alarm/TTS ailesi, `touch_mode`, `settings_updated_at`)
+ve **sağlık** kolonları (`health_reported_at`, `printer_ok`,
+`print_queue_pending`, `print_queue_failed`, `app_version`) burada tek tek
+sayılmıyor; normatif listesi `docs/openapi.yaml` → `KitchenSettings` ve
+`docs/05-mutfakapp.md` §8. Hepsinin ortak kuralı: **`null` = "yönetici
+dokunmadı"**, o alanda kasa kendi derleme varsayılanını kullanır.
+
+#### Kilit politikası kolonları (K-21 — `2026_08_17_000001`)
+
+| Kolon | Tip | Kapattığı şey |
+|---|---|---|
+| `allow_settings` | boolean **null** | Kasadaki ayarlar ekranının tamamı |
+| `allow_server_change` | boolean **null** | Sunucu adresi değişimi + eşlemeyi sıfırlama |
+| `allow_window_controls` | boolean **null** | Tam ekrandan çıkma / küçültme |
+| `allow_order_edit` | boolean **null** | Kasadan sipariş düzenleme (K-12) |
+| `allow_manual_reprint` | boolean **null** | Elle yeniden fiş bastırma |
+| `allow_sales_control` | boolean **null** | Satış şalteri + "bugün tükendi" (K-11) |
+| `lock_message` | varchar(160) null | Kilitli düğmeye basınca gösterilecek metin |
+
+**HEPSİ NULLABLE VE VARSAYILANI `null` — bu göçün en önemli kararı.**
+`null` "yönetici dokunmadı" demektir ve kasanın **bugünkü** davranışı
+geçerli kalır, yani **serbest**. Sütunlara `false` varsayılanı konsaydı göç
+koştuğu saniyede sahadaki bütün kasalar kilitlenir, mutfak ayar ekranına
+giremez ve kimse sebebini anlamazdı; üstelik kilidi açacak arayüz (Kontrol
+Merkezi) henüz devrede bile olmayabilirdi. `true` varsayılanı da yanlış
+olurdu: o zaman "yönetici açıkça izin verdi" ile "kimse dokunmadı" ayırt
+edilemez, ileride varsayılanı sıkılaştırmak imkânsız hâle gelirdi.
+
+**Kilit ancak yönetici açıkça `false` yazınca doğar.** Yazma yolu tek:
+`PATCH /api/control/kds/devices/{id}/settings` (§14, `docs/03`). Kasa
+değerleri bir sonraki **sağlık bildiriminin** yanıtında alıyor; kasa
+tarafında düğme **gizlenmez, pasifleşir** (`docs/05` §8) — gizlenen düğme
+personeli "bozuldu" sanısına iter ve destek çağrısı üretir.
+
+`lock_message` neden ayrı bir alan: kilitli bir düğmeye basınca kasa bir şey
+söylemek zorunda. Metin kasaya gömülseydi ("Bu işlem yönetici tarafından
+kapatılmıştır") mutfak **kime başvuracağını** bilemezdi; yöneticinin
+"Kapatıldı — Ahmet Bey'i arayın, 0532..." yazabilmesi gerekiyor. 160
+karakter, çünkü kasa bunu tek satırlık bir uyarı şeridinde gösteriyor.
 
 ### 2.2 `veykemtu_print_jobs` (bridgeapi eklentisi — opsiyonel sunucu kopyası)
 
@@ -72,6 +135,71 @@ değişmedi, daraldı: "bu revizyon ilk ne zaman basıldı".
 | `fcm_token` | varchar |
 | `platform` | enum: `android` |
 | `updated_at` | timestamp |
+
+### 2.5 `veykemtu_control_audit` (bridgeapi — K-21, `2026_08_17_000002`)
+
+Kontrol Merkezi'nden yapılan **her yazma** işleminin izi. "Kim, ne zaman,
+hangi kasayı iptal etti ve neden" sorusunun cevabı bu tablodur.
+
+| Kolon | Tip | Açıklama |
+|---|---|---|
+| `id` | bigint PK | Yanıttaki `audit_id` |
+| `actor` | varchar(120) | İşlemi yapan kişi — Kontrol Merkezi'nin bildirdiği **serbest metin** |
+| `action` | varchar(64), indeksli | `device.create`, `device.rename`, `device.pairing_code`, `device.revoke`, `device.settings`, `device.command`, `order.revise`, `order.status` |
+| `target_type` | varchar(32) null | `kitchen_device` \| `order` \| `null` (henüz kimliği olmayan cihaz yaratma) |
+| `target_id` | bigint null | Hedefin kimliği |
+| `reason` | varchar(500) | **En az 10 karakter** — sunucu zorluyor |
+| `payload_json` | json null | İsteğin **özeti**; hata varsa `error` anahtarı da burada |
+| `result` | varchar(32), indeksli | `pending` \| `applied` \| `failed` \| `dry_run` |
+| `created_at` | timestamp null | Eylemin anı |
+
+İkinci indeks `(target_type, target_id)` — "bu kasaya ne yapıldı"
+sorgusunun dayanağı.
+
+**SATIR SİLİNMEZ.** Silme yolu bilinçli olarak açılmıyor ve `ControlAudit`
+modelinde de yok: **denetim izini silebilen bir denetim izi denetim izi
+değildir.** (`AGENTS.md` §2 ile aynı ruh; `veykemtu_account_ledger`'ın
+append-only kuralıyla da aynı aile.)
+
+**Güncelleme yalnız sonuca dokunur.** `result` `pending` doğar, işlem
+bitince `applied` ya da `failed` olur; `actor`, `action`, `reason` ve hedef
+bir daha değişmez.
+
+**Satır işlemden ÖNCE açılır.** Sonra açılsaydı, yarıda kalan bir yazma
+(veritabanı hatası, zaman aşımı) hiçbir iz bırakmazdı — oysa "denendi ve
+olmadı" tam da soruşturulması gereken hâldir.
+
+**Kuru prova da satır yazar** (`result = "dry_run"`). "Denedim ama
+uygulamadım" bir eylemdir ve yanlış kasaya kilit uygulamaya çalışan birinin
+ilk adımı çoğu zaman odur. Kuru provada bir **ön denetim** düşse bile satır
+`dry_run` kalır, `failed` olmaz: aksi hâlde denetim ekranında kuru provalar
+gerçek yazma denemeleriyle karışırdı. Sebep yine kaydediliyor, yalnız
+`payload_json.error` içinde.
+
+**Neden sunucuda, Kontrol Merkezi'nde değil:** gerekçeyi ve aktörü karşı
+tarafın kaydetmesine güvenmek, kaydı isteyen tarafın kendi kendini
+denetlemesi olurdu. Kontrol Merkezi arayüzünde gerekçe alanını gizlemek ya
+da otomatik doldurmak tek satırlık bir değişiklik; sunucu `reason`'ı
+**zorunlu** kılıyor ve buraya **kendisi** yazıyor.
+
+**`actor` neden yabancı anahtar değil:** Kontrol Merkezi ayrı bir depo, ayrı
+bir kullanıcı tablosu; o kişinin BLD'de hesabı yok ve olmayacak. Yabancı
+anahtar iki sistemi birbirine bağlardı. Kimliğin doğruluğunu imza garanti
+ediyor (isteğin oradan geldiğini kanıtlıyor), sütunun kendisi değil.
+
+**`payload_json` isteğin özetidir, tam gövdesi değil:** yalnız o eylemi
+anlamlandıran alanlar yazılıyor (hangi ayar, hangi komut, kaç kalem). Ham
+gövdeyi saklamak müşteri notu gibi kişisel veriyi ikinci bir yerde
+çoğaltırdı (§6, KVKK).
+
+**Zaman damgası tek: `updated_at` YOK.** Bir denetim satırının "güncellenme
+saati" diye bir kavramı olmamalı; `created_at` eylemin anıdır ve `result` o
+anın sonucudur. Model bu yüzden `$timestamps = false` ile çalışıyor —
+açık bırakılsaydı Eloquent her `save()`'de var olmayan bir sütunu yazmaya
+çalışır ve `result` güncellemesi SQL hatasıyla düşerdi.
+
+Uçların tamamı ve gerekçe/kuru prova kuralları: `docs/03-api-sozlesmesi.md`
+§14.
 
 ## 3. Sipariş durum makinesi
 
@@ -315,3 +443,188 @@ her kodu aktif anahtara çevirirdi. Satırlar silinmez, `consumed_at` ile
 tüketilir — silinseydi "bu kod kullanıldı mı" sorusu yanıtsız kalırdı.
 `attempts` sayacı KODA bağlı: oran sınırı IP başına ve saldırgan IP
 değiştirebilir.
+
+---
+
+## 8. Günün menüsü (B-19 — 14.08.2026)
+
+Sistemin satış modeli değişti: artık **sabit bir katalog değil, gün gün
+girilen menü** satılıyor. `docs/11-yol-haritasi.md` §7.5'te "kaynağı yok"
+diye ertelenen `menu_mode = daily_menu` bu bölümle kaynağına kavuşuyor.
+
+### 8.1 `veykemtu_daily_menus` — bir gün, bir menü
+
+`id`, `location_id` (index), `menu_date` (date), `title` (120), `description`
+(500), `package_price_kurus` (null = o gün paket satılmıyor, yalnız kalemler),
+`components_sellable` (bool, false = yalnız paket), `status`
+(`draft`\|`published`), `published_at`, `published_by`, `image_path`,
+`internal_note` (**panelde kalır, müşteriye gitmez**), `created_by`,
+timestamps.
+
+`UNIQUE(location_id, menu_date)` · `INDEX(menu_date, status)`
+
+**`location_id` neden bugünden tekil anahtarda:** Faz 1 tek vitrin, ama
+kolonu sonradan tekil anahtara eklemek, o gün tabloda çift satır varsa
+**başarısız olan** bir göç demektir. Bugün bedava, yarın imkânsız.
+
+**`status` neden boolean değil:** `menus.menu_status` bu dersi bir kez
+verdi (§"Mutfak turu tabloları"). Boolean üçüncü bir duruma büyüyemez.
+Yönetici bir ay öncesinden plan giriyor; taslak ayrımı olmasaydı yarım
+girilmiş perşembe, kaydedildiği anda müşteriye görünürdü.
+
+### 8.2 `veykemtu_daily_menu_items` — o günün kalemleri
+
+`id`, `daily_menu_id` (index), `menu_id` (index, çekirdek `menus`), `quantity`
+(bir pakette kaç porsiyon), `sort_order` (çorba → ana yemek → pilav → tatlı),
+`price_override_kurus` (null = ürünün kendi fiyatı; **yalnız tek tek satışta
+geçerli, paket fiyatını etkilemez**), `is_required`, `sellable_alone` (ekmek,
+ayran gibi kalemler yalnız pakette olabilir), `label` ("Günün Çorbası:
+Mercimek").
+
+`UNIQUE(daily_menu_id, menu_id)`
+
+### 8.3 `orders.bld_service_date` (additive)
+
+`date`, null, index. Siparişin **hangi gün için** olduğu.
+
+Değişmez kural: **`bld_service_date === DATE(order_date)`**, her yazma
+yolunda. `order_date` bugünkü anlamını koruyor (`OrderFactory` zaten istenen
+teslim gününe yazıyor), böylece `order_date` üzerinden filtreleyen her sorgu
+— `KitchenController::orders`, `ProductionListService::today()`,
+`SubscriptionKitchenPlan` — **hiç değişmeden doğru kalıyor**.
+
+Ayrı kolon yine de gerekli: `order_date` bir tarih+saat çifti ve mutfak
+teslim saatini düzenlediğinde `OrderEditor` onu yeniden yazıyor. Servis
+günü ise bir **iş anahtarı** — siparişin hangi günün menüsüne bağlandığını
+seçiyor, indeksli olmalı ve saat düzenlemesinden etkilenmemeli. Göç mevcut
+satırları `DATE(order_date)` ile dolduruyor.
+
+### 8.4 `order_menus` — paket bağı (additive)
+
+`bld_daily_menu_id` (null, index), `bld_line_role` (`package`\|`component`\|
+null), `bld_parent_line_id` (null, index).
+
+Sipariş **bir paket satırı + sıfır fiyatlı bileşen satırları** olarak
+yazılıyor. Bu kalıp yeni değil: abonelik siparişleri baştan beri böyle
+yazılıyor (`OrderFactory::resolveSubscriptionLines` bileşenleri
+`unit_price: 0` ile yazıyor, para `order_totals`'ta). Paket satırının
+eklenmesi aslında aboneliğin bugün **bozduğu** bir değişmezi de onarıyor:
+`sum(order_menus.subtotal)` artık `order_totals.subtotal` ile tutuyor.
+
+Gerekçe ve reddedilen alternatifler: `docs/03-api-sozlesmesi.md` §4.
+
+### 8.5 Mevcut tarihli tablolarla ilişki
+
+**`veykemtu_closed_days` her zaman kazanır.** Kapalı güne menü girilmiş
+olsa bile sipariş alınmaz. Sebep: abonelik üretimi ve
+`Subscription::upcomingServiceDays()` zaten bu tabloya bakıyor; "açık mıyız"
+sorusunun ikinci bir kaynağı bir gün ilkiyle çelişir ve çeliştiği gün bayram
+sabahıdır. **Kapalı günde menü satırı silinmez** — tatil iptal olabilir,
+menü ise daha pahalı bir emek.
+
+**`veykemtu_menu_soldout` yalnız bugünü bilir** ve öyle kalıyor: mutfak
+gelecek salı köftenin biteceğini bilemez. Servis günü bugün değilse tükenme
+işaretleri hiç okunmaz. Bugünse, tükenen **zorunlu** bir kalem paketi de
+düşürür — ana yemeği olmayan menüyü satmak, bir telefon özrünü kırka
+çevirir.
+
+### 8.6 "Günün Menüsü" ürün kaydı
+
+Paket satırının `order_menus.menu_id`'si için çekirdekte **kategorisiz,
+kalıcı bir `menus` kaydı** açılıyor; kimliği `location_options` içinde
+`bld_daily_package_menu_id` olarak duruyor.
+
+Kategorisiz olması bilinçli: `CatalogController::menu()` yanıtı
+`$item->categories` üzerinden kuruyor, yani kategorisi olmayan ürün hiçbir
+vitrine sızamaz. `menu_status = true` olması da bilinçli: mutfak bu kaydı
+`menu-availability` ile "bugün tükendi" işaretleyip **yalnız paketi**
+kapatabilsin diye.
+
+`menus.menu_price = 0.00`. Bu yüzden `LineResolver`, bu kimliği çözülmüş
+bir gün olmadan gördüğünde **istisna fırlatır, asla ürün fiyatına
+düşmez** — günün menüsünü sıfır liraya satmak, buradaki en pahalı sessiz
+arıza olurdu ve kendi testi var.
+
+---
+
+## 9. Akıllı adres — yapılandırılmış adres kolonları
+
+Sözleşme tarafı: `docs/03-api-sozlesmesi.md` §13.
+
+### 9.1 `addresses` — bugünkü hâli
+
+Tablo TastyIgniter'ın; hem **adres defteri** hem **sipariş adres kopyası**
+bu tabloda duruyor ve ikisini `bld_is_saved` ayırıyor.
+
+| Kolon | Kimin | Taşıdığı |
+|---|---|---|
+| `address_1` | çekirdek | API'deki `line1` |
+| `address_2` | çekirdek | API'deki `note` (kuryeye not) |
+| `state` | çekirdek | API'deki `district` (ilçe) |
+| `city` | çekirdek | API'deki `city` |
+| `bld_label` | bizim | "Ev", "Ofis" |
+| `bld_is_saved` | bizim | defter satırı mı, sipariş kopyası mı |
+| `bld_is_default` | bizim | ödeme ekranında seçili gelen |
+| `bld_latitude` / `bld_longitude` | bizim | `DECIMAL(10,7)`, harita iğnesi |
+
+`state` sütununun ilçeyi taşıması çekirdek şemanın dayattığı bir eşleme ve
+`OrderPresenter::address` ile `AddressController::fill` **aynı** eşlemeyi
+kullanıyor. İkisi ayrıştığı gün adresin yarısı kaybolur.
+
+### 9.2 Eklenen kolonlar (additive)
+
+| Kolon | Tip | Not |
+|---|---|---|
+| `bld_neighbourhood` | `varchar(96)` null | Mahalle |
+| `bld_street` | `varchar(128)` null | Cadde / sokak |
+| `bld_building_no` | `varchar(24)` null | Bina / dış kapı no |
+| `bld_floor` | `varchar(16)` null | Kat |
+| `bld_door_no` | `varchar(16)` null | Daire / iç kapı no |
+
+Beşi de **nullable**, öneksiz karşılıkları yok, indekssiz. Göç geri
+alınabilir (`down()` beş kolonu düşürür).
+
+**`bld_` öneki, tablo bizim olmadığı için.** 2026_08_05_000001'in gerekçesi
+burada da geçerli: çekirdek ileride kendi `street` kolonunu eklerse öneksiz
+bir kolon göçü sebebi hiç anlaşılmayan bir çakışmayla patlatır.
+
+**Ayrı tablo AÇILMIYOR.** Bu beş alan adresin **parçaları**, ilişkili bir
+kavram değil; ayrı tabloya konsaydı her adres okuması bir `JOIN` kazanır,
+karşılığında hiçbir şey kazanmazdı. Sipariş kopyası da aynı satırda kalıyor:
+teslimat adresi değişmez bir kayıt ve parçalarının ayrı bir tabloda ayrı bir
+ömür sürmesi o değişmezliği kırardı.
+
+**Üçü neden `varchar`, `int` değil.** `bld_building_no` sahada `12/A`, `3-5`,
+`12 B blok` gibi değerler alıyor; `int` bunların hepsini ya reddeder ya da
+sessizce `12`'ye kırpar — ikincisi kuryeyi yanlış bloğa gönderir. Aynı
+şekilde `bld_floor` için `Zemin`, `Bodrum`, `Asma` geçerli cevaplar ve
+`0`/`-1` onların yerini tutmaz.
+
+**`address_1` (`line1`) DURUYOR ve boş bırakılmıyor.** Yeni kolonlar onu
+bölmüyor, üstüne biniyor. Sebep sözleşme tarafında yazılı (`docs/03` §13.7):
+fiş basan her yol bugün `address_1`'i okuyor. Sunucu, istemci yalnız
+yapılandırılmış alanları gönderdiğinde `address_1`'i onlardan **türetip**
+yazar — kolon her satırda dolu kalır.
+
+**Eski satırlar geriye dönük AYRIŞTIRILMIYOR.** Göç, mevcut `address_1`
+metinlerini mahalle/sokak/no diye bölmeye çalışmıyor; beş kolon eski
+satırlarda `NULL` kalıyor. Serbest metin adresi ayrıştırmak tahminle
+çalışır ve tahminin tuttuğu satırlarda hiçbir şey kazandırmaz, tutmadığı
+satırlarda ise **doğru olan `address_1`'in yanına yanlış bir mahalle yazar**.
+Yanlış veri, eksik veriden pahalıdır.
+
+**Kat ve daire hiçbir geocoder'dan gelmez.** `bld_neighbourhood`,
+`bld_street` ve `bld_building_no` öneriden dolabilir; `bld_floor` ve
+`bld_door_no` **her zaman** müşterinin elinden çıkar — hiçbir harita verisi
+kimin hangi dairede oturduğunu bilmiyor.
+
+### 9.3 Geocoder önbelleği için tablo YOK
+
+Öneri ve ters geocoding yanıtları (`docs/03` §13.5) uygulamanın **cache
+store'unda** duruyor, veritabanında değil. Gerekçe: veri tamamen atılabilir
+(kaybı yalnız bir sağlayıcı isteği maliyeti demek), TTL'i kendi kendine
+işliyor ve tabloda dursaydı beraberinde bir temizlik işi getirirdi —
+süresi geçmiş satırları silen ve unutulduğu gün tabloyu şişiren türden.
+
+Kalıcı olması gereken tek şey müşterinin **seçtiği** adres; o da zaten
+`addresses` satırına yazılıyor.

@@ -74,17 +74,17 @@ export default async function KurumsalPage() {
             width={900}
             height={1125}
             sizes="(max-width: 1024px) 100vw, 480px"
-            className="w-full rounded-3xl object-cover"
+            className="w-full rounded-md bld-photo"
           />
         </div>
       </Section>
 
       {/* Misyon ve vizyon koyu bantta: sayfanın en çok alıntılanan iki cümlesi,
           zemin değişimiyle görsel olarak da ayrılıyor. */}
-      <Section tone="olive" aria-labelledby="misyon-vizyon-baslik">
+      <Section tone="brand" aria-labelledby="misyon-vizyon-baslik">
         <h2
           id="misyon-vizyon-baslik"
-          className="max-w-2xl font-display text-3xl font-semibold tracking-tight sm:text-4xl"
+          className="max-w-2xl font-display text-h2 font-semibold tracking-tight text-balance sm:text-h1"
         >
           Ne için çalışıyoruz
         </h2>
@@ -93,23 +93,23 @@ export default async function KurumsalPage() {
           <div>
             <span
               aria-hidden="true"
-              className="grid size-11 place-items-center rounded-xl bg-white/10 text-white"
+              className="grid size-11 place-items-center rounded-sm bg-brand-50/15 text-brand-50"
             >
-              <Target className="size-5" />
+              <Target strokeWidth={1.75} className="size-5" />
             </span>
-            <h3 className="mt-4 font-display text-xl font-semibold tracking-tight">Misyonumuz</h3>
-            <p className="mt-3 text-base/7 opacity-85">{company.mission}</p>
+            <h3 className="mt-4 font-display text-h3 font-semibold tracking-tight">Misyonumuz</h3>
+            <p className="mt-3 text-body-lg opacity-85">{company.mission}</p>
           </div>
 
           <div>
             <span
               aria-hidden="true"
-              className="grid size-11 place-items-center rounded-xl bg-white/10 text-white"
+              className="grid size-11 place-items-center rounded-sm bg-brand-50/15 text-brand-50"
             >
-              <Compass className="size-5" />
+              <Compass strokeWidth={1.75} className="size-5" />
             </span>
-            <h3 className="mt-4 font-display text-xl font-semibold tracking-tight">Vizyonumuz</h3>
-            <p className="mt-3 text-base/7 opacity-85">{company.vision}</p>
+            <h3 className="mt-4 font-display text-h3 font-semibold tracking-tight">Vizyonumuz</h3>
+            <p className="mt-3 text-body-lg opacity-85">{company.vision}</p>
           </div>
         </div>
       </Section>
@@ -126,10 +126,19 @@ export default async function KurumsalPage() {
           {company.values.map((value) => (
             <li
               key={value.title}
-              className="rounded-2xl border border-l-4 border-l-primary bg-card p-6 text-card-foreground"
+              /*
+                `bld-card` KULLANILMIYOR ve sebebi sıra: kısayol sınıfı
+                `border` (dört kenar 1px) uyguluyor, sol kenarı kalınlaştıran
+                `border-l-4` ile aynı katmanda üretiliyor ve hangisinin
+                kazanacağı sıralamaya kalıyordu. Açıkça yazmak bu belirsizliği
+                kaldırıyor.
+              */
+              className="rounded-md border border-l-4 border-l-primary bg-card p-6 text-card-foreground shadow-card dark:shadow-none dark:inset-ring dark:inset-ring-white/5"
             >
-              <h3 className="font-display text-lg font-semibold tracking-tight">{value.title}</h3>
-              <p className="mt-2 text-sm/6 text-muted-foreground">{value.body}</p>
+              <h3 className="font-display text-h3 font-semibold tracking-tight text-heading">
+                {value.title}
+              </h3>
+              <p className="mt-2 text-body text-muted-foreground">{value.body}</p>
             </li>
           ))}
         </ul>
@@ -160,11 +169,11 @@ export default async function KurumsalPage() {
         <div className="max-w-3xl bld-reveal">
           <h2
             id="sirket-ailesi-baslik"
-            className="font-display text-3xl font-semibold tracking-tight sm:text-4xl"
+            className="font-display text-h2 font-semibold tracking-tight text-balance sm:text-h1"
           >
             Şirket ailesi
           </h2>
-          <p className="mt-5 text-base/7 opacity-85">{company.groupRelation}</p>
+          <p className="mt-5 text-body-lg opacity-85">{company.groupRelation}</p>
         </div>
       </Section>
 

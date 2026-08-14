@@ -1484,5 +1484,17 @@
   "actionsTitle": "İşlemler",
   "@actionsTitle": {
     "description": "Durum çubuğundaki dokunmatik işlem menüsünün başlığı"
+  },
+  "lockedMessage": "Bu işlem Kontrol Merkezi'nden kilitlendi.",
+  "@lockedMessage": {
+    "description": "Yönetici özel bir kilit metni yazmadıysa gösterilen genel metin (K-21 §5.4)"
+  },
+  "lockedBadge": "KİLİTLİ",
+  "@lockedBadge": {
+    "description": "Durum çubuğundaki kilit rozeti ve kilitli ekran şeridinin başlığı"
+  },
+  "lockedBadgeTooltip": "Bazı işlemler Kontrol Merkezi'nden kilitlendi.",
+  "@lockedBadgeTooltip": {
+    "description": "Kilit rozetinin ipucu"
   }
 }

@@ -7,6 +7,10 @@ namespace Veykemtu\BridgeApi\Admin;
 use Igniter\Admin\Models\Status;
 use Igniter\Cart\Models\Order;
 use Igniter\Flame\Database\Builder;
+use Igniter\Local\Models\Location;
+use Illuminate\Support\Carbon;
+use Veykemtu\BridgeApi\Models\ClosedDay;
+use Veykemtu\BridgeApi\Models\DailyMenu;
 use Veykemtu\BridgeApi\Models\KitchenDevice;
 use Veykemtu\BridgeApi\Models\PrintJob;
 use Veykemtu\BridgeApi\Services\LocationGate;
@@ -34,6 +38,18 @@ final class OperationsSnapshot
     /** Bu süredir haber vermeyen kasa çevrimdışı sayılır. */
     public const int DEVICE_ONLINE_MINUTES = 5;
 
+    /**
+     * Menü boşlukları için bakılan pencere (bugün dahil).
+     *
+     * Bir hafta: gece üretimi 22:00'de YARIN için koşuyor, yani asıl
+     * kritik gün yarın. Ama yöneticinin panele her gün baktığı garanti
+     * değil ve bir haftalık boşluğu görmek, tek bir günü görmekten çok
+     * daha erken uyarıyor. Daha uzun bir pencere ise sürekli kırmızı
+     * yanar (menü genelde bir hafta öncesinden girilir) ve uyarı
+     * görmezden gelinmeye başlar.
+     */
+    public const int MENU_LOOKAHEAD_DAYS = 7;
+
     /** Mutfağın hâlâ dokunması gereken durumlar. */
     private const array PENDING_CODES = [
         OrderStatusTransition::NEW,
@@ -55,6 +71,8 @@ final class OperationsSnapshot
      *     unprinted_orders: int,
      *     devices_online: int,
      *     devices_total: int,
+     *     daily_menu_enabled: bool,
+     *     missing_menu_days: list<string>,
      * }
      */
     public function collect(): array
@@ -63,6 +81,10 @@ final class OperationsSnapshot
 
         return [
             'has_location' => $location !== null,
+            'daily_menu_enabled' => $location !== null && $this->gate->dailyMenuEnabled($location),
+            'missing_menu_days' => $location === null
+                ? []
+                : $this->missingMenuDays($location),
             'ordering_enabled' => $location !== null && $this->gate->orderingEnabled($location),
             'busy' => $location !== null && $this->gate->isBusy($location),
             'order_cutoff' => $location === null ? null : $this->gate->orderCutoff($location),
@@ -104,6 +126,63 @@ final class OperationsSnapshot
             ->where('created_at', '>=', BusinessTime::forStorage(
                 BusinessTime::now()->startOfDay(),
             ));
+    }
+
+    /**
+     * Önümüzdeki günlerden menüsü YAYINLANMAMIŞ olanlar (`YYYY-AA-GG`).
+     *
+     * NEDEN GÖSTERGE PANELİNDE: gece üretimi 22:00'de yarın için koşuyor.
+     * Yarının menüsü o saate kadar yayınlanmamışsa `daily_menu` abonelikleri
+     * hiç sipariş üretmez ve müşteri de o güne sipariş veremez. Bunu
+     * kimsenin izlemediği ikinci bir cron'a bağlamak yerine yöneticinin
+     * ZATEN her sabah baktığı yere koymak, uyarının görülme ihtimalini
+     * tek başına belirliyor.
+     *
+     * KAPALI GÜNLER ELENİR: bayramda menü olmaması bir eksiklik değil,
+     * kararın kendisi. Elenmeseydi her resmî tatil kalıcı bir kırmızı
+     * satır üretir ve uyarı anlamsızlaşırdı.
+     *
+     * @return list<string>
+     */
+    private function missingMenuDays(Location $location): array
+    {
+        // Şalter kapalıyken satış günün menüsünden yürümüyor; boş günler
+        // bir eksiklik değil, o rejimin hiç açılmamış olması.
+        if (!$this->gate->dailyMenuEnabled($location)) {
+            return [];
+        }
+
+        $from = BusinessTime::now()->startOfDay();
+        $to = $from->copy()->addDays(self::MENU_LOOKAHEAD_DAYS - 1);
+
+        // İki toplu sorgu, gün başına sorgu değil.
+        $published = DailyMenu::query()
+            ->where('location_id', $location->location_id)
+            ->where('status', DailyMenu::STATUS_PUBLISHED)
+            ->whereBetween('menu_date', [$from->toDateString(), $to->toDateString()])
+            ->pluck('menu_date')
+            ->map(static fn($date): string => Carbon::parse($date)->toDateString())
+            ->all();
+
+        $closed = ClosedDay::query()
+            ->whereBetween('closed_on', [$from->toDateString(), $to->toDateString()])
+            ->pluck('closed_on')
+            ->map(static fn($date): string => Carbon::parse($date)->toDateString())
+            ->all();
+
+        $missing = [];
+
+        for ($cursor = $from->copy(); $cursor->lessThanOrEqualTo($to); $cursor->addDay()) {
+            $key = $cursor->toDateString();
+
+            if (in_array($key, $published, true) || in_array($key, $closed, true)) {
+                continue;
+            }
+
+            $missing[] = $key;
+        }
+
+        return $missing;
     }
 
     /**

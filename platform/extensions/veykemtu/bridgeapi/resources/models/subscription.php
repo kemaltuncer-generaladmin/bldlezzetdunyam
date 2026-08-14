@@ -198,11 +198,36 @@ $config['form']['fields'] = [
         'span' => 'right',
         'context' => ['create'],
     ],
+    /*
+     * MENÜ KAYNAĞI — bu alan olmadan `daily_menu` aboneliği panelden
+     * AÇILAMIYORDU. `Subscriptions::formExtendModel` içindeki `??=` yalnızca
+     * varsayılanı yazıyor; formda alan bulunmayınca kayıt her zaman
+     * `fixed_list` doğuyor ve mod hiç seçilemiyordu.
+     *
+     * Yalnız OLUŞTURMADA: menü kaynağı sözleşmenin kendisi. Çalışan bir
+     * aboneliğin modunu değiştirmek, üretilmiş siparişlerle kuralın
+     * ayrışması demek (takvim alanlarıyla aynı gerekçe).
+     */
+    'menu_mode' => [
+        'label' => 'lang:veykemtu.bridgeapi::subscription.label_menu_mode',
+        'type' => 'radiotoggle',
+        'options' => [Subscription::class, 'menuModeOptions'],
+        'comment' => 'lang:veykemtu.bridgeapi::subscription.help_menu_mode',
+        'context' => ['create'],
+    ],
     'lines_section' => [
         'type' => 'section',
         'label' => 'lang:veykemtu.bridgeapi::subscription.section_lines',
         'comment' => 'lang:veykemtu.bridgeapi::subscription.section_lines_comment',
         'context' => ['create'],
+        // Günün menüsü modunda porsiyonun içeriği her gün
+        // `veykemtu_daily_menus`'ten geliyor; burada ürün sormak,
+        // hiçbir zaman okunmayacak ikinci bir içerik kaynağı yaratırdı.
+        'trigger' => [
+            'action' => 'show',
+            'field' => 'menu_mode',
+            'condition' => 'value['.Subscription::MENU_FIXED_LIST.']',
+        ],
     ],
     /*
      * `line_items` GERÇEK BİR SÜTUN DEĞİL. Satırlar
@@ -217,6 +242,11 @@ $config['form']['fields'] = [
         'prompt' => 'lang:veykemtu.bridgeapi::subscription.prompt_line',
         'emptyMessage' => 'lang:veykemtu.bridgeapi::subscription.empty_lines',
         'context' => ['create'],
+        'trigger' => [
+            'action' => 'show',
+            'field' => 'menu_mode',
+            'condition' => 'value['.Subscription::MENU_FIXED_LIST.']',
+        ],
         'form' => [
             'fields' => [
                 'menu_id' => [
@@ -338,6 +368,11 @@ $config['form']['rules'] = [
         'delivery_time_to',
         'lang:veykemtu.bridgeapi::subscription.label_time_to',
         'sometimes|nullable|date_format:H:i',
+    ],
+    [
+        'menu_mode',
+        'lang:veykemtu.bridgeapi::subscription.label_menu_mode',
+        'sometimes|required|string|in:'.Subscription::MENU_FIXED_LIST.','.Subscription::MENU_DAILY,
     ],
     [
         'status',

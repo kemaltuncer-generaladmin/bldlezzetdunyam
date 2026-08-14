@@ -111,7 +111,7 @@ export function AddressBook({ addresses }: { addresses: readonly SavedAddress[] 
                   )}
                   {address.latitude != null && address.longitude != null && (
                     <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <MapPin aria-hidden="true" className="size-3.5" />
+                      <MapPin strokeWidth={1.75} aria-hidden="true" className="size-3.5" />
                       Haritada işaretli
                     </span>
                   )}
@@ -131,9 +131,10 @@ export function AddressBook({ addresses }: { addresses: readonly SavedAddress[] 
                     variant="ghost"
                     size="sm"
                     disabled={pending}
+                    disabledReason="Önceki adres işlemi sürüyor."
                     onClick={() => dispatch(defaultAction, address.id)}
                   >
-                    <Star aria-hidden="true" />
+                    <Star strokeWidth={1.75} aria-hidden="true" />
                     Varsayılan yap
                   </Button>
                 )}
@@ -142,9 +143,10 @@ export function AddressBook({ addresses }: { addresses: readonly SavedAddress[] 
                   variant="ghost"
                   size="sm"
                   disabled={pending}
+                  disabledReason="Önceki adres işlemi sürüyor."
                   onClick={() => openEdit(address)}
                 >
-                  <Pencil aria-hidden="true" />
+                  <Pencil strokeWidth={1.75} aria-hidden="true" />
                   Düzenle
                 </Button>
                 <Button
@@ -152,6 +154,7 @@ export function AddressBook({ addresses }: { addresses: readonly SavedAddress[] 
                   variant="ghost"
                   size="sm"
                   disabled={pending}
+                  disabledReason="Önceki adres işlemi sürüyor."
                   className="text-danger hover:text-danger"
                   onClick={() => {
                     // Silme geri alınamaz ve kayıtlı adres, geçmiş
@@ -162,7 +165,7 @@ export function AddressBook({ addresses }: { addresses: readonly SavedAddress[] 
                     }
                   }}
                 >
-                  <Trash2 aria-hidden="true" />
+                  <Trash2 strokeWidth={1.75} aria-hidden="true" />
                   Sil
                 </Button>
               </div>
@@ -302,7 +305,12 @@ export function AddressBook({ addresses }: { addresses: readonly SavedAddress[] 
           </div>
 
           <div className="mt-5 flex flex-wrap gap-2">
-            <Button type="submit" size="lg" disabled={pending}>
+            <Button
+              type="submit"
+              size="lg"
+              disabled={pending}
+              disabledReason="Kaydediliyor, işlem sürüyor."
+            >
               {pending ? 'Kaydediliyor…' : 'Kaydet'}
             </Button>
             <Button type="button" variant="outline" size="lg" onClick={() => setFormOpen(false)}>

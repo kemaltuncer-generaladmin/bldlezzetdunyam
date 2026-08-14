@@ -211,6 +211,83 @@ beklenti baştan yanlış kurulmuştur.
 ```
 `is_available:false` ürünler yanıtta **kalır** (istemci soluk gösterir), sepete eklenemez.
 
+> **KAPSAM DEĞİŞTİ (B-19, 14.08.2026).** Bu uç **satış yüzeyi değildir** artık.
+> Sipariş yalnızca o günün menüsünden verilebilir (aşağıda). Uç sözleşmede
+> kalıyor — kaldırmak ADR-09'u çiğnerdi ve panel/rapor tarafı katalogu
+> okumaya devam ediyor — ama müşteri istemcileri bunu vitrin olarak
+> kullanmaz.
+
+### GET /api/locations/{id}/daily-menu?date=YYYY-MM-DD
+
+Bir günün menüsü. `date` verilmezse **bugün** (Europe/Istanbul).
+
+```json
+{ "data": {
+  "id": 12, "date": "2026-08-20",
+  "title": "Ev Yemeği Menüsü", "description": null, "image_url": null,
+  "items_total": 20500, "currency": "TRY",
+  "closed": false, "is_orderable": true, "unavailable_reason": null,
+  "package": {
+    "menu_id": 7, "name": "Günün Menüsü", "price": 18000,
+    "is_available": true, "sold_out_reason": null,
+    "components": [
+      { "menu_id":101, "name":"Mercimek Çorbası", "quantity":1,
+        "image_url":null, "allergens":[] },
+      { "menu_id":102, "name":"Tavuk Sote", "quantity":1,
+        "image_url":null, "allergens":["gluten"] }
+    ]
+  },
+  "items": [
+    { "id":101, "name":"Mercimek Çorbası", "price":4000, "currency":"TRY",
+      "is_available":true, "allergens":[], "options":[] },
+    { "id":102, "name":"Tavuk Sote", "price":9000, "currency":"TRY",
+      "is_available":true, "allergens":["gluten"], "options":[] }
+  ]
+}}
+```
+
+Dört kural:
+
+1. **Paket de bir `menu_id` ile sipariş edilir** (`package.menu_id`). Sipariş
+   isteğinin biçimi değişmedi; istemci "paket mi ürün mü" ayrımını taşımaz.
+   Sunucu o kimliği tanır, fiyatı o günün paket fiyatından alır ve
+   içindekileri satırın altına açar (§4).
+2. **Yayınlanmamış gün yokmuş gibi döner** (`id:null`, `package:null`,
+   `items:[]`, `is_orderable:false`). Yönetici bir ay öncesinden plan
+   giriyor; yarım kalmış bir günün sızması, pişmeyecek yemeğin satılması
+   demek.
+3. **Menü yoksa da `200` döner.** Boş gün bir hata değil, bir cevaptır;
+   `404` istemcileri gereksiz hata ekranına sokardı.
+4. `items[].price` **o gün için geçerli** birim fiyattır — ürünün kendi
+   fiyatı ya da o güne girilmiş istisna. İstemci ayrıca hesap yapmaz.
+
+`items_total` sunucudan geliyor ki "paketle şu kadar avantaj" cümlesini
+kuran istemci çıkarma yapmak zorunda kalmasın; para hesabı tek yerde.
+
+**Bugünkü menüde tükenme.** "Bugün tükendi" (K-11) yalnız **bugün** için
+anlamlıdır — mutfak gelecek salı köftenin biteceğini bilemez. Servis günü
+bugün değilse tükenme işaretleri hiç okunmaz. Bugünse, tükenen bir kalem
+kendi listesinde `is_available:false` olur; o kalem **paketin zorunlu bir
+parçasıysa paket de düşer**.
+
+### GET /api/locations/{id}/menu-calendar?from=&to=
+
+Gün seçiciyi çizmek için aralık özeti. `from` verilmezse bugün, `to`
+verilmezse `from`+30 gün; aralık **en fazla 92 gün** (aşılırsa `422`).
+
+```json
+{ "data": [
+  { "date":"2026-08-20", "has_menu":true, "closed":false, "is_orderable":true,
+    "title":"Ev Yemeği Menüsü", "package_price":18000, "note":null },
+  { "date":"2026-08-23", "has_menu":false, "closed":true, "is_orderable":false,
+    "title":null, "package_price":null, "note":"Kurban Bayramı" }
+]}
+```
+
+Yalnız **menüsü olan ya da kapalı olan** günler döner. Doksan günlük boş bir
+dizi, istemciye "her gün bir şey var" izlenimi verip her günü ayrı
+sorgulatırdı.
+
 ---
 
 ## 4. Sipariş — müşteri tarafı
@@ -240,11 +317,56 @@ beklenti baştan yanlış kurulmuştur.
 | Alan | Kural |
 |---|---|
 | `location_id` | Zorunlu. `is_open` veya `ordering_enabled` false ise `LOCATION_CLOSED`. |
-| `items` | En az 1 kalem. Ürün menüde/uygun değilse `ITEM_UNAVAILABLE`. |
+| `items` | En az 1 kalem. Kalem **o günün yayınlanmış menüsünde** değilse `ITEM_UNAVAILABLE`. |
+| `service_date` | Opsiyonel. Verilmezse `requested_at`'in işletme günü, o da yoksa bugün. `requested_at` ile günü çelişirse `VALIDATION_FAILED`. |
 | `delivery_type` | `delivery` \| `pickup`. |
 | `address` | `delivery` ise zorunlu, `pickup` ise yok sayılır. |
 | `requested_at` | Opsiyonel; vitrinin `order_cutoff` kuralına takılırsa `LOCATION_CLOSED`. |
 | `payment_method` | `online` \| `cash` (kapıda) \| `account` (cari hesap). Vitrinin `payment_methods` listesinde olmayan değer → `VALIDATION_FAILED`. |
+
+#### Servis günü kapıları (B-19)
+
+`service_date` sırayla şunlardan geçer; ilk düşen hatayı verir:
+
+| Denetim | Hata |
+|---|---|
+| Geçmiş bir gün | `VALIDATION_FAILED`, `details.reason = "past"` |
+| `max_lookahead_days` aşıldı | `VALIDATION_FAILED`, `details.reason = "too_far"` |
+| Kapalı gün (`veykemtu_closed_days`) | `LOCATION_CLOSED` |
+| O gün için yayınlanmış menü yok | `VALIDATION_FAILED`, `details.reason = "not_published"` |
+| Kesim saati (yalnız gün **bugünse**) | `LOCATION_CLOSED` |
+
+**Yeni hata kodu eklenmedi, bilerek.** `ErrorCode` listesi sözleşmede bir
+enum; yeni bir üye eklemek istemcilerdeki kapsayıcı `switch` bloklarını ve
+üretilen TypeScript birleşimini kırar (ADR-09'un tam olarak koruduğu şey).
+Sebep, `details.reason` içinde makine okunur biçimde taşınıyor.
+
+#### Menü paketi satırı
+
+Paket, `DailyMenu.package.menu_id` ile sıradan bir kalem gibi gönderilir.
+Sunucu siparişi **bir paket satırı + içindekiler** olarak yazar:
+
+| Satır | `role` | Fiyat |
+|---|---|---|
+| Günün Menüsü ×2 | `package` | paket fiyatı × 2 |
+| ↳ Mercimek Çorbası ×2 | `component` | **0** |
+| ↳ Tavuk Sote ×2 | `component` | **0** |
+
+**Parayı paket satırı taşır, bileşenler sıfırdır.** Bu, aboneliğin baştan
+beri kullandığı kalıbın aynısı (`OrderFactory::resolveSubscriptionLines`
+bileşenleri sıfır fiyatla yazıyor, para `order_totals`'ta).
+
+Neden bileşenler ayrı satır: **üretim listesi.** `production-list`
+`order_menus.menu_id` üzerinden topluyor; paket tek satır olsaydı mutfağın
+şeridinde "40 tavuk sote" yerine "40 Günün Menüsü" yazardı — o şerit tam da
+bunun için var (`docs/02` §4). Bileşenleri okuma anında menüye join'leyerek
+çözmek de yanlış olurdu: menü sonradan düzenlenirse geçmiş bir siparişin
+fişi ne pişirildiğini geriye dönük değiştirirdi.
+
+Paket fiyatını bileşenlere oransal dağıtmak da **reddedildi**: müşteri
+"Günün Menüsü 180,00 ₺" seçerken fişte hiçbir fiyat listesinde olmayan
+41,44 / 66,31 / 49,73 satırlarını görürdü ve iade hesabı o uydurma
+tutarların üstünde çalışırdı.
 
 **Yanıt 201**
 ```json
@@ -690,20 +812,48 @@ Laravel Reverb. Bağlantı: `wss://api.benimlezzetdunyam.com.tr/app/<key>`
 |---|---|
 | `/api/auth/*` | 60 istek / dakika / IP |
 | `/api/orders` (POST) | 20 istek / saat / hesap |
-| `/api/kitchen/*` | **1200 istek / saat / cihaz** |
+| `/api/kitchen/*` | **2000 istek / saat / cihaz** |
+| `/api/control/kds/*` | **1200 istek / saat / IP** (`bld-control`, §14) |
 | `/api/quote-requests` (POST) | 10 istek / saat / IP |
+| `/api/addresses/suggest`, `/api/addresses/reverse` | 30 istek / dakika / **hesap** (§13.5) |
+| `POST /api/partner/bbd/orders` | 300 istek / saat / IP (`bld-partner`) |
 | Diğer | 120 istek / dakika / IP |
 
-**Mutfak sınırı neden 1200:** doküman önce 600 diyordu ve gerekçesi "5 sn
-polling'e yeter" idi — bu aritmetik olarak yanlıştı. 5 saniyelik polling tek
-başına saatte **720** istek eder (3600 ÷ 5). Üstüne 60 heartbeat, durum
-geçişleri, fiş çekmeleri ve ack'ler biner. 600'lük sınır, KDS'i yoğun serviste
-sessizce `429`'a düşürür ve mutfak ekranı donar — sahada teşhisi en zor
-arıza türü.
+**Mutfak sınırı neden 600 değil:** ilk gerekçe "5 sn polling'e yeter" idi —
+aritmetik olarak yanlıştı. 5 saniyelik polling tek başına saatte **720** istek
+eder (3600 ÷ 5). 600'lük sınır, KDS'i yoğun serviste sessizce `429`'a düşürür
+ve mutfak ekranı donar — sahada teşhisi en zor arıza türü.
 
-1200, 5 sn polling + heartbeat + yoğun bir servisin durum trafiğini iki kat
-payla karşılar. Sınır **cihaz başınadır**, IP başına değil: kasa ve yönetici
-çoğu zaman aynı ağdan çıkar ve IP sınırı ikisini birbirine kırdırırdı.
+**Sınır 12.08.2026'da 1200'den 2000'e çıktı** ve bu bölüm o gün
+güncellenmeden kalmıştı; §5'teki istek bütçesi 2000 diyor, kaynak
+`Extension::registerRateLimiters()` da 2000. Her seferinde kasanın gerçekte
+attığı istek sayısı **sayıldı**, "biraz daha yükseltelim" denmedi:
+
+| Döngü | Aralık | Saatlik |
+|---|---|---|
+| Sipariş yoklaması | 5 sn | 720 |
+| BBD kuyruğu (K-16) | 20 sn | 180 |
+| Heartbeat | 60 sn | 60 |
+| Sağlık bildirimi | 60 sn | 60 |
+| Satış şalteri (K-11) | 60 sn | 60 |
+| Abonelik listesi | 60 sn | 60 |
+| **Sürekli toplam** | | **1140** |
+
+Kalan ~860 kullanıcı kaynaklı ve **patlamalı**: tam yenileme, fiş yeniden
+basma, düzenleme ekranı (`editable` + `menu` + `revisions`), satış kontrolü,
+abonelik sekmeleri. Sınır **cihaz başınadır**, IP başına değil: kasa ve
+yönetici çoğu zaman aynı ağdan çıkar ve IP sınırı ikisini birbirine
+kırdırırdı.
+
+**Kontrol Merkezi sınırı neden 1200 ve neden IP başına:** `bld-partner`
+(300/saat) yetmez — BBD tek bir uca sipariş yazıyor, Kontrol Merkezi ise
+**açık duran bir panel**: cihaz listesi, sipariş listesi ve özet yoklanıyor,
+üstüne yöneticinin tıkladığı her şey geliyor. 10 saniyelik bir yoklama tek
+başına 360/saat eder ve aynı anda iki yönetici panel açabilir. Mutfak bütçesi
+kadar cömert olmaması da bilinçli: kasa sipariş göremezse mutfak durur, panel
+yavaşlarsa kimse aç kalmaz. **IP başına**, çünkü o yüzeyin kimliğini istek
+başına hesaplanan bir imza taşıyor — sayacı bağlayacak bir hesap kimliği yok
+ve Kontrol Merkezi zaten tek sunucudan çıkıyor.
 
 ## 11. OpenAPI
 
@@ -796,4 +946,670 @@ Anlaşmalı fiyat müşteri tarafından **set edilmez**; `POST` bir **talep** a�
 
 `Subscription` şeması: `id, status, location_id, delivery_type, start_date, end_date, service_days[] (ISO 1..7), delivery_time_from/to, default_quantity, agreed_unit_price (null=fiyat bekliyor), payment_mode, menu_mode, lines[], delivery_points[], created_at`.
 
+**`menu_mode` (B-19'dan sonra):** `SubscriptionCreate` içinde **additive** bir alan; gönderilmezse `fixed_list` ve eski davranış birebir korunur.
+
+| Mod | Porsiyonun içeriği | `lines` |
+|---|---|---|
+| `fixed_list` | Aboneliğin kendi ürün satırları — her gün aynı | Kullanılır |
+| `daily_menu` | O günün **yayınlanmış** menüsü (`veykemtu_daily_menus`) | **Gönderilemez** — gönderilirse `VALIDATION_FAILED` |
+
+`daily_menu` aboneliğinde de fiyat **anlaşmalı porsiyon fiyatıdır**: o gün ne pişerse pişsin porsiyon başı tutar değişmez. Üretilen sipariş tek seferlik menü siparişiyle **aynı şekli** taşır — fiyatlı bir `role = "package"` üst satırı ve altında sıfır fiyatlı `role = "component"` satırları. Servis gününün menüsü yayınlanmamışsa o gün **sipariş üretilmez**: `veykemtu:abonelik-uret` hata sayar, `veykemtu_subscription_runs` satırı yazılmaz ve menü yayınlandıktan sonra komut yeniden koşturulunca sipariş doğar.
+
 `Order` şemasına additive `subscription_id` (null=normal sipariş); `KitchenOrder`'a additive `is_subscription` (mutfak rozetine kaynak).
+
+---
+
+## 13. Akıllı adres — öneri ve ters geocoding
+
+**Bugünkü hâl.** Adres tek bir serbest metin kutusu (`line1`) + sabit il
+(Konya) + iki seçenekli ilçe + isteğe bağlı harita iğnesi. Müşteri mahalle
+adını, sokağı ve bina numarasını aynı kutuya yazıyor; yazım her seferinde
+farklı çıkıyor ("Feritpaşa", "Feritpasa", "Ferit Paşa Mh.") ve kurye
+tabelası olmayan sokakta adresi okumak zorunda kalıyor.
+
+**Bu bölümün getirdiği iki uç, adres yazmayı bir arama kutusuna çeviriyor.**
+Depoda daha önce hiç geocoding yoktu; bu yepyeni bir yetenek.
+
+| Uç | Ne yapar | Kimlik |
+|---|---|---|
+| `GET /api/addresses/suggest?q=&limit=` | Yazarken öneri listesi | gerekir (`customer`) |
+| `GET /api/addresses/reverse?lat=&lng=` | İğneden adres metni | gerekir (`customer`) |
+
+Her ikisi de **salt okunur**, hiçbir şey kaydetmez. Kaydetme işi eskisi gibi
+`POST /api/addresses` ve `POST /api/orders` üzerinden.
+
+> **Yol sırası uyarısı (uygulama notu).** İki uç da
+> `/api/addresses/{id}` **öncesinde** kaydedilmelidir. Aksi hâlde
+> yönlendirici `suggest` kelimesini bir adres kimliği sanar ve uç hiç
+> çalışmadan `404` döner — teşhisi zaman alan, sebebi sıradan bir hata.
+
+### 13.1 `GET /api/addresses/suggest`
+
+**İstek**
+```
+GET /api/addresses/suggest?q=Feritpa%C5%9Fa%20K%C3%BClt%C3%BCr&limit=5
+Authorization: Bearer <token>
+```
+
+| Alan | Kural |
+|---|---|
+| `q` | **Zorunlu, en az 3 karakter**, en fazla 120. Kısa ise `422 VALIDATION_FAILED`. |
+| `limit` | Opsiyonel. 1–10, varsayılan 5. |
+
+**Yanıt 200**
+```json
+{
+  "data": [
+    {
+      "label": "Feritpaşa Mah., Kültür Sk. No:12, Selçuklu / Konya",
+      "line1": "Feritpaşa Mah. Kültür Sk. No:12",
+      "neighbourhood": "Feritpaşa Mah.",
+      "street": "Kültür Sk.",
+      "district": "Selçuklu",
+      "city": "Konya",
+      "latitude": 37.8792,
+      "longitude": 32.4831,
+      "source": "osm_nominatim"
+    }
+  ]
+}
+```
+
+**`q` neden en az 3 karakter.** Tek harfe geocoder çağırmak, hiçbir şey ayırt
+etmeyen bir sorguya sağlayıcı kotası harcamaktır; üstelik "k", "ka", "kar"
+satırları önbelleği de doldurur ve hiçbiri bir daha işe yaramaz. İstemci
+yazarken **300 ms debounce** uygular ve 3 karakterin altında hiç çağırmaz;
+sunucu kuralı yine de denetler — istemcideki debounce bir kolaylıktır, kota
+koruması değildir.
+
+Bu yüzden buradaki `422`, sağlayıcı arızasından **ayrı tutulur**: kısa `q`
+bir istemci hatasıdır (debounce kapısı sızdırmış), boş `data` ise sağlayıcı
+ya da eşleşme yokluğudur. İkisi tek yanıta karışsaydı bir istemci hatası
+sonsuza kadar "sonuç yok" gibi görünürdü.
+
+**Sonuçlar hizmet alanı kutusuna kilitlidir.** Kutu `Services\ServiceArea`
+içindeki değerlerdir (Konya; Selçuklu/Karatay; 37.80–38.10 K, 32.35–32.75 D).
+Kutu dışındaki eşleşmeler yanıttan **düşürülür** — "buraya teslimat yok"
+diye soluk gösterilmez. Müşteriye seçebileceğini sandığı bir satır gösterip
+ödeme ekranında reddetmek, o satırı hiç göstermemekten kötüdür.
+
+Eleme **iki kez** yapılır: sağlayıcıya kutu bir arama sınırı olarak verilir
+(`viewbox` + `bounded`) ve dönen her aday sunucuda `ServiceArea::containsPoint`
+ile yeniden süzülür. Sağlayıcı sınırı çoğu zaman bir *tercih* sayar, kesin bir
+filtre değil; ikinci süzgeç olmasa kutunun hemen dışındaki bir sokak listeye
+sızardı.
+
+`latitude`/`longitude` bu yüzden **her zaman doludur**: eleme koordinat
+üzerinden yapılıyor, koordinatsız aday listeye zaten giremiyor. İstemci her
+öneride iğneyi güvenle yerleştirebilir.
+
+### 13.2 `GET /api/addresses/reverse`
+
+**İstek**
+```
+GET /api/addresses/reverse?lat=37.8792&lng=32.4831
+Authorization: Bearer <token>
+```
+
+**Yanıt 200**
+```json
+{
+  "data": {
+    "label": "Feritpaşa Mah., Kültür Sk. No:12, Selçuklu / Konya",
+    "line1": "Feritpaşa Mah. Kültür Sk. No:12",
+    "neighbourhood": "Feritpaşa Mah.",
+    "street": "Kültür Sk.",
+    "district": "Selçuklu",
+    "city": "Konya",
+    "latitude": 37.8792,
+    "longitude": 32.4831,
+    "source": "osm_nominatim"
+  }
+}
+```
+
+**Yanıttaki koordinat, isteğin kendi koordinatıdır.** Geocoder bir noktayı
+tipik olarak sokak ya da bina merkezine *oturtur* (snap). İstemci o oturmuş
+noktayı iğneye yazsaydı, iğne kullanıcının parmağının altından birkaç on
+metre kayardı ve kullanıcı bunu bir arıza olarak görürdü. Kapının tam yerini
+müşteri biliyor, geocoder değil: sağlayıcıdan yalnızca **metin** alınır.
+
+**Kutu dışı koordinat → `422 VALIDATION_FAILED`**, `details.reason =
+"out_of_service_area"`:
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_FAILED",
+    "message": "Seçilen konum hizmet alanımızın dışında.",
+    "details": { "reason": "out_of_service_area" }
+  }
+}
+```
+
+Burada `422`, sessiz bir boş yanıttan doğrudur: kullanıcı haritayı gördü ve
+teslimat yapmadığımız bir yeri **kasten** seçti; söylenecek net bir şey var.
+Aynı mesajı `POST /api/addresses` ve `POST /api/orders` zaten veriyor
+(`AddressController::validated`), yani müşteri aynı sınırı iki farklı yerde
+iki farklı dille duymuyor.
+
+`lat` ve `lng` **birlikte zorunludur**; yarısı gelen çift `422`. Kayıtlı
+adreste yarım koordinat sessizce `null`'a düşüyor, burada düşemez — sorulacak
+bir nokta yoksa soru da yoktur.
+
+### 13.3 Geocoder erişilemezse ne dönüyor — **karar: `200` + boş veri**
+
+| Uç | Sağlayıcı çöktüğünde |
+|---|---|
+| `/addresses/suggest` | `200` `{ "data": [] }` |
+| `/addresses/reverse` | `200` `{ "data": null }` |
+
+**Yeni bir `ErrorCode` üyesi EKLENMEDİ ve eklenmeyecek.** `ErrorCode`
+sözleşmede bir enum; yeni üye, istemcilerdeki kapsayıcı `switch` bloklarını
+ve `openapi-typescript`'in ürettiği birleşim tipini kırar. ADR-09'un koruduğu
+şey tam olarak budur ve B-19'da servis günü kapıları için de aynı karar
+verilmişti (§4 "Servis günü kapıları").
+
+**Neden `5xx` değil, neden hiç hata değil.** Öneri bir **kolaylıktır**, kapı
+değil: beş adres alanının hepsi elle doldurulabiliyor ve harita iğnesi zaten
+isteğe bağlı. Dışarıdaki bir servisin arızasını hata koduna çevirmek, o
+servise kendi sipariş akışımızı durdurma yetkisi vermek olurdu — Nominatim'in
+bakımda olduğu on dakikada hiç kimse adres kaydedemez, dolayısıyla hiç kimse
+sipariş veremezdi. Bu, kazandığından çok daha fazlasını kaybeden bir bağımlılık.
+
+**Boş yanıt iki şeyi birden anlatır ve istemci ikisini AYIRT ETMEZ:**
+"bu metne uyan adres yok" ve "şu an öneri veremiyoruz". İkisinde de doğru
+davranış aynıdır — alanları elle doldurtmak. Ayrım sunucu günlüğüne
+(`warning`, sürücü adı + süre + hata sınıfı) yazılır, kullanıcıya değil;
+kullanıcıya "sağlayıcı hatası" demek, elinde yapabileceği bir şey olmayan
+kişiye suçlu aramak gibidir.
+
+**Bunun istemciye tek zorunluluğu:** öneri listesi **hiçbir zaman zorunlu bir
+adım** olmayacak. Liste boşken form gönderilebilir kalmalı, "önerilerden
+birini seçin" gibi bir kapı konmamalı. Boş liste, tasarım dilindeki *empty*
+tonuyla gösterilir (`brand50`/`brand600`, `role` yok) — *error* tonuyla değil:
+bu bir hata değil, bir yokluk.
+
+**Sağlayıcı arızası önbelleğe YAZILMAZ.** Yazılsaydı 30 saniyelik bir kesinti,
+önbellek ömrü boyunca (24 saat) donmuş bir "sonuç yok" hâline dönerdi.
+
+### 13.4 Sağlayıcı seçimi — OSM tabanlı sürücüyle başlanıyor
+
+| Karar | Değer |
+|---|---|
+| İlk sürücü | **OSM / Nominatim** (`source: "osm_nominatim"`) |
+| Anahtar | **gerekmiyor** |
+| Faturalandırma | yok |
+| Sürücü anahtarı | `GEOCODER_DRIVER` (env) |
+
+**Gerekçe.**
+
+1. **Harita kararı zaten OSM.** Web'de Leaflet + OSM karoları, mobilde
+   `flutter_map` kullanılıyor (`website/package.json`: `leaflet`,
+   `react-leaflet`). Geocoding için başka bir sağlayıcıya gitmek, iğnenin
+   oturduğu karo ile adresin çözüldüğü veri tabanını ayırmak demekti; ikisi
+   ayrıştığında müşteri haritada gördüğü sokağın adını öneri listesinde
+   bulamaz.
+2. **Anahtar yok, fatura yok.** Bugün gerçek trafiği olmayan bir özellik
+   için sözleşmeli/faturalı bir sağlayıcı açmak, kullanılmadan maliyet
+   üreten bir bağımlılıktır. `docs/11` §F2-01'in "Autocomplete oturum başına
+   ücretlendirilir, `sessiontoken` kullanılmazsa fatura 10-20 katına çıkar"
+   uyarısı da bu riski zaten işaret ediyor.
+3. **Sürücü arayüzü geçişi açık bırakıyor.** Sağlayıcı bir arayüzün arkasında
+   durur; uç, yanıt biçimi ve istemci kodu sağlayıcıyı hiç bilmez:
+
+   ```
+   interface GeocoderDriver {
+       suggest(string $query, int $limit): AddressSuggestion[]   // hepsi kutu içi
+       reverse(float $lat, float $lng): ?AddressSuggestion
+   }
+   ```
+
+   Google Places'e geçmek `GEOCODER_DRIVER` değerini değiştirmek + ikinci bir
+   sınıf yazmaktır. Sözleşme değişmez, istemci değişmez. `docs/11` §F2-01
+   zaten bu geçişi planlıyor.
+
+**`source` alanı neden kapalı bir enum DEĞİL.** Sürücü değişeceği belli olan
+bir şey; `source`'u enum yapmak, ilk sürücü değişiminde §1.4'e takılmak
+demekti. Serbest metin. İstemci bu alana **göre dallanmaz** — sağlayıcı
+atfını göstermek ve günlükte hangi sürücünün konuştuğunu bilmek için var.
+
+**Nominatim'in kullanım politikası bağlayıcıdır** ve ücretsiz olması onu
+sınırsız yapmaz: saniyede en fazla 1 istek, kendini tanıtan bir `User-Agent`
+(`GEOCODER_USER_AGENT`, iletişim adresi içerir) ve **sonuçların önbelleğe
+alınması** zorunlu. Politikayı ihlal eden kaynak IP engellenir; engelin
+geldiği gün 13.3'teki boş-veri yolu devreye girer ve sipariş akışı yine
+durmaz — ama özellik ölür. Trafik büyüdüğünde çözüm sağlayıcı değiştirmek
+değil, **Nominatim'i kendimiz barındırmaktır**: aynı HTTP arayüzü, aynı
+sürücü, yalnız taban adres değişir.
+
+**Alan eşlemesi.** Nominatim'in `addressdetails=1` yanıtındaki anahtarlar
+bölgeden bölgeye değişir; sürücü sıralı bir geri düşme zinciri uygular:
+
+| Bizim alan | Kaynak (ilk dolu olan) |
+|---|---|
+| `neighbourhood` | `neighbourhood` → `quarter` → `suburb` |
+| `street` | `road` → `pedestrian` → `residential` |
+| `building_no` | `house_number` |
+| `district` | `town` → `city_district` → `municipality` |
+| `city` | `province` → `city` → `state` |
+
+**`floor` ve `door_no` hiçbir geocoder'dan gelmez** ve gelmeyecek: hiçbir
+harita verisi hangi katta, hangi dairede oturduğunuzu bilmiyor. Bu ikisi her
+zaman müşterinin elinden çıkar. Arayüz bu yüzden öneri seçildikten sonra da
+kat/daire alanlarını **açık ve boş** bırakmalı — "adres tamamlandı" izlenimi
+verip kuryeyi apartman girişinde bırakmamalı.
+
+Eşleme sonucu ilçe/il hizmet alanına oturmuyorsa aday **düşürülür**; çünkü
+`district` alanı istemcide doğrudan ilçe seçicisine yazılıyor ve seçicide
+karşılığı olmayan bir değer formu sessizce geçersiz kılardı.
+
+### 13.5 Önbellek ve oran sınırı politikası
+
+**Önbellek sunucudadır, iki anahtarla:**
+
+| Uç | Anahtar | Ömür |
+|---|---|---|
+| `suggest` | sürücü + normalize edilmiş `q` + `limit` | **24 saat** |
+| `reverse` | sürücü + 4 ondalığa yuvarlanmış `lat`,`lng` | **30 gün** |
+
+`q` normalizasyonu: kırp, iç boşlukları teke indir, **Türkçeye duyarlı**
+küçült (`I → ı`, `İ → i`). `mb_strtolower` dilden bağımsızdır ve `I`'yı
+`i`'ye düşürür; `ServiceArea::lower` bu dersi zaten vermiş durumda. Yanlış
+küçültme, "İSTASYON" ile "istasyon" için iki ayrı önbellek satırı açar ve
+ikisi de sağlayıcıya gider.
+
+`reverse` anahtarının 4 ondalığa yuvarlanması ≈ **11 metrelik** bir kutu
+demek: bir bina ayak izi. Yuvarlamasaydık iğnenin bir piksel oynaması yeni
+bir sağlayıcı isteği doğururdu ve önbellek hiç tutmazdı. 30 günlük ömür,
+sokak dokusunun ay içinde değişmemesine dayanıyor.
+
+**Ömürler neden farklı:** `suggest` yeni açılan sokakları ve yeni numaralanan
+binaları görmeli (bir gün yeterince kısa); `reverse` var olan bir noktanın
+adını soruyor ve o ad ayda bir değişmiyor.
+
+**Negatif önbellek: 1 saat.** Eşleşme bulunamayan sorgu da yazılır, ama kısa
+ömürle — yoksa aynı yazım hatası her tekrarında sağlayıcıya gider. Sağlayıcı
+**arızası** ise (§13.3) hiç yazılmaz.
+
+**Oran sınırı:**
+
+| Uç grubu | Sınır |
+|---|---|
+| `/api/addresses/suggest`, `/api/addresses/reverse` | **30 istek / dakika / hesap** |
+
+**Neden hesap başına, IP başına değil:** kurumsal müşterinin tipik ağı tek
+NAT'ın arkasındadır; IP sınırı aynı ofisin çalışanlarını birbirine kırdırırdı.
+Sınırın hesaba bağlanabilmesi, ucun kimlik istemesinin başlıca sebebi.
+
+**Neden 30:** 300 ms debounce ile adres yazan bir kullanıcı tipik olarak
+5–8 çağrı üretir; 30 hem tereddütlü bir yazımı hem de bir adres düzeltmesini
+aynı dakikada karşılar, ama açık bir istemci döngüsünü dakikada 30'da keser.
+
+**Sağlayıcıya giden trafik ayrıca genel bir kapıdan geçer:** sürücü, sunucu
+genelinde saniyede 1 isteği aşmaz (Nominatim politikası). Aynı anda yazan
+yirmi müşterinin çoğu önbellekten döner; kapıdan kısa sürede slot alamayan
+istek **beklemez**, §13.3'teki boş-veri yolundan döner. Müşteriyi öneri
+listesi için bekletmek, öneriyi hiç vermemekten kötüdür.
+
+**Yanıt istemcide önbelleğe alınmaz.** Bu uçlar `Cache-Control: private,
+no-store` taşır: yanıt, giriş yapmış bir müşterinin yazdığı metne bağlıdır ve
+yazılan adres kişisel veridir (`docs/02` §6). Ara katmandaki bir vekil ya da
+CDN bunu paylaşımlı önbelleğe alsaydı bir müşterinin aradığı adres başkasına
+dönebilirdi.
+
+**`q` metni uygulama günlüğüne yazılmaz.** Günlüğe yalnız sürücü adı, süre,
+sonuç sayısı ve varsa hata sınıfı düşer. Adres aramaları KVKK kapsamında
+kişisel veridir ve günlükler sipariş verisiyle aynı saklama kurallarına tabi
+değildir.
+
+### 13.6 Anahtar asla istemciye gömülmez
+
+Bugünkü sürücü anahtar istemiyor, yani **şu an sızacak bir sır yok.** Kural
+tam da bu yüzden şimdi yazılıyor: sürücü değiştiğinde uyulacak kuralın o gün
+tartışılması geç olur.
+
+1. **İstemciler geocoder'a doğrudan İSTEK ATMAZ.** `website/` ve `musteriapp/`
+   yalnızca `/api/addresses/suggest` ve `/api/addresses/reverse` uçlarını
+   çağırır. Sağlayıcının adresi, biçimi ve varsa anahtarı yalnızca sunucuda
+   bilinir. (Harita **karoları** bunun dışındadır — onlar zaten herkese açık
+   ve anahtarsız.)
+2. **`NEXT_PUBLIC_` öneki yasak.** Next.js bu önekli her değeri tarayıcı
+   paketine gömer; `NEXT_PUBLIC_GEOCODER_KEY` gibi bir değişken, anahtarı
+   sayfanın kaynağında yayınlamakla aynı şeydir.
+3. **Flutter `--dart-define` bir sır kasası değildir.** Verilen değerler
+   derlenmiş ikilinin içinde durur ve `strings` ile okunur. Mobilde geocoder
+   anahtarı hiçbir biçimde bulunmaz.
+4. **Sunucu env'i:** `GEOCODER_DRIVER`, `GEOCODER_BASE_URL`,
+   `GEOCODER_USER_AGENT`, (ileride) `GEOCODER_API_KEY`. `.env.example`
+   yalnızca **adları** taşır; gerçek değerler repoya girmez (AGENTS.md §2).
+5. **Oran sınırı ancak anahtar sunucudayken bir şey ifade eder.** Anahtar
+   istemcide olsaydı §13.5'teki 30/dakika sınırı yalnızca dürüst istemciyi
+   bağlardı; kotayı anahtarı bulan harcardı ve fatura bize gelirdi.
+
+### 13.7 Şemalara eklenen alanlar (additive)
+
+`Address` (sipariş kopyası), `SavedAddress` ve `SavedAddressInput`
+şemalarının **üçüne birden** aynı beş alan eklendi:
+
+| Alan | Tip | Uzunluk | Not |
+|---|---|---|---|
+| `neighbourhood` | `string \| null` | 96 | Mahalle |
+| `street` | `string \| null` | 128 | Cadde / sokak |
+| `building_no` | `string \| null` | 24 | Bina no — **metin**, `12/A` yaygın |
+| `floor` | `string \| null` | 16 | Kat — `Zemin` de geçerli değer |
+| `door_no` | `string \| null` | 16 | Daire / iç kapı no |
+
+Üç şemada da aynı adlar: istemci öneriyi forma, formu isteğe, isteği sipariş
+kopyasına **alan alan** taşır ve arada hiçbir eşleme tablosu tutmaz.
+
+**`line1` KALIR ve zorunlu kalır.** Silinmiyor, isteğe bağlı yapılmıyor:
+
+- Sahadaki istemci sürümleri yalnız `line1` gönderiyor; zorunluluğu
+  kaldırmak `SavedAddress.line1`'i fiilen boşaltılabilir hâle getirir ve o
+  gün fişte adres satırı boş çıkar.
+- Mutfak fişi, müşteri fişi ve `OrderPresenter` bu alanı basıyor. Beş yeni
+  alanı okumak zorunda bırakılan bir yazıcı katmanı, additive bir değişikliği
+  kırıcı bir değişikliğe çevirirdi.
+
+**Sunucu, `line1` boş geldiğinde onu yapılandırılmış alanlardan türetir**
+(`neighbourhood` + `street` + `building_no`). Türetme yalnızca `line1` boşken
+çalışır: müşterinin kendi yazdığı satırı üzerine yazmak, yazdığını gören
+kullanıcıyı şaşırtır ve öneriden gelmeyen ek bilgiyi (site adı, tarif) siler.
+
+Güncelleme davranışı `latitude`/`longitude` ile aynı kuralı izler: **`null`
+göndermek alanı siler, alanı hiç göndermemek mevcut değeri korur.** Ama
+koordinat çiftinin aksine bu beş alan birbirinden **bağımsızdır** — kat
+bilinip daire numarasının bilinmemesi olağan bir durumdur, yarım kalmış bir
+çift değil.
+
+> **`docs/11` §F2-01 ile ilişki.** Yol haritası bu işi Google Places +
+> `POST /addresses/resolve` olarak planlıyordu. Buradaki iki uç onun
+> **okuma yarısını** OSM sürücüsüyle şimdi teslim ediyor. `resolve`'un
+> geri kalanı (bölge, teslimat ücreti ve asgari sepet önizlemesi) F2-01'de
+> kalıyor: bölgeler (`F2-02`) henüz yok ve olmayan bir bölgeye ücret
+> döndüren bir uç yazmak, dolduramayacağımız bir alan yayınlamak olurdu.
+
+---
+
+## 14. Kontrol Merkezi uçları (K-21)
+
+Ayrı bir depoda duran **Kontrol Merkezi** paneli, mutfak kasalarını bu uçlar
+üzerinden yönetiyor: kasa açıyor, eşleme kodu üretiyor, kasa iptal ediyor,
+ayar ve **kilit** itiyor, komut kuyrukluyor, sipariş revize ediyor ve durum
+geçiriyor.
+
+**Neden ayrı bir uç ailesi var.** `/api/kitchen/*` uçları bir **kasanın**
+token'ıyla korunuyor ve her istek o kasanın `last_seen_at` alanını tazeliyor.
+Kontrol Merkezi oraya eşleşerek girseydi, panelde açık duran bir ekran
+**mutfakta olmayan bir kasayı "çevrimiçi" gösterirdi** ve yöneticinin gördüğü
+tablo kendi kendini doğrulardı.
+
+**Bu uçlar iş mantığı taşımıyor.** Revizyon `OrderEditor`'da, durum geçişi
+`OrderStatusTransition`'da, ayarlar `KitchenDeviceSettings`'te, eşleme ve
+iptal `KitchenDevice`'ta. Hepsi mutfak kasasının kullandığı sınıfların ta
+kendisi — ayrı bir kopya yazılsaydı, sipariş merkezden düzenlendiğinde cari
+hesap ya da iade kaydı sessizce oluşmayabilirdi. Buradaki tek katman
+"gerekçe iste, denetime yaz, kuru provada yazma" kabuğu.
+
+**ADR-08 burada geçerli değil.** Fiyat gizliliği **mutfak kapsamına** ait bir
+kuraldı: kasa ekranı gün boyu mutfakta açık duruyor ve fiyat orada yalnız
+sızıntı riski. Kontrol Merkezi bir yönetim yüzeyi; ürün seçici fiyat döndürür.
+
+### 14.1 Kimlik doğrulama — `X-Control-Signature`
+
+Cihaz token'ı **yok**, `bbd.signature` **değil**, ayrı bir sır. Uygulaması
+`Http\Middleware\VerifyControlSignature`.
+
+Üç başlık birlikte gönderilir:
+
+| Başlık | Değer |
+|---|---|
+| `X-Control-Timestamp` | UNIX saniye, **yalnız rakam** |
+| `X-Control-Nonce` | isteğe özgü rastgele dize, **16–128 karakter** |
+| `X-Control-Signature` | `^sha256=[0-9a-f]{64}$` |
+
+**İmza adım adım:**
+
+1. **Kanonik yükü kur** — beş satır, aralarında `\n`:
+
+   ```
+   METOT \n YOL \n ZAMAN \n NONCE \n sha256_hex(ham gövde)
+   ```
+
+   - `METOT` **büyük harf**: `GET`, `POST`, `PATCH`.
+   - `YOL` **`/api` öneki dâhil, sorgu dizesi hariç**:
+     `/api/control/kds/devices/7/revoke`. Sorgu dizesi imzaya girmez —
+     iki taraf parametre sırasını tutturamazdı; süzgeçler yalnız okuma
+     uçlarında var ve yazma uçlarının tamamı gövdeli.
+   - `ZAMAN` ve `NONCE` başlıklarda gönderilen değerlerin **aynısı**.
+   - Gövde **ham hâliyle** özetlenir. JSON yeniden serileştirilmez: boşluk
+     ya da anahtar sırası imzayı değiştirir. Gövdesiz isteklerde boş dizenin
+     SHA-256'sı kullanılır
+     (`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`).
+
+2. **HMAC'i hesapla ve önekle:**
+
+   ```
+   X-Control-Signature = 'sha256=' + HMAC_SHA256(BLD_CONTROL_SECRET, kanonik_yük)
+   ```
+
+   Hex çıktı **küçük harf**.
+
+**Tekrar (replay) saldırısına kapalı.** Dört şey birden imzaya girdiği için:
+
+- **Metot ve yol.** `POST .../revoke` imzası `GET .../devices` olarak
+  yeniden kullanılamaz. Yalnız gövde imzalansaydı, boş gövdeli iki farklı
+  uç aynı imzayı paylaşırdı — ki iptal ucunun gövdesi zaten gövdesize yakın.
+- **Zaman.** Pencere **±300 saniye** (saat kayması payı dâhil). Dışındaki
+  istek `401`.
+- **Nonce.** **600 saniye** (pencerenin iki katı) hatırlanır; aynı nonce
+  ikinci kez kabul **edilmez**. Pencere kadar tutmak yetmezdi: pencerenin son
+  saniyesinde imzalanmış bir istek, unutulduktan sonra hâlâ zaman
+  denetiminden geçebilirdi. Depo `Cache` — sunucu tek düğüm ve kalıcı bir
+  tablo her istekte bir yazma daha demekti; önbellek uçarsa en kötü ihtimalle
+  pencere kadar bir tekrar aralığı açılır.
+- **Sıra: önce imza, sonra nonce.** Tersi olsaydı imzasız bir istemci
+  rastgele nonce'lar göndererek meşru istemcinin nonce'unu "kullanılmış"
+  işaretleyip onu kilitleyebilirdi. Nonce işaretlemesi `Cache::add` ile
+  **atomik**: aynı nonce'la eşzamanlı iki istekten yalnız biri geçer.
+
+**Neden `bbd.signature` yeniden kullanılmadı.** Üç ayrı sebep:
+
+- **Yön ters.** BBD bize sipariş **yazıyor** (tek uç, tek işlem). Kontrol
+  Merkezi **yönetiyor**: kasa iptal ediyor, ayar itiyor, sipariş revize
+  ediyor, durum geçiriyor.
+- **Yetki seviyesi farklı.** Aynı sırrı iki seviye için kullanmak, BBD'nin
+  sırrını ele geçiren birine **mutfağı yönetme hakkı** da verirdi.
+- **Kapsam farklı.** `bbd.signature` yalnız **gövdeyi** imzalıyor; zaman
+  damgası ve nonce yok, yani ağı dinleyen biri geçerli bir isteği sınırsız
+  kez oynatabilir. Orada etki `external_id` tekilliğiyle sınırlı kalıyor.
+  **Burada kalmazdı:** "cihazı iptal et" isteğini tekrar oynatmak mutfağı
+  sipariş göremez hâle getirir.
+
+Ayrıca o şema BBD Store'la **paylaşılan** bir sözleşme ve dokunulmaması
+istendi.
+
+**`X-App-Id` / `X-App-Version` / `Accept-Language` istenmez** (`bld.headers`
+uygulanmıyor): Kontrol Merkezi bir müşteri istemcisi değil, yöneten bir
+sistem. BBD köprüsüyle aynı gerekçe.
+
+**Sır tanımlı değilse uç kapalıdır.** `BLD_CONTROL_SECRET` boşsa her istek
+`401` alır; boş sırla imza doğrulamak herkesin geçtiği bir kapıdır.
+
+**Red sebepleri ayrıştırılıyor.** `bbd.signature`'ın aksine `message` hangi
+denetimin düştüğünü söyler. Kod her hâlde `UNAUTHENTICATED`:
+
+| `message` | Sebep |
+|---|---|
+| `İmza başlıkları eksik.` | Üç başlıktan biri yok |
+| `İstek zaman penceresinin dışında.` | \|şimdi − timestamp\| > 300 sn |
+| `Bu istek daha önce işlendi.` | Nonce tekrar kullanıldı |
+| `İmza doğrulanamadı.` | HMAC tutmadı, timestamp rakam değil ya da nonce 16–128 dışında |
+| `Kontrol Merkezi entegrasyonu yapılandırılmamış.` | `BLD_CONTROL_SECRET` boş |
+
+Bu uç bir saldırgana değil, bakımını yaptığımız **tek** istemciye hizmet
+ediyor ve "saat kaymış" ile "sır yanlış" ayrımı olmadan sahada teşhis
+imkânsız. Mesajların hiçbiri sırrın varlığını ya da uzunluğunu ele vermiyor.
+İmzası tutmayan istek **denetim satırı bırakmaz** — kapıdan hiç geçmedi.
+
+### 14.2 Uçlar (16)
+
+Hepsi `/api/control/kds/` altında ve hepsi `control.signature` +
+`throttle:bld-control` katmanından geçiyor.
+
+| Uç | Ne yapar | Yazma? |
+|---|---|---|
+| `GET /overview` | Panel açılışı: cihaz, sipariş ve fiş sayıları tek istekte | — |
+| `GET /devices` | Kasa listesi — **iptal edilmişler dâhil** | — |
+| `POST /devices` | Kasa aç + ilk eşleme kodunu **hemen** üret | ✔ `device.create` |
+| `PATCH /devices/{id}` | Yeniden adlandır (**yalnız ad**) | ✔ `device.rename` |
+| `POST /devices/{id}/pairing-code` | Yeni eşleme kodu (10 dk, tek kullanımlık) | ✔ `device.pairing_code` |
+| `POST /devices/{id}/revoke` | Kasayı iptal et — **satır da token da silinmez** | ✔ `device.revoke` |
+| `PATCH /devices/{id}/settings` | Yönetilen ayarlar **ve kilitler** — kısmi yazım | ✔ `device.settings` |
+| `GET /devices/{id}/commands` | Komut geçmişi (son 50, üç damgayla) | — |
+| `POST /devices/{id}/commands` | Tek seferlik komut kuyrukla | ✔ `device.command` |
+| `GET /print-jobs` | Fiş **denetim** kaydı — kuyruk değil | — |
+| `GET /orders` | Sipariş listesi — kapsam mutfak panosuyla **aynı** | — |
+| `GET /orders/{id}` | Tek sipariş, düzenlenebilir görünüm | — |
+| `GET /orders/{id}/revisions` | Revizyon geçmişi (+ `created_by_device_id`) | — |
+| `POST /orders/{id}/revisions` | Yeni revizyon | ✔ `order.revise` |
+| `POST /orders/{id}/status` | Durum geçişi | ✔ `order.status` |
+| `GET /menu` | Düzenleme ekranının ürün seçicisi — **fiyatlı, seçenek kimlikli** | — |
+
+Alan alan şekiller `docs/openapi.yaml` → `Kontrol Merkezi` etiketi; ikisi
+çelişirse **openapi kazanır** (§11).
+
+Birkaç davranış kuralı:
+
+- **Eşleme kodu yalnız iki yerde açılır:** kodu üreten uçların yanıtlarında
+  ve listede kod hâlâ **kullanılabilirken**. Kullanılmış ya da süresi dolmuş
+  bir kodu göstermek yöneticiye çalışmayan bir kod okutur.
+- **İptal edilmiş kasaya kod üretilmez ve komut gönderilmez** (`422`).
+  Üretilen kod zaten `pairingCodeIsUsable()` denetiminde elenirdi; komut ise
+  sonsuza kadar kuyrukta kalırdı.
+- **İkinci iptal ilk damgayı oynatmaz.** `revoked_at` "ne zaman iptal edildi"
+  sorusunun cevabı ve denetim değeri ilk damgadadır.
+- **Ayarlar `settings` nesnesinin altında**, gövdenin kökünde değil. Kökte
+  olsalardı `reason`/`actor`/`dry_run` ile aynı ad alanını paylaşırlardı ve
+  `reason` adında bir ayar eklemek imkânsız hâle gelirdi.
+- **Tanınmayan ayar anahtarı sessizce yutulmaz → `422`.** `allow_settngs`
+  gibi bir yazım hatası göz ardı edilseydi yönetici kilidi koyduğunu sanır,
+  kasa serbest kalırdı.
+- **Sınır dışı ayar sessizce kırpılmaz → `422`.** Servis kırpıyor; buradaki
+  kuralların işi kırpmayı **görünür** kılmak — Kontrol Merkezi 70 yazıp 60
+  kaydedildiğini fark etmez ve ekranında yanlış değeri gösterirdi.
+- **Komut anında gitmez.** Kasanın bir sonraki **sağlık bildiriminin**
+  yanıtına biniyor; yanıttaki `arrives_within_seconds` bunu açıkça söylüyor.
+  Söylenmeseydi kullanıcı "olmadı" deyip aynı düğmeye tekrar basar ve **iki
+  fiş** çıkardı.
+- **`GET /print-jobs` bir kuyruk değildir.** KDS'in kalıcı kuyruğu kasanın
+  **diskinde** ve sunucuda karşılığı yok; buradan iş silinemez, yeniden
+  sıraya alınamaz. Yeniden bastırmanın tek yolu `reprint` komutu.
+- **Revizyonun `items` alanı tam listedir**, delta değil; boş liste `422`.
+  Siparişi boşaltmak iptal **değildir**.
+- **Çağıran ayrımı:** merkezden yazılan revizyonda `created_by_device_id`
+  **NULL** kalır ve revizyon **notunun ilk satırına**
+  `Kontrol Merkezi · <actor>` etiketi düşer. Etiket `created_by_staff`
+  sütununa yazılamıyor: o sütun `unsignedBigInteger` (bir yönetici kimliği)
+  ve tipini değiştirmek yayınlanmış bir şemayı kırmak olurdu.
+- **`option_value_ids` geri gönderilmelidir.** `GET /orders/{id}` yanıtındaki
+  kimlikler revizyon gövdesine aynen konmazsa sunucu satırı **seçeneksiz**
+  yeniden fiyatlar ve seçenek sessizce kaybolur.
+
+### 14.3 `reason` ve `actor` — her yazmada zorunlu
+
+Her yazma ucu üç alan taşır: `actor`, `reason` ve isteğe bağlı `dry_run`.
+
+| Alan | Kural |
+|---|---|
+| `actor` | zorunlu, 2–120 karakter |
+| `reason` | zorunlu, **en az 10**, en fazla 500 karakter |
+| `dry_run` | isteğe bağlı, varsayılan `false` |
+
+**`reason` neden en az 10 karakter.** Sınır olmasaydı "ok" yazıp geçmek
+serbest olurdu ve denetim izi, doldurulmuş ama hiçbir şey anlatmayan bir
+sütuna dönerdi. On karakter bir cümlenin başlangıcını zorluyor.
+
+**Sipariş uçlarında üst sınır 160'a daralıyor** (`POST /orders/{id}/revisions`
+ve `POST /orders/{id}/status`): aynı metin `veykemtu_order_revisions.reason`
+sütununa da yazılıyor ve o sütun 160 karakterlik. Taşan gerekçe **sessizce
+kırpılmak yerine `422`** alıyor.
+
+**`actor` neden serbest metin.** Kontrol Merkezi ayrı bir depo, ayrı bir
+kullanıcı tablosu; o kişinin BLD'de hesabı yok ve olmayacak. Yabancı anahtar
+vermek iki sistemi birbirine bağlardı. Doğruluğu Kontrol Merkezi'nin
+sorumluluğunda ve imza zaten isteğin **oradan** geldiğini kanıtlıyor.
+
+**Alanlar eksikse `422` gelir ve denetim satırı YAZILMAZ** — geçerli bir
+istek hiç oluşmadı.
+
+**Gerekçe neden sunucuda saklanıyor.** Gerekçeyi ve aktörü karşı tarafın
+kaydetmesine güvenmek, kaydı isteyen tarafın kendi kendini denetlemesi
+olurdu; Kontrol Merkezi arayüzünde gerekçe alanını gizlemek ya da otomatik
+doldurmak tek satırlık bir değişiklik. Sunucu `reason`'ı **zorunlu kılıyor**
+ve `veykemtu_control_audit`'e **kendisi** yazıyor.
+
+### 14.4 Kuru prova (`dry_run`)
+
+`dry_run: true` gönderildiğinde:
+
+- **Hiçbir yazma yapılmaz.** Kasa açılmaz, iptal edilmez, ayar yazılmaz,
+  komut kuyruğa girmez, revizyon uygulanmaz, durum değişmez.
+- Yanıt `ok: true`, `dry_run: true` ve **`would`** nesnesiyle döner; `would`
+  "uygulansaydı ne olurdu"yu anlatır.
+- **Denetim satırı YİNE YAZILIR**, `result = "dry_run"` ile. "Denedim ama
+  uygulamadım" bir eylemdir ve yanlış kasaya kilit uygulamaya çalışan birinin
+  ilk adımı çoğu zaman odur.
+- **Ön denetimler gerçekten çalışır.** İptal edilmiş kasa, düzenlenemez
+  sipariş ve geçersiz durum geçişi kuru provada da `422` verir. Kuru prova
+  yalnız isteği yankılasaydı, "kuru prova geçti" diyen bir ekran gerçek
+  gönderimde patlardı.
+- **Ön denetim düşerse satır `dry_run` KALIR**, `failed` olmaz; sebep
+  `payload_json.error` alanına yazılır. Aksi hâlde denetim ekranında kuru
+  provalar gerçek yazma denemeleriyle karışırdı.
+
+Kontrol Merkezi geçidinde varsayılan **açık**, yani bu alan çoğu istekte dolu
+geliyor. Sorgu dizesindeki `"true"` metni de doğru okunuyor.
+
+### 14.5 Denetim izi
+
+Her yazma isteği `veykemtu_control_audit` tablosuna bir satır bırakıyor
+(şema: `docs/02-veri-modeli.md` §2.5). Yanıttaki `audit_id` o satırın
+kimliği ve **kuru provada da dolu**.
+
+**Satır işlemden ÖNCE açılıyor.** Sonra açılsaydı, yarıda kalan bir yazma
+(veritabanı hatası, zaman aşımı) hiçbir iz bırakmazdı — oysa "denendi ve
+olmadı" tam da soruşturulması gereken hâl.
+
+`result` alanının yolculuğu:
+
+| Değer | Anlamı |
+|---|---|
+| `pending` | Satır açıldı, işlem henüz bitmedi |
+| `applied` | Yazma başarıyla tamamlandı |
+| `failed` | Yazma denendi, hata aldı (sebep `payload_json.error`) |
+| `dry_run` | Kuru prova; hiçbir yazma yapılmadı |
+
+**SATIR SİLİNMEZ.** Silme yolu bilinçli olarak açılmıyor — denetim izini
+silebilen bir denetim izi denetim izi değildir. Güncelleme yalnız `result`
+(ve hata durumunda `payload_json.error`) alanına dokunuyor; `actor`,
+`action`, `reason` ve hedef bir daha değişmiyor.
+
+`payload_json` **isteğin özetidir, tam gövdesi değil**: yalnız o eylemi
+anlamlandıran alanlar yazılıyor (hangi ayar, hangi komut, kaç kalem). Ham
+gövdeyi saklamak müşteri notu gibi kişisel veriyi ikinci bir yerde
+çoğaltırdı.
+
+### 14.6 Oran sınırı — `bld-control`
+
+**1200 istek / saat / IP** (§10). `bld-partner` (300/saat) yetmez, mutfak
+bütçesi (2000/saat) fazla: Kontrol Merkezi **açık duran bir panel** ve 10
+saniyelik bir yoklama tek başına 360/saat eder; aynı anda iki yönetici panel
+açabilir. Mutfak kadar cömert olmaması bilinçli — kasa sipariş göremezse
+mutfak durur, panel yavaşlarsa kimse aç kalmaz.
+
+Sınır **IP başına**, çünkü Kontrol Merkezi'nin kimliğini istek başına
+hesaplanan bir **imza** taşıyor, sabit bir anahtar değil; sayacı bağlayacak
+bir hesap kimliği yok ve panel tek sunucudan çıkıyor. Aşılırsa
+`429 RATE_LIMITED`.

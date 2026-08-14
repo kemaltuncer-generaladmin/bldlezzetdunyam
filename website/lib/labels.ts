@@ -1,4 +1,11 @@
-import type { DeliveryType, OrderStatus, PaymentMethod, PaymentStatus } from '@/lib/api/types';
+import { formatDayMonth, formatLongDate, type BusinessDate } from '@/lib/business-date';
+import type {
+  DailyMenuUnavailableReason,
+  DeliveryType,
+  OrderStatus,
+  PaymentMethod,
+  PaymentStatus,
+} from '@/lib/api/types';
 
 const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   yeni: 'Alındı',
@@ -64,4 +71,77 @@ export function isCancellable(status: string): boolean {
 /** Terminal durumlar — polling burada durur. */
 export function isTerminalStatus(status: string): boolean {
   return status === 'teslim_edildi' || status === 'iptal';
+}
+
+/**
+ * GÜNÜN MENÜSÜ — sipariş alınamama sebebinin Türkçesi (B-19).
+ *
+ * ## Metin neden sunucudan gelmiyor?
+ *
+ * Sunucu `unavailable_reason` alanında MAKİNE OKUNUR bir sebep veriyor
+ * (`closed_day`, `not_published`, …) ve sözleşme bunu açıkça söylüyor:
+ * *"Kullanıcıya gösterilecek metni istemci kendi diliyle yazar — sunucudan
+ * gelen cümleyi ekrana basmak, arayüz metnini sunucu sürümüne bağlar."*
+ * Sunucudaki bir kelime düzeltmesi üç istemcinin metnini birden değiştirirdi
+ * ve hiçbiri gözden geçirilmemiş olurdu.
+ *
+ * ## Neden başlık ve gövde ayrı?
+ *
+ * Boş/hata paneli ikisini de istiyor (`StatePanel`) ve aynı cümleyi iki kez
+ * yazmak panelin düzenini bozuyordu. Başlık NE olduğunu, gövde NE YAPILACAĞINI
+ * söylüyor — beş sebebin dördünde yapılacak şey farklı.
+ *
+ * `closedNote` yalnızca `closed_day` sebebinde anlamlı: sunucunun verdiği
+ * kapalı gün açıklaması ("Kurban Bayramı") bir SEBEP metni değil, o günün
+ * ADI — onu göstermek arayüz metnini sunucuya bağlamaz.
+ */
+export type DayUnavailableCopy = { title: string; message: string };
+
+export function dayUnavailableCopy(
+  reason: DailyMenuUnavailableReason | null | undefined,
+  date: BusinessDate,
+  closedNote?: string | null,
+): DayUnavailableCopy {
+  const day = formatLongDate(date);
+
+  switch (reason) {
+    case 'closed_day':
+      return {
+        title: `${formatDayMonth(date)} kapalıyız`,
+        message: closedNote
+          ? `${closedNote} nedeniyle bu gün yemek çıkarmıyoruz. Takvimden başka bir gün seçebilirsiniz.`
+          : 'Bu gün yemek çıkarmıyoruz. Takvimden başka bir gün seçebilirsiniz.',
+      };
+    case 'not_published':
+      return {
+        title: 'Bu günün menüsü henüz açıklanmadı',
+        message: `${day} için menü hazırlandığında burada görünecek. Takvimde menüsü açıklanmış günler işaretli.`,
+      };
+    case 'cutoff_passed':
+      return {
+        title: 'Bugünün sipariş saati doldu',
+        message:
+          'Bugüne sipariş kabul etmiyoruz ama yarın ve sonrası için sipariş verebilirsiniz. Takvimden bir gün seçin.',
+      };
+    case 'past':
+      return {
+        title: 'Bu gün geçti',
+        message: `${day} için sipariş alınamıyor. Bugünden başlayarak ileri bir gün seçin.`,
+      };
+    case 'too_far':
+      return {
+        title: 'Bu tarih için henüz sipariş almıyoruz',
+        message: `${day} takvimimizde çok ileride. Menüler yaklaştıkça açılıyor; daha yakın bir gün seçin.`,
+      };
+    default:
+      /*
+       * Sebep verilmemiş ama gün yine de sipariş alamıyor. Tek bilinen
+       * senaryo: vitrinin ana şalteri kapalı (`ordering_enabled`) — gün
+       * sorunsuz, sipariş alımı durmuş. Menüyü görmek engellenmiyor.
+       */
+      return {
+        title: 'Şu anda sipariş alamıyoruz',
+        message: 'Menüyü inceleyebilirsiniz. Sipariş alımı açıldığında sepete ekleyebilirsiniz.',
+      };
+  }
 }

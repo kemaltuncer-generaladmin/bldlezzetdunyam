@@ -26,9 +26,11 @@ import '../../providers/address_providers.dart';
 import '../../providers/catalog_providers.dart';
 import '../../providers/infra_providers.dart';
 import '../../router/app_router.dart';
+import '../../widgets/empty_view.dart';
 import '../../widgets/eta_notice.dart';
 import '../../widgets/status_views.dart';
 import '../cart/cart_controller.dart';
+import '../cart/cart_model.dart';
 import '../location/pin_field.dart';
 import '../location/service_area_fields.dart';
 
@@ -40,6 +42,7 @@ class CheckoutScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final locationAsync = ref.watch(locationProvider);
     final cart = ref.watch(cartProvider);
+    final today = ref.watch(businessTodayProvider);
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.checkoutTitle)),
@@ -53,7 +56,31 @@ class CheckoutScreen extends ConsumerWidget {
           if (cart.isEmpty) {
             return Center(child: Text(l10n.cartEmpty));
           }
-          return _CheckoutForm(location: snapshot.location);
+
+          // Sepetin günü BURADA doğrulanıyor, formun içinde değil: günü
+          // olmayan ya da günü geçmiş bir sepetle form çizmenin anlamı yok,
+          // `POST /orders` onu kesin reddeder.
+          final problem = cartDayProblem(cart, today: today);
+          if (problem != null) {
+            return EmptyView(
+              icon: Icons.event_busy_outlined,
+              title: l10n.cartDayInvalidTitle,
+              message: problem == CartDayProblem.missing
+                  ? l10n.cartDayMissing
+                  : l10n.cartDayPast(BusinessDate.long(cart.serviceDate!)),
+              actionLabel: l10n.cartClear,
+              onAction: () {
+                ref.read(cartProvider.notifier).clear();
+                context.go(Routes.menu);
+              },
+            );
+          }
+
+          return _CheckoutForm(
+            location: snapshot.location,
+            serviceDate: cart.serviceDate!,
+            isToday: cart.serviceDate == today,
+          );
         },
       ),
     );
@@ -61,9 +88,19 @@ class CheckoutScreen extends ConsumerWidget {
 }
 
 class _CheckoutForm extends ConsumerStatefulWidget {
-  const _CheckoutForm({required this.location});
+  const _CheckoutForm({
+    required this.location,
+    required this.serviceDate,
+    required this.isToday,
+  });
 
   final Location location;
+
+  /// Siparişin hangi güne verildiği — `OrderCreateRequest.service_date`.
+  final String serviceDate;
+
+  /// Servis günü BUGÜN mü? Tahmini teslim süresi buna bağlı.
+  final bool isToday;
 
   @override
   ConsumerState<_CheckoutForm> createState() => _CheckoutFormState();
@@ -99,10 +136,22 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
   bool _submitting = false;
   String? _failure;
 
+  /// Müşteriye gösterilen ödeme yöntemleri.
+  ///
+  /// **`account` LİSTEDEN ÇIKARILDI (B-19).** Cari hesap müşteri
+  /// arayüzlerinden kaldırıldı: bakiyesini göremeyen bir müşteriye "cari
+  /// hesaba yaz" seçeneği sunmak, borcunu takip edemeyeceği bir ödeme
+  /// yöntemi satmak olurdu. Yöntem arka uçta ve admin panelinde DURUYOR —
+  /// personel siparişi panelden cari hesaba işleyebiliyor; kaldırılan yalnız
+  /// müşterinin kendi kendine seçme yolu.
+  List<PaymentMethod> get _methods => widget.location.selectablePaymentMethods
+      .where((method) => method != PaymentMethod.account)
+      .toList(growable: false);
+
   @override
   void initState() {
     super.initState();
-    final methods = widget.location.selectablePaymentMethods;
+    final methods = _methods;
     if (methods.isNotEmpty) _paymentMethod = methods.first;
   }
 
@@ -114,27 +163,29 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
     super.dispose();
   }
 
-  Future<void> _pickRequestedAt() async {
-    final now = istanbulNow();
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _requestedAtIstanbul ?? now,
-      firstDate: DateTime(now.year, now.month, now.day),
-      lastDate: DateTime(now.year, now.month, now.day + 30),
-    );
-    if (date == null || !mounted) return;
+  /// İstenen teslim SAATİ. Gün seçilmiyor.
+  ///
+  /// NEDEN GÜN SEÇİCİ KALDIRILDI: gün artık menüden seçiliyor ve sepet ona
+  /// bağlı. Sunucu `requested_at` ile `service_date`'in AYNI güne düşmesini
+  /// şart koşuyor (`docs/openapi.yaml` `OrderCreateRequest.service_date`);
+  /// takvimden başka bir gün seçilebilseydi müşteri "cuma menüsünü perşembe
+  /// 12:00'ye" diyebilir ve garantili bir `422` alırdı. Seçilebilen tek şey
+  /// o günün içindeki saat.
+  Future<void> _pickRequestedTime() async {
+    final day = BusinessDate.tryParse(widget.serviceDate);
+    if (day == null) return;
 
     final time = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(_requestedAtIstanbul ?? now),
+      initialTime: TimeOfDay.fromDateTime(_requestedAtIstanbul ?? istanbulNow()),
     );
     if (time == null || !mounted) return;
 
     setState(() {
       _requestedAtIstanbul = DateTime(
-        date.year,
-        date.month,
-        date.day,
+        day.year,
+        day.month,
+        day.day,
         time.hour,
         time.minute,
       );
@@ -186,11 +237,14 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
 
     final samePin = value == null
         ? !saved.hasPin
-        : saved.latitude == value.latitude && saved.longitude == value.longitude;
+        : saved.latitude == value.latitude &&
+              saved.longitude == value.longitude;
     if (samePin) return;
 
     try {
-      await ref.read(addressBookProvider.notifier).edit(
+      await ref
+          .read(addressBookProvider.notifier)
+          .edit(
             id,
             SavedAddressInput(
               label: saved.label,
@@ -237,6 +291,10 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
     final request = OrderCreateRequest(
       locationId: widget.location.id,
       items: [for (final line in cart.lines) line.toOrderItem()],
+      // Sepetin bağlı olduğu gün. Sunucunun `requested_at`'ten türetmesine
+      // bırakılmıyor: "en kısa sürede" seçildiğinde `requested_at` hiç
+      // gönderilmiyor ve ileri tarihli sipariş sessizce BUGÜNE düşerdi.
+      serviceDate: widget.serviceDate,
       deliveryType: _deliveryType,
       paymentMethod: method,
       // `pickup` ise sunucu adresi yok sayar; yine de göndermeyiz.
@@ -322,7 +380,7 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
       });
     }
     final offline = ref.watch(connectivityProvider);
-    final methods = widget.location.selectablePaymentMethods;
+    final methods = _methods;
 
     final blockers = <String>[
       if (!widget.location.acceptsOrders) l10n.checkoutOrderingClosed,
@@ -330,10 +388,13 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
       if (methods.isEmpty) l10n.checkoutPaymentMethodsEmpty,
     ];
 
-    // Kullanıcı belirli bir saat seçtiyse tahmin gösterilmez: sipariş o saate
-    // planlanır, "60-85 dakika içinde" demek yanlış olurdu. Tahmin yalnızca
-    // "en kısa sürede" seçiliyken anlamlıdır.
-    final eta = _requestedAtIstanbul == null
+    // Tahmin İKİ koşulda birden gösterilir:
+    //  * Kullanıcı belirli bir saat seçmediyse — seçtiyse sipariş o saate
+    //    planlanır, "60-85 dakika içinde" demek yanlış olurdu.
+    //  * Servis günü BUGÜNSE — `EtaService` "şimdiden N dakika sonra" diyor.
+    //    Cuma menüsü için verilen bir sipariş perşembe akşamı "yaklaşık 75
+    //    dakika" diye gösterilirse müşteri yemeğin bu akşam geleceğini sanır.
+    final eta = (_requestedAtIstanbul == null && widget.isToday)
         ? widget.location.etaFor(_deliveryType)
         : null;
 
@@ -345,6 +406,10 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
             child: ListView(
               padding: const EdgeInsets.all(BldSpacing.md),
               children: [
+                _ServiceDateBanner(
+                  serviceDate: widget.serviceDate,
+                  isToday: widget.isToday,
+                ),
                 _SectionTitle(l10n.checkoutDeliveryType),
                 SegmentedButton<DeliveryType>(
                   segments: [
@@ -442,8 +507,8 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
                 // fırlatan alt ağaç yerleşemediği için LİSTE KAYDIRILAMIYOR,
                 // kullanıcı formun altına inemiyor ve sipariş veremiyordu.
                 OutlinedButton(
-                  onPressed: _submitting ? null : _pickRequestedAt,
-                  child: Text(l10n.checkoutPickDateTime),
+                  onPressed: _submitting ? null : _pickRequestedTime,
+                  child: Text(l10n.checkoutPickTime),
                 ),
 
                 _SectionTitle(l10n.checkoutPaymentMethod),
@@ -497,6 +562,56 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
           onSubmit: blockers.isEmpty && !_submitting ? _submit : null,
         ),
       ],
+    );
+  }
+}
+
+/// Siparişin HANGİ GÜNE verildiğini söyleyen bant.
+///
+/// Ödeme ekranının en üstünde ve her zaman görünür: ileri tarihli sipariş bu
+/// üründe kural, istisna değil. Müşteri cuma menüsünü perşembe ödüyor ve
+/// "bugün mü geliyor" sorusunun cevabı formu doldurmadan ÖNCE görünmeli.
+class _ServiceDateBanner extends StatelessWidget {
+  const _ServiceDateBanner({required this.serviceDate, required this.isToday});
+
+  final String serviceDate;
+  final bool isToday;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(BldSpacing.md - 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(BldRadius.sm),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.event_outlined,
+            size: 18,
+            color: theme.colorScheme.onSecondaryContainer,
+          ),
+          const SizedBox(width: BldSpacing.sm),
+          Expanded(
+            child: Text(
+              isToday
+                  ? l10n.checkoutServiceDateToday
+                  : l10n.checkoutServiceDateFuture(
+                      BusinessDate.long(serviceDate),
+                    ),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSecondaryContainer,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -582,7 +697,10 @@ class _CheckoutFooter extends StatelessWidget {
 /// olmayan kullanıcıya boş bir açılır liste göstermek, elle girişin önüne
 /// gereksiz bir adım koymak olurdu.
 class _SavedAddressPicker extends ConsumerWidget {
-  const _SavedAddressPicker({required this.selectedId, required this.onSelected});
+  const _SavedAddressPicker({
+    required this.selectedId,
+    required this.onSelected,
+  });
 
   final int? selectedId;
   final ValueChanged<SavedAddress?> onSelected;

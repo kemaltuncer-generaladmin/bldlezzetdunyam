@@ -463,4 +463,178 @@ void main() {
       await source.dispose();
     });
   });
+
+  /// Gün dönümü — B-19.
+  ///
+  /// Kasa kesintisiz çalışıyor ve tam yenileme yalnızca açılışta ve bağlantı
+  /// koptuğunda yapılıyordu. Gece yarısının iki bedeli vardı: dünün kartları
+  /// tahtada kalıyordu ve ileri tarihli siparişler pişecekleri gün hiç
+  /// görünmüyordu.
+  group('İşletme günü dönümü', () {
+    /// Değiştirilebilir sahte saat: gece yarısını testin içinde geçiyoruz.
+    ({DateTime Function() read, void Function(DateTime) set}) fakeClock(
+      DateTime start,
+    ) {
+      var now = start;
+      return (read: () => now, set: (DateTime value) => now = value);
+    }
+
+    test('gün değişince tam yenileme yapılır', () async {
+      final kitchen = FakeKitchenService()
+        ..responses.addAll([
+          makePage([makeOrder(id: 1)]),
+          makePage([makeOrder(id: 2)]),
+        ]);
+
+      // 21:00 UTC = 00:00 İstanbul ertesi gün. Bir dakika öncesinden
+      // başlıyoruz ki ilk çekme hâlâ "dün" olsun.
+      final clock = fakeClock(DateTime.utc(2026, 8, 4, 20, 59));
+
+      final source = PollingOrderSource(
+        kitchen: kitchen,
+        interval: const Duration(milliseconds: 10),
+        heartbeatInterval: const Duration(hours: 1),
+        clock: clock.read,
+      )..start();
+      await settle();
+
+      // İlk çekme zaten tam yenileme; sonraki çekmeler artımlı.
+      expect(kitchen.ordersCalls.first.since, isNull);
+      final beforeMidnight = kitchen.ordersCalls
+          .where((call) => call.since == null)
+          .length;
+      expect(beforeMidnight, 1, reason: 'Gün dönmeden ikinci tam yenileme olmamalı.');
+
+      // Gece yarısını geç.
+      clock.set(DateTime.utc(2026, 8, 4, 21, 1));
+      await settle(60);
+
+      // Gün dönümü İKİNCİ bir tam yenileme tetiklemeli. `.last` bakmıyoruz:
+      // 10 ms aralıkta tam yenilemeden sonra artımlı çekmeler sürüyor ve son
+      // çağrı doğal olarak artımlı oluyor.
+      final afterMidnight = kitchen.ordersCalls
+          .where((call) => call.since == null)
+          .length;
+      expect(
+        afterMidnight,
+        2,
+        reason: 'Gün dönümünde tam yenileme bekleniyordu.',
+      );
+
+      await source.dispose();
+    });
+
+    test('dünün kartları gün dönümünde tahtadan kalkar', () async {
+      // Sunucu gece yarısından sonra dünkü siparişi BİR DAHA GÖNDERMEZ
+      // (bugünün siparişlerini filtreliyor). Tam yenileme olmadan kart
+      // `_known` içinde sonsuza dek kalırdı.
+      final kitchen = FakeKitchenService()
+        ..responses.addAll([
+          makePage([makeOrder(id: 1, status: OrderStatus.hazir)]),
+          makePage(const []),
+        ]);
+
+      final clock = fakeClock(DateTime.utc(2026, 8, 4, 20, 59));
+
+      final source = PollingOrderSource(
+        kitchen: kitchen,
+        interval: const Duration(milliseconds: 10),
+        heartbeatInterval: const Duration(hours: 1),
+        clock: clock.read,
+      )..start();
+      await settle();
+
+      final seen = <List<KitchenOrder>>[];
+      final subscription = source.watch().listen(seen.add);
+
+      clock.set(DateTime.utc(2026, 8, 4, 21, 1));
+      await settle(60);
+      await subscription.cancel();
+
+      expect(
+        seen.last,
+        isEmpty,
+        reason: 'Dünün hâlâ `hazir` kartı tahtada kalmamalı.',
+      );
+
+      await source.dispose();
+    });
+
+    test('aynı gün içinde tam yenileme TETİKLENMEZ', () async {
+      // Aksi hâlde her yoklama tam liste isterdi ve artımlı çekmenin anlamı
+      // kalmazdı.
+      final kitchen = FakeKitchenService()
+        ..responses.addAll([
+          makePage([makeOrder(id: 1)]),
+          makePage([makeOrder(id: 1)]),
+          makePage([makeOrder(id: 1)]),
+        ]);
+
+      final clock = fakeClock(DateTime.utc(2026, 8, 4, 9));
+
+      final source = PollingOrderSource(
+        kitchen: kitchen,
+        interval: const Duration(milliseconds: 10),
+        heartbeatInterval: const Duration(hours: 1),
+        clock: clock.read,
+      )..start();
+      await settle();
+
+      clock.set(DateTime.utc(2026, 8, 4, 15));
+      await settle(60);
+
+      expect(
+        kitchen.ordersCalls.length,
+        greaterThanOrEqualTo(2),
+        reason: 'En az iki çekme olmalıydı.',
+      );
+      expect(
+        kitchen.ordersCalls.last.since,
+        isNotNull,
+        reason: 'Gün değişmediği için artımlı çekme sürmeli.',
+      );
+
+      await source.dispose();
+    });
+
+    test('gün dönümündeki hata tam yenilemeyi YUTMAZ', () async {
+      // Gün işareti başarıdan SONRA konuyor: gece yarısına denk gelen tek bir
+      // ağ hatası tam yenilemeyi sessizce atlatmamalı.
+      final kitchen = FakeKitchenService()
+        ..responses.addAll([
+          makePage([makeOrder(id: 1)]),
+          const ApiException.network(),
+          makePage([makeOrder(id: 2)]),
+        ]);
+
+      final clock = fakeClock(DateTime.utc(2026, 8, 4, 20, 59));
+
+      final source = PollingOrderSource(
+        kitchen: kitchen,
+        interval: const Duration(milliseconds: 10),
+        heartbeatInterval: const Duration(hours: 1),
+        clock: clock.read,
+      )..start();
+      await settle();
+
+      clock.set(DateTime.utc(2026, 8, 4, 21, 1));
+      // Gün dönümündeki çekme hata alıyor. Gün işareti başarıdan sonra
+      // konduğu için bayrak DURUYOR; bir sonraki başarılı çekme hâlâ tam
+      // yenileme olmalı. (Geri çekilme 5 sn, o yüzden elle tetikliyoruz.)
+      await settle(60);
+      await source.refresh();
+      await settle(60);
+
+      final fullRefreshes = kitchen.ordersCalls
+          .where((call) => call.since == null)
+          .length;
+      expect(
+        fullRefreshes,
+        greaterThanOrEqualTo(2),
+        reason: 'Hatadan sonra da tam yenileme beklenmeli.',
+      );
+
+      await source.dispose();
+    });
+  });
 }

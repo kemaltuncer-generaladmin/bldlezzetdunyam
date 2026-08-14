@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Veykemtu\BridgeApi\Services;
 
 use Closure;
+use Veykemtu\BridgeApi\Support\TurkishText;
 
 /**
  * Hizmet alanı — nereye teslimat yapıyoruz?
@@ -99,6 +100,42 @@ abstract class ServiceArea
     }
 
     /**
+     * Serbest metin ilçe adını LİSTEDEKİ yazımına indirger.
+     *
+     * NEDEN VAR (B-21): geocoder ilçeyi kendi kaynağındaki yazımla döndürüyor
+     * — `SELÇUKLU`, `Selcuklu`, `Selçuklu İlçesi`. `coversDistrict()` bunların
+     * ilk ikisini zaten kabul eder ama sonra hangi metnin yanıta yazılacağı
+     * sorusu kalıyor: sözleşme (`AddressSuggestion.district`) "her zaman
+     * hizmet alanındaki ilçelerden biri" diyor ve istemci bu değeri doğrudan
+     * ilçe seçicisine yazıyor. Sağlayıcının yazımı geçseydi seçici hiçbir
+     * seçeneğe denk gelmez, alan boş görünürdü.
+     *
+     * Eşleşme yoksa `null` — çağıran adayı listeden düşürür.
+     */
+    public static function canonicalDistrict(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $needle = self::lower($value);
+
+        foreach (self::DISTRICTS as $district) {
+            if (self::lower($district) === $needle) {
+                return $district;
+            }
+        }
+
+        return null;
+    }
+
+    /** İl için `canonicalDistrict()`'in eşi; tek il olduğu için tek karşılaştırma. */
+    public static function canonicalCity(?string $value): ?string
+    {
+        return self::coversCity($value) ? self::CITY : null;
+    }
+
+    /**
      * Nokta kutunun içinde mi? Kenarlar dahildir.
      *
      * Koordinat yoksa (`null`) sipariş yine geçerlidir: iğne isteğe bağlıdır
@@ -123,11 +160,13 @@ abstract class ServiceArea
      * Türkçe'de doğrusu `ı`'dır. Bugünkü iki ilçe adında fark yaratmıyor ama
      * karşılaştırmayı baştan doğru yazmak, ileride eklenecek bir ilçede
      * sessiz bir eşleşmemeden ucuz.
+     *
+     * Gövde `Support\TurkishText`'e taşındı (B-21): adres önbelleği aynı
+     * kuralı uygulamak zorunda ve iki kopya, ikisinin ayrıştığı gün sessiz
+     * bir eşleşmeme demek.
      */
     private static function lower(string $value): string
     {
-        $normalized = str_replace(['I', 'İ'], ['ı', 'i'], trim($value));
-
-        return mb_strtolower($normalized, 'UTF-8');
+        return TurkishText::lower($value);
     }
 }

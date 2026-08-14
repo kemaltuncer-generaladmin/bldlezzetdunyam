@@ -6,6 +6,7 @@ namespace Veykemtu\BridgeApi\Services;
 
 use Igniter\Cart\Models\Menu;
 use Illuminate\Support\Facades\DB;
+use Veykemtu\BridgeApi\Models\DailyMenu;
 use Veykemtu\BridgeApi\Support\BusinessTime;
 
 /**
@@ -115,8 +116,27 @@ class MenuAvailability
     {
         $soldOut = $this->soldOutReasons();
 
-        return Menu::query()
-            ->orderBy('menu_name')
+        $query = Menu::query()->orderBy('menu_name');
+
+        /*
+         * GÜNÜN MENÜSÜ REJİMİNDE LİSTE BUGÜNE DARALIR (B-19).
+         *
+         * Katalogda seksen küsur ürün var ama o gün yalnız menüdekiler
+         * satılıyor. Tükenme ekranında satılmayan yetmiş ürünü göstermek,
+         * mutfağın aradığı üç kalemi bulmasını zorlaştırmaktan başka bir işe
+         * yaramıyor — üstelik satışta olmayan bir ürünü "tükendi"
+         * işaretlemek hiçbir şeyi değiştirmiyor.
+         *
+         * Yanıt ŞEKLİ değişmiyor, yalnız satır sayısı azalıyor; `mutfakapp`
+         * bu yüzden hiç değişmeden çalışıyor.
+         */
+        $todayIds = $this->todayMenuIds();
+
+        if ($todayIds !== null) {
+            $query->whereIn('menu_id', $todayIds);
+        }
+
+        return $query
             ->get()
             ->map(fn(Menu $menu): array => [
                 'menu_id' => (int) $menu->menu_id,
@@ -128,5 +148,59 @@ class MenuAvailability
                 'sold_out_reason' => $soldOut[(int) $menu->menu_id] ?? null,
             ])
             ->all();
+    }
+
+    /**
+     * Bugünün yayınlanmış menüsündeki ürün kimlikleri + menü paketi.
+     *
+     * `null` dönerse daraltma YAPILMAZ ve katalog eskisi gibi tam gelir.
+     * İki durumda null döner ve ikisi de bilinçli:
+     *
+     *   * Hiçbir vitrinde günün menüsü rejimi açık değil — eski davranış
+     *     birebir korunmalı.
+     *   * Rejim açık ama BUGÜNE menü yayınlanmamış. Bu durumda listeyi boşa
+     *     düşürmek, plansız bir günde mutfağı hiçbir şeyi tükendi
+     *     işaretleyemez hâle getirirdi. Boş bir ekran, uzun bir ekrandan
+     *     daha kötü bir arıza.
+     *
+     * @return list<int>|null
+     */
+    private function todayMenuIds(): ?array
+    {
+        $today = BusinessTime::now()->toDateString();
+
+        $menus = DB::table('veykemtu_daily_menus')
+            ->whereDate('menu_date', $today)
+            ->where('status', DailyMenu::STATUS_PUBLISHED)
+            ->pluck('id');
+
+        if ($menus->isEmpty()) {
+            return null;
+        }
+
+        $ids = DB::table('veykemtu_daily_menu_items')
+            ->whereIn('daily_menu_id', $menus)
+            ->pluck('menu_id')
+            ->map(intval(...))
+            ->all();
+
+        if ($ids === []) {
+            return null;
+        }
+
+        // Paket ürünü de listeye giriyor: mutfak "günün menüsü bugünlük
+        // bitti" diyebilmeli — bu, kalemleri tek tek satışta bırakırken
+        // yalnız paketi kapatan tek yol.
+        foreach (DB::table('location_options')
+            ->where('item', DailyMenu::PACKAGE_OPTION_KEY)
+            ->pluck('value') as $raw) {
+            $packageId = (int) json_decode((string) $raw, true);
+
+            if ($packageId > 0) {
+                $ids[] = $packageId;
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 }

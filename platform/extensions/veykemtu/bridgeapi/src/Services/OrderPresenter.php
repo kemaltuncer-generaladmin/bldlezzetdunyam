@@ -49,6 +49,10 @@ class OrderPresenter
             'currency' => 'TRY',
             'item_count' => (int) $order->total_items,
             'created_at' => $this->ts($order->created_at),
+            // Siparişin hangi GÜN İÇİN olduğu (B-19). `created_at` siparişin
+            // verildiği andır; ileri tarihli siparişte ikisi ayrıdır ve
+            // listede "20 Ağustos menüsü" yazabilmek için bu gerekiyor.
+            'service_date' => $this->serviceDate($order),
             'subscription_id' => $order->bld_subscription_id !== null
                 ? (int) $order->bld_subscription_id
                 : null,
@@ -107,6 +111,7 @@ class OrderPresenter
             'delivery_type' => $this->deliveryType($order),
             'address' => $isDelivery ? $this->address($order) : null,
             'requested_at' => $this->requestedAt($order),
+            'service_date' => $this->serviceDate($order),
             'customer_note' => $order->comment !== null ? (string) $order->comment : null,
             'payment' => $this->payment($order),
             'status_history' => $this->statusHistory($order),
@@ -227,8 +232,44 @@ class OrderPresenter
      */
     public function editable(Order $order): array
     {
+        /*
+         * BİLEŞEN SATIRLARI DÜZENLEME EKRANINDA GÖRÜNMEZ (B-19).
+         *
+         * Menü paketi bir üst satır + altında sıfır fiyatlı bileşenler
+         * olarak yazılıyor. Bileşenler de listelenseydi KDS onları geri
+         * gönderir, `LineResolver` onları tek tek satılan ürünler gibi
+         * fiyatlandırır ve siparişin toplamı kendiliğinden şişerdi.
+         *
+         * Personel paketi tek bir birim olarak düzenler ("Günün Menüsü ×3"
+         * → ×2); sunucu bileşenleri yeniden açar. Bu, tasarımdaki en keskin
+         * kenar ve kendi testi var.
+         */
+        /*
+         * SEÇENEK KİMLİKLERİ AYRI TABLODAN OKUNUR.
+         *
+         * `order_menus.option_values` yalnız seçenek ADLARINI tutuyor
+         * (`serialize(array_column($line['options'], 'name'))`); kimlik o
+         * sütunda hiç durmuyor. Revizyon ucu ise kimlik istiyor
+         * (`LineResolver::resolve` → `option_value_ids`).
+         *
+         * Kimlik dışarı çıkmadığı sürece KDS onu geri gönderemiyordu:
+         * personel yalnız adedi değiştirdiğinde `LineResolver` satırı
+         * SEÇENEKSİZ yeniden fiyatlıyor, müşteri eksik ücretlendiriliyor
+         * ve seçenek satırı mutfak fişinden düşüyordu — hiçbir hata
+         * dönmeden. Kendi testi var.
+         *
+         * Adları kimliğe geri çevirmek seçenek DEĞİLDİ: aynı adı taşıyan
+         * iki değer (iki ayrı grupta "Bol") yanlış eşleşir ve sessiz
+         * kaybın yerini sessiz yanlışlık alırdı.
+         */
+        $optionValueIds = $this->optionValueIdsByLine($order);
+
         $items = DB::table('order_menus')
             ->where('order_id', $order->order_id)
+            ->where(function ($query): void {
+                $query->whereNull('bld_line_role')
+                    ->orWhere('bld_line_role', '!=', 'component');
+            })
             ->orderBy('order_menu_id')
             ->get()
             ->map(fn($row): array => [
@@ -236,7 +277,11 @@ class OrderPresenter
                 'menu_id' => (int) $row->menu_id,
                 'name' => (string) $row->name,
                 'quantity' => (int) $row->quantity,
+                // ADLAR KALIYOR (AGENTS.md §2.3 — yalnız ekleme yapılır).
+                // Ekran seçeneği personele bunlarla yazıyor; kimlikler
+                // insana gösterilmez, yalnız geri gönderilir.
                 'options' => $this->unserializeNames($row->option_values),
+                'option_value_ids' => $optionValueIds[(int) $row->order_menu_id] ?? [],
                 'note' => $row->comment,
             ])
             ->all();
@@ -257,6 +302,36 @@ class OrderPresenter
             'is_subscription' => $order->bld_subscription_id !== null,
             'items' => $items,
         ];
+    }
+
+    /**
+     * Satır kimliği → seçilen seçenek değeri kimlikleri.
+     *
+     * TEK SORGU, satır başına bir tane değil: bir siparişte onlarca kalem
+     * olabiliyor ve düzenleme ekranı personel telefonda beklerken açılıyor.
+     *
+     * KİMLİĞİ OLMAYAN SATIR BOŞ DİZİ DÖNER, hata değil. `order_menu_options`
+     * kaydı iki durumda eksik olabilir: `LineResolver` gelmeden önce yazılmış
+     * eski siparişler ve seçeneği hiç olmayan kalemler. İkisi de düzenlemeyi
+     * durdurmamalı — sipariş zaten mutfakta ve personel müşteriyle telefonda.
+     * Sonuç seçeneksiz bir satır olur; bugünkü davranışın aynısı.
+     *
+     * @return array<int, list<int>>
+     */
+    private function optionValueIdsByLine(Order $order): array
+    {
+        $map = [];
+
+        $rows = DB::table('order_menu_options')
+            ->where('order_id', $order->order_id)
+            ->orderBy('order_option_id')
+            ->get(['order_menu_id', 'menu_option_value_id']);
+
+        foreach ($rows as $row) {
+            $map[(int) $row->order_menu_id][] = (int) $row->menu_option_value_id;
+        }
+
+        return $map;
     }
 
     /** @return list<string> */
@@ -305,19 +380,51 @@ class OrderPresenter
     /** @return list<array<string, mixed>> */
     public function pricedItems(Order $order): array
     {
-        return DB::table('order_menus')
+        $rows = DB::table('order_menus')
             ->where('order_id', $order->order_id)
             ->orderBy('order_menu_id')
-            ->get()
-            ->map(fn(object $row): array => [
-                'menu_id' => (int) $row->menu_id,
-                'name' => (string) $row->name,
-                'quantity' => (int) $row->quantity,
-                'options' => $this->optionNames($row->option_values),
-                'note' => $row->comment !== null ? (string) $row->comment : null,
-                'unit_price' => Money::toKurus($row->price),
-                'line_total' => Money::toKurus($row->subtotal),
-            ])
+            ->get();
+
+        /*
+         * `included_in` — bileşen satırının ait olduğu paketin, `items`
+         * dizisindeki SIRASI (kimliği değil). İstemci paketi ve içindekileri
+         * iç içe gösterebilsin diye; `order_menu_id`'yi dışarı vermek,
+         * sözleşmeye istemcinin işine yaramayan bir iç kimlik sokardı.
+         */
+        $indexByLineId = [];
+        $position = 0;
+
+        foreach ($rows as $row) {
+            $indexByLineId[(int) $row->order_menu_id] = $position++;
+        }
+
+        return $rows
+            ->map(function (object $row) use ($indexByLineId): array {
+                $parentId = $row->bld_parent_line_id !== null
+                    ? (int) $row->bld_parent_line_id
+                    : null;
+
+                return [
+                    'menu_id' => (int) $row->menu_id,
+                    'name' => (string) $row->name,
+                    'quantity' => (int) $row->quantity,
+                    'options' => $this->optionNames($row->option_values),
+                    'note' => $row->comment !== null ? (string) $row->comment : null,
+                    'unit_price' => Money::toKurus($row->price),
+                    'line_total' => Money::toKurus($row->subtotal),
+                    // Eski satırlarda kolon boş; sözleşmedeki varsayılan
+                    // `item` ve istemci davranışı hiç değişmiyor.
+                    'role' => $row->bld_line_role !== null
+                        ? (string) $row->bld_line_role
+                        : 'item',
+                    'included_in' => $parentId !== null
+                        ? ($indexByLineId[$parentId] ?? null)
+                        : null,
+                    'daily_menu_id' => $row->bld_daily_menu_id !== null
+                        ? (int) $row->bld_daily_menu_id
+                        : null,
+                ];
+            })
             ->all();
     }
 
@@ -326,6 +433,22 @@ class OrderPresenter
     {
         return DB::table('order_menus')
             ->where('order_id', $order->order_id)
+            /*
+             * MENÜ PAKETİNİN ÜST SATIRI MUTFAĞA HİÇ GİTMEZ (B-19).
+             *
+             * "Ev Yemeği Menüsü (20.08.2026)" pişirilecek bir yemek değil, bir
+             * başlık. Mutfağın ihtiyacı olan tek şey ne pişeceği; bileşenler
+             * zaten kendi adları ve adetleriyle bu listede.
+             *
+             * Rolü istemciye gönderip panoya ve fişe "bu bir başlık" mantığı
+             * yazmak da bir seçenekti; SATIRI HİÇ GÖNDERMEMEK daha az kod ve
+             * daha az kavram. Mutfak yazılımı bu değişiklikten hiç haberdar
+             * olmuyor — ne yeni bir alan, ne yeni bir çizim kuralı.
+             */
+            ->where(function ($query): void {
+                $query->whereNull('bld_line_role')
+                    ->orWhere('bld_line_role', '!=', 'package');
+            })
             ->orderBy('order_menu_id')
             ->get()
             ->map(fn(object $row): array => [
@@ -351,6 +474,12 @@ class OrderPresenter
 
         return [
             'line1' => (string) $row->address_1,
+
+            // Yapılandırılmış alanlar (B-21). Sipariş adresi KOPYADIR:
+            // defterdeki kayıt sonradan düzelse bile bunlar sipariş anındaki
+            // hâlini gösterir. Eski siparişlerde hepsi `null`.
+            ...StructuredAddress::read($row),
+
             'district' => (string) ($row->state ?? ''),
             'city' => (string) ($row->city ?? ''),
             'note' => $row->address_2 !== null && $row->address_2 !== ''
@@ -475,6 +604,23 @@ class OrderPresenter
             Carbon::parse($date)->toDateString().' '.Carbon::parse($time)->format('H:i:s'),
             BusinessTime::ZONE,
         )->utc()->toIso8601ZuluString();
+    }
+
+    /**
+     * Siparişin hangi gün için olduğu, `YYYY-AA-GG` (B-19).
+     *
+     * `requested_at`'ten farklı olarak ASAP siparişte de doludur: "en kısa
+     * sürede" bir SAAT belirsizliğidir, gün belirsizliği değil. Müşteri
+     * sipariş listesinde her siparişin hangi günün menüsü olduğunu görmeli.
+     *
+     * Göç öncesi satırlarda kolon boş olabilir; `order_date`'e düşülüyor —
+     * değişmez zaten `bld_service_date === DATE(order_date)`.
+     */
+    public function serviceDate(Order $order): ?string
+    {
+        $date = $order->bld_service_date ?? $order->order_date;
+
+        return $date !== null ? Carbon::parse($date)->toDateString() : null;
     }
 
     /** @return list<string> */

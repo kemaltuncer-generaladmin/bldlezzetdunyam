@@ -45,7 +45,9 @@ class PinField extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(BldSpacing.sm),
       decoration: BoxDecoration(
-        color: selected ? bldColor(BldColors.brand50) : bldColor(BldColors.neutral50),
+        color: selected
+            ? bldColor(BldColors.brand50)
+            : bldColor(BldColors.neutral50),
         borderRadius: BorderRadius.circular(BldRadius.sm),
         border: Border.all(
           color: selected
@@ -56,7 +58,7 @@ class PinField extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            selected ? Icons.location_on : Icons.location_off_outlined,
+            selected ? Icons.location_on_outlined : Icons.location_off_outlined,
             color: selected
                 ? bldColor(BldColors.brand600)
                 : bldColor(BldColors.neutral400),
@@ -70,18 +72,13 @@ class PinField extends StatelessWidget {
                   selected ? l10n.mapPickerSelected : l10n.mapPickerNotSelected,
                   style: theme.textTheme.titleMedium,
                 ),
-                Text(
-                  l10n.mapPickerOptional,
-                  style: theme.textTheme.bodySmall,
-                ),
+                Text(l10n.mapPickerOptional, style: theme.textTheme.bodySmall),
               ],
             ),
           ),
           TextButton(
             onPressed: () => _open(context),
-            child: Text(
-              selected ? l10n.mapPickerChange : l10n.mapPickerSelect,
-            ),
+            child: Text(selected ? l10n.mapPickerChange : l10n.mapPickerSelect),
           ),
         ],
       ),

@@ -98,6 +98,56 @@ void main() {
       expect(sifirlanmis.audioSinkName, isNull);
     });
 
+    test('çıkış cihazı SUNUCU JSON\'ından da sıfırlanabilir', () {
+      // Üstteki test nesneyi DOĞRUDAN kuruyor ve bu yüzden gerçek bir
+      // açığı yıllarca kaçırdı: `fromJson` boş dizeyi `null`'a çeviriyor,
+      // `null` da "dokunmadı" demek olduğu için "varsayılana dön" emri
+      // tele hiç çıkmıyordu. Panelin sıfırlama düğmesi sessizce hiçbir
+      // şey yapmıyordu. Doğru yol TELDEN geçen yoldur.
+      final secili = applyManagedSettings(
+        yerel,
+        KitchenManagedSettings.fromJson(const {'audio_sink': 'hoparlor-1'}),
+      );
+      expect(secili.audioSinkName, 'hoparlor-1');
+
+      final sifirlanmis = applyManagedSettings(
+        secili,
+        KitchenManagedSettings.fromJson(const {'audio_sink': ''}),
+      );
+      expect(sifirlanmis.audioSinkName, isNull);
+    });
+
+    test('çıkış cihazı anahtarı YOKSA yerel korunur', () {
+      final secili = applyManagedSettings(
+        yerel,
+        KitchenManagedSettings.fromJson(const {'audio_sink': 'hoparlor-1'}),
+      );
+
+      final sonuc = applyManagedSettings(
+        secili,
+        KitchenManagedSettings.fromJson(const {'poll_seconds': 7}),
+      );
+
+      expect(sonuc.audioSinkName, 'hoparlor-1');
+      expect(sonuc.pollSeconds, 7);
+    });
+
+    test('çıkış cihazı `null` gelince yerel korunur', () {
+      // JSON'da açıkça `null` yazması da "dokunmadı"dır; boş dizeden
+      // ayrılan tam olarak bu durum.
+      final secili = applyManagedSettings(
+        yerel,
+        KitchenManagedSettings.fromJson(const {'audio_sink': 'hoparlor-1'}),
+      );
+
+      final sonuc = applyManagedSettings(
+        secili,
+        KitchenManagedSettings.fromJson(const {'audio_sink': null}),
+      );
+
+      expect(sonuc.audioSinkName, 'hoparlor-1');
+    });
+
     test('kod sayfası uygulanır — yanlış değer Türkçe karakteri bozar', () {
       final sonuc = applyManagedSettings(
         yerel,
@@ -159,6 +209,132 @@ void main() {
       expect(sonuc.volumePercent, 45);
       expect(sonuc.ttsEnabled, isTrue);
       expect(sonuc.touchMode, isTrue);
+    });
+  });
+
+  // ── K-21: kilit politikası ────────────────────────────────────────────
+  //
+  // Yönetim Kontrol Merkezi'ne geçiyor. Bu yedi alan aynı `null` kuralına
+  // uyar; uymazsa alanın eklenmesi sahadaki her kasayı kilitler.
+
+  group('Kilit politikası', () {
+    test('yerel varsayılan SERBESTtir', () {
+      // En tehlikeli hata bu olurdu: sürüm yükselten mutfak sabaha
+      // kilitli uyanır ve kimse ayarlara giremez.
+      expect(yerel.allowSettings, isTrue);
+      expect(yerel.allowServerChange, isTrue);
+      expect(yerel.allowWindowControls, isTrue);
+      expect(yerel.allowOrderEdit, isTrue);
+      expect(yerel.allowManualReprint, isTrue);
+      expect(yerel.allowSalesControl, isTrue);
+      expect(yerel.lockMessage, isEmpty);
+      expect(yerel.hasLock, isFalse);
+    });
+
+    test('DOKUNULMAMIŞ kilit alanı yereli KORUR', () {
+      // Yönetici yalnız "ayarlar"ı kilitledi; kalan beşi kendi hâlinde
+      // kalmalı, `null` "aç" diye yorumlanmamalı.
+      final kilitli = yerel.copyWith(
+        allowOrderEdit: false,
+        allowSalesControl: false,
+      );
+
+      final sonuc = applyManagedSettings(
+        kilitli,
+        const KitchenManagedSettings(allowSettings: false),
+      );
+
+      expect(sonuc.allowSettings, isFalse);
+      expect(sonuc.allowOrderEdit, isFalse);
+      expect(sonuc.allowSalesControl, isFalse);
+      expect(sonuc.allowServerChange, isTrue);
+      expect(sonuc.allowWindowControls, isTrue);
+      expect(sonuc.allowManualReprint, isTrue);
+    });
+
+    test('`false` gerçek bir değerdir ve kilitler', () {
+      final sonuc = applyManagedSettings(
+        yerel,
+        const KitchenManagedSettings(
+          allowSettings: false,
+          allowServerChange: false,
+          allowWindowControls: false,
+          allowOrderEdit: false,
+          allowManualReprint: false,
+          allowSalesControl: false,
+        ),
+      );
+
+      expect(sonuc.allowSettings, isFalse);
+      expect(sonuc.allowServerChange, isFalse);
+      expect(sonuc.allowWindowControls, isFalse);
+      expect(sonuc.allowOrderEdit, isFalse);
+      expect(sonuc.allowManualReprint, isFalse);
+      expect(sonuc.allowSalesControl, isFalse);
+      expect(sonuc.hasLock, isTrue);
+    });
+
+    test('kilit yönetici `true` yazınca geri açılır', () {
+      final kilitli = applyManagedSettings(
+        yerel,
+        const KitchenManagedSettings(allowSettings: false),
+      );
+
+      final acilmis = applyManagedSettings(
+        kilitli,
+        const KitchenManagedSettings(allowSettings: true),
+      );
+
+      expect(acilmis.allowSettings, isTrue);
+    });
+
+    test('kilit metni uygulanır; BOŞ DİZE genel metne döndürür', () {
+      // `audio_sink` ile aynı istisna: `null` "dokunmadı"ya ayrılmış
+      // olduğu için, yöneticinin yazdığı cümleyi geri almasının tek yolu
+      // boş dize.
+      final yazili = applyManagedSettings(
+        yerel,
+        const KitchenManagedSettings(lockMessage: 'Müdüre haber verin.'),
+      );
+      expect(yazili.lockMessage, 'Müdüre haber verin.');
+
+      final dokunulmamis = applyManagedSettings(
+        yazili,
+        const KitchenManagedSettings(allowSettings: false),
+      );
+      expect(dokunulmamis.lockMessage, 'Müdüre haber verin.');
+
+      final silinmis = applyManagedSettings(
+        yazili,
+        const KitchenManagedSettings(lockMessage: ''),
+      );
+      expect(silinmis.lockMessage, isEmpty);
+    });
+
+    test('kilit metni 160 karaktere kırpılır', () {
+      final sonuc = applyManagedSettings(
+        yerel,
+        KitchenManagedSettings(lockMessage: 'a' * 400),
+      );
+
+      expect(sonuc.lockMessage, hasLength(KdsSettings.maxLockMessageLength));
+    });
+
+    test('kilit alanlarına dokunmayan sunucu kilidi çözmez', () {
+      // Eski bir sunucu sürümü bu anahtarları hiç göndermiyor. Kilidin
+      // sessizce açılması, kilit hiç olmamasıyla aynı sonucu verirdi.
+      final kilitli = yerel.copyWith(
+        allowSettings: false,
+        lockMessage: 'Kontrol Merkezi yönetiyor.',
+      );
+
+      final sonuc = applyManagedSettings(
+        kilitli,
+        const KitchenManagedSettings(pollSeconds: 7),
+      );
+
+      expect(sonuc.allowSettings, isFalse);
+      expect(sonuc.lockMessage, 'Kontrol Merkezi yönetiyor.');
     });
   });
 

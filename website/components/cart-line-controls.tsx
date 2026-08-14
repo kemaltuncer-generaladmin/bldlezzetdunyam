@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useEffect, useRef } from 'react';
+import { Minus, Plus, Trash2 } from 'lucide-react';
 import { removeLineAction, updateQuantityAction } from '@/app/actions/cart';
 import { IDLE_CART_STATE, type CartActionState } from '@/lib/action-state';
 import { announceCartChanged } from '@/lib/cart-events';
@@ -22,8 +23,15 @@ type Props = {
 };
 
 /**
- * Adet artır/azalt ve satır silme. Gönderim düğmelerinin `name`/`value`
- * çiftleri form verisine katıldığı için JavaScript kapalıyken de çalışır.
+ * Adet artır/azalt ve satır silme.
+ *
+ * Gönderim düğmelerinin `name`/`value` çiftleri form verisine katıldığı için
+ * JavaScript kapalıyken de çalışır — sepetin en temel iki eylemi bir paketin
+ * yüklenmesini beklemiyor.
+ *
+ * Silme YERİNDE bir yıkıcı eylem: dolu kırmızı buton değil, `danger` metinli
+ * sessiz bir düğme. Listede dolu kırmızı bir buton primary'den daha çok göze
+ * batıyor ve yanlışlıkla tıklanıyor (marka kılavuzu).
  */
 export function CartLineControls({ lineKey, quantity, itemName }: Props) {
   const [updateState, updateAction, updating] = useActionState(
@@ -38,11 +46,9 @@ export function CartLineControls({ lineKey, quantity, itemName }: Props) {
   const busy = updating || removing;
 
   return (
-    <div className="flex items-center gap-3">
-      <form
-        action={updateAction}
-        className="flex items-center rounded-lg border border-neutral-200"
-      >
+    <div className="flex flex-wrap items-center gap-3">
+      {/* Adet sayacı `pill`: marka kılavuzunda çip/avatar/adet sayacı tam yarıçap. */}
+      <form action={updateAction} className="flex items-center rounded-full border border-input">
         <input type="hidden" name="line_key" value={lineKey} />
         <button
           type="submit"
@@ -50,25 +56,24 @@ export function CartLineControls({ lineKey, quantity, itemName }: Props) {
           value={quantity - 1}
           disabled={busy}
           aria-label={`${itemName} adedini azalt`}
-          className="grid h-10 w-10 place-items-center rounded-l-lg text-lg font-semibold text-neutral-800 hover:bg-neutral-100 disabled:opacity-50"
+          className="grid size-11 cursor-pointer place-items-center rounded-full text-foreground transition-colors duration-(--duration-fast) hover:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground"
         >
-          −
+          <Minus strokeWidth={1.75} aria-hidden="true" className="size-4" />
         </button>
-        <span
-          aria-live="polite"
-          className="min-w-10 px-2 text-center text-sm font-semibold text-neutral-900"
-        >
+
+        <span aria-live="polite" className="min-w-8 px-1 text-center text-label bld-money">
           {quantity}
         </span>
+
         <button
           type="submit"
           name="quantity"
           value={quantity + 1}
           disabled={busy || quantity >= 99}
           aria-label={`${itemName} adedini artır`}
-          className="grid h-10 w-10 place-items-center rounded-r-lg text-lg font-semibold text-neutral-800 hover:bg-neutral-100 disabled:opacity-50"
+          className="grid size-11 cursor-pointer place-items-center rounded-full text-foreground transition-colors duration-(--duration-fast) hover:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground"
         >
-          +
+          <Plus strokeWidth={1.75} aria-hidden="true" className="size-4" />
         </button>
       </form>
 
@@ -77,8 +82,9 @@ export function CartLineControls({ lineKey, quantity, itemName }: Props) {
         <button
           type="submit"
           disabled={busy}
-          className="rounded-md px-2 py-2 text-sm font-medium text-danger underline-offset-2 hover:underline disabled:opacity-50"
+          className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-sm px-2 text-label text-danger-foreground transition-colors duration-(--duration-fast) hover:bg-danger-surface disabled:cursor-not-allowed disabled:text-muted-foreground"
         >
+          <Trash2 strokeWidth={1.75} aria-hidden="true" className="size-4" />
           Kaldır
           <span className="sr-only"> — {itemName}</span>
         </button>

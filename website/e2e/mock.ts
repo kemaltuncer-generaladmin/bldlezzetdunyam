@@ -4,9 +4,9 @@ import { expect, type APIRequestContext } from '@playwright/test';
  * Mock API'nin test kancaları — W-14.
  *
  * `/__mock/*` uçları sözleşmenin PARÇASI DEĞİL. Yalnızca testin gerçek
- * kullanıcı akışını izleyebilmesi için var: SMS kodunu okumak, bir müşteriye
- * borç yazmak, abonelik kurmak. Bunlar olmadan testler ya sabit kodlara
- * bel bağlar ya da hiç kurulamayan durumları atlardı.
+ * kullanıcı akışını izleyebilmesi için var: SMS kodunu okumak, abonelik
+ * kurmak. Bunlar olmadan testler ya sabit kodlara bel bağlar ya da hiç
+ * kurulamayan durumları atlardı.
  */
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:4010/api').replace(
   /\/api\/?$/,
@@ -65,18 +65,12 @@ export async function readOtpCode(request: APIRequestContext, phone: string): Pr
   return code as unknown as string;
 }
 
-/** Müşteriye borç yazar; cari ekranını test etmenin tek yolu. */
-export async function seedDebt(
-  request: APIRequestContext,
-  customerId: number,
-  amountKurus: number,
-): Promise<void> {
-  const response = await request.post(`${API_BASE}/__mock/ledger/${customerId}`, {
-    headers: API_HEADERS,
-    data: { entry_type: 'debit', amount: amountKurus, description: 'Test siparişi' },
-  });
-  expect(response.ok(), 'Borç yazılamadı.').toBeTruthy();
-}
+/*
+ * `seedDebt` KALDIRILDI (B-19). Müşteriye borç yazan tek çağıran cari
+ * ekranının testleriydi; o ekran müşteri arayüzünden çıktı. `/__mock/ledger`
+ * ucu mock sunucusunda duruyor — arka uç ve admin paneli cari işlemeye devam
+ * ediyor, yalnız SİTE ona bakmıyor.
+ */
 
 export async function seedSubscription(
   request: APIRequestContext,

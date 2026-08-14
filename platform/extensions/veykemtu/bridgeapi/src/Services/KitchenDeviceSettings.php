@@ -73,8 +73,38 @@ class KitchenDeviceSettings
             'alarm_repeat_seconds' => $device->alarm_repeat_seconds,
             'alarm_max_repeats' => $device->alarm_max_repeats,
             'touch_mode' => $device->touch_mode,
+
+            // ── Kilit politikası (K-21) ────────────────────────────────
+            //
+            // `null` = "yönetici dokunmadı" = kasanın bugünkü davranışı,
+            // yani SERBEST. Kilit ancak açıkça `false` yazılınca doğar;
+            // gerekçesi `2026_08_17_000001` göçünde.
+            'allow_settings' => $this->readBool($device->allow_settings),
+            'allow_server_change' => $this->readBool($device->allow_server_change),
+            'allow_window_controls' => $this->readBool($device->allow_window_controls),
+            'allow_order_edit' => $this->readBool($device->allow_order_edit),
+            'allow_manual_reprint' => $this->readBool($device->allow_manual_reprint),
+            'allow_sales_control' => $this->readBool($device->allow_sales_control),
+            'lock_message' => $device->lock_message,
+
             'updated_at' => $device->settings_updated_at?->utc()->toIso8601ZuluString(),
         ];
+    }
+
+    /**
+     * Kilit alanlarını okurken `tinyint`'i `bool`'a çevirir.
+     *
+     * NEDEN BURADA, MODELİN `$casts`'INDA DEĞİL: mevcut 16 ayarın
+     * dönüşümü modelde tanımlı ve o liste K-21 kapsamının dışında.
+     * Dönüşüm olmadan MySQL `1`/`0` döndürür; sözleşme (`docs/openapi.yaml`
+     * `KitchenSettings`) bu alanları `boolean | null` olarak ilan ediyor ve
+     * kasa tarafı (`kitchen_health.dart`) `bool?` bekliyor — `1` gelen bir
+     * alan Dart'ta ayrıştırma hatası verir, yani sessiz bir sapma değil,
+     * doğrudan kırılma olurdu.
+     */
+    private function readBool(mixed $value): ?bool
+    {
+        return $value === null ? null : (bool) $value;
     }
 
     /**
@@ -101,6 +131,15 @@ class KitchenDeviceSettings
             'alarm_repeat_seconds',
             'alarm_max_repeats',
             'touch_mode',
+            // Kilit politikası (K-21) — diğer ayarlarla aynı yolu izler:
+            // yalnız gönderilen anahtar değişir, `null` "dokunmadı"ya döner.
+            'allow_settings',
+            'allow_server_change',
+            'allow_window_controls',
+            'allow_order_edit',
+            'allow_manual_reprint',
+            'allow_sales_control',
+            'lock_message',
         ];
 
         $degisti = false;
@@ -158,7 +197,17 @@ class KitchenDeviceSettings
             // doğrulanan değer 29 ve yanlışı tüm Türkçe harfleri boşluk
             // bastırır (docs/05 §5.2).
             'printer_code_page' => max(0, min(255, (int) $value)),
-            'sound_enabled', 'alarm_silenceable', 'tts_enabled', 'touch_mode' => (bool) $value,
+            'sound_enabled', 'alarm_silenceable', 'tts_enabled', 'touch_mode',
+            // Kilitler (K-21). `false` YAZMAK KİLİTLEMEKTİR; alanı boş
+            // bırakmak ("dokunmadı") kilidi kaldırır ve kasa bugünkü
+            // serbest davranışına döner.
+            'allow_settings', 'allow_server_change', 'allow_window_controls',
+            'allow_order_edit', 'allow_manual_reprint', 'allow_sales_control' => (bool) $value,
+            // Kilitli eyleme basınca gösterilecek metin. Boş dize yukarıda
+            // `null`'a düşer — `audio_sink`'in aksine burada "boş metin"
+            // diye anlamlı bir değer yok: metin yoksa kasa kendi genel
+            // uyarısını gösterir.
+            'lock_message' => mb_substr(trim((string) $value), 0, 160),
             // Ses seviyesi hoparlörün kendi seviyesinden AYRI: bu yalnızca
             // uygulamanın akışını kısar (`pw-play --volume`).
             'volume_percent' => max(0, min(100, (int) $value)),

@@ -20,6 +20,8 @@ import 'package:musteriapp/src/providers/session_provider.dart';
 import 'package:musteriapp/src/router/app_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'support/daily_menu_fixtures.dart';
+
 const Location _location = Location(
   id: 1,
   name: 'Benim Lezzet Dünyam',
@@ -37,13 +39,6 @@ const MenuItem _item = MenuItem(
   price: 18500,
   currency: 'TRY',
   isAvailable: true,
-);
-
-const MenuCategory _category = MenuCategory(
-  id: 10,
-  name: 'Ana Yemekler',
-  sort: 1,
-  items: [_item],
 );
 
 class _FakeSession extends SessionNotifier {
@@ -79,18 +74,13 @@ void main() {
           ),
         ),
         sessionProvider.overrideWith(
-          () => _FakeSession(
-            const Session(isSignedIn: true),
-          ),
+          () => _FakeSession(const Session(isSignedIn: true)),
         ),
         locationProvider.overrideWith(
           (ref) async =>
               const LocationSnapshot(location: _location, fromCache: false),
         ),
-        menuProvider(_location.id).overrideWith(
-          (ref) async =>
-              const MenuSnapshot(categories: [_category], fromCache: false),
-        ),
+        ...dailyMenuOverrides(),
       ],
     );
     addTearDown(container.dispose);
@@ -98,7 +88,12 @@ void main() {
     // Sepet dolu olmalı: boş sepette ödeme ekranı formu hiç çizmiyor.
     container
         .read(cartProvider.notifier)
-        .add(item: _item, locationId: _location.id, quantity: 2);
+        .add(
+          item: _item,
+          locationId: _location.id,
+          serviceDate: fixedToday,
+          quantity: 2,
+        );
 
     await tester.pumpWidget(
       UncontrolledProviderScope(

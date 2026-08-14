@@ -37,11 +37,16 @@ use Veykemtu\BridgeApi\Exceptions\ApiExceptionRenderer;
 use Veykemtu\BridgeApi\Http\Middleware\AuthenticateToken;
 use Veykemtu\BridgeApi\Http\Middleware\RequireAppHeaders;
 use Veykemtu\BridgeApi\Http\Middleware\RequireScope;
+use Veykemtu\BridgeApi\Http\Controllers\Admin\DailyMenus;
 use Veykemtu\BridgeApi\Http\Middleware\VerifyBbdSignature;
+use Veykemtu\BridgeApi\Http\Middleware\VerifyControlSignature;
 use Veykemtu\BridgeApi\Models\SiteContent;
 use Veykemtu\BridgeApi\Models\SitePost;
 use Veykemtu\BridgeApi\Models\SiteService;
 use Veykemtu\BridgeApi\Observers\SiteContentObserver;
+use Veykemtu\BridgeApi\Services\Geocoding\FakeGeocoder;
+use Veykemtu\BridgeApi\Services\Geocoding\Geocoder;
+use Veykemtu\BridgeApi\Services\Geocoding\NominatimGeocoder;
 use Veykemtu\BridgeApi\Services\Sms\LogSmsSender;
 use Veykemtu\BridgeApi\Services\Sms\NetgsmSmsSender;
 use Veykemtu\BridgeApi\Services\Sms\SmsSender;
@@ -84,6 +89,7 @@ class Extension extends BaseExtension
     {
         $this->disableStorefrontTheme();
         $this->registerSmsSender();
+        $this->registerGeocoder();
 
         $this->registerConsoleCommand('veykemtu.setup', SetupCommand::class);
         $this->registerConsoleCommand('veykemtu.admin', AdminUserCommand::class);
@@ -225,6 +231,48 @@ class Extension extends BaseExtension
     }
 
     /**
+     * Adres önerisi sürücüsünü seçer — B-21.
+     *
+     * TEK SATIRLIK GEÇİŞ NOKTASI. `docs/11-yol-haritasi.md` §F2-01 Google
+     * Places'e geçmeyi planlıyor; o gün değişecek yer burasıdır. Önbellek,
+     * hizmet alanı elemesi, oran sınırı ve denetleyici sürücüyü tanımıyor
+     * (`Services\Geocoding\Geocoder` arayüzü).
+     *
+     * `GEOCODER_USER_AGENT` BOŞSA UYGULAMA AYAĞA KALKMAYA DEVAM EDER ve site
+     * adresinden bir başlık türetilir. OSM kullanım şartı "uygulamayı
+     * tanıtan, iletişim bilgisi taşıyan bir User-Agent" istiyor; site adresi
+     * bunu karşılıyor. Eksik bir değişken yüzünden bütün API'yi indirmek,
+     * öneri gibi bir kolaylık için ödenecek en pahalı bedel olurdu — SMS'te
+     * verilen kararın aynısı.
+     *
+     * `GEOCODER_BASE_URL` neden var: `nominatim.openstreetmap.org` saniyede
+     * 1 istek şart koşuyor. Trafik büyüdüğünde doğru hamle oran sınırını
+     * yükseltmek değil, kendi Nominatim örneğimizi göstermek.
+     *
+     * `fake` sürücüsü ağa çıkmaz ve sabit bir liste döndürür — ağsız bir
+     * makinede formu ve akışı çalıştırmak için. Testler sürücüyü konteynere
+     * doğrudan bağlıyor, bu değere bakmıyor.
+     */
+    private function registerGeocoder(): void
+    {
+        $this->app->singleton(Geocoder::class, static function (): Geocoder {
+            if (trim((string) env('GEOCODER_DRIVER', '')) === FakeGeocoder::SOURCE) {
+                return new FakeGeocoder;
+            }
+
+            $url = trim((string) env('GEOCODER_BASE_URL', ''));
+            $agent = trim((string) env('GEOCODER_USER_AGENT', ''));
+
+            return new NominatimGeocoder(
+                baseUrl: $url !== '' ? $url : 'https://nominatim.openstreetmap.org',
+                userAgent: $agent !== ''
+                    ? $agent
+                    : 'BLD-Siparis/1.0 (+'.config('app.url').')',
+            );
+        });
+    }
+
+    /**
      * Panele BLD kimliğini ve simülasyon uyarısını giydirir (B-12).
      *
      * CSS `admin.controller.beforeRemap` ile ekleniyor: olay HER admin
@@ -246,7 +294,31 @@ class Extension extends BaseExtension
         Event::listen(
             'admin.controller.beforeRemap',
             static function(AdminController $controller): void {
+                // Belirteçler ÖNCE: `admin.css` yalnızca `--bld-*` değişkenlerini
+                // Bootstrap'in `--bs-*` değişkenlerine çeviriyor, paleti kendisi
+                // taşımıyor. `tokens.css` üretilen bir dosyadır — kaynağı
+                // `packages/design_system/tokens/bld.tokens.json`.
+                $controller->addCss('veykemtu.bridgeapi::/css/tokens.css', 'bld-tokens-css');
                 $controller->addCss('veykemtu.bridgeapi::/css/admin.css', 'bld-admin-css');
+
+                /*
+                 * TAKVIM CSS'İ YALNIZ KENDİ EKRANINDA — B-19.
+                 *
+                 * `admin.css` panelin tamamına giydirilen marka katmanı ve
+                 * her sayfada yükleniyor. Ay ızgarası ise tek bir ekranın
+                 * düzeni: yedi sütunlu grid, gün kutusu, gün düzenleyici
+                 * diyaloğu. Oraya yazılsaydı hem `admin.css` bir ekranın
+                 * düzenini taşımaya başlardı hem de her sayfa bu kuralları
+                 * boşuna indirirdi.
+                 *
+                 * Denetleyicinin kendi `__construct`'ında da eklenebilirdi;
+                 * burada duruyor ki eklentinin YÜKLEDİĞİ BÜTÜN CSS TEK
+                 * YERDE görünsün — hangi sayfanın hangi dosyayı çektiği
+                 * sorusunun cevabı bir dosyaya bakmakla verilebilsin.
+                 */
+                if ($controller instanceof DailyMenus) {
+                    $controller->addCss('veykemtu.bridgeapi::/css/dailymenu.css', 'bld-dailymenu-css');
+                }
             },
         );
 
@@ -306,6 +378,12 @@ class Extension extends BaseExtension
         $router->aliasMiddleware('bld.scope', RequireScope::class);
         // BBD Store köprüsü (K-16) — HMAC imzası, token değil.
         $router->aliasMiddleware('bbd.signature', VerifyBbdSignature::class);
+        // Kontrol Merkezi (K-21) — imza + zaman penceresi + nonce.
+        // `bbd.signature` YENİDEN KULLANILMADI: o şema yalnız gövdeyi
+        // imzalıyor, yani tekrar (replay) saldırısına açık. "Cihazı iptal
+        // et" isteğini tekrar oynatmak mutfağı sipariş göremez hâle
+        // getirirdi. Gerekçenin tamamı `VerifyControlSignature` içinde.
+        $router->aliasMiddleware('control.signature', VerifyControlSignature::class);
     }
 
     /**
@@ -354,6 +432,27 @@ class Extension extends BaseExtension
             ->by((string) ($request->user()?->getKey() ?? $request->ip())));
 
         /*
+         * ADRES ÖNERİSİ (B-21) — 30/dakika, HESAP BAŞINA.
+         *
+         * IP BAŞINA DEĞİL ve sebebi somut: dışarıdaki geocoder'a giden tek
+         * yol `/addresses/suggest` ile `/addresses/reverse` ve fatura orada
+         * doğuyor. IP başına sayılsaydı tek NAT arkasından çıkan bir ofisin
+         * çalışanları birbirini kilitlerdi — kurumsal müşterinin tipik ağı
+         * tam olarak budur (`docs/openapi.yaml` §Oran sınırları).
+         *
+         * 30/dakika neden yeter: istemci 300 ms debounce uyguluyor ve 3
+         * karakterin altında hiç çağırmıyor, yani sürekli yazan bir
+         * kullanıcı bile dakikada ~20 istek üretiyor. Üstü kalan pay
+         * haritadan iğne oynatan ters geocoding çağrıları için.
+         *
+         * `$request->user()` BURADA HER ZAMAN DOLU: iki uç da müşteri
+         * kapsamının içinde. IP'ye düşme yalnızca savunma amaçlı — kimliksiz
+         * bir geocoder proxy'si kotamızı yabancılara harcatırdı.
+         */
+        RateLimiter::for('bld-adres', static fn(Request $request): Limit => Limit::perMinute(30)
+            ->by((string) ($request->user()?->getKey() ?? $request->ip())));
+
+        /*
          * Teklif formu — SAATLİK pencere, dakikalık değil.
          *
          * `bld-auth` (60/dakika) yeniden kullanılmadı: o sınır kaba kuvvet
@@ -381,6 +480,27 @@ class Extension extends BaseExtension
          * anahtarı yok (kimliği imza taşıyor, istek gövdesi değil).
          */
         RateLimiter::for('bld-partner', static fn(Request $request): Limit => Limit::perHour(300)
+            ->by($request->ip() ?? 'bilinmeyen'));
+
+        /*
+         * KONTROL MERKEZİ (K-21) — 1200/saat/IP.
+         *
+         * `bld-partner` (300/saat) YETMEZ ve `bld-kitchen` (2000/saat)
+         * FAZLA. BBD tek bir uca sipariş yazıyor; Kontrol Merkezi ise
+         * AÇIK DURAN BİR PANEL: cihaz listesi, sipariş listesi ve özet
+         * yoklanıyor, üstüne yöneticinin tıkladığı her şey geliyor.
+         * Yoklama 10 saniyede bir yapılsa tek başına 360/saat eder ve
+         * aynı anda iki yönetici panel açabilir.
+         *
+         * Mutfak bütçesi kadar cömert olmaması bilinçli: kasa saniyede
+         * bir soruyor ve sipariş göremezse mutfak durur. Panel yavaşlarsa
+         * kimse aç kalmaz.
+         *
+         * SINIR IP BAŞINA: Kontrol Merkezi tek sunucudan çıkıyor ve ayrı
+         * bir kimlik anahtarı yok — kimliği imza taşıyor, istek gövdesi
+         * değil (`bld-partner` ile aynı gerekçe).
+         */
+        RateLimiter::for('bld-control', static fn(Request $request): Limit => Limit::perHour(1200)
             ->by($request->ip() ?? 'bilinmeyen'));
 
         /*

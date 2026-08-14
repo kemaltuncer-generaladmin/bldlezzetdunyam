@@ -13,7 +13,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/account/account_screen.dart';
-import '../features/account/account_statement_screen.dart';
 import '../features/account/address_book_screen.dart';
 import '../features/account/ordering_disabled_screen.dart';
 import '../features/auth/login_screen.dart';
@@ -21,8 +20,8 @@ import '../features/auth/register_screen.dart';
 import '../features/cart/cart_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/checkout/checkout_screen.dart';
+import '../features/menu/daily_menu_item_screen.dart';
 import '../features/menu/menu_screen.dart';
-import '../features/menu/product_detail_screen.dart';
 import '../features/orders/order_tracking_screen.dart';
 import '../features/orders/orders_screen.dart';
 import '../features/shell/home_shell.dart';
@@ -48,10 +47,17 @@ abstract final class Routes {
   static const String orders = '/orders';
   static const String account = '/account';
   static const String addresses = '/account/addresses';
-  static const String accountStatement = '/account/statement';
   static const String orderingDisabled = '/ordering-disabled';
 
-  static String productDetail(int menuItemId) => '/menu/item/$menuItemId';
+  /// Günün menüsündeki bir kalemin detayı.
+  ///
+  /// Yolda GÜN de var: aynı ürün farklı günlerde farklı fiyatta satılabiliyor
+  /// (`DailyMenuItem.effective_unit_price`) ve bir kalem her gün menüde
+  /// olmayabiliyor. Yalnız ürün kimliğini taşıyan bir yol, hangi güne ait
+  /// olduğunu söyleyemez — paylaşılan bir bağlantı yarın başka bir fiyat
+  /// gösterirdi.
+  static String dailyMenuItem(String serviceDate, int menuItemId) =>
+      '/menu/$serviceDate/$menuItemId';
 
   static String orderTracking(int orderId) => '/orders/$orderId';
 
@@ -68,7 +74,6 @@ bool _requiresAuth(String path) =>
     path.startsWith(Routes.checkout) ||
     // Adres defteri `/addresses` uçlarını kullanır; token yoksa 401 alırdı.
     path == Routes.addresses ||
-    path == Routes.accountStatement ||
     // Abonelik LİSTESİ (sekme) serbest — giriş yoksa boş görünür. Detay ve
     // yeni-talep uçları token ister.
     path.startsWith('${Routes.subscriptions}/');
@@ -149,10 +154,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AddressBookScreen(),
       ),
       GoRoute(
-        path: Routes.accountStatement,
-        builder: (context, state) => const AccountStatementScreen(),
-      ),
-      GoRoute(
         path: Routes.orderingDisabled,
         builder: (context, state) => const OrderingDisabledScreen(),
       ),
@@ -165,8 +166,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const CheckoutScreen(),
       ),
       GoRoute(
-        path: '/menu/item/:id',
-        builder: (context, state) => ProductDetailScreen(
+        path: '/menu/:date/:id',
+        builder: (context, state) => DailyMenuItemScreen(
+          // Bozuk gün metni boş bırakılıyor: ekran o günün menüsünü
+          // çözemeyince "bulunamadı" gösterir. Bugüne düşürmek, paylaşılan
+          // bozuk bir bağlantıyı sessizce başka bir güne yönlendirirdi.
+          date: state.pathParameters['date'] ?? '',
           menuItemId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
         ),
       ),

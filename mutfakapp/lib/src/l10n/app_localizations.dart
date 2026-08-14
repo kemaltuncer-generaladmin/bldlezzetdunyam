@@ -1874,6 +1874,24 @@ abstract class AppL10n {
   /// In tr, this message translates to:
   /// **'İşlemler'**
   String get actionsTitle;
+
+  /// Yönetici özel bir kilit metni yazmadıysa gösterilen genel metin (K-21 §5.4)
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu işlem Kontrol Merkezi\'nden kilitlendi.'**
+  String get lockedMessage;
+
+  /// Durum çubuğundaki kilit rozeti ve kilitli ekran şeridinin başlığı
+  ///
+  /// In tr, this message translates to:
+  /// **'KİLİTLİ'**
+  String get lockedBadge;
+
+  /// Kilit rozetinin ipucu
+  ///
+  /// In tr, this message translates to:
+  /// **'Bazı işlemler Kontrol Merkezi\'nden kilitlendi.'**
+  String get lockedBadgeTooltip;
 }
 
 class _AppL10nDelegate extends LocalizationsDelegate<AppL10n> {

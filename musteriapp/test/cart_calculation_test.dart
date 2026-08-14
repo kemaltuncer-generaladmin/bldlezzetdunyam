@@ -12,6 +12,8 @@ import 'package:musteriapp/src/features/cart/cart_model.dart';
 import 'package:musteriapp/src/providers/infra_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'support/daily_menu_fixtures.dart';
+
 /// 45,50 TL ana yemek; iki seçenek grubu.
 MenuItem buildMainCourse() => const MenuItem(
   id: 101,
@@ -180,6 +182,7 @@ void main() {
     test('kalem toplamlarının toplamıdır', () {
       final cart = Cart(
         locationId: 1,
+        serviceDate: fixedToday,
         lines: [
           CartLine(
             item: buildMainCourse(),
@@ -215,12 +218,14 @@ void main() {
       notifier().add(
         item: buildMainCourse(),
         locationId: 1,
+        serviceDate: fixedToday,
         quantity: 2,
         optionValueIds: const [12],
       );
       notifier().add(
         item: buildMainCourse(),
         locationId: 1,
+        serviceDate: fixedToday,
         quantity: 3,
         optionValueIds: const [12],
       );
@@ -234,11 +239,13 @@ void main() {
       notifier().add(
         item: buildMainCourse(),
         locationId: 1,
+        serviceDate: fixedToday,
         optionValueIds: const [12],
       );
       notifier().add(
         item: buildMainCourse(),
         locationId: 1,
+        serviceDate: fixedToday,
         optionValueIds: const [13],
       );
 
@@ -247,13 +254,13 @@ void main() {
     });
 
     test('satışta olmayan ürün sepete girmez', () {
-      notifier().add(item: buildSoldOut(), locationId: 1);
+      notifier().add(item: buildSoldOut(), locationId: 1, serviceDate: fixedToday);
 
       expect(cart().isEmpty, isTrue);
     });
 
     test('adet artırma ve azaltma ara toplamı günceller', () {
-      notifier().add(item: buildDrink(), locationId: 1);
+      notifier().add(item: buildDrink(), locationId: 1, serviceDate: fixedToday);
       final signature = cart().lines.single.signature;
 
       notifier().increment(signature);
@@ -264,7 +271,7 @@ void main() {
     });
 
     test('adet sıfıra inince kalem silinir', () {
-      notifier().add(item: buildDrink(), locationId: 1);
+      notifier().add(item: buildDrink(), locationId: 1, serviceDate: fixedToday);
       final signature = cart().lines.single.signature;
 
       notifier().setQuantity(signature, 0);
@@ -274,8 +281,8 @@ void main() {
     });
 
     test('vitrin değişirse sepet sıfırlanır', () {
-      notifier().add(item: buildDrink(), locationId: 1);
-      notifier().add(item: buildMainCourse(), locationId: 2);
+      notifier().add(item: buildDrink(), locationId: 1, serviceDate: fixedToday);
+      notifier().add(item: buildMainCourse(), locationId: 2, serviceDate: fixedToday);
 
       expect(cart().locationId, 2);
       expect(cart().lineCount, 1);
@@ -286,6 +293,7 @@ void main() {
       notifier().add(
         item: buildMainCourse(),
         locationId: 1,
+        serviceDate: fixedToday,
         quantity: 2,
         optionValueIds: const [21],
       );
@@ -300,6 +308,161 @@ void main() {
 
       expect(restored.read(cartProvider).subtotal, expectedSubtotal);
       expect(restored.read(cartProvider).locationId, 1);
+      expect(restored.read(cartProvider).serviceDate, fixedToday);
+    });
+
+    test('servis günü değişirse sepet sıfırlanır ve bu SÖYLENİR', () {
+      // Bir sipariş tek güne verilir (`OrderCreateRequest.service_date`).
+      // Perşembe menüsüyle cuma menüsünü aynı fişe koymak mutfağın
+      // karşılayamayacağı bir sipariş üretirdi.
+      notifier().add(
+        item: buildDrink(),
+        locationId: 1,
+        serviceDate: fixedToday,
+      );
+
+      final result = notifier().add(
+        item: buildMainCourse(),
+        locationId: 1,
+        serviceDate: fixedTomorrow,
+      );
+
+      expect(result, CartAddResult.addedAfterDayChange);
+      expect(cart().serviceDate, fixedTomorrow);
+      expect(cart().lineCount, 1);
+      expect(cart().lines.single.item.id, 101);
+    });
+
+    test('aynı gün eklemede uyarı çıkmaz', () {
+      notifier().add(
+        item: buildDrink(),
+        locationId: 1,
+        serviceDate: fixedToday,
+      );
+      final result = notifier().add(
+        item: buildMainCourse(),
+        locationId: 1,
+        serviceDate: fixedToday,
+      );
+
+      expect(result, CartAddResult.added);
+      expect(cart().lineCount, 2);
+    });
+
+    test('BOŞ sepette gün değişimi uyarı üretmez', () {
+      // Kullanıcının kaybettiği bir şey yok; "önceki sepetiniz silindi"
+      // demek yanlış olurdu.
+      final result = notifier().add(
+        item: buildDrink(),
+        locationId: 1,
+        serviceDate: fixedTomorrow,
+      );
+
+      expect(result, CartAddResult.added);
+    });
+
+    test('satışta olmayan ürün reddedildi olarak döner', () {
+      expect(
+        notifier().add(
+          item: buildSoldOut(),
+          locationId: 1,
+          serviceDate: fixedToday,
+        ),
+        CartAddResult.rejected,
+      );
+    });
+
+    test('sepet boşalınca servis günü de düşer', () {
+      notifier().add(
+        item: buildDrink(),
+        locationId: 1,
+        serviceDate: fixedToday,
+      );
+      notifier().clear();
+
+      // Gün kalsaydı, ertesi gün eklenen ilk kalem "sepetiniz taşındı"
+      // uyarısını boş yere tetiklerdi.
+      expect(cart().serviceDate, isNull);
+    });
+
+    test('paket satırı içindekileri GÖSTERİM için taşır', () {
+      notifier().add(
+        item: const MenuItem(
+          id: 900,
+          name: 'Günün Menüsü',
+          price: 18000,
+          currency: 'TRY',
+          isAvailable: true,
+        ),
+        locationId: 1,
+        serviceDate: fixedToday,
+        packageComponents: const [
+          DailyMenuPackageComponent(
+            menuId: 101,
+            name: 'Mercimek Çorbası',
+            quantity: 1,
+          ),
+        ],
+      );
+
+      final line = cart().lines.single;
+      expect(line.isPackage, isTrue);
+      expect(line.packageComponents.single.name, 'Mercimek Çorbası');
+
+      // İstek gövdesine yalnız paketin kimliği gider; içindekileri sunucu
+      // açar. Bileşenler de gönderilseydi menü iki kez satılmış olurdu.
+      expect(line.toOrderItem().menuId, 900);
+    });
+  });
+
+  group('cartDayProblem', () {
+    CartLine line() => CartLine(item: buildDrink(), quantity: 1);
+
+    test('boş sepette sorun yok', () {
+      expect(cartDayProblem(Cart.empty, today: fixedToday), isNull);
+    });
+
+    test('bugüne ve ileriye bağlı sepet geçerlidir', () {
+      expect(
+        cartDayProblem(
+          Cart(lines: [line()], locationId: 1, serviceDate: fixedToday),
+          today: fixedToday,
+        ),
+        isNull,
+      );
+      expect(
+        cartDayProblem(
+          Cart(lines: [line()], locationId: 1, serviceDate: fixedTomorrow),
+          today: fixedToday,
+        ),
+        isNull,
+      );
+    });
+
+    test('geçmiş güne bağlı sepet engellenir', () {
+      // Telefonu gece açık kalan müşteride olağan: akşam doldurulan sepet
+      // sabah hâlâ dünkü güne bağlıdır.
+      expect(
+        cartDayProblem(
+          Cart(lines: [line()], locationId: 1, serviceDate: '2026-08-19'),
+          today: fixedToday,
+        ),
+        CartDayProblem.past,
+      );
+    });
+
+    test('günü olmayan ya da bozuk günlü dolu sepet engellenir', () {
+      expect(
+        cartDayProblem(Cart(lines: [line()], locationId: 1), today: fixedToday),
+        CartDayProblem.missing,
+      );
+      expect(
+        cartDayProblem(
+          Cart(lines: [line()], locationId: 1, serviceDate: 'bozuk'),
+          today: fixedToday,
+        ),
+        CartDayProblem.missing,
+      );
     });
   });
 }

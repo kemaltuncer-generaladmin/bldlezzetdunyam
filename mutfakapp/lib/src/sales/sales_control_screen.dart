@@ -32,6 +32,7 @@ import '../input/keyboard_text_field.dart';
 import '../input/onscreen_keyboard.dart';
 import '../l10n/app_localizations.dart';
 import '../lock/unlock_password.dart';
+import '../settings/lock_ui.dart';
 
 class SalesControlScreen extends ConsumerWidget {
   const SalesControlScreen({super.key});

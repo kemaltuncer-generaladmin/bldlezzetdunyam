@@ -261,6 +261,87 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/locations/{id}/daily-menu": {
+        parameters: {
+            query?: {
+                /** @description İşletme takvimindeki gün (Europe/Istanbul). Verilmezse **bugün**. */
+                date?: string;
+            };
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Günün menüsü
+         * @description Bir günün menüsü: paket olarak satılan bütün ve onu oluşturan kalemler.
+         *
+         *     **Satılabilir olan yalnız budur.** `/locations/{id}/menu` bütün
+         *     katalogu döndürmeye devam eder ama sipariş yalnız o günün menüsünden
+         *     verilebilir; sunucu bunu `POST /orders` üzerinde yeniden denetler.
+         *
+         *     Yayınlanmamış (taslak) bir gün **yokmuş gibi** döner (`id: null`,
+         *     `items: []`). Yönetici bir ay öncesinden plan giriyor; yarım kalmış
+         *     bir günün müşteriye görünmesi, pişmeyecek bir yemeğin satılması
+         *     demek olurdu.
+         *
+         *     `items[].price`, o gün için **geçerli** birim fiyattır: ürünün kendi
+         *     fiyatı ya da o güne girilmiş fiyat istisnası. İstemci gördüğü fiyatla
+         *     ödenecek fiyatı ayrı hesaplamaz.
+         */
+        get: operations["getDailyMenu"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/locations/{id}/menu-calendar": {
+        parameters: {
+            query?: {
+                /** @description Başlangıç günü. Verilmezse bugün. */
+                from?: string;
+                /**
+                 * @description Bitiş günü (dahil). Verilmezse `from` + 30 gün. Aralık en fazla
+                 *     **92 gün** olabilir; daha genişi `422 VALIDATION_FAILED`.
+                 */
+                to?: string;
+            };
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Menü takvimi
+         * @description Bir aralıktaki günlerin durumu — gün seçiciyi çizmek için.
+         *
+         *     Yalnız **menüsü olan ya da kapalı olan** günler döner; hiçbir şeyi
+         *     olmayan gün listede yer almaz. Yüz günlük boş bir dizi göndermek,
+         *     istemciye "her gün bir şey var" izlenimi verip her birini ayrı
+         *     sorgulatırdı.
+         */
+        get: operations["getMenuCalendar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/addresses": {
         parameters: {
             query?: never;
@@ -288,6 +369,140 @@ export interface paths {
          *     için ayrıca "varsayılan yap" demeye zorlamak anlamsız.
          */
         post: operations["createAddress"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/addresses/suggest": {
+        parameters: {
+            query: {
+                /**
+                 * @description Aranan serbest metin — mahalle, sokak, bina adı ya da bunların
+                 *     karışımı.
+                 *
+                 *     **En az 3 karakter.** Tek harfe geocoder çağırmak sağlayıcı kotasını
+                 *     "k", "ka" gibi hiçbir şey ayırt etmeyen sorgularla yakar ve
+                 *     önbelleği de aynı çöple doldurur.
+                 *
+                 *     İstemci yazarken **300 ms debounce** uygular ve 3 karakterin altında
+                 *     hiç çağırmaz. Sunucu kuralı yine de denetler: istemcideki debounce
+                 *     bir kolaylıktır, kota koruması değildir.
+                 */
+                q: string;
+                /**
+                 * @description Kaç öneri dönsün. Üst sınır **10**: liste bir metin alanının altında
+                 *     açılan bir katman ve telefonda onuncu satır zaten klavyenin altında
+                 *     kalıyor. Ayrıca her satır sağlayıcıdan gelen bir yük.
+                 */
+                limit?: number;
+            };
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Adres önerisi
+         * @description Müşteri adresi yazarken açılan öneri listesi. Seçilen öneri hem metin
+         *     alanlarını hem de harita iğnesini tek dokunuşta doldurur.
+         *
+         *     **Sonuçlar hizmet alanı kutusuna kilitlidir** (`docs/00-genel-bakis.md`
+         *     §hizmet alanı; sunucudaki karşılığı `Services\ServiceArea`). Kutu
+         *     dışındaki eşleşmeler yanıttan **düşürülür**, "teslimat yok" diye
+         *     işaretlenip gösterilmez: müşteriye seçebileceğini sandığı bir satır
+         *     gösterip ödeme ekranında reddetmek, o satırı hiç göstermemekten daha
+         *     kötüdür.
+         *
+         *     Öneri nesnesindeki `latitude`/`longitude` **her zaman doludur** —
+         *     kutuya göre eleme zaten koordinat üzerinden yapılıyor, koordinatı
+         *     olmayan bir aday listeye giremez.
+         *
+         *     ## Sağlayıcıya ulaşılamazsa: `200` + boş `data`
+         *
+         *     Geocoder çöktüğünde, zaman aşımına uğradığında ya da kotası dolduğunda
+         *     bu uç **hata döndürmez**; boş bir liste döner. Öneri bir
+         *     **kolaylıktır**: adres alanları elle de doldurulabiliyor ve harita
+         *     iğnesi isteğe bağlı. Sağlayıcı arızasını `5xx` yapmak, dışarıdaki bir
+         *     servisin kendi sipariş akışımızı durdurabilmesi demek olurdu.
+         *
+         *     Boş liste iki farklı şeyi anlatır ve istemci ikisini **ayırt etmez**:
+         *     "bu metne uyan adres yok" ve "şu an öneri veremiyoruz". İkisinde de
+         *     doğru davranış aynıdır — alanları elle doldurtmak. Ayrım sunucu
+         *     günlüğüne yazılır, kullanıcıya değil.
+         *
+         *     İstemci bu yüzden öneri listesini **hiçbir zaman zorunlu bir adım**
+         *     yapmaz: liste boşsa form yine gönderilebilir olmalıdır.
+         *
+         *     ## `422` ne zaman
+         *
+         *     Yalnızca isteğin kendisi bozuksa: `q` yok ya da 3 karakterden kısa.
+         *     Bu bir istemci hatasıdır (debounce kapısı sızdırmış demektir), kullanıcı
+         *     hatası değil — sağlayıcı arızasıyla aynı yanıta karışmasın diye ayrı
+         *     tutuluyor.
+         */
+        get: operations["suggestAddresses"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/addresses/reverse": {
+        parameters: {
+            query: {
+                /** @description İğnenin enlemi. */
+                lat: number;
+                /**
+                 * @description İğnenin boylamı. `lat` ile birlikte **zorunludur**; yarısı gelen bir
+                 *     çift `422` döner. Kayıtlı adreste yarım koordinat sessizce `null`'a
+                 *     düşüyor (bkz. `SavedAddressInput`) ama burada çifti tamamlamanın
+                 *     yolu yok — sorulacak bir nokta yoksa soru da yoktur.
+                 */
+                lng: number;
+            };
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Koordinattan adres (ters geocoding)
+         * @description Haritaya iğne bırakıldığında adres metnini kendiliğinden doldurur.
+         *     `/addresses/suggest`'in tersi: orada metinden noktaya, burada noktadan
+         *     metne gidiliyor.
+         *
+         *     **Yanıttaki `latitude`/`longitude`, isteğin kendi koordinatlarıdır** —
+         *     sağlayıcının oturttuğu (snap) nokta değil. Geocoder tipik olarak
+         *     sokak ya da bina merkezine oturtur; istemci o noktayı iğneye
+         *     yazsaydı iğne kullanıcının parmağının altından birkaç on metre
+         *     kayardı. Kapıyı müşteri biliyor, geocoder değil: sağlayıcıdan yalnız
+         *     **metin** alınır.
+         *
+         *     Kutu dışı nokta `422 VALIDATION_FAILED` döner
+         *     (`details.reason = "out_of_service_area"`). Bu bir kolaylık ucu olsa da
+         *     buradaki `422` doğru yanıttır: kullanıcı haritayı gördü ve teslimat
+         *     yapmadığımız bir yeri kasten seçti; sessiz bir boş yanıt "arıza var"
+         *     gibi okunur, oysa söylenecek net bir şey var.
+         *
+         *     Sağlayıcıya ulaşılamazsa `200` + `data: null` — gerekçe
+         *     `/addresses/suggest` ile aynıdır. Aynı şey, sağlayıcının o noktada
+         *     adres bilmediği durumda da döner (arazi, yeni yapılan yol): istemci
+         *     iğneyi **korur** ve metin alanlarını elle doldurtur. İki durumun
+         *     ayrımı kullanıcı için bir fark yaratmaz.
+         */
+        get: operations["reverseGeocodeAddress"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1748,6 +1963,23 @@ export interface components {
              */
             ordering_resumes_at?: string | null;
             /**
+             * @description Satış **günün menüsü** üzerinden mi yürüyor? (B-19)
+             *
+             *     Sunucu tarafı şalter, bilerek: istemciler günün menüsü akışına
+             *     geçerken bir ay ileriye menü girilmiş olması gerekiyor. Şalter
+             *     olmasaydı, geri dönmek üç uygulamayı birden yeniden yayınlamak
+             *     demekti. `false` iken eski katalog akışı aynen çalışır.
+             * @default false
+             */
+            daily_menu_enabled: boolean;
+            /**
+             * @description Bugünden itibaren kaç gün sonrasına sipariş alınabileceği.
+             *     Gün seçici takvimi bu kadar ileriye çizer; sunucu aynı sınırı
+             *     `POST /orders` üzerinde yeniden uygular.
+             * @default 30
+             */
+            max_lookahead_days: number;
+            /**
              * @description Günlük son sipariş saati (Europe/Istanbul) veya `null`.
              * @example 16:00
              */
@@ -2155,7 +2387,39 @@ export interface components {
              * @example Ofis
              */
             label?: string | null;
+            /**
+             * @description Adresin **tek satırlık** hâli ve bugüne kadarki tek biçimi.
+             *     Zorunlu kalır ve kalmaya devam edecek: fiş, kurye ekranı ve eski
+             *     istemci sürümleri yalnız bunu okuyor.
+             *
+             *     Aşağıdaki yapılandırılmış alanlar doluysa sunucu `line1`'i
+             *     onlardan **türetebilir**; müşteri yine de kendi yazdığını
+             *     görebilmeli diye türetme yalnızca `line1` boş geldiğinde çalışır.
+             */
             line1: string;
+            /**
+             * @description Mahalle. `line1`'i parçalarına ayıran alanların ilki (B-21);
+             *     eski kayıtlarda `null`'dır ve öyle kalır — geçmiş adresleri
+             *     geriye dönük ayrıştırmak, ayrıştırmanın yanlış olduğu her satırda
+             *     kuryeyi yanlış kapıya götürürdü.
+             * @example Feritpaşa Mah.
+             */
+            neighbourhood?: string | null;
+            /**
+             * @description Cadde / sokak / bulvar.
+             * @example Kültür Sk.
+             */
+            street?: string | null;
+            /**
+             * @description Bina / dış kapı numarası. Metin, sayı değil: `12/A`, `3-5` gibi
+             *     değerler sahada yaygın.
+             * @example 12/A
+             */
+            building_no?: string | null;
+            /** @description Kat. `Zemin`, `Bodrum` gibi değerler de geçerli — bu yüzden metin. */
+            floor?: string | null;
+            /** @description Daire / iç kapı numarası. */
+            door_no?: string | null;
             district: string;
             city: string;
             /** @description Kuryeye not. Fişte görünür. */
@@ -2177,7 +2441,30 @@ export interface components {
         };
         SavedAddressInput: {
             label?: string | null;
+            /**
+             * @description **Zorunlu kalır.** Yapılandırılmış alanlar (`neighbourhood` …
+             *     `door_no`) eklendi diye `line1` isteğe bağlı yapılamaz: bugün
+             *     sahada olan istemci sürümleri yalnız bu alanı gönderiyor ve
+             *     zorunluluğu kaldırmak `SavedAddress.line1`'i de fiilen
+             *     boşaltılabilir hâle getirirdi (`docs/03` §1.4).
+             *
+             *     Formu yapılandırılmış alanlarla dolduran yeni istemci `line1`'i
+             *     de gönderir; göndermezse sunucu dolu alanlardan türetir.
+             */
             line1: string;
+            neighbourhood?: string | null;
+            street?: string | null;
+            building_no?: string | null;
+            floor?: string | null;
+            /**
+             * @description Beş yapılandırılmış alanın hepsi **isteğe bağlıdır** ve
+             *     `latitude`/`longitude` ile aynı güncelleme kuralını izler:
+             *     `null` göndermek alanı **siler**, alanı hiç göndermemek mevcut
+             *     değeri **korur**. Bunlar birbirinden bağımsızdır — koordinat
+             *     çiftinin aksine yarısının dolu olması geçerli bir durumdur
+             *     (kat bilinip daire no bilinmemesi olağan).
+             */
+            door_no?: string | null;
             district: string;
             city: string;
             note?: string | null;
@@ -2192,6 +2479,175 @@ export interface components {
             latitude?: number | null;
             /** Format: double */
             longitude?: number | null;
+        };
+        /**
+         * @description Geocoder'dan gelen tek bir adres adayı. `/addresses/suggest` bunlardan
+         *     bir liste, `/addresses/reverse` tek tanesini döndürür.
+         *
+         *     **Bu bir kayıt değildir**, bir öneridir: hiçbir yerde saklanmaz ve
+         *     kimliği yoktur. Müşteri seçtiğinde istemci alanları forma taşır;
+         *     kaydedilen şey `SavedAddressInput`'tur. Öneriye kimlik verip
+         *     `SavedAddress`'e bağlamak, sağlayıcı o kimliği değiştirdiği ya da
+         *     sürücü Google Places'e geçtiği gün defterdeki adresleri kırardı.
+         *
+         *     Alan adları `SavedAddress` ile **birebir aynıdır** — istemci öneriyi
+         *     forma alan alan kopyalar, arada eşleme tablosu tutmaz.
+         */
+        AddressSuggestion: {
+            /**
+             * @description Listede gösterilecek tek satırlık metin. Sunucu kurar; istemci
+             *     parçaları birleştirip kendi satırını yazmaz — aynı öneri web'de
+             *     ve mobilde farklı görünmesin.
+             *
+             *     **CSS `text-transform` ile büyütülmez** (`docs/03` §1.1): Türkçe
+             *     metin böyle büyütüldüğünde `İ`/`ı` kırılır ve mahalle adlarının
+             *     yarısı bu harfleri taşır.
+             * @example Feritpaşa Mah., Kültür Sk. No:12, Selçuklu / Konya
+             */
+            label: string;
+            /**
+             * @description Önerinin tek satırlık hâli — doğrudan `SavedAddressInput.line1`'e
+             *     yazılabilir. `label`'dan farkı: `label` ilçe ve ili de içerir,
+             *     `line1` içermez (onlar ayrı alanlar ve formda ayrı kutular).
+             * @example Feritpaşa Mah. Kültür Sk. No:12
+             */
+            line1: string;
+            neighbourhood?: string | null;
+            street?: string | null;
+            /**
+             * @description **Her zaman hizmet alanındaki ilçelerden biridir**; başkası
+             *     yanıta hiç girmez. İstemci bu değeri ilçe seçicisine doğrudan
+             *     yazabilir.
+             * @example Selçuklu
+             */
+            district: string;
+            /**
+             * @description Faz 1'de her zaman `Konya` — hizmet alanı tek il.
+             * @example Konya
+             */
+            city: string;
+            /**
+             * Format: double
+             * @description **Null olamaz.** Hizmet alanı elemesi koordinat üzerinden
+             *     yapılıyor; koordinatı olmayan bir aday listeye zaten giremez.
+             *     İstemci bu yüzden her öneride iğneyi güvenle yerleştirebilir.
+             *
+             *     `/addresses/reverse` yanıtında bu değer **isteğin kendi
+             *     koordinatıdır**, sağlayıcının oturttuğu nokta değil.
+             */
+            latitude: number;
+            /** Format: double */
+            longitude: number;
+            /**
+             * @description Öneriyi üreten sürücü. Bugünkü tek değer `osm_nominatim`.
+             *
+             *     **Kapalı bir enum DEĞİL, bilerek.** Sürücü değişebilir (docs/11
+             *     §F2-01 Google Places'i planlıyor) ve enum'a üye eklemek
+             *     istemcilerdeki kapsayıcı `switch`'i ve üretilen TypeScript
+             *     birleşimini kırardı — `ErrorCode` için verilen kararın aynısı.
+             *     İstemci bu alanı **dallanma için kullanmaz**; sağlayıcı atıfını
+             *     göstermek ve günlükte hangi sürücünün konuştuğunu bilmek için
+             *     var.
+             * @example osm_nominatim
+             */
+            source: string;
+        };
+        /** @description Bir günün menüsü. Paket olarak da, kalem kalem de satılır. */
+        DailyMenu: {
+            /**
+             * Format: int64
+             * @description O günün yayınlanmış menüsünün kimliği. **`null` ise o gün menü
+             *     yok** — `package` ve `items` boş döner, `is_orderable` yanlıştır.
+             */
+            id?: number | null;
+            /** Format: date */
+            date: string;
+            /** @description Günün adı, örn. "Ev Yemeği Menüsü". */
+            title?: string | null;
+            description?: string | null;
+            /** Format: uri */
+            image_url?: string | null;
+            /**
+             * @description Menünün bütün olarak satılan hâli. O gün paket satılmıyorsa
+             *     (yönetici paket fiyatı girmediyse) `null` — kalemler yine tek
+             *     tek satılabilir.
+             */
+            package?: components["schemas"]["DailyMenuPackage"] | null;
+            /**
+             * @description Kalemlerin tek tek alınması hâlindeki toplam. `package.price` ile
+             *     arasındaki fark müşteriye "paketle şu kadar avantaj" olarak
+             *     gösterilebilir. Sunucu hesaplar; istemci çıkarma yapmak zorunda
+             *     kalmasın diye alan olarak veriliyor — para hesabı tek yerde.
+             */
+            items_total?: components["schemas"]["Money"] | null;
+            currency: components["schemas"]["Currency"];
+            /**
+             * @description İşletmenin kapalı olduğu gün (`veykemtu_closed_days`). Menü
+             *     girilmiş olsa bile bu gün sipariş alınmaz: kapalı gün kazanır.
+             * @default false
+             */
+            closed: boolean;
+            /**
+             * @description Bu güne **şu anda** sipariş verilebilir mi? Menünün yayında
+             *     olmasını, günün kapalı olmamasını, kesim saatinin geçmemiş
+             *     olmasını ve azami ileri görüş penceresinin aşılmamasını birlikte
+             *     özetler. Bağlayıcı olan yine `POST /orders` anındaki denetimdir.
+             */
+            is_orderable: boolean;
+            /**
+             * @description `is_orderable` yanlışken sebebin makine okunur hâli. Kullanıcıya
+             *     gösterilecek metni istemci kendi diliyle yazar — sunucudan gelen
+             *     cümleyi ekrana basmak, arayüz metnini sunucu sürümüne bağlar.
+             * @enum {string|null}
+             */
+            unavailable_reason?: null | "closed_day" | "not_published" | "cutoff_passed" | "past" | "too_far";
+            /**
+             * @description Menüyü oluşturan kalemler, yöneticinin verdiği sırada.
+             *     `price` **o gün için geçerli** birim fiyattır (ürünün kendi
+             *     fiyatı ya da o güne girilmiş istisna).
+             */
+            items: components["schemas"]["MenuItem"][];
+        };
+        DailyMenuPackage: {
+            /**
+             * Format: int64
+             * @description **Sipariş verirken `items[].menu_id` alanına yazılacak değer.**
+             *     Paket, sözleşme açısından bir ürün gibi sipariş edilir; sunucu
+             *     bu kimliği tanır ve fiyatı o günün paket fiyatından alır.
+             */
+            menu_id: number;
+            name: string;
+            /** @description Paketin o günkü fiyatı. */
+            price: components["schemas"]["Money"];
+            /**
+             * @description Paket bugün satılabilir mi? İçindeki **zorunlu** bir kalem
+             *     "bugün tükendi" işaretlendiyse paket de düşer: ana yemeği
+             *     olmayan bir menüyü satmak, kırk telefon özrü demek.
+             */
+            is_available: boolean;
+            sold_out_reason?: string | null;
+            /** @description Paketin içindekiler — mutfağın pişireceği yemekler. */
+            components: {
+                /** Format: int64 */
+                menu_id: number;
+                name: string;
+                /** @description Bir pakette bu kalemden kaç porsiyon var. */
+                quantity: number;
+                /** Format: uri */
+                image_url?: string | null;
+                allergens?: string[];
+            }[];
+        };
+        MenuCalendarDay: {
+            /** Format: date */
+            date: string;
+            has_menu: boolean;
+            closed: boolean;
+            is_orderable: boolean;
+            title?: string | null;
+            package_price?: components["schemas"]["Money"] | null;
+            /** @description Kapalı günün açıklaması ("Kurban Bayramı") ya da `null`. */
+            note?: string | null;
         };
         MenuCategory: {
             /** Format: int64 */
@@ -2253,7 +2709,33 @@ export interface components {
             price_delta: number;
         };
         Address: {
+            /**
+             * @description Siparişin **değişmez** adres kopyası, tek satır. Zorunlu kalır:
+             *     mutfak fişi, kurye fişi ve `OrderPresenter` bu alanı basıyor ve
+             *     hiçbiri aşağıdaki yapılandırılmış alanları okumak zorunda
+             *     bırakılmamalı.
+             *
+             *     İstemci yapılandırılmış alanları gönderip `line1`'i boş bırakırsa
+             *     sunucu onlardan türetir.
+             */
             line1: string;
+            /**
+             * @description Mahalle. Beş yapılandırılmış alanın hepsi **isteğe bağlıdır**
+             *     (B-21, additive): adresi elle tek satır yazan müşteri de sipariş
+             *     verebilmeli. Dolu geldiklerinde sipariş kopyasına aynen yazılır —
+             *     adres defterindeki kayıt sonradan düzelse bile geçmiş siparişin
+             *     kopyası değişmez.
+             * @example Feritpaşa Mah.
+             */
+            neighbourhood?: string | null;
+            /** @description Cadde / sokak. */
+            street?: string | null;
+            /** @description Bina / dış kapı no. Metin: `12/A` yaygın. */
+            building_no?: string | null;
+            /** @description Kat. `Zemin` gibi değerler de geçerli. */
+            floor?: string | null;
+            /** @description Daire / iç kapı no. */
+            door_no?: string | null;
             district: string;
             city: string;
             note?: string | null;
@@ -2276,13 +2758,39 @@ export interface components {
         OrderCreateRequest: {
             /** Format: int64 */
             location_id: number;
+            /**
+             * @description Sepet satırları. Şekil **değişmedi**: menü paketi de bir
+             *     `menu_id` ile sipariş edilir — paketin kimliği
+             *     `DailyMenu.package.menu_id` alanında gelir. Böylece istemci
+             *     "paket mi ürün mü" ayrımını istek biçiminde taşımaz; sunucu
+             *     o kimliği tanır, fiyatı o günün paket fiyatından alır ve
+             *     içindekileri satırın altına açar.
+             */
             items: {
-                /** Format: int64 */
+                /**
+                 * Format: int64
+                 * @description Ürün ya da menü paketi. **Yalnızca o günün yayınlanmış
+                 *     menüsünde yer alan kimlikler kabul edilir**; başkası
+                 *     `422 ITEM_UNAVAILABLE` döner.
+                 */
                 menu_id: number;
                 quantity: number;
+                /** @description Paket satırında yok sayılır — paketin seçeneği olmaz. */
                 option_value_ids?: number[];
                 note?: string | null;
             }[];
+            /**
+             * Format: date
+             * @description Siparişin **hangi gün için** olduğu (Europe/Istanbul).
+             *     Verilmezse `requested_at`'in işletme saatindeki tarihi, o da
+             *     yoksa bugün.
+             *
+             *     `requested_at` ile birlikte gönderilirse **ikisinin günü aynı
+             *     olmak zorundadır**, yoksa `422 VALIDATION_FAILED`. Aksi hâlde
+             *     "cuma menüsünü perşembe saat 12:00'ye" gibi, mutfağın
+             *     karşılayamayacağı bir sipariş doğardı.
+             */
+            service_date?: string | null;
             delivery_type: components["schemas"]["DeliveryType"];
             /** @description `delivery` ise zorunlu, `pickup` ise yok sayılır. */
             address?: components["schemas"]["Address"] | null;
@@ -2333,6 +2841,14 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             /**
+             * Format: date
+             * @description Siparişin **hangi gün için** olduğu (Europe/Istanbul). Sipariş
+             *     listesinde "20 Ağustos menüsü" yazabilmek için gerekiyor:
+             *     `created_at` siparişin verildiği andır ve ileri tarihli
+             *     siparişte o gün ile servis günü ayrıdır.
+             */
+            service_date?: string;
+            /**
              * Format: int64
              * @description Abonelikten üretildiyse abonelik kimliği; elle siparişte null.
              */
@@ -2348,6 +2864,34 @@ export interface components {
             /** @description Seçenek farkları **dahil** birim fiyat. */
             unit_price: components["schemas"]["Money"];
             line_total: components["schemas"]["Money"];
+            /**
+             * @description Satırın rolü:
+             *
+             *     * `item` — sıradan ürün satırı (varsayılan; eski istemciler
+             *       alanı hiç görmese de davranış değişmez).
+             *     * `package` — menü paketi. Parayı **bu satır taşır**.
+             *     * `component` — paketin içindeki yemek. `unit_price` ve
+             *       `line_total` **sıfırdır**; parası paket satırındadır.
+             *       Bu satırlar mutfağa "ne pişecek" bilgisini verir ve üretim
+             *       listesinde gerçek `menu_id`'leriyle toplanır.
+             *
+             *     İstemci toplamı satırlardan hesaplamaz (hiçbir zaman
+             *     hesaplamıyordu) — `subtotal`/`total` sunucudan gelir.
+             * @default item
+             * @enum {string}
+             */
+            role: "item" | "package" | "component";
+            /**
+             * @description `role: component` satırlarında, ait olduğu paket satırının
+             *     `items` dizisindeki sırası. Diğer satırlarda `null`.
+             *     İstemci paketi ve içindekileri iç içe gösterebilsin diye.
+             */
+            included_in?: number | null;
+            /**
+             * Format: int64
+             * @description Satır o günün menüsünden geldiyse menünün kimliği.
+             */
+            daily_menu_id?: number | null;
         };
         StatusHistoryEntry: {
             status: components["schemas"]["OrderStatus"];
@@ -2370,6 +2914,13 @@ export interface components {
             address?: components["schemas"]["Address"] | null;
             /** Format: date-time */
             requested_at?: string | null;
+            /**
+             * Format: date
+             * @description Siparişin hangi gün için olduğu (Europe/Istanbul). `requested_at`
+             *     doluysa onun işletme saatindeki tarihi, boşsa siparişin verildiği
+             *     gün. Mutfak panosu ve üretim listesi bu güne göre çalışır.
+             */
+            service_date?: string;
             customer_note?: string | null;
             payment: components["schemas"]["Payment"];
             status_history: components["schemas"]["StatusHistoryEntry"][];
@@ -3081,6 +3632,10 @@ export type SchemaKitchenMenuItem = components['schemas']['KitchenMenuItem'];
 export type SchemaKitchenCommand = components['schemas']['KitchenCommand'];
 export type SchemaSavedAddress = components['schemas']['SavedAddress'];
 export type SchemaSavedAddressInput = components['schemas']['SavedAddressInput'];
+export type SchemaAddressSuggestion = components['schemas']['AddressSuggestion'];
+export type SchemaDailyMenu = components['schemas']['DailyMenu'];
+export type SchemaDailyMenuPackage = components['schemas']['DailyMenuPackage'];
+export type SchemaMenuCalendarDay = components['schemas']['MenuCalendarDay'];
 export type SchemaMenuCategory = components['schemas']['MenuCategory'];
 export type SchemaMenuItem = components['schemas']['MenuItem'];
 export type SchemaMenuOption = components['schemas']['MenuOption'];
@@ -3492,6 +4047,76 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    getDailyMenu: {
+        parameters: {
+            query?: {
+                /** @description İşletme takvimindeki gün (Europe/Istanbul). Verilmezse **bugün**. */
+                date?: string;
+            };
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O günün menüsü. Menü yoksa da 200 döner — boş gün bir hata değildir. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DailyMenu"];
+                    };
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getMenuCalendar: {
+        parameters: {
+            query?: {
+                /** @description Başlangıç günü. Verilmezse bugün. */
+                from?: string;
+                /**
+                 * @description Bitiş günü (dahil). Verilmezse `from` + 30 gün. Aralık en fazla
+                 *     **92 gün** olabilir; daha genişi `422 VALIDATION_FAILED`.
+                 */
+                to?: string;
+            };
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Günler */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MenuCalendarDay"][];
+                    };
+                };
+            };
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
     listAddresses: {
         parameters: {
             query?: never;
@@ -3555,6 +4180,111 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+        };
+    };
+    suggestAddresses: {
+        parameters: {
+            query: {
+                /**
+                 * @description Aranan serbest metin — mahalle, sokak, bina adı ya da bunların
+                 *     karışımı.
+                 *
+                 *     **En az 3 karakter.** Tek harfe geocoder çağırmak sağlayıcı kotasını
+                 *     "k", "ka" gibi hiçbir şey ayırt etmeyen sorgularla yakar ve
+                 *     önbelleği de aynı çöple doldurur.
+                 *
+                 *     İstemci yazarken **300 ms debounce** uygular ve 3 karakterin altında
+                 *     hiç çağırmaz. Sunucu kuralı yine de denetler: istemcideki debounce
+                 *     bir kolaylıktır, kota koruması değildir.
+                 */
+                q: string;
+                /**
+                 * @description Kaç öneri dönsün. Üst sınır **10**: liste bir metin alanının altında
+                 *     açılan bir katman ve telefonda onuncu satır zaten klavyenin altında
+                 *     kalıyor. Ayrıca her satır sağlayıcıdan gelen bir yük.
+                 */
+                limit?: number;
+            };
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /**
+             * @description Öneri listesi. Eşleşme yoksa **ya da** sağlayıcıya ulaşılamıyorsa
+             *     `data: []` — ikisi de `200`.
+             */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AddressSuggestion"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            422: components["responses"]["ValidationFailed"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    reverseGeocodeAddress: {
+        parameters: {
+            query: {
+                /** @description İğnenin enlemi. */
+                lat: number;
+                /**
+                 * @description İğnenin boylamı. `lat` ile birlikte **zorunludur**; yarısı gelen bir
+                 *     çift `422` döner. Kayıtlı adreste yarım koordinat sessizce `null`'a
+                 *     düşüyor (bkz. `SavedAddressInput`) ama burada çifti tamamlamanın
+                 *     yolu yok — sorulacak bir nokta yoksa soru da yoktur.
+                 */
+                lng: number;
+            };
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /**
+             * @description Tek öneri nesnesi. `data: null` = sağlayıcı o noktayı bilmiyor ya
+             *     da şu an erişilemiyor.
+             */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AddressSuggestion"] | null;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /**
+             * @description `lat`/`lng` eksik, aralık dışı ya da hizmet alanı kutusunun
+             *     dışında (`details.reason = "out_of_service_area"`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
         };
     };
     deleteAddress: {

@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
 
 /**
@@ -7,13 +9,24 @@ import { ImageResponse } from 'next/og';
  * boyutta bir PNG arıyor, bulamazsa sayfanın ekran görüntüsünü kırpıp koyuyor
  * — genellikle okunmaz bir sonuç çıkıyor.
  *
- * Motif `icon.svg` ile aynı; orada neden harf değil de servis kapağı
- * kullanıldığının gerekçesi o dosyada.
+ * ## Üç kural
+ *
+ * 1. **Opak.** Alfa kanalı olan bir apple-touch-icon iOS'ta siyah zemine
+ *    bileşiklenir; şeffaf bıraktığımız her piksel siyah çıkar.
+ * 2. **Yuvarlama yok.** iOS köşeleri kendi maskeliyor. Burada da
+ *    yuvarlarsaydık maskenin dışında kalan köşelerde beyaz üçgenler kalırdı.
+ * 3. **Amblem kanvasın ~%72'si.** Maskable Android ikonundaki %60 burada
+ *    fazla küçük duruyor (iOS kırpması çok daha yumuşak).
+ *
+ * Amblem plakasız PNG'den geliyor: plakalı `icon-512.png` kullanılsaydı
+ * kendi çizdiğimiz kare zeminin içinde ikinci bir yuvarlak köşe görünürdü.
  */
 export const size = { width: 180, height: 180 };
 export const contentType = 'image/png';
 
-export default function AppleIcon() {
+export default async function AppleIcon() {
+  const emblem = await readFile(join(process.cwd(), 'public', 'emblem.png'));
+
   return new ImageResponse(
     <div
       style={{
@@ -22,16 +35,17 @@ export default function AppleIcon() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        // iOS köşeleri kendi yuvarlıyor; burada yuvarlarsak köşelerde
-        // beyaz üçgenler kalıyor.
-        background: 'linear-gradient(135deg,#f97316,#c2410c)',
+        // Logonun kendi gradyanı: brand800 → brand500.
+        background: 'linear-gradient(135deg,#941C01,#DD5D02)',
       }}
     >
-      <svg width="120" height="120" viewBox="0 0 64 64">
-        <circle cx="32" cy="17" r="3.6" fill="#fff" />
-        <path d="M13 41a19 19 0 0 1 38 0z" fill="#fff" />
-        <rect x="8" y="42.5" width="48" height="6" rx="3" fill="#fff" />
-      </svg>
+      {/* satori yalnızca <img> çiziyor; `next/image` bir ImageResponse ağacında çalışmaz. */}
+      <img
+        alt=""
+        src={`data:image/png;base64,${emblem.toString('base64')}`}
+        width={89}
+        height={130}
+      />
     </div>,
     size,
   );

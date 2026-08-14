@@ -9,6 +9,16 @@ resolution: workspace
 environment:
   sdk: ^3.9.0
 
+# Belirteç üreteci. `tokens/bld.tokens.json` TEK KAYNAKTIR; bu komut ondan
+# `lib/src/colors.dart`, `website/app/tokens.css` ve panelin `tokens.css`
+# dosyasını üretir. `--check` ile hiçbir şey yazmaz, bayatsa 1 ile çıkar
+# (CI'daki tazelik kapısı bunu kullanıyor).
+#
+#   dart run bld_design_system:gen_tokens
+#   dart run bld_design_system:gen_tokens --check
+executables:
+  gen_tokens:
+
 dev_dependencies:
   lints: ^6.0.0
   test: ^1.25.0

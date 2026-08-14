@@ -58,7 +58,7 @@ export default async function IletisimPage() {
          */}
         {pending.length > 0 && (
           <Alert className="mt-8 max-w-3xl">
-            <Info aria-hidden="true" />
+            <Info strokeWidth={1.75} aria-hidden="true" />
             <AlertTitle>İletişim bilgileri henüz yayınlanmadı</AlertTitle>
             <AlertDescription>
               <p>
@@ -73,41 +73,45 @@ export default async function IletisimPage() {
           {contact.phone && (
             <a
               href={contact.phone.href}
-              className="group rounded-2xl border bg-card p-6 transition-colors hover:border-primary/40"
+              className="group bld-card p-6 transition-[box-shadow,translate] duration-(--duration-base) ease-(--ease-out-soft) hover:shadow-raised motion-safe:hover:-translate-y-0.5"
             >
-              <Phone aria-hidden="true" className="size-5 text-primary" />
-              <h3 className="mt-4 font-display text-base font-semibold">Telefon</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{contact.phone.display}</p>
+              <Phone strokeWidth={1.75} aria-hidden="true" className="size-5 text-primary" />
+              <h3 className="mt-4 font-display text-h3 font-semibold text-heading">Telefon</h3>
+              <p className="mt-1 text-body text-muted-foreground">{contact.phone.display}</p>
             </a>
           )}
 
           {contact.whatsapp && (
             <a
               href={contact.whatsapp.href}
-              className="group rounded-2xl border bg-card p-6 transition-colors hover:border-primary/40"
+              className="group bld-card p-6 transition-[box-shadow,translate] duration-(--duration-base) ease-(--ease-out-soft) hover:shadow-raised motion-safe:hover:-translate-y-0.5"
             >
-              <MessageCircle aria-hidden="true" className="size-5 text-primary" />
-              <h3 className="mt-4 font-display text-base font-semibold">WhatsApp</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{contact.whatsapp.display}</p>
+              <MessageCircle
+                strokeWidth={1.75}
+                aria-hidden="true"
+                className="size-5 text-primary"
+              />
+              <h3 className="mt-4 font-display text-h3 font-semibold text-heading">WhatsApp</h3>
+              <p className="mt-1 text-body text-muted-foreground">{contact.whatsapp.display}</p>
             </a>
           )}
 
           {contact.email && (
             <a
               href={contact.email.href}
-              className="group rounded-2xl border bg-card p-6 transition-colors hover:border-primary/40"
+              className="group bld-card p-6 transition-[box-shadow,translate] duration-(--duration-base) ease-(--ease-out-soft) hover:shadow-raised motion-safe:hover:-translate-y-0.5"
             >
-              <Mail aria-hidden="true" className="size-5 text-primary" />
-              <h3 className="mt-4 font-display text-base font-semibold">E-posta</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{contact.email.display}</p>
+              <Mail strokeWidth={1.75} aria-hidden="true" className="size-5 text-primary" />
+              <h3 className="mt-4 font-display text-h3 font-semibold text-heading">E-posta</h3>
+              <p className="mt-1 text-body text-muted-foreground">{contact.email.display}</p>
             </a>
           )}
 
           {contact.address && (
-            <div className="rounded-2xl border bg-card p-6">
-              <MapPin aria-hidden="true" className="size-5 text-primary" />
-              <h3 className="mt-4 font-display text-base font-semibold">Adres</h3>
-              <address className="mt-1 text-sm/6 text-muted-foreground not-italic">
+            <div className="bld-card p-6">
+              <MapPin strokeWidth={1.75} aria-hidden="true" className="size-5 text-primary" />
+              <h3 className="mt-4 font-display text-h3 font-semibold text-heading">Adres</h3>
+              <address className="mt-1 text-body text-muted-foreground not-italic">
                 {contact.address.streetAddress}
                 <br />
                 {contact.address.district} / {contact.address.city}
@@ -117,10 +121,12 @@ export default async function IletisimPage() {
           )}
 
           {contact.workingHours.length > 0 && (
-            <div className="rounded-2xl border bg-card p-6">
-              <Clock aria-hidden="true" className="size-5 text-primary" />
-              <h3 className="mt-4 font-display text-base font-semibold">Çalışma saatleri</h3>
-              <dl className="mt-1 space-y-1 text-sm text-muted-foreground">
+            <div className="bld-card p-6">
+              <Clock strokeWidth={1.75} aria-hidden="true" className="size-5 text-primary" />
+              <h3 className="mt-4 font-display text-h3 font-semibold text-heading">
+                Çalışma saatleri
+              </h3>
+              <dl className="mt-1 space-y-1 text-body text-muted-foreground">
                 {contact.workingHours.map((entry) => (
                   <div key={entry.label} className="flex justify-between gap-4">
                     <dt>{entry.label}</dt>
@@ -131,10 +137,10 @@ export default async function IletisimPage() {
             </div>
           )}
 
-          <div className="rounded-2xl border bg-surface-warm p-6 text-surface-warm-foreground">
-            <ArrowRight aria-hidden="true" className="size-5 text-primary" />
-            <h3 className="mt-4 font-display text-base font-semibold">Teklif talebi</h3>
-            <p className="mt-1 text-sm/6 opacity-80">
+          <div className="rounded-md border bg-surface-warm p-6 text-surface-warm-foreground">
+            <ArrowRight strokeWidth={1.75} aria-hidden="true" className="size-5 text-primary" />
+            <h3 className="mt-4 font-display text-h3 font-semibold text-heading">Teklif talebi</h3>
+            <p className="mt-1 text-body opacity-80">
               İhtiyacınızı iletin, menü önerisi ve fiyatlandırmayla dönelim.
             </p>
             <Button asChild size="sm" className="mt-4">
@@ -148,7 +154,7 @@ export default async function IletisimPage() {
       {contact.address?.mapEmbedUrl && (
         <Section tone="muted" aria-labelledby="harita-baslik">
           <SectionHeading id="harita-baslik" title="Nasıl gelinir?" level={2} />
-          <div className="mt-8 aspect-video overflow-hidden rounded-2xl border">
+          <div className="mt-8 aspect-video overflow-hidden rounded-md border">
             <iframe
               src={contact.address.mapEmbedUrl}
               title={`${brand.name} konum haritası`}
@@ -160,7 +166,7 @@ export default async function IletisimPage() {
         </Section>
       )}
 
-      <Section tone="charcoal" aria-labelledby="siparis-baslik">
+      <Section tone="dark" aria-labelledby="siparis-baslik">
         <div className="grid gap-8 lg:grid-cols-[1.3fr_1fr] lg:items-center">
           <SectionHeading
             id="siparis-baslik"
@@ -170,14 +176,14 @@ export default async function IletisimPage() {
           />
 
           <div className="flex flex-wrap gap-3">
-            <Button asChild size="lg" className="bg-brand-500 text-charcoal hover:bg-brand-400">
+            <Button asChild size="lg" className="bg-brand-300 text-neutral-950 hover:bg-brand-200">
               <Link href="/menu">Günün menüsü</Link>
             </Button>
             <Button
               asChild
               size="lg"
               variant="outline"
-              className="border-cream/30 bg-transparent text-cream hover:bg-cream/10 hover:text-cream"
+              className="border-neutral-50/35 bg-transparent text-neutral-50 hover:bg-neutral-50/10 hover:text-neutral-50"
             >
               <Link href="/siparislerim">Siparişlerim</Link>
             </Button>
@@ -198,7 +204,7 @@ export default async function IletisimPage() {
             <Button asChild size="lg">
               <Link href="/teklif-al">
                 Teklif formunu aç
-                <ArrowRight aria-hidden="true" />
+                <ArrowRight strokeWidth={1.75} aria-hidden="true" />
               </Link>
             </Button>
           </div>

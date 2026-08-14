@@ -22,7 +22,7 @@ export interface Crumb {
  * ## Fotoğraflı hâli
  *
  * `image` verildiğinde başlık, üzerine koyu bir katman serilmiş fotoğrafın
- * üstüne taşınır. Katman `from-charcoal/85` ile başlıyor: daha açık bir değerde
+ * üstüne taşınır. Katman `from-neutral-950/85` ile başlıyor: daha açık bir değerde
  * beyaz başlık bazı fotoğrafların aydınlık bölgelerinde AA eşiğinin altına
  * düşüyordu. Fotoğraf yoksa bileşen eski sıcak zeminli hâline döner — panelden
  * eklenen bir sayfanın fotoğrafı olmayabilir.
@@ -48,7 +48,7 @@ export function PageHero({
     <section
       className={cn(
         'relative isolate border-b',
-        dark ? 'bg-charcoal text-cream' : 'bg-surface-warm text-surface-warm-foreground',
+        dark ? 'bg-neutral-950 text-neutral-50' : 'bg-surface-warm text-surface-warm-foreground',
       )}
     >
       {image && (
@@ -56,7 +56,7 @@ export function PageHero({
           <Image alt="" src={image} fill priority sizes="100vw" className="-z-10 object-cover" />
           <div
             aria-hidden="true"
-            className="absolute inset-0 -z-10 bg-linear-to-r from-charcoal/85 via-charcoal/70 to-charcoal/35"
+            className="absolute inset-0 -z-10 bg-linear-to-r from-neutral-950/85 via-neutral-950/70 to-neutral-950/35"
           />
         </>
       )}
@@ -70,16 +70,16 @@ export function PageHero({
         <nav aria-label="Sayfa yolu">
           <ol
             className={cn(
-              'flex flex-wrap items-center gap-1 text-xs',
-              dark ? 'text-cream/60' : 'text-muted-foreground',
+              'flex flex-wrap items-center gap-1 text-body-sm',
+              dark ? 'text-neutral-50/60' : 'text-muted-foreground',
             )}
           >
             <li>
               <Link
                 href="/"
                 className={cn(
-                  'rounded-sm transition-colors',
-                  dark ? 'hover:text-cream' : 'hover:text-foreground',
+                  'rounded-xs transition-colors duration-(--duration-fast)',
+                  dark ? 'hover:text-neutral-50' : 'hover:text-foreground',
                 )}
               >
                 Ana Sayfa
@@ -89,11 +89,15 @@ export function PageHero({
               const isLast = index === crumbs.length - 1;
               return (
                 <li key={crumb.href} className="flex items-center gap-1">
-                  <ChevronRight aria-hidden="true" className="size-3.5 opacity-50" />
+                  <ChevronRight
+                    aria-hidden="true"
+                    strokeWidth={1.75}
+                    className="size-4 opacity-60"
+                  />
                   {isLast ? (
                     <span
                       aria-current="page"
-                      className={cn('font-medium', dark ? 'text-cream' : 'text-foreground')}
+                      className={cn('font-medium', dark ? 'text-neutral-50' : 'text-foreground')}
                     >
                       {crumb.label}
                     </span>
@@ -101,8 +105,8 @@ export function PageHero({
                     <Link
                       href={crumb.href}
                       className={cn(
-                        'rounded-sm transition-colors',
-                        dark ? 'hover:text-cream' : 'hover:text-foreground',
+                        'rounded-xs transition-colors duration-(--duration-fast)',
+                        dark ? 'hover:text-neutral-50' : 'hover:text-foreground',
                       )}
                     >
                       {crumb.label}
@@ -118,19 +122,29 @@ export function PageHero({
           {eyebrow && (
             <p
               className={cn(
-                'text-xs font-semibold tracking-[0.14em] uppercase',
-                dark ? 'text-brand-300' : 'text-primary',
+                'text-overline uppercase',
+                dark ? 'text-brand-300' : 'text-primary-text',
               )}
             >
               {eyebrow}
             </p>
           )}
-          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-5xl">
+          <h1
+            className={cn(
+              'mt-2 font-display text-h1 font-semibold tracking-tight text-balance sm:text-display',
+              // Koyu kahraman fotoğrafın üstünde başlık krem kalır; açık
+              // bantta marka kahvesi.
+              dark ? null : 'text-heading',
+            )}
+          >
             {title}
           </h1>
           {description && (
             <p
-              className={cn('mt-5 text-base/7 sm:text-lg/8', dark ? 'text-cream/80' : 'opacity-80')}
+              className={cn(
+                'mt-5 text-body-lg text-pretty',
+                dark ? 'text-neutral-50/80' : 'opacity-80',
+              )}
             >
               {description}
             </p>

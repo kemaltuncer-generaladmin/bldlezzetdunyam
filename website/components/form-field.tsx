@@ -23,11 +23,11 @@ export function FormField({ id, label, error, hint, children }: Props) {
 
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-semibold text-neutral-900">
+      <label htmlFor={id} className="block text-sm font-semibold text-foreground">
         {label}
       </label>
       {hint && (
-        <p id={hintId} className="mt-0.5 text-xs text-neutral-600">
+        <p id={hintId} className="mt-0.5 text-xs text-muted-foreground">
           {hint}
         </p>
       )}
@@ -39,7 +39,7 @@ export function FormField({ id, label, error, hint, children }: Props) {
         })}
       </div>
       {error && (
-        <p id={errorId} role="alert" className="mt-1 text-sm text-danger">
+        <p id={errorId} role="alert" className="mt-1 text-sm text-danger-foreground">
           {error}
         </p>
       )}

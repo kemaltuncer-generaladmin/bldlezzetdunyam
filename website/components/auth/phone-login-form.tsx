@@ -89,7 +89,13 @@ export function PhoneLoginForm({ next }: { next: string }) {
           )}
         </FormField>
 
-        <Button type="submit" size="lg" className="w-full" disabled={pending}>
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full"
+          disabled={pending}
+          disabledReason="Kod gönderiliyor, işlem sürüyor."
+        >
           {pending ? 'Gönderiliyor…' : 'Giriş kodu gönder'}
         </Button>
 
@@ -135,7 +141,13 @@ export function PhoneLoginForm({ next }: { next: string }) {
         )}
       </FormField>
 
-      <Button type="submit" size="lg" className="w-full" disabled={pending}>
+      <Button
+        type="submit"
+        size="lg"
+        className="w-full"
+        disabled={pending}
+        disabledReason="Kod doğrulanıyor, işlem sürüyor."
+      >
         {pending ? 'Doğrulanıyor…' : 'Giriş yap'}
       </Button>
 

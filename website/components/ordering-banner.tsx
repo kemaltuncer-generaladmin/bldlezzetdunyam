@@ -35,10 +35,10 @@ export function OrderingClosedBanner({ location }: { location: Location | null }
   return (
     <div
       role="status"
-      className="rounded-card border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-neutral-900"
+      className="rounded-card border border-warning/40 bg-warning-surface px-4 py-3 text-sm text-foreground"
     >
       <p className="font-semibold">Şu anda sipariş alamıyoruz</p>
-      <p className="mt-1 text-neutral-800">
+      <p className="mt-1 text-foreground">
         {reason}
         {resumeNote}
         {cutoffNote} Menüyü inceleyebilirsiniz; sipariş alımı açıldığında sepetinize

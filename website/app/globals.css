@@ -2,189 +2,164 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
+/*
+ * Marka belirteçleri — ÜRETİLEN dosya.
+ *
+ * `packages/design_system/tokens/bld.tokens.json` → `tokens.css`. Renk
+ * değiştirmek için o JSON düzenlenir, sonra:
+ *   dart run bld_design_system:gen_tokens
+ * Aynı komut Flutter'ın `colors.dart`'ını ve yönetim panelinin
+ * `tokens.css`'ini de tazeler; üç yüzey böylece ayrışamıyor.
+ *
+ * NEDEN `tailwindcss` İMPORTUNDAN SONRA: `@theme` blokları kaynak sırasına
+ * göre birleşiyor ve `--color-neutral-*` adları Tailwind'in kendi paletiyle
+ * çakışıyor. Önce import edilseydi çekirdek palet bizimkini ezer, sıcak
+ * nötrler sessizce soğuk gri olurdu.
+ */
+@import './tokens.css';
+
 @custom-variant dark (&:is(.dark *));
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   KATMAN 1 — PRIMITIVE
-   Ham değerler. Hiçbir bileşen bunları doğrudan kullanmaz; katman 2'deki
-   semantik token'lar üzerinden tüketilir.
-
-   RENKLER `packages/design_system/lib/src/colors.dart` İÇİNDEKİ `BldColors`
-   SINIFININ BİREBİR KARŞILIĞIDIR. Tek kaynak o Dart dosyasıdır — Flutter
-   uygulamaları da oradan besleniyor. Orada bir değer değişirse burada da
-   değişmeli. (Palet yer tutucudur: BILINMEYENLER #11.)
+   RENK OLMAYAN PRİMİTİFLER
+   Bunlar üretilmiyor: font, yarıçap, süre ve konteyner genişliği tek
+   yüzeyin kararı değil ama renk gibi ölçülen bir değer de değil. Renk
+   belirteçleri `tokens.css`'te.
    ═══════════════════════════════════════════════════════════════════════════ */
 @theme {
-  --color-brand-50: #fff7ed;
-  --color-brand-100: #ffedd5;
-  --color-brand-200: #fed7aa;
-  --color-brand-300: #fdba74;
-  --color-brand-400: #fb923c;
-  --color-brand-500: #f97316;
-  --color-brand-600: #ea580c;
-  --color-brand-700: #c2410c;
-  --color-brand-800: #9a3412;
-  --color-brand-900: #7c2d12;
-
-  --color-neutral-0: #ffffff;
-  --color-neutral-50: #fafaf9;
-  --color-neutral-100: #f5f5f4;
-  --color-neutral-200: #e7e5e4;
-  --color-neutral-400: #a8a29e;
-  --color-neutral-600: #57534e;
-  --color-neutral-800: #292524;
-  --color-neutral-900: #1c1917;
-
-  --color-success: #16a34a;
-  --color-warning: #ca8a04;
-  --color-danger: #dc2626;
-  --color-info: #2563eb;
-
-  /*
-   * ── BLD kurumsal destek paleti ─────────────────────────────────────────
-   * Bunlar colors.dart'ta YOKTUR ve olmamalıdır: yalnızca kurumsal web
-   * sitesinin anlatım yüzeyleri (zeytin bantlar, krem bölümler, kömür footer)
-   * için var. colors.dart'a eklemek, KDS ve mobil uygulamanın da bu renkleri
-   * kullanması gerektiği anlamına gelirdi — gerekmiyor.
-   *
-   * Ölçülmüş kontrastlar:
-   *   beyaz / olive-600 = 5,57:1 ✓   beyaz / olive-700 = 7,96:1 ✓
-   *   beyaz / olive-500 = 3,91:1 ✗   ← olive-500 üstüne beyaz METİN yazılmaz,
-   *                                    yalnızca dekoratif dolgu olarak kullanılır
-   *   kömür / krem = 15,14:1 ✓       brand-400 / kömür = 7,21:1 ✓
-   *   kömür / altın = 5,93:1 ✓
-   */
-  --color-olive-50: #f3f6ef;
-  --color-olive-100: #e1ead4;
-  --color-olive-500: #6b8a4e;
-  --color-olive-600: #55703c;
-  --color-olive-700: #425730;
-  --color-olive-900: #28371d;
-
-  --color-cream: #faf6ee;
-  --color-charcoal: #241f1b;
-  --color-gold: #c9922e;
-
   /* Gövde, form, fiyat: Inter. Rakam ve etiket okunurluğu için. */
   --font-sans: var(--font-inter), system-ui, sans-serif;
-  /* Başlıklar: Playfair Display. Menü/restoran sıcaklığını taşıyan tek öğe. */
-  --font-display: var(--font-playfair), Georgia, serif;
 
-  --radius-card: 0.75rem;
+  /*
+   * Başlıklar: Source Serif 4.
+   *
+   * Playfair Display YANLIŞ eşleşmeydi: o bir Didone (kalın-ince farkı çok
+   * yüksek, saç inceliğinde tırnaklar), logo ise dirsekli tırnaklı, düşük
+   * kontrastlı bir hümanist serif. Source Serif 4'ün optik boyut ekseni var
+   * ve Türkçe kapsaması tam (İ/ı dahil).
+   */
+  --font-display: var(--font-source-serif), Georgia, serif;
+
+  /*
+   * HATA DÜZELTMESİ: `components/ui/card.tsx` `font-heading` uyguluyordu ama
+   * `--font-heading` HİÇBİR YERDE tanımlı değildi. Tailwind v4 tanımsız
+   * belirteç için utility ÜRETMEZ — sınıf sessizce hiçbir şey yapmıyor ve
+   * her `CardTitle` gövde fontuna düşüyordu. Başlık ailesine bağlandı.
+   */
+  --font-heading: var(--font-display);
+
+  /*
+   * ── Yarıçap ölçeği ────────────────────────────────────────────────────
+   * `packages/design_system/lib/src/spacing.dart` içindeki `BldRadius` ile
+   * AYNI: rozet 6, buton/input 10, kart/satır/görsel 14, sheet/dialog 20.
+   * İç içe köşede çocuk = ebeveyn − 4 (taban 6).
+   */
+  --radius-xs: 0.375rem; /* 6px  — rozet */
+  --radius-sm: 0.625rem; /* 10px — buton, form alanı */
+  --radius-md: 0.875rem; /* 14px — kart, liste satırı, görsel */
+  --radius-lg: 1.25rem; /* 20px — sheet, dialog */
+
+  /*
+   * `xl`/`2xl`/`3xl` marka ölçeğinde YOKTUR. Yine de tanımlanıyorlar çünkü
+   * Tailwind'in varsayılanları (12/16/24 px) artık `lg`nin (20 px) ALTINDA
+   * kalıyor ve rampa tersine dönmüş oluyordu — `rounded-xl` bir kutuyu
+   * `rounded-lg`den daha köşeli yapıyordu. Bu üç adım, kullanan sayfalar
+   * elden geçtikçe kaldırılacak.
+   */
+  --radius-xl: 1.5rem; /* 24px */
+  --radius-2xl: 2rem; /* 32px */
+  --radius-3xl: 2.5rem; /* 40px */
+
+  /*
+   * `rounded-card` on sekiz dosyada kullanılıyor; adı korunuyor, değeri
+   * kart adımına (14px) hizalandı — eskiden 12px'ti ve hiçbir ölçekte
+   * karşılığı yoktu.
+   */
+  --radius-card: var(--radius-md);
+
   --container-content: 72rem;
 
   /*
+   * ── Tipografi ölçeği ──────────────────────────────────────────────────
+   * `BldTextScale` ile aynı adımlar; web ve mobil aynı ürün gibi okunsun.
+   * SERİF (`font-display`) isim ve başlık için, INTER fiyat/buton/etiket
+   * gibi işlevsel her şey için.
+   */
+  --text-display: 2.75rem; /* 44 */
+  --text-display--line-height: 3.5rem; /* 56 */
+  --text-h1: 2rem; /* 32 */
+  --text-h1--line-height: 2.5rem; /* 40 */
+  --text-h2: 1.625rem; /* 26 */
+  --text-h2--line-height: 1.875rem; /* 30 */
+  --text-h3: 1.3125rem; /* 21 */
+  --text-h3--line-height: 1.75rem; /* 28 */
+  --text-title: 1.0625rem; /* 17 — kart başlığı, ürün adı */
+  --text-title--line-height: 1.5rem;
+  --text-body-lg: 1.0625rem; /* 17 */
+  --text-body-lg--line-height: 1.625rem;
+  --text-body: 0.9375rem; /* 15 */
+  --text-body--line-height: 1.375rem;
+  --text-body-sm: 0.8125rem; /* 13 */
+  --text-body-sm--line-height: 1.25rem;
+  --text-label: 0.8125rem; /* 13 / 600 */
+  --text-label--line-height: 1rem;
+  --text-label--font-weight: 600;
+  --text-caption: 0.75rem; /* 12 */
+  --text-caption--line-height: 1rem;
+  --text-overline: 0.6875rem; /* 11 / 700 / 0.14em */
+  --text-overline--line-height: 1rem;
+  --text-overline--font-weight: 700;
+  --text-overline--letter-spacing: 0.14em;
+  --text-money-sm: 0.9375rem; /* 15 / 600 */
+  --text-money-sm--line-height: 1.25rem;
+  --text-money-sm--font-weight: 600;
+  --text-money-md: 1.0625rem; /* 17 / 700 */
+  --text-money-md--line-height: 1.5rem;
+  --text-money-md--font-weight: 700;
+  --text-money-lg: 1.375rem; /* 22 / 700 */
+  --text-money-lg--line-height: 1.75rem;
+  --text-money-lg--font-weight: 700;
+  --text-money-xl: 1.75rem; /* 28 / 700 */
+  --text-money-xl--line-height: 2.125rem;
+  --text-money-xl--font-weight: 700;
+
+  /*
+   * ── Yükseltme ─────────────────────────────────────────────────────────
+   * Gölge rengi `neutral-900` (#2A1A12) — sıcak-koyu kahve, saf siyah DEĞİL;
+   * saf siyah gölge ucuz ve sert durur. KOYU temada yükseltme gölge değil
+   * AÇIKLIK adımıdır (`--card` zaten `--background`'dan açık), o yüzden
+   * karanlıkta bu gölgeler kapatılır.
+   */
+  --shadow-card: 0 1px 2px rgb(42 26 18 / 0.04), 0 6px 16px rgb(42 26 18 / 0.07);
+  --shadow-raised: 0 2px 6px rgb(42 26 18 / 0.055), 0 10px 24px rgb(42 26 18 / 0.1);
+  --shadow-overlay: 0 4px 12px rgb(42 26 18 / 0.078), 0 18px 36px rgb(42 26 18 / 0.149);
+
+  /*
    * ── Hareket ────────────────────────────────────────────────────────────
-   * Süreler 150–300 ms bandında: bu aralığın altı "anlık geçiş" olarak
-   * algılanıp geri bildirim vermiyor, üstü yavaş hissettiriyor.
-   *
-   * `--ease-out-soft` girişler için (hızlı başlar, yumuşak durur — nesne
-   * yerine oturuyormuş gibi). Çıkışlar `--duration-fast` kullanır: kullanıcı
-   * kapattığı şeyi beklemek istemez, giriş kadar uzun sürmemeli.
+   * ÇIKIŞLAR `fast`, GİRİŞLER `base`. Konteynerde `scale` yok:
+   * `translateY(-2px)` + bir gölge adımı. Tema geçişi ASLA animasyonlu değil.
    */
   --duration-fast: 150ms;
   --duration-base: 220ms;
   --duration-slow: 320ms;
+  --duration-page: 280ms;
   --ease-out-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
   --ease-in-out-soft: cubic-bezier(0.45, 0, 0.15, 1);
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   KATMAN 2 — SEMANTIC
-   shadcn/ui'ın beklediği sözleşme. Bileşenler yalnızca bunları kullanır,
-   böylece tema değiştirmek tek dosyada olur.
-
-   Değerler ölçülerek seçildi (WCAG 2.1, docs/06 §5 "kontrast AA"):
-     beyaz / brand-600 = 3,56:1 ✗  ← bu yüzden birincil buton brand-600 DEĞİL
-     beyaz / brand-700 = 5,18:1 ✓
-     brand-700 / neutral-50 = 4,96:1 ✓  (bağlantı metni)
-     neutral-600 / neutral-50 = 7,30:1 ✓ (ikincil metin)
-   ═══════════════════════════════════════════════════════════════════════════ */
-:root {
-  --background: var(--color-neutral-50);
-  --foreground: var(--color-neutral-900);
-
-  --card: var(--color-neutral-0);
-  --card-foreground: var(--color-neutral-900);
-  --popover: var(--color-neutral-0);
-  --popover-foreground: var(--color-neutral-900);
-
-  /* brand-700, brand-600 değil — beyaz etiketin AA geçmesi için. */
-  --primary: var(--color-brand-700);
-  --primary-foreground: var(--color-neutral-0);
-
-  --secondary: var(--color-neutral-100);
-  --secondary-foreground: var(--color-neutral-900);
-
-  --muted: var(--color-neutral-100);
-  --muted-foreground: var(--color-neutral-600);
-
-  --accent: var(--color-brand-50);
-  --accent-foreground: var(--color-brand-800);
-
-  --destructive: var(--color-danger);
-  --destructive-foreground: var(--color-neutral-0);
-
-  --border: var(--color-neutral-200);
-  --input: var(--color-neutral-200);
-  /* Odak halkası brand-600: zeminle 3:1 üstü, ama metin taşımadığı için
-     buton dolgusundan daha canlı olabilir. */
-  --ring: var(--color-brand-600);
 
   /*
-   * Sıcak yüzey — hero bandı, öne çıkan bölüm zemini. Uygulamanın tamamını
-   * krem yapmak yerine (skill'in önerisi #FFF7ED zemindi) sıcaklığı bilinçli
-   * yerlerde kullanıyoruz: gövde metni beyaza yakın zeminde en yüksek
-   * kontrastı koruyor, sıcaklık da anlam taşıyan bölümlere ayrılıyor.
+   * ── KURUMSAL DESTEK PALETİ SİLİNDİ (B-19) ──────────────────────────────
+   *
+   * Burada `cream`, `charcoal`, `gold` ve bir `olive` ailesi vardı. Bir ara
+   * turda kendi hex'lerinden koparılıp belirteç karşılıklarına bağlanmışlardı
+   * (`--color-cream: var(--color-neutral-50)` gibi) ama adlar kalmıştı: eski
+   * çağrı yerleri başka bir hattın elindeydi.
+   *
+   * O çağrı yerlerinin tamamı artık token adı kullanıyor
+   * (`bg-neutral-950`, `text-neutral-50`, `Section tone="dark|brand"`), o
+   * yüzden takma adlar kaldırıldı. Takma ad bırakmanın bedeli görünmez ama
+   * gerçek: iki ad aynı rengi gösterdiği sürece yeni kod hangisini seçeceğini
+   * bilemez ve palet ikiye ayrılır.
    */
-  --surface-warm: var(--color-brand-50);
-  --surface-warm-foreground: var(--color-neutral-900);
-
-  color-scheme: light;
-}
-
-.dark {
-  --background: var(--color-neutral-900);
-  --foreground: var(--color-neutral-100);
-
-  --card: var(--color-neutral-800);
-  --card-foreground: var(--color-neutral-100);
-  --popover: var(--color-neutral-800);
-  --popover-foreground: var(--color-neutral-100);
-
-  /*
-   * Karanlık temada ilişki tersine döner: açık turuncu dolgu + koyu etiket.
-   * neutral-900 / brand-400 = 7,73:1 (AAA). Aynı yerde beyaz etiket kullansak
-   * 3,56:1'e düşerdi.
-   */
-  --primary: var(--color-brand-400);
-  --primary-foreground: var(--color-neutral-900);
-
-  --secondary: var(--color-neutral-800);
-  --secondary-foreground: var(--color-neutral-100);
-
-  --muted: var(--color-neutral-800);
-  --muted-foreground: var(--color-neutral-400);
-
-  --accent: color-mix(in oklch, var(--color-neutral-800), var(--color-brand-500) 14%);
-  --accent-foreground: var(--color-brand-300);
-
-  --destructive: #f87171;
-  --destructive-foreground: var(--color-neutral-900);
-
-  /*
-   * Kenarlıklar color-mix ile türetiliyor, yeni hex uydurmuyoruz: paletin tek
-   * kaynağı colors.dart ve oraya karanlık temaya özel ton eklemek Flutter
-   * tarafını da ilgilendiren bir karar olurdu.
-   */
-  --border: color-mix(in oklch, var(--color-neutral-900), var(--color-neutral-400) 22%);
-  --input: color-mix(in oklch, var(--color-neutral-900), var(--color-neutral-400) 28%);
-  --ring: var(--color-brand-400);
-
-  --surface-warm: color-mix(in oklch, var(--color-neutral-900), var(--color-brand-700) 18%);
-  --surface-warm-foreground: var(--color-neutral-100);
-
-  color-scheme: dark;
 }
 
 /* Semantik token'ları Tailwind yardımcı sınıflarına bağlar:
@@ -192,16 +167,20 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-heading: var(--heading);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-text: var(--primary-text);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-placeholder: var(--placeholder);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
@@ -209,8 +188,43 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-link: var(--link);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
   --color-surface-warm: var(--surface-warm);
   --color-surface-warm-foreground: var(--surface-warm-foreground);
+  --color-success-surface: var(--success-surface);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning-surface: var(--warning-surface);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-danger-surface: var(--danger-surface);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-info-surface: var(--info-surface);
+  --color-info-foreground: var(--info-foreground);
+  --color-skeleton-base: var(--skeleton-base);
+  --color-skeleton-sheen: var(--skeleton-sheen);
+
+  /*
+   * DURUM METNİ — HATA DÜZELTMESİ (B-19).
+   *
+   * `text-danger`, `text-success`, `text-warning`, `text-info` yirmi beş
+   * yerde kullanılıyor (form hataları, abonelik rozetleri, para farkı,
+   * zorunlu alan yıldızı). Bu dört ad `tokens.css`'in PRİMİTİF katmanında
+   * tanımlı ve orası tek değerli: `--color-danger` her temada #A51C34
+   * kalıyordu. Karanlık temada koyu bir kartın üstünde nar kırmızısı 2,2:1
+   * ediyor — form hataları okunmuyordu.
+   *
+   * Semantik `--danger` ise tema ile dönüyor (700 açıkta, 300 koyuda) ve
+   * `tokens.css` kontrastını iki temada da ölçüyor. Çıplak adları o role
+   * bağlamak, yirmi beş çağrı yerini tek satırda düzeltiyor.
+   *
+   * Numaralı adımlar (`text-danger-600`) PRİMİTİF kalıyor: belirli bir tonu
+   * isteyen yer onu açıkça yazar.
+   */
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -230,6 +244,16 @@
   body {
     @apply bg-background text-foreground antialiased;
   }
+
+  /*
+   * Başlık rengi BİLİNÇLİ OLARAK taban katmanda DEĞİL.
+   *
+   * `h1,h2,h3 { color: var(--heading) }` yazmak cazip ama koyu bantların
+   * içindeki başlıkları (`app/page.tsx`'teki hero `h1`'i renk sınıfı
+   * taşımıyor, banttan `text-neutral-50` miras alıyor) marka kahvesine çevirip
+   * görünmez yapardı. Başlık rengi bir bileşen kararıdır: `bld-heading`
+   * yardımcı sınıfı ya da doğrudan `text-heading` kullanılır.
+   */
 
   /* Erişilebilirlik: klavye odağı her zaman görünür (docs/06 §5). */
   :focus-visible {
@@ -264,6 +288,15 @@
       translate: 0 0;
     }
   }
+
+  @keyframes bld-skeleton-sheen {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
 }
 
 /*
@@ -276,6 +309,9 @@
  *      Yani animasyon bir gelişme, ön koşul değil; JS ile yapsaydık script
  *      yüklenene kadar içerik gizli kalır ve SEO ile erişilebilirlik zarar
  *      görürdü.
+ *
+ * YALNIZ pazarlama sayfalarında kullanılır — `/menu`, `/sepet` ve `/odeme`de
+ * ASLA: sipariş akışında beliren içerik dokunma hedefini kaydırıyor.
  *
  * `prefers-reduced-motion` ayrıca kontrol ediliyor: taban katmandaki genel
  * kural süreyi kısaltıyor ama burada animasyonun hiç başlamaması gerekiyor,
@@ -300,7 +336,7 @@
  */
 @utility bld-prose {
   & p {
-    @apply text-base/7 text-foreground/85;
+    @apply text-body-lg text-foreground/85;
   }
 
   & p + p {
@@ -308,11 +344,11 @@
   }
 
   & h2 {
-    @apply mt-10 font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl;
+    @apply mt-10 font-display text-h2 font-semibold tracking-tight text-heading;
   }
 
   & h3 {
-    @apply mt-8 text-lg font-semibold text-foreground;
+    @apply mt-8 font-display text-h3 font-semibold text-heading;
   }
 
   & ul {
@@ -320,7 +356,7 @@
   }
 
   & li {
-    @apply relative pl-6 text-base/7 text-foreground/85;
+    @apply relative pl-6 text-body-lg text-foreground/85;
   }
 
   & li::before {
@@ -328,7 +364,7 @@
   }
 
   & a {
-    @apply text-primary underline underline-offset-4;
+    @apply text-link underline underline-offset-4;
   }
 }
 
@@ -353,32 +389,80 @@
    değil, o ekranda bileşene geçmek doğru olanı.
    ═══════════════════════════════════════════════════════════════════════════ */
 @utility bld-card {
-  @apply rounded-card border bg-card text-card-foreground shadow-xs;
+  @apply rounded-card border bg-card text-card-foreground shadow-card;
 }
 
+/*
+ * Başlık — SERİF aile + marka kahvesi.
+ *
+ * Boyutu taşımaz: hangi adım (`text-h1`, `text-h2`, `text-title`) o başlığın
+ * sayfadaki yeriyle ilgili bir karar.
+ */
+@utility bld-heading {
+  @apply font-display text-heading;
+}
+
+/*
+ * PARA.
+ *
+ * `tabular-nums` her yerde ZORUNLU: rakamlar sabit genişlikte olmadığında
+ * sepet toplamı satır satır kayıyor ve fiyat sütunu okunmaz hâle geliyor.
+ * Para ASLA sarmalanmaz ya da kırpılmaz; tabloda SAĞA yaslanır (hizalamayı
+ * kullanan yer verir, burası değil).
+ */
+@utility bld-money {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/*
+ * Skeleton — yükleme her zaman iskelet, spinner değil (400 ms altı buton içi
+ * hariç). GERÇEK düzenin kutu sayısını ve yüksekliklerini yansıtır.
+ */
 @utility bld-skeleton {
-  @apply animate-pulse rounded-md bg-muted;
+  @apply rounded-md bg-skeleton-base;
+
+  background-image: linear-gradient(
+    90deg,
+    var(--skeleton-base) 0%,
+    var(--skeleton-sheen) 50%,
+    var(--skeleton-base) 100%
+  );
+  background-size: 200% 100%;
+  animation: bld-skeleton-sheen 1200ms linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    background-image: none;
+    animation: none;
+  }
 }
 
 @utility bld-btn {
   /* Dokunma hedefi her yerde en az 44 px yüksekliğinde kalır. */
-  @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors;
+  @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-sm px-4 py-2.5 text-label font-semibold transition-colors;
 }
 
 @utility bld-btn-primary {
-  @apply bld-btn bg-primary text-primary-foreground hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground;
+  @apply bld-btn bg-primary text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground;
 }
 
+/* Tonal — marka yüzeyi + marka yazısı. Görünüm başına TEK primary olduğu
+   için ikinci eylem buraya düşer. */
 @utility bld-btn-secondary {
-  @apply bld-btn border bg-card text-card-foreground hover:bg-muted;
+  @apply bld-btn bg-secondary text-secondary-foreground hover:bg-brand-100;
+}
+
+/* Outline — şeffaf zemin, İŞLEVSEL kenarlık (dekoratif `border` değil). */
+@utility bld-btn-outline {
+  @apply bld-btn border border-input bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground;
 }
 
 @utility bld-btn-ghost {
-  @apply bld-btn border border-primary bg-card text-primary hover:bg-accent;
+  @apply bld-btn bg-transparent text-primary-text hover:bg-accent;
 }
 
 @utility bld-chip {
-  @apply inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition-colors;
+  @apply inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-4 text-body-sm font-medium transition-colors;
 }
 
 @utility bld-chip-idle {
@@ -390,11 +474,20 @@
 }
 
 @utility bld-badge {
-  @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs leading-none font-semibold;
+  @apply inline-flex items-center gap-1 rounded-xs px-2.5 py-1 text-caption leading-none font-semibold;
 }
 
+/*
+ * Form alanı.
+ *
+ * HATA DÜZELTMESİ: kenarlık `border-input` ve `--input` artık `neutral-400`.
+ * Eskiden `--border` ve `--input` İKİSİ DE `neutral-200` idi; kart beyazı
+ * üstünde 1,38:1 ediyordu ve sitedeki HER metin alanının kenarlığı WCAG
+ * 1.4.11'i (kontrol bileşeni ≥ 3:1) geçmiyordu. Ayrım artık anlamlı:
+ * `border` DEKORATİF, `input` İŞLEVSEL.
+ */
 @utility bld-field {
-  @apply w-full rounded-lg border border-input bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground;
+  @apply w-full rounded-sm border border-input bg-card px-3 py-2.5 text-body text-foreground placeholder:text-placeholder;
 }
 
 @utility bld-rail {
@@ -415,4 +508,17 @@
 @utility bld-anchor {
   /* Yapışkan başlık + kategori çubuğunun altında kalmayan bağlantı hedefi. */
   scroll-margin-top: 9rem;
+}
+
+/*
+ * Yemek fotoğrafı.
+ *
+ * Beyaz tabaklı yemek fotoğrafı beyaz kartın içinde eriyor ve kart kenarını
+ * kaybediyor; 1 px iç halka görseli yüzeyden ayırıyor. Marka rengi overlay
+ * ATILMAZ — yemeğin gerçek rengi ürünün kendisi.
+ */
+@utility bld-photo {
+  @apply object-cover;
+
+  box-shadow: inset 0 0 0 1px rgb(42 26 18 / 0.06);
 }

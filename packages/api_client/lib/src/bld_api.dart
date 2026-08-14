@@ -13,6 +13,7 @@ import 'models/account.dart';
 import 'models/auth.dart';
 import 'models/catalog.dart';
 import 'models/converters.dart';
+import 'models/daily_menu.dart';
 import 'models/kitchen.dart';
 import 'models/order.dart';
 import 'models/subscription.dart';
@@ -165,6 +166,38 @@ class BldApi {
     );
   }
 
+  /// `{ "data": { ... } }` sarmalayıcısından nesneyi çıkarır.
+  ///
+  /// Tekil kaynaklar (`GET /orders/{id}`) gövdeyi doğrudan döndürür, katalog
+  /// uçları ise `data` içinde sarar. Sarmalayıcı sözleşmede uca göre
+  /// değişiyor — [_asMap] ile ayrı tutuluyorlar ki hangi ucun hangisini
+  /// kullandığı çağrı yerinde okunsun.
+  static Map<String, dynamic> _asDataMap(Object? data) {
+    final map = _asMap(data);
+    final inner = map['data'];
+    if (inner is! Map) {
+      throw const ApiException(
+        code: ApiErrorCode.unknown,
+        message: 'Sunucu beklenmeyen bir yanıt döndü.',
+      );
+    }
+    return Map<String, dynamic>.from(inner);
+  }
+
+  /// `{ "data": { ... } | null }` — `data: null` geçerli bir cevaptır.
+  static Map<String, dynamic>? _asNullableDataMap(Object? data) {
+    final map = _asMap(data);
+    final inner = map['data'];
+    if (inner == null) return null;
+    if (inner is! Map) {
+      throw const ApiException(
+        code: ApiErrorCode.unknown,
+        message: 'Sunucu beklenmeyen bir yanıt döndü.',
+      );
+    }
+    return Map<String, dynamic>.from(inner);
+  }
+
   /// `{ "data": [...] }` sarmalayıcısından listeyi çıkarır.
   static List<T> _asDataList<T>(
     Object? data,
@@ -260,6 +293,26 @@ class _CatalogService implements CatalogService {
     '/locations/$locationId/menu',
     parse: (data) => BldApi._asDataList(data, MenuCategory.fromJson),
   );
+
+  @override
+  Future<DailyMenu> dailyMenu(int locationId, {String? date}) => _api._send(
+    'GET',
+    '/locations/$locationId/daily-menu',
+    query: {'date': ?date},
+    parse: (data) => DailyMenu.fromJson(BldApi._asDataMap(data)),
+  );
+
+  @override
+  Future<List<MenuCalendarDay>> menuCalendar(
+    int locationId, {
+    String? from,
+    String? to,
+  }) => _api._send(
+    'GET',
+    '/locations/$locationId/menu-calendar',
+    query: {'from': ?from, 'to': ?to},
+    parse: (data) => BldApi._asDataList(data, MenuCalendarDay.fromJson),
+  );
 }
 
 class _OrderService implements OrderService {
@@ -330,6 +383,50 @@ class _AddressService implements AddressService {
   // 204 döner; gövde yok.
   Future<void> delete(int id) =>
       _api._send<void>('DELETE', '/addresses/$id', parse: (_) {});
+
+  /// Sunucunun altına indiği en kısa sorgu (`docs/openapi.yaml` `q.minLength`).
+  static const int _minSuggestQueryLength = 3;
+
+  @override
+  Future<List<AddressSuggestion>> suggest(String query, {int limit = 5}) async {
+    final trimmed = query.trim();
+
+    // ÜÇ KARAKTERİN ALTINDA AĞA HİÇ ÇIKILMAZ.
+    //
+    // Sunucu bu isteği `422` ile reddediyor ve sözleşme bunu bir İSTEMCİ
+    // hatası sayıyor: "k" yazan kullanıcı bir şey yapmadı, biz erken sorduk.
+    // Kuralı burada uygulamak, üç ekranın (arama kutusu, harita paneli,
+    // ödeme formu) aynı korumayı ayrı ayrı yazıp birinde unutmasını önler —
+    // unutulduğunda kullanıcı her harfte kırmızı bir hata görürdü.
+    //
+    // Bekleme (debounce) arayüzün işidir ve burada TAŞINMAZ: zamanlayıcı
+    // tutmak bu katmanın işi değil, ayrıca her ekranın gecikmesi farklı
+    // olabilir. İkisi birlikte sağlayıcı kotasını korur.
+    if (trimmed.length < _minSuggestQueryLength) {
+      return const <AddressSuggestion>[];
+    }
+
+    return _api._send(
+      'GET',
+      '/addresses/suggest',
+      // Üst sınır sözleşmede 10; aşan bir değer `422` olurdu. Çağıranı
+      // hataya sokmak yerine kısıyoruz — sonuç sayısı bir tercih, bir
+      // sözleşme değil.
+      query: {'q': trimmed, 'limit': limit.clamp(1, 10)},
+      parse: (data) => BldApi._asDataList(data, AddressSuggestion.fromJson),
+    );
+  }
+
+  @override
+  Future<AddressSuggestion?> reverse(double lat, double lng) => _api._send(
+    'GET',
+    '/addresses/reverse',
+    query: {'lat': lat, 'lng': lng},
+    parse: (data) {
+      final map = BldApi._asNullableDataMap(data);
+      return map == null ? null : AddressSuggestion.fromJson(map);
+    },
+  );
 }
 
 class _KitchenService implements KitchenService {

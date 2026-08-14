@@ -1,15 +1,16 @@
-/// Anlamsal pill/rozet — durum, teslimat tipi, "abonelik" işareti.
+/// Anlamsal rozet — durum, teslimat tipi, "abonelik" işareti.
 ///
-/// `status_views.BldBadge` katı zemin + beyaz metin veriyor; bu ise yumuşak
-/// tint + koyu metinli, isteğe bağlı ikonlu daha sakin bir rozet — sipariş
-/// kartları ve abonelik rozetleri için. Renk paletten türetilir (yeni renk
-/// eklenmez): tint = anlamsal renk düşük alfada beyaza karışmış.
+/// Yumuşak tint zemin + koyu metin. Renkler artık beyaza karıştırılarak
+/// TÜRETİLMİYOR: her ton için hem yüzey hem metin rolü palette tanımlı
+/// (`successBg`/`successFg` …). Türetilen ton koyu temada çalışmıyordu —
+/// koyu zeminde beyazla karıştırmak rengi zeminden AÇIK yapıyor, tint ise
+/// zeminden bir adım açık olmalı, ondan altı adım değil.
 library;
 
 import 'package:bld_design_system/bld_design_system.dart';
 import 'package:flutter/material.dart';
 
-import '../theme/bld_theme.dart';
+import '../theme/bld_semantic_colors.dart';
 
 enum BldPillVariant { brand, neutral, info, success, warning, danger }
 
@@ -23,11 +24,31 @@ class BldPill extends StatelessWidget {
 
   final String label;
   final BldPillVariant variant;
+
+  /// Yalnız OUTLINE ikon (`Icons.*_outlined`). Dolu varyant 13 px'te siyah bir
+  /// lekeye dönüyor ve rozetin metnini bastırıyor.
   final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
-    final (bg, fg) = _colors(variant);
+    final theme = Theme.of(context);
+    final bld = context.bld;
+
+    final (Color bg, Color fg) = switch (variant) {
+      BldPillVariant.brand => (
+        theme.colorScheme.secondaryContainer,
+        theme.colorScheme.onSecondaryContainer,
+      ),
+      BldPillVariant.neutral => (
+        theme.colorScheme.surfaceContainer,
+        theme.colorScheme.onSurfaceVariant,
+      ),
+      BldPillVariant.info => (bld.infoBg, bld.infoFg),
+      BldPillVariant.success => (bld.successBg, bld.successFg),
+      BldPillVariant.warning => (bld.warningBg, bld.warningFg),
+      BldPillVariant.danger => (bld.dangerBg, bld.dangerFg),
+    };
+
     return Container(
       padding: EdgeInsets.fromLTRB(
         icon != null ? BldSpacing.sm : BldSpacing.md - 4,
@@ -46,40 +67,9 @@ class BldPill extends StatelessWidget {
             Icon(icon, size: 13, color: fg),
             const SizedBox(width: 4),
           ],
-          Text(
-            label,
-            style: TextStyle(
-              color: fg,
-              fontSize: BldTextScale.caption,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          Text(label, style: theme.textTheme.labelMedium?.copyWith(color: fg)),
         ],
       ),
     );
   }
-
-  /// Tint zemin + koyu metin. Marka/nötr için hazır tonlar; anlamsal renkler
-  /// için renk beyaza %14 karıştırılır (paletten yeni renk eklemeden).
-  (Color, Color) _colors(BldPillVariant variant) {
-    switch (variant) {
-      case BldPillVariant.brand:
-        return (bldColor(BldColors.brand100), bldColor(BldColors.brand700));
-      case BldPillVariant.neutral:
-        return (bldColor(BldColors.neutral100), bldColor(BldColors.neutral600));
-      case BldPillVariant.info:
-        return (_tint(BldColors.info), bldColor(BldColors.info));
-      case BldPillVariant.success:
-        return (_tint(BldColors.success), bldColor(BldColors.success));
-      case BldPillVariant.warning:
-        return (_tint(BldColors.warning), bldColor(BldColors.warning));
-      case BldPillVariant.danger:
-        return (_tint(BldColors.danger), bldColor(BldColors.danger));
-    }
-  }
-
-  Color _tint(int token) => Color.alphaBlend(
-    bldColor(token).withValues(alpha: 0.14),
-    bldColor(BldColors.neutral0),
-  );
 }

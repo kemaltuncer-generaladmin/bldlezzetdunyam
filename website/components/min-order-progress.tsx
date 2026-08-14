@@ -30,14 +30,14 @@ export function MinOrderProgress({ subtotal, minOrderTotal, className }: Props) 
         aria-valuemax={100}
         aria-valuenow={percent}
         aria-label="Asgari sepet tutarına ilerleme"
-        className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-200"
+        className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
       >
         <div
-          className={cn('h-full transition-[width]', reached ? 'bg-success' : 'bg-brand-500')}
+          className={cn('h-full transition-[width]', reached ? 'bg-success' : 'bg-primary')}
           style={{ width: `${percent}%` }}
         />
       </div>
-      <p className={cn('mt-1.5 text-xs', reached ? 'text-neutral-600' : 'text-neutral-800')}>
+      <p className={cn('mt-1.5 text-xs', reached ? 'text-muted-foreground' : 'text-foreground')}>
         {reached
           ? `Asgari sepet tutarı (${formatPrice(minOrderTotal)}) karşılandı.`
           : `Asgari sepet tutarına ${formatPrice(remaining)} kaldı.`}

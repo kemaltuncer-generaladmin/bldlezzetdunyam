@@ -173,9 +173,10 @@ export function SubscriptionCard({ subscription }: { subscription: Subscription 
                 variant="outline"
                 size="sm"
                 disabled={pending}
+                disabledReason="Önceki değişiklik kaydediliyor."
                 onClick={() => setShowDayForm((open) => !open)}
               >
-                <CalendarOff aria-hidden="true" />
+                <CalendarOff strokeWidth={1.75} aria-hidden="true" />
                 Gün atla / adet değiştir
               </Button>
 
@@ -184,9 +185,10 @@ export function SubscriptionCard({ subscription }: { subscription: Subscription 
                 variant="outline"
                 size="sm"
                 disabled={pending}
+                disabledReason="Önceki değişiklik kaydediliyor."
                 onClick={() => dispatch(pauseAction)}
               >
-                <Pause aria-hidden="true" />
+                <Pause strokeWidth={1.75} aria-hidden="true" />
                 Duraklat
               </Button>
             </>
@@ -197,9 +199,10 @@ export function SubscriptionCard({ subscription }: { subscription: Subscription 
               type="button"
               size="sm"
               disabled={pending}
+              disabledReason="Önceki değişiklik kaydediliyor."
               onClick={() => dispatch(resumeAction)}
             >
-              <Play aria-hidden="true" />
+              <Play strokeWidth={1.75} aria-hidden="true" />
               Devam ettir
             </Button>
           )}
@@ -209,6 +212,7 @@ export function SubscriptionCard({ subscription }: { subscription: Subscription 
             variant="ghost"
             size="sm"
             disabled={pending}
+            disabledReason="Önceki değişiklik kaydediliyor."
             className="text-danger hover:text-danger"
             onClick={() => {
               // İptal geri alınamaz: yeni abonelik açmak yeni bir talep ve
@@ -220,7 +224,7 @@ export function SubscriptionCard({ subscription }: { subscription: Subscription 
               }
             }}
           >
-            <X aria-hidden="true" />
+            <X strokeWidth={1.75} aria-hidden="true" />
             İptal et
           </Button>
         </div>
@@ -264,7 +268,12 @@ export function SubscriptionCard({ subscription }: { subscription: Subscription 
             </div>
 
             <div className="flex items-end gap-2">
-              <Button type="submit" size="lg" disabled={pending}>
+              <Button
+                type="submit"
+                size="lg"
+                disabled={pending}
+                disabledReason="Kaydediliyor, işlem sürüyor."
+              >
                 Kaydet
               </Button>
               <Button
@@ -274,6 +283,7 @@ export function SubscriptionCard({ subscription }: { subscription: Subscription 
                 variant="outline"
                 size="lg"
                 disabled={pending}
+                disabledReason="Kaydediliyor, işlem sürüyor."
               >
                 O gün istemiyorum
               </Button>

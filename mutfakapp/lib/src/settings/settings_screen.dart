@@ -31,9 +31,25 @@ import '../sound/kds_sound_event.dart';
 import '../sound/system_audio.dart';
 import '../sound/tts_announcer.dart';
 import 'kds_settings.dart';
+import 'lock_ui.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
+
+  /// Ekranın bölümleri — kilitli kipte tek tek kalkanlanabilsin diye liste.
+  ///
+  /// `ListView` çocukları AYRI KALIYOR: hepsini tek bir `Column`a koymak
+  /// tembel kurulumu bitirir ve ayarlar ekranı açılışta yedi bölümü birden
+  /// çizerdi.
+  static const List<Widget> _sections = <Widget>[
+    _ServerSection(),
+    _PrinterSection(),
+    _SoundSection(),
+    _AlertsSection(),
+    _TouchSection(),
+    _QueueSection(),
+    _DeviceSection(),
+  ];
 
   /// Durum çubuğundaki düğmeden açılır.
   static Route<void> route() =>
@@ -42,6 +58,13 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppL10n.of(context);
+    // İKİNCİ SAVUNMA KATMANI (K-21 §5.4). Kapıyı kapatmak yetmez: ekran
+    // başka bir yoldan açılırsa (kod içinden bir rota, ileride eklenecek
+    // bir kısayol) içerideki düğmeler de kapalı olmalı. Değerler okunur
+    // kalır — "yazıcı yolu neydi" sorusu kilitli kasada da sorulur.
+    final allowSettings = ref.watch(
+      kdsSettingsProvider.select((settings) => settings.allowSettings),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -63,20 +86,15 @@ class SettingsScreen extends ConsumerWidget {
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(BldSpacing.lg),
-          children: const [
-            _ServerSection(),
-            SizedBox(height: BldSpacing.lg),
-            _PrinterSection(),
-            SizedBox(height: BldSpacing.lg),
-            _SoundSection(),
-            SizedBox(height: BldSpacing.lg),
-            _AlertsSection(),
-            SizedBox(height: BldSpacing.lg),
-            _TouchSection(),
-            SizedBox(height: BldSpacing.lg),
-            _QueueSection(),
-            SizedBox(height: BldSpacing.lg),
-            _DeviceSection(),
+          children: [
+            if (!allowSettings) ...[
+              const LockNotice(),
+              const SizedBox(height: BldSpacing.lg),
+            ],
+            for (var index = 0; index < _sections.length; index++) ...[
+              if (index > 0) const SizedBox(height: BldSpacing.lg),
+              LockShield(locked: !allowSettings, child: _sections[index]),
+            ],
           ],
         ),
       ),
@@ -93,6 +111,11 @@ class _ServerSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppL10n.of(context);
     final session = ref.watch(deviceSessionProvider);
+    // Sunucu adresi kilitliyse ADRES YİNE GÖRÜNÜR, yalnız değiştirilemez:
+    // hangi sunucuya bağlı olduğunu bilmek destek çağrısının ilk sorusu.
+    final allowed = ref.watch(
+      kdsSettingsProvider.select((settings) => settings.allowServerChange),
+    );
 
     return _Section(
       title: l10n.settingsSectionServer,
@@ -100,16 +123,26 @@ class _ServerSection extends ConsumerWidget {
       children: [
         _ValueRow(label: l10n.deviceInfoServer, value: session.baseUrl),
         const SizedBox(height: BldSpacing.md),
-        FilledButton.tonalIcon(
-          onPressed: () => unawaited(_changeServer(context, ref)),
-          icon: const Icon(Icons.edit_outlined),
-          label: Text(l10n.settingsServerChange),
+        LockedAction(
+          locked: !allowed,
+          child: FilledButton.tonalIcon(
+            onPressed: allowed
+                ? () => unawaited(_changeServer(context, ref))
+                : null,
+            icon: LockedIcon(icon: Icons.edit_outlined, locked: !allowed),
+            label: Text(l10n.settingsServerChange),
+          ),
         ),
       ],
     );
   }
 
   Future<void> _changeServer(BuildContext context, WidgetRef ref) async {
+    if (!ref.read(kdsSettingsProvider).allowServerChange) {
+      showLockMessage(context, ref);
+      return;
+    }
+
     final l10n = AppL10n.of(context);
     final entered = await _promptForText(
       context,
@@ -836,6 +869,11 @@ class _QueueSectionState extends ConsumerState<_QueueSection> {
   Widget build(BuildContext context) {
     final l10n = AppL10n.of(context);
     final jobs = _visibleJobs;
+    // Kuyruk LİSTESİ kilitten etkilenmez — "fiş bastı mı" sorusunu
+    // cevaplıyor. Kapanan yalnız satırdaki yeniden basma düğmesi.
+    final allowReprint = ref.watch(
+      kdsSettingsProvider.select((settings) => settings.allowManualReprint),
+    );
 
     return _Section(
       title: l10n.settingsSectionQueue,
@@ -856,12 +894,22 @@ class _QueueSectionState extends ConsumerState<_QueueSection> {
             ),
           )
         else
-          for (final job in jobs) _QueueRow(job: job, onReprint: _reprint),
+          for (final job in jobs)
+            _QueueRow(
+              job: job,
+              onReprint: _reprint,
+              locked: !allowReprint,
+            ),
       ],
     );
   }
 
   void _reprint(PrintJob job) {
+    if (!ref.read(kdsSettingsProvider).allowManualReprint) {
+      showLockMessage(context, ref);
+      return;
+    }
+
     // Satırın kendi revizyonu elimizde — o sürümü geri koyuyoruz, en
     // güncelini değil: personel kuyrukta GÖRDÜĞÜ satıra basıyor.
     ref
@@ -877,10 +925,17 @@ class _QueueSectionState extends ConsumerState<_QueueSection> {
 }
 
 class _QueueRow extends StatelessWidget {
-  const _QueueRow({required this.job, required this.onReprint});
+  const _QueueRow({
+    required this.job,
+    required this.onReprint,
+    this.locked = false,
+  });
 
   final PrintJob job;
   final void Function(PrintJob job) onReprint;
+
+  /// Elle yeniden basma kilitli mi? Satırın kendisi her hâlde görünür.
+  final bool locked;
 
   @override
   Widget build(BuildContext context) {
@@ -926,10 +981,26 @@ class _QueueRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: BldSpacing.md),
-          TextButton(
-            onPressed: () => onReprint(job),
-            child: Text(l10n.reprintTooltip),
-          ),
+          // Kilitliyken düğme SATIRDA KALIR: kaybolsa personel yanlış
+          // satıra bastığını sanır (K-21 §5.4).
+          if (locked)
+            LockedAction(
+              locked: true,
+              child: TextButton.icon(
+                onPressed: null,
+                icon: const Icon(
+                  Icons.lock_outline,
+                  size: 20,
+                  color: Color(BldColors.warning),
+                ),
+                label: Text(l10n.reprintTooltip),
+              ),
+            )
+          else
+            TextButton(
+              onPressed: () => onReprint(job),
+              child: Text(l10n.reprintTooltip),
+            ),
         ],
       ),
     );
@@ -950,6 +1021,11 @@ class _DeviceSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppL10n.of(context);
+    // Eşlemeyi sıfırlamak sunucu değiştirmenin diğer yüzü: token'ı silmek,
+    // kasayı yeni bir sunucuya bağlamanın ilk adımıdır. Aynı bayrak.
+    final allowed = ref.watch(
+      kdsSettingsProvider.select((settings) => settings.allowServerChange),
+    );
 
     return _Section(
       title: l10n.settingsSectionDevice,
@@ -959,20 +1035,30 @@ class _DeviceSection extends ConsumerWidget {
         const SizedBox(height: BldSpacing.md),
         const _UpdateCheckButton(),
         const SizedBox(height: BldSpacing.md),
-        FilledButton.tonalIcon(
-          style: FilledButton.styleFrom(
-            backgroundColor: const Color(BldColors.danger),
-            foregroundColor: const Color(BldColors.neutral0),
+        LockedAction(
+          locked: !allowed,
+          child: FilledButton.tonalIcon(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(BldColors.danger),
+              foregroundColor: const Color(BldColors.neutral0),
+            ),
+            onPressed: allowed
+                ? () => unawaited(_resetPairing(context, ref))
+                : null,
+            icon: LockedIcon(icon: Icons.link_off, locked: !allowed),
+            label: Text(l10n.settingsResetPairing),
           ),
-          onPressed: () => unawaited(_resetPairing(context, ref)),
-          icon: const Icon(Icons.link_off),
-          label: Text(l10n.settingsResetPairing),
         ),
       ],
     );
   }
 
   Future<void> _resetPairing(BuildContext context, WidgetRef ref) async {
+    if (!ref.read(kdsSettingsProvider).allowServerChange) {
+      showLockMessage(context, ref);
+      return;
+    }
+
     final l10n = AppL10n.of(context);
     final confirmed = await _confirm(
       context,

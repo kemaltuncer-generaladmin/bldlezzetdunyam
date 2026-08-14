@@ -69,6 +69,61 @@ void main() {
       expect(result.warningAfterMinutes, KdsSettings.minThresholdMinutes);
       expect(result.lateAfterMinutes, KdsSettings.minThresholdMinutes);
     });
+
+    test('kilit metni 160 karaktere kırpılır', () {
+      // Uyarı kutusuna sığmayan metin, personelin asıl cümleyi hiç
+      // görmemesi demek.
+      final result = defaults
+          .copyWith(lockMessage: 'ç' * 500)
+          .sanitized(fallback: defaults);
+
+      expect(result.lockMessage, hasLength(KdsSettings.maxLockMessageLength));
+    });
+
+    test('kilit metnindeki boşluklar kırpılır', () {
+      final result = defaults
+          .copyWith(lockMessage: '  Müdüre haber verin.  ')
+          .sanitized(fallback: defaults);
+
+      expect(result.lockMessage, 'Müdüre haber verin.');
+    });
+
+    test('sınırdaki kilit metni olduğu gibi kalır', () {
+      final tam = 'a' * KdsSettings.maxLockMessageLength;
+      final result = defaults
+          .copyWith(lockMessage: tam)
+          .sanitized(fallback: defaults);
+
+      expect(result.lockMessage, tam);
+    });
+  });
+
+  group('kilit politikası', () {
+    test('varsayılan SERBESTtir — yeni alan bugünkü kasayı kilitlemez', () {
+      expect(defaults.allowSettings, isTrue);
+      expect(defaults.allowServerChange, isTrue);
+      expect(defaults.allowWindowControls, isTrue);
+      expect(defaults.allowOrderEdit, isTrue);
+      expect(defaults.allowManualReprint, isTrue);
+      expect(defaults.allowSalesControl, isTrue);
+      expect(defaults.lockMessage, '');
+      expect(defaults.hasLock, isFalse);
+    });
+
+    test('tek bir kilit `hasLock` için yeter', () {
+      expect(defaults.copyWith(allowManualReprint: false).hasLock, isTrue);
+    });
+
+    test('kilit alanları eşitliğe girer', () {
+      // Girmeseydi `KdsSettingsController.update` değişikliği "aynı" sayıp
+      // diske hiç yazmazdı ve kilit yeniden başlatmada kaybolurdu.
+      expect(defaults.copyWith(allowSettings: false), isNot(defaults));
+      expect(defaults.copyWith(lockMessage: 'x'), isNot(defaults));
+      expect(
+        defaults.copyWith(allowSettings: false).hashCode,
+        isNot(defaults.hashCode),
+      );
+    });
   });
 
   group('türetilmiş süreler', () {

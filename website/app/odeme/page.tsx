@@ -1,17 +1,23 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { CalendarDays, UtensilsCrossed } from 'lucide-react';
 import { CheckoutForm } from '@/components/checkout-form';
 import { ErrorState } from '@/components/error-state';
 import { KitchenBusyBanner } from '@/components/kitchen-busy-banner';
+import { Money } from '@/components/money';
 import { OrderingClosedBanner } from '@/components/ordering-banner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { fetchAddresses } from '@/lib/api/addresses';
 import { isOrderingOpen } from '@/lib/api/catalog';
+import { businessToday, formatLongDate, serviceDayTitle } from '@/lib/business-date';
 import { resolveCart } from '@/lib/cart';
 import { readLocationEta } from '@/lib/eta';
-import { formatPrice } from '@/lib/format';
-import { fetchAddresses } from '@/lib/api/addresses';
+import { dayUnavailableCopy } from '@/lib/labels';
 import { requireSession } from '@/lib/require-session';
 import { istanbulNowLocalValue } from '@/lib/timezone';
+import { isOfferedPaymentMethod } from '@/lib/validation/checkout';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,21 +40,43 @@ export default async function CheckoutPage() {
     .catch(() => []);
   const cart = await resolveCart();
 
-  if (cart.lines.length === 0) redirect('/sepet');
+  if (cart.lines.length === 0 || cart.serviceDate === null) redirect('/sepet');
 
+  const today = businessToday();
+  const serviceDate = cart.serviceDate;
+  const isToday = serviceDate === today;
   const orderingOpen = isOrderingOpen(cart.location);
   const minOrderTotal = cart.location?.min_order_total ?? 0;
   const deliveryFee = cart.location?.delivery_fee ?? 0;
   const belowMinimum = cart.subtotal < minOrderTotal;
-  const paymentMethods = cart.location?.payment_methods ?? [];
+  /*
+   * `account` SÜZÜLÜYOR (B-19). Panelden açık bırakılmış olabilir ama cari
+   * hesap müşteri arayüzünden kaldırıldı; borcunu göremeyeceği bir hesaba
+   * yazdırma seçeneği sunmak müşteriyi ölçemediği bir yükümlülüğe sokardı.
+   * Süzme LİSTE BOŞ MU denetiminden ÖNCE: yalnız `account` açıksa ekran
+   * "ödeme yöntemi bulunamadı" demeli, tek seçenekli bir form değil.
+   */
+  const paymentMethods = (cart.location?.payment_methods ?? []).filter(isOfferedPaymentMethod);
+  const dayCopy = dayUnavailableCopy(cart.dayUnavailableReason, serviceDate);
 
-  const blocked = !orderingOpen || cart.hasUnavailable || belowMinimum;
+  const blocked = !orderingOpen || !cart.dayOrderable || cart.hasUnavailable || belowMinimum;
 
   return (
     <div className="mx-auto max-w-content px-4 py-8 sm:py-12">
-      <h1 className="text-3xl font-bold text-neutral-900">Siparişi tamamla</h1>
-      <p className="mt-2 text-sm text-neutral-600">
+      <h1 className="font-display text-h1 font-semibold text-heading">Siparişi tamamla</h1>
+      <p className="mt-2 text-body text-muted-foreground">
         {customer.first_name} {customer.last_name} adına sipariş veriyorsunuz.
+      </p>
+
+      {/*
+        SERVİS GÜNÜ ÖDEME EKRANININ EN ÜSTÜNDE. Sipariş "hangi gün için"
+        sorusunun cevabı, onay anında görünür olmalı: ileri tarihli bir
+        sipariş verdiğini fark etmeyen müşteri yemeği bugün bekler.
+      */}
+      <p className="mt-4 inline-flex flex-wrap items-center gap-2 rounded-sm bg-accent px-3 py-2 text-body text-accent-foreground">
+        <CalendarDays aria-hidden="true" strokeWidth={1.75} className="size-4" />
+        <span className="font-semibold">{serviceDayTitle(serviceDate, today)}</span>
+        <span>· {formatLongDate(serviceDate)}</span>
       </p>
 
       {!orderingOpen && (
@@ -58,20 +86,32 @@ export default async function CheckoutPage() {
         </div>
       )}
 
+      {!cart.dayOrderable && orderingOpen && (
+        <div
+          role="alert"
+          className="mt-5 rounded-md bg-danger-surface px-4 py-3 text-danger-foreground"
+        >
+          <p className="text-label">{dayCopy.title}</p>
+          <p className="mt-1 text-body-sm">{dayCopy.message}</p>
+        </div>
+      )}
+
       {cart.hasUnavailable && (
-        <p role="alert" className="mt-5 rounded-card bg-danger/10 px-4 py-3 text-sm text-danger">
+        <p
+          role="alert"
+          className="mt-5 rounded-md bg-danger-surface px-4 py-3 text-body-sm text-danger-foreground"
+        >
           Sepetinizde tükenen ürün var. Siparişi tamamlayabilmek için sepetten çıkarın.
         </p>
       )}
 
       {belowMinimum && (
-        <p
-          role="alert"
-          className="mt-5 rounded-card bg-warning/10 px-4 py-3 text-sm text-neutral-900"
-        >
-          Minimum sipariş tutarı {formatPrice(minOrderTotal)}. Sepet tutarınız{' '}
-          {formatPrice(cart.subtotal)}.
-        </p>
+        <Alert variant="warning" role="alert" className="mt-5">
+          <AlertDescription>
+            Minimum sipariş tutarı <Money kurus={minOrderTotal} size="sm" />. Sepet tutarınız{' '}
+            <Money kurus={cart.subtotal} size="sm" />.
+          </AlertDescription>
+        </Alert>
       )}
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_20rem]">
@@ -94,63 +134,100 @@ export default async function CheckoutPage() {
             <CheckoutForm
               savedAddresses={savedAddresses}
               paymentMethods={paymentMethods}
-              minRequestedAt={istanbulNowLocalValue(30)}
+              serviceDate={serviceDate}
+              /*
+               * Saat seçicinin alt sınırı: bugüne sipariş veriliyorsa
+               * "şimdi + 30 dk", ileri bir güne veriliyorsa o günün başı.
+               * Sözleşme `requested_at` ile `service_date`in AYNI GÜN
+               * olmasını şart koşuyor.
+               */
+              minRequestedAt={isToday ? istanbulNowLocalValue(30) : `${serviceDate}T00:00`}
               orderCutoff={cart.location?.order_cutoff ?? null}
               /*
-               * Tahmin ÖZETTE değil formda gösteriliyor. Özet teslim türünü
-               * bilmiyor; oraya adrese teslim süresini yazsaydık kullanıcı
-               * gel-al'ı seçtiğinde iki farklı süre aynı ekranda çakışırdı.
+               * Tahmin ÖZETTE değil formda gösteriliyor ve YALNIZ bugüne
+               * verilen siparişte: "şimdiden 45 dakika" cuma menüsü için
+               * anlamsız.
                */
-              eta={readLocationEta(cart.location)}
+              eta={isToday ? readLocationEta(cart.location) : null}
             />
           )}
         </div>
 
-        <aside className="h-fit bld-card p-5 lg:sticky lg:top-24">
-          <h2 className="text-lg font-semibold text-neutral-900">Sipariş özeti</h2>
+        <aside className="h-fit rounded-md bg-card p-5 text-card-foreground shadow-card lg:sticky lg:top-24 dark:shadow-none dark:inset-ring dark:inset-ring-white/5">
+          <h2 className="font-display text-h3 font-semibold text-heading">Sipariş özeti</h2>
+          <p className="mt-1 text-body-sm text-muted-foreground">
+            {formatLongDate(serviceDate)} için
+          </p>
 
           <ul className="mt-4 space-y-3">
             {cart.lines.map((line) => (
-              <li key={line.key} className="flex justify-between gap-3 text-sm">
+              <li key={line.key} className="flex justify-between gap-3 text-body-sm">
                 <span className="min-w-0">
-                  <span className="block font-medium text-neutral-900">
-                    {line.quantity} × {line.item.name}
+                  <span className="block font-medium">
+                    {line.quantity} × {line.name}
                   </span>
+
+                  {/* Paketin içindekiler: fiyatsız, bir alt seviyede. */}
+                  {line.isPackage && line.components.length > 0 && (
+                    <ul className="mt-1 space-y-0.5 border-l-2 border-border pl-2">
+                      {line.components.map((component) => (
+                        <li
+                          key={component.menu_id}
+                          className="flex items-start gap-1.5 text-caption text-muted-foreground"
+                        >
+                          <UtensilsCrossed
+                            aria-hidden="true"
+                            strokeWidth={1.75}
+                            className="mt-0.5 size-3 shrink-0"
+                          />
+                          {component.name}
+                          {component.quantity > 1 && ` × ${component.quantity}`}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
                   {line.optionValues.length > 0 && (
-                    <span className="block text-neutral-600">
+                    <span className="block text-muted-foreground">
                       {line.optionValues.map((value) => value.name).join(', ')}
                     </span>
                   )}
-                  {line.note && <span className="block text-neutral-600">Not: {line.note}</span>}
+                  {line.note && (
+                    <span className="block text-muted-foreground">Not: {line.note}</span>
+                  )}
                 </span>
-                <span className="shrink-0 font-medium text-neutral-900">
-                  {formatPrice(line.lineTotal)}
-                </span>
+                <Money kurus={line.lineTotal} size="sm" className="shrink-0" />
               </li>
             ))}
           </ul>
 
-          <div className="mt-4 space-y-2 border-t border-neutral-200 pt-4 text-sm">
+          <div className="mt-4 space-y-2 border-t pt-4 text-body-sm">
             <div className="flex justify-between">
-              <span className="text-neutral-600">Ara toplam</span>
-              <span className="font-semibold text-neutral-900">{formatPrice(cart.subtotal)}</span>
+              <span className="text-muted-foreground">Ara toplam</span>
+              <Money kurus={cart.subtotal} size="sm" />
             </div>
             <div className="flex justify-between gap-3">
-              <span className="text-neutral-600">Teslimat ücreti</span>
-              <span className="text-right text-neutral-800">
-                {deliveryFee > 0 ? `${formatPrice(deliveryFee)} (adrese teslimde)` : 'Ücretsiz'}
+              <span className="text-muted-foreground">Teslimat ücreti</span>
+              <span className="text-right">
+                {deliveryFee > 0 ? (
+                  <>
+                    <Money kurus={deliveryFee} size="sm" /> (adrese teslimde)
+                  </>
+                ) : (
+                  'Ücretsiz'
+                )}
               </span>
             </div>
           </div>
 
-          <p className="mt-3 text-xs text-neutral-600">
+          <p className="mt-3 text-caption text-muted-foreground">
             Kesin tutar sipariş oluşturulurken sunucuda hesaplanır ve sipariş takip ekranında
             görünür.
           </p>
 
-          <Link href="/sepet" className="mt-5 bld-btn-secondary w-full">
-            Sepeti düzenle
-          </Link>
+          <Button asChild variant="secondary" className="mt-5 w-full">
+            <Link href="/sepet">Sepeti düzenle</Link>
+          </Button>
         </aside>
       </div>
     </div>

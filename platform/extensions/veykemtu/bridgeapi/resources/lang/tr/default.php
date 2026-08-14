@@ -192,6 +192,34 @@ return [
         'label_printer_code_page' => 'ESC/POS kod sayfası',
         'help_printer_code_page' => 'Türkçe harfler için sahada doğrulanan değer 29\'dur. Yanlış değer bütün Türkçe harfleri boşluk bastırır. 0 ile 255 arası.',
 
+        // ── Kilit politikası (K-21) ────────────────────────────────────
+        'section_locks' => 'Kasada nelere izin var',
+        'section_locks_comment' => 'BOŞ BIRAKILAN ALAN KİLİT DEĞİLDİR. Boş bıraktığınız her eylem kasada bugünkü gibi serbest kalır; kilit yalnızca "Kilitli" seçtiğinizde doğar. Kilitli bir düğme kasada GİZLENMEZ, pasifleşir ve aşağıdaki mesajı gösterir — kaybolan düğme personeli "bozuldu" sanısına iter.',
+
+        'label_allow_settings' => 'Ayarlar ekranı',
+        'help_allow_settings' => 'Kasadaki ayarlar ekranının tamamı. Kilitlendiğinde ses, yazıcı ve eşik ayarları yalnızca panelden yönetilir.',
+
+        'label_allow_server_change' => 'Sunucu adresi ve eşleme sıfırlama',
+        'help_allow_server_change' => 'Kilitlerin en önemlisi: yanlış sunucu adresi yazılan kasa hiçbir sipariş göremez ve düzeltmenin yolu yine aynı ekrandan geçer.',
+
+        'label_allow_window_controls' => 'Pencere düğmeleri (tam ekrandan çıkma)',
+        'help_allow_window_controls' => 'Kiosk kipinin kaçış kapısı. Kilitlendiğinde mutfak ekranı küçültülemez ve arkasındaki masaüstüne inilemez.',
+
+        'label_allow_order_edit' => 'Kasadan sipariş düzenleme',
+        'help_allow_order_edit' => 'Revizyon para hareketi üretir (iade / ek tahsilat). Kilitlendiğinde düzenleme yalnızca panelden ya da Kontrol Merkezi\'nden yapılır.',
+
+        'label_allow_manual_reprint' => 'Elle yeniden bas',
+        'help_allow_manual_reprint' => 'Karttaki ve ayarlardaki "yeniden bas" düğmeleri. Otomatik basımı etkilemez.',
+
+        'label_allow_sales_control' => 'Satış şalteri ve "bugün tükendi"',
+        'help_allow_sales_control' => 'Ciroyu kapatan tuş. Kilitlendiğinde mutfak siparişi durduramaz, ürünü tükendi işaretleyemez.',
+
+        'label_lock_message' => 'Kilitli eylemde gösterilecek mesaj',
+        'help_lock_message' => 'Kilitli bir düğmeye basınca kasada çıkacak tek satırlık metin. Kime başvurulacağını yazın, örneğin "Kapalı — yönetici ile görüşün (0532 ...)". En fazla 160 karakter.',
+
+        'text_allowed' => 'İzinli',
+        'text_locked' => 'Kilitli',
+
         'text_device_default' => 'Kasa varsayılanı',
         'text_untouched' => 'Dokunma — kasa kendi varsayılanını kullansın',
         'text_on' => 'Açık',
@@ -438,5 +466,11 @@ return [
         'text_devices_total' => 'kayıtlı',
         'text_no_location' => 'Etkin vitrin yok — ayarlar okunamıyor.',
         'text_open_settings' => 'BLD Ayarları',
+        // Gece üretimi 22:00'de yarın için koşuyor; menüsü olmayan gün hem
+        // aboneliği hem vitrini durdurur. Sayı DEĞİL gün adları yazılıyor:
+        // "3 günde menü yok" yöneticiye hangi günü açacağını söylemiyor.
+        'text_missing_menus' => 'Önümüzdeki 7 günün :count gününde yayınlanmış menü yok:',
+        'text_menus_ready' => 'Önümüzdeki 7 günün menüsü yayınlanmış.',
+        'text_open_daily_menus' => 'Günün menüsü',
     ],
 ];

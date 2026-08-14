@@ -15,7 +15,18 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Address {
 
- String get line1; String get district; String get city; String? get note;/// Haritadan seçilen teslimat noktası.
+ String get line1; String get district; String get city;/// Mahalle.
+///
+/// Beş yapılandırılmış alanın ([neighbourhood] … [doorNo]) hepsi isteğe
+/// bağlıdır (B-21): adresi elle tek satır yazan müşteri de sipariş
+/// verebilmeli. [line1] bu yüzden zorunlu kalıyor — fiş, kurye ekranı ve
+/// eski istemci sürümleri yalnız onu okuyor.
+ String? get neighbourhood;/// Cadde / sokak / bulvar.
+ String? get street;/// Bina / dış kapı numarası. **Metin, sayı değil:** `12/A`, `3-5` gibi
+/// değerler sahada yaygın.
+ String? get buildingNo;/// Kat. `Zemin`, `Bodrum` gibi değerler de geçerli olduğu için metin.
+ String? get floor;/// Daire / iç kapı numarası.
+ String? get doorNo; String? get note;/// Haritadan seçilen teslimat noktası.
 ///
 /// İsteğe bağlı: konum izni vermeyen ya da adresi elle yazan müşteri de
 /// sipariş verebilir. [longitude] ile birlikte anlamlıdır — sunucu yarım
@@ -33,16 +44,16 @@ $AddressCopyWith<Address> get copyWith => _$AddressCopyWithImpl<Address>(this as
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Address&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.note, note) || other.note == note)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Address&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.neighbourhood, neighbourhood) || other.neighbourhood == neighbourhood)&&(identical(other.street, street) || other.street == street)&&(identical(other.buildingNo, buildingNo) || other.buildingNo == buildingNo)&&(identical(other.floor, floor) || other.floor == floor)&&(identical(other.doorNo, doorNo) || other.doorNo == doorNo)&&(identical(other.note, note) || other.note == note)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,line1,district,city,note,latitude,longitude);
+int get hashCode => Object.hash(runtimeType,line1,district,city,neighbourhood,street,buildingNo,floor,doorNo,note,latitude,longitude);
 
 @override
 String toString() {
-  return 'Address(line1: $line1, district: $district, city: $city, note: $note, latitude: $latitude, longitude: $longitude)';
+  return 'Address(line1: $line1, district: $district, city: $city, neighbourhood: $neighbourhood, street: $street, buildingNo: $buildingNo, floor: $floor, doorNo: $doorNo, note: $note, latitude: $latitude, longitude: $longitude)';
 }
 
 
@@ -53,7 +64,7 @@ abstract mixin class $AddressCopyWith<$Res>  {
   factory $AddressCopyWith(Address value, $Res Function(Address) _then) = _$AddressCopyWithImpl;
 @useResult
 $Res call({
- String line1, String district, String city, String? note, double? latitude, double? longitude
+ String line1, String district, String city, String? neighbourhood, String? street, String? buildingNo, String? floor, String? doorNo, String? note, double? latitude, double? longitude
 });
 
 
@@ -70,12 +81,17 @@ class _$AddressCopyWithImpl<$Res>
 
 /// Create a copy of Address
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? line1 = null,Object? district = null,Object? city = null,Object? note = freezed,Object? latitude = freezed,Object? longitude = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? line1 = null,Object? district = null,Object? city = null,Object? neighbourhood = freezed,Object? street = freezed,Object? buildingNo = freezed,Object? floor = freezed,Object? doorNo = freezed,Object? note = freezed,Object? latitude = freezed,Object? longitude = freezed,}) {
   return _then(_self.copyWith(
 line1: null == line1 ? _self.line1 : line1 // ignore: cast_nullable_to_non_nullable
 as String,district: null == district ? _self.district : district // ignore: cast_nullable_to_non_nullable
 as String,city: null == city ? _self.city : city // ignore: cast_nullable_to_non_nullable
-as String,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
+as String,neighbourhood: freezed == neighbourhood ? _self.neighbourhood : neighbourhood // ignore: cast_nullable_to_non_nullable
+as String?,street: freezed == street ? _self.street : street // ignore: cast_nullable_to_non_nullable
+as String?,buildingNo: freezed == buildingNo ? _self.buildingNo : buildingNo // ignore: cast_nullable_to_non_nullable
+as String?,floor: freezed == floor ? _self.floor : floor // ignore: cast_nullable_to_non_nullable
+as String?,doorNo: freezed == doorNo ? _self.doorNo : doorNo // ignore: cast_nullable_to_non_nullable
+as String?,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
 as String?,latitude: freezed == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
 as double?,longitude: freezed == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
 as double?,
@@ -163,10 +179,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String line1,  String district,  String city,  String? note,  double? latitude,  double? longitude)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String line1,  String district,  String city,  String? neighbourhood,  String? street,  String? buildingNo,  String? floor,  String? doorNo,  String? note,  double? latitude,  double? longitude)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Address() when $default != null:
-return $default(_that.line1,_that.district,_that.city,_that.note,_that.latitude,_that.longitude);case _:
+return $default(_that.line1,_that.district,_that.city,_that.neighbourhood,_that.street,_that.buildingNo,_that.floor,_that.doorNo,_that.note,_that.latitude,_that.longitude);case _:
   return orElse();
 
 }
@@ -184,10 +200,10 @@ return $default(_that.line1,_that.district,_that.city,_that.note,_that.latitude,
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String line1,  String district,  String city,  String? note,  double? latitude,  double? longitude)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String line1,  String district,  String city,  String? neighbourhood,  String? street,  String? buildingNo,  String? floor,  String? doorNo,  String? note,  double? latitude,  double? longitude)  $default,) {final _that = this;
 switch (_that) {
 case _Address():
-return $default(_that.line1,_that.district,_that.city,_that.note,_that.latitude,_that.longitude);case _:
+return $default(_that.line1,_that.district,_that.city,_that.neighbourhood,_that.street,_that.buildingNo,_that.floor,_that.doorNo,_that.note,_that.latitude,_that.longitude);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -204,10 +220,10 @@ return $default(_that.line1,_that.district,_that.city,_that.note,_that.latitude,
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String line1,  String district,  String city,  String? note,  double? latitude,  double? longitude)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String line1,  String district,  String city,  String? neighbourhood,  String? street,  String? buildingNo,  String? floor,  String? doorNo,  String? note,  double? latitude,  double? longitude)?  $default,) {final _that = this;
 switch (_that) {
 case _Address() when $default != null:
-return $default(_that.line1,_that.district,_that.city,_that.note,_that.latitude,_that.longitude);case _:
+return $default(_that.line1,_that.district,_that.city,_that.neighbourhood,_that.street,_that.buildingNo,_that.floor,_that.doorNo,_that.note,_that.latitude,_that.longitude);case _:
   return null;
 
 }
@@ -219,12 +235,28 @@ return $default(_that.line1,_that.district,_that.city,_that.note,_that.latitude,
 @JsonSerializable()
 
 class _Address extends Address {
-  const _Address({required this.line1, required this.district, required this.city, this.note, this.latitude, this.longitude}): super._();
+  const _Address({required this.line1, required this.district, required this.city, this.neighbourhood, this.street, this.buildingNo, this.floor, this.doorNo, this.note, this.latitude, this.longitude}): super._();
   factory _Address.fromJson(Map<String, dynamic> json) => _$AddressFromJson(json);
 
 @override final  String line1;
 @override final  String district;
 @override final  String city;
+/// Mahalle.
+///
+/// Beş yapılandırılmış alanın ([neighbourhood] … [doorNo]) hepsi isteğe
+/// bağlıdır (B-21): adresi elle tek satır yazan müşteri de sipariş
+/// verebilmeli. [line1] bu yüzden zorunlu kalıyor — fiş, kurye ekranı ve
+/// eski istemci sürümleri yalnız onu okuyor.
+@override final  String? neighbourhood;
+/// Cadde / sokak / bulvar.
+@override final  String? street;
+/// Bina / dış kapı numarası. **Metin, sayı değil:** `12/A`, `3-5` gibi
+/// değerler sahada yaygın.
+@override final  String? buildingNo;
+/// Kat. `Zemin`, `Bodrum` gibi değerler de geçerli olduğu için metin.
+@override final  String? floor;
+/// Daire / iç kapı numarası.
+@override final  String? doorNo;
 @override final  String? note;
 /// Haritadan seçilen teslimat noktası.
 ///
@@ -247,16 +279,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Address&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.note, note) || other.note == note)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Address&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.neighbourhood, neighbourhood) || other.neighbourhood == neighbourhood)&&(identical(other.street, street) || other.street == street)&&(identical(other.buildingNo, buildingNo) || other.buildingNo == buildingNo)&&(identical(other.floor, floor) || other.floor == floor)&&(identical(other.doorNo, doorNo) || other.doorNo == doorNo)&&(identical(other.note, note) || other.note == note)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,line1,district,city,note,latitude,longitude);
+int get hashCode => Object.hash(runtimeType,line1,district,city,neighbourhood,street,buildingNo,floor,doorNo,note,latitude,longitude);
 
 @override
 String toString() {
-  return 'Address(line1: $line1, district: $district, city: $city, note: $note, latitude: $latitude, longitude: $longitude)';
+  return 'Address(line1: $line1, district: $district, city: $city, neighbourhood: $neighbourhood, street: $street, buildingNo: $buildingNo, floor: $floor, doorNo: $doorNo, note: $note, latitude: $latitude, longitude: $longitude)';
 }
 
 
@@ -267,7 +299,7 @@ abstract mixin class _$AddressCopyWith<$Res> implements $AddressCopyWith<$Res> {
   factory _$AddressCopyWith(_Address value, $Res Function(_Address) _then) = __$AddressCopyWithImpl;
 @override @useResult
 $Res call({
- String line1, String district, String city, String? note, double? latitude, double? longitude
+ String line1, String district, String city, String? neighbourhood, String? street, String? buildingNo, String? floor, String? doorNo, String? note, double? latitude, double? longitude
 });
 
 
@@ -284,12 +316,17 @@ class __$AddressCopyWithImpl<$Res>
 
 /// Create a copy of Address
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? line1 = null,Object? district = null,Object? city = null,Object? note = freezed,Object? latitude = freezed,Object? longitude = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? line1 = null,Object? district = null,Object? city = null,Object? neighbourhood = freezed,Object? street = freezed,Object? buildingNo = freezed,Object? floor = freezed,Object? doorNo = freezed,Object? note = freezed,Object? latitude = freezed,Object? longitude = freezed,}) {
   return _then(_Address(
 line1: null == line1 ? _self.line1 : line1 // ignore: cast_nullable_to_non_nullable
 as String,district: null == district ? _self.district : district // ignore: cast_nullable_to_non_nullable
 as String,city: null == city ? _self.city : city // ignore: cast_nullable_to_non_nullable
-as String,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
+as String,neighbourhood: freezed == neighbourhood ? _self.neighbourhood : neighbourhood // ignore: cast_nullable_to_non_nullable
+as String?,street: freezed == street ? _self.street : street // ignore: cast_nullable_to_non_nullable
+as String?,buildingNo: freezed == buildingNo ? _self.buildingNo : buildingNo // ignore: cast_nullable_to_non_nullable
+as String?,floor: freezed == floor ? _self.floor : floor // ignore: cast_nullable_to_non_nullable
+as String?,doorNo: freezed == doorNo ? _self.doorNo : doorNo // ignore: cast_nullable_to_non_nullable
+as String?,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
 as String?,latitude: freezed == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
 as double?,longitude: freezed == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
 as double?,
@@ -304,7 +341,14 @@ as double?,
 mixin _$SavedAddress {
 
  int get id; String get line1; String get district; String get city; bool get isDefault;/// Müşterinin verdiği ad — "Ev", "Ofis", "Şantiye".
- String? get label;/// Kuryeye not. Fişte görünür.
+ String? get label;/// Mahalle. Eski kayıtlarda `null`'dır ve öyle kalır: geçmiş adresleri
+/// geriye dönük ayrıştırmak, ayrıştırmanın yanlış olduğu her satırda
+/// kuryeyi yanlış kapıya götürürdü (B-21).
+ String? get neighbourhood;/// Cadde / sokak / bulvar.
+ String? get street;/// Bina / dış kapı numarası — metin (`12/A`).
+ String? get buildingNo;/// Kat (`Zemin` de geçerli bir değer).
+ String? get floor;/// Daire / iç kapı numarası.
+ String? get doorNo;/// Kuryeye not. Fişte görünür.
  String? get note;/// Haritadan seçilen nokta — [longitude] ile birlikte anlamlıdır.
  double? get latitude; double? get longitude;
 /// Create a copy of SavedAddress
@@ -319,16 +363,16 @@ $SavedAddressCopyWith<SavedAddress> get copyWith => _$SavedAddressCopyWithImpl<S
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SavedAddress&&(identical(other.id, id) || other.id == id)&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault)&&(identical(other.label, label) || other.label == label)&&(identical(other.note, note) || other.note == note)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SavedAddress&&(identical(other.id, id) || other.id == id)&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault)&&(identical(other.label, label) || other.label == label)&&(identical(other.neighbourhood, neighbourhood) || other.neighbourhood == neighbourhood)&&(identical(other.street, street) || other.street == street)&&(identical(other.buildingNo, buildingNo) || other.buildingNo == buildingNo)&&(identical(other.floor, floor) || other.floor == floor)&&(identical(other.doorNo, doorNo) || other.doorNo == doorNo)&&(identical(other.note, note) || other.note == note)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,line1,district,city,isDefault,label,note,latitude,longitude);
+int get hashCode => Object.hash(runtimeType,id,line1,district,city,isDefault,label,neighbourhood,street,buildingNo,floor,doorNo,note,latitude,longitude);
 
 @override
 String toString() {
-  return 'SavedAddress(id: $id, line1: $line1, district: $district, city: $city, isDefault: $isDefault, label: $label, note: $note, latitude: $latitude, longitude: $longitude)';
+  return 'SavedAddress(id: $id, line1: $line1, district: $district, city: $city, isDefault: $isDefault, label: $label, neighbourhood: $neighbourhood, street: $street, buildingNo: $buildingNo, floor: $floor, doorNo: $doorNo, note: $note, latitude: $latitude, longitude: $longitude)';
 }
 
 
@@ -339,7 +383,7 @@ abstract mixin class $SavedAddressCopyWith<$Res>  {
   factory $SavedAddressCopyWith(SavedAddress value, $Res Function(SavedAddress) _then) = _$SavedAddressCopyWithImpl;
 @useResult
 $Res call({
- int id, String line1, String district, String city, bool isDefault, String? label, String? note, double? latitude, double? longitude
+ int id, String line1, String district, String city, bool isDefault, String? label, String? neighbourhood, String? street, String? buildingNo, String? floor, String? doorNo, String? note, double? latitude, double? longitude
 });
 
 
@@ -356,7 +400,7 @@ class _$SavedAddressCopyWithImpl<$Res>
 
 /// Create a copy of SavedAddress
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? line1 = null,Object? district = null,Object? city = null,Object? isDefault = null,Object? label = freezed,Object? note = freezed,Object? latitude = freezed,Object? longitude = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? line1 = null,Object? district = null,Object? city = null,Object? isDefault = null,Object? label = freezed,Object? neighbourhood = freezed,Object? street = freezed,Object? buildingNo = freezed,Object? floor = freezed,Object? doorNo = freezed,Object? note = freezed,Object? latitude = freezed,Object? longitude = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,line1: null == line1 ? _self.line1 : line1 // ignore: cast_nullable_to_non_nullable
@@ -364,6 +408,11 @@ as String,district: null == district ? _self.district : district // ignore: cast
 as String,city: null == city ? _self.city : city // ignore: cast_nullable_to_non_nullable
 as String,isDefault: null == isDefault ? _self.isDefault : isDefault // ignore: cast_nullable_to_non_nullable
 as bool,label: freezed == label ? _self.label : label // ignore: cast_nullable_to_non_nullable
+as String?,neighbourhood: freezed == neighbourhood ? _self.neighbourhood : neighbourhood // ignore: cast_nullable_to_non_nullable
+as String?,street: freezed == street ? _self.street : street // ignore: cast_nullable_to_non_nullable
+as String?,buildingNo: freezed == buildingNo ? _self.buildingNo : buildingNo // ignore: cast_nullable_to_non_nullable
+as String?,floor: freezed == floor ? _self.floor : floor // ignore: cast_nullable_to_non_nullable
+as String?,doorNo: freezed == doorNo ? _self.doorNo : doorNo // ignore: cast_nullable_to_non_nullable
 as String?,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
 as String?,latitude: freezed == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
 as double?,longitude: freezed == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
@@ -452,10 +501,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String line1,  String district,  String city,  bool isDefault,  String? label,  String? note,  double? latitude,  double? longitude)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String line1,  String district,  String city,  bool isDefault,  String? label,  String? neighbourhood,  String? street,  String? buildingNo,  String? floor,  String? doorNo,  String? note,  double? latitude,  double? longitude)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SavedAddress() when $default != null:
-return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_that.label,_that.note,_that.latitude,_that.longitude);case _:
+return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_that.label,_that.neighbourhood,_that.street,_that.buildingNo,_that.floor,_that.doorNo,_that.note,_that.latitude,_that.longitude);case _:
   return orElse();
 
 }
@@ -473,10 +522,10 @@ return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String line1,  String district,  String city,  bool isDefault,  String? label,  String? note,  double? latitude,  double? longitude)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String line1,  String district,  String city,  bool isDefault,  String? label,  String? neighbourhood,  String? street,  String? buildingNo,  String? floor,  String? doorNo,  String? note,  double? latitude,  double? longitude)  $default,) {final _that = this;
 switch (_that) {
 case _SavedAddress():
-return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_that.label,_that.note,_that.latitude,_that.longitude);case _:
+return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_that.label,_that.neighbourhood,_that.street,_that.buildingNo,_that.floor,_that.doorNo,_that.note,_that.latitude,_that.longitude);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -493,10 +542,10 @@ return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String line1,  String district,  String city,  bool isDefault,  String? label,  String? note,  double? latitude,  double? longitude)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String line1,  String district,  String city,  bool isDefault,  String? label,  String? neighbourhood,  String? street,  String? buildingNo,  String? floor,  String? doorNo,  String? note,  double? latitude,  double? longitude)?  $default,) {final _that = this;
 switch (_that) {
 case _SavedAddress() when $default != null:
-return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_that.label,_that.note,_that.latitude,_that.longitude);case _:
+return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_that.label,_that.neighbourhood,_that.street,_that.buildingNo,_that.floor,_that.doorNo,_that.note,_that.latitude,_that.longitude);case _:
   return null;
 
 }
@@ -508,7 +557,7 @@ return $default(_that.id,_that.line1,_that.district,_that.city,_that.isDefault,_
 @JsonSerializable()
 
 class _SavedAddress extends SavedAddress {
-  const _SavedAddress({required this.id, required this.line1, required this.district, required this.city, required this.isDefault, this.label, this.note, this.latitude, this.longitude}): super._();
+  const _SavedAddress({required this.id, required this.line1, required this.district, required this.city, required this.isDefault, this.label, this.neighbourhood, this.street, this.buildingNo, this.floor, this.doorNo, this.note, this.latitude, this.longitude}): super._();
   factory _SavedAddress.fromJson(Map<String, dynamic> json) => _$SavedAddressFromJson(json);
 
 @override final  int id;
@@ -518,6 +567,18 @@ class _SavedAddress extends SavedAddress {
 @override final  bool isDefault;
 /// Müşterinin verdiği ad — "Ev", "Ofis", "Şantiye".
 @override final  String? label;
+/// Mahalle. Eski kayıtlarda `null`'dır ve öyle kalır: geçmiş adresleri
+/// geriye dönük ayrıştırmak, ayrıştırmanın yanlış olduğu her satırda
+/// kuryeyi yanlış kapıya götürürdü (B-21).
+@override final  String? neighbourhood;
+/// Cadde / sokak / bulvar.
+@override final  String? street;
+/// Bina / dış kapı numarası — metin (`12/A`).
+@override final  String? buildingNo;
+/// Kat (`Zemin` de geçerli bir değer).
+@override final  String? floor;
+/// Daire / iç kapı numarası.
+@override final  String? doorNo;
 /// Kuryeye not. Fişte görünür.
 @override final  String? note;
 /// Haritadan seçilen nokta — [longitude] ile birlikte anlamlıdır.
@@ -537,16 +598,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SavedAddress&&(identical(other.id, id) || other.id == id)&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault)&&(identical(other.label, label) || other.label == label)&&(identical(other.note, note) || other.note == note)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SavedAddress&&(identical(other.id, id) || other.id == id)&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault)&&(identical(other.label, label) || other.label == label)&&(identical(other.neighbourhood, neighbourhood) || other.neighbourhood == neighbourhood)&&(identical(other.street, street) || other.street == street)&&(identical(other.buildingNo, buildingNo) || other.buildingNo == buildingNo)&&(identical(other.floor, floor) || other.floor == floor)&&(identical(other.doorNo, doorNo) || other.doorNo == doorNo)&&(identical(other.note, note) || other.note == note)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,line1,district,city,isDefault,label,note,latitude,longitude);
+int get hashCode => Object.hash(runtimeType,id,line1,district,city,isDefault,label,neighbourhood,street,buildingNo,floor,doorNo,note,latitude,longitude);
 
 @override
 String toString() {
-  return 'SavedAddress(id: $id, line1: $line1, district: $district, city: $city, isDefault: $isDefault, label: $label, note: $note, latitude: $latitude, longitude: $longitude)';
+  return 'SavedAddress(id: $id, line1: $line1, district: $district, city: $city, isDefault: $isDefault, label: $label, neighbourhood: $neighbourhood, street: $street, buildingNo: $buildingNo, floor: $floor, doorNo: $doorNo, note: $note, latitude: $latitude, longitude: $longitude)';
 }
 
 
@@ -557,7 +618,7 @@ abstract mixin class _$SavedAddressCopyWith<$Res> implements $SavedAddressCopyWi
   factory _$SavedAddressCopyWith(_SavedAddress value, $Res Function(_SavedAddress) _then) = __$SavedAddressCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String line1, String district, String city, bool isDefault, String? label, String? note, double? latitude, double? longitude
+ int id, String line1, String district, String city, bool isDefault, String? label, String? neighbourhood, String? street, String? buildingNo, String? floor, String? doorNo, String? note, double? latitude, double? longitude
 });
 
 
@@ -574,7 +635,7 @@ class __$SavedAddressCopyWithImpl<$Res>
 
 /// Create a copy of SavedAddress
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? line1 = null,Object? district = null,Object? city = null,Object? isDefault = null,Object? label = freezed,Object? note = freezed,Object? latitude = freezed,Object? longitude = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? line1 = null,Object? district = null,Object? city = null,Object? isDefault = null,Object? label = freezed,Object? neighbourhood = freezed,Object? street = freezed,Object? buildingNo = freezed,Object? floor = freezed,Object? doorNo = freezed,Object? note = freezed,Object? latitude = freezed,Object? longitude = freezed,}) {
   return _then(_SavedAddress(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,line1: null == line1 ? _self.line1 : line1 // ignore: cast_nullable_to_non_nullable
@@ -582,6 +643,11 @@ as String,district: null == district ? _self.district : district // ignore: cast
 as String,city: null == city ? _self.city : city // ignore: cast_nullable_to_non_nullable
 as String,isDefault: null == isDefault ? _self.isDefault : isDefault // ignore: cast_nullable_to_non_nullable
 as bool,label: freezed == label ? _self.label : label // ignore: cast_nullable_to_non_nullable
+as String?,neighbourhood: freezed == neighbourhood ? _self.neighbourhood : neighbourhood // ignore: cast_nullable_to_non_nullable
+as String?,street: freezed == street ? _self.street : street // ignore: cast_nullable_to_non_nullable
+as String?,buildingNo: freezed == buildingNo ? _self.buildingNo : buildingNo // ignore: cast_nullable_to_non_nullable
+as String?,floor: freezed == floor ? _self.floor : floor // ignore: cast_nullable_to_non_nullable
+as String?,doorNo: freezed == doorNo ? _self.doorNo : doorNo // ignore: cast_nullable_to_non_nullable
 as String?,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
 as String?,latitude: freezed == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
 as double?,longitude: freezed == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
@@ -596,7 +662,25 @@ as double?,
 /// @nodoc
 mixin _$SavedAddressInput {
 
- String get line1; String get district; String get city; String? get label; String? get note; bool? get isDefault;/// Haritadan seçilen nokta.
+ String get line1; String get district; String get city; String? get label; String? get note; bool? get isDefault;/// ## Yapılandırılmış adres alanları (B-21)
+///
+/// Beşi de aşağıdaki [latitude]/[longitude] ile **aynı güncelleme
+/// kuralına** tabidir (`docs/openapi.yaml` §SavedAddressInput `door_no`):
+///
+///   - alan yok   → mevcut değer korunur
+///   - alan null  → değer **silinir**
+///
+/// Bu yüzden aynı `@JsonKey(includeIfNull: true)` istisnası burada da
+/// geçerli: onsuz `null` hiç gönderilemez ve müşteri yanlış girdiği kat
+/// numarasını **boşaltamazdı** — düzeltmenin tek yolu adresi silip
+/// yeniden yazmak olurdu.
+///
+/// KARŞILIĞI, çağıran bilmek zorunda: bu nesne her zaman kaydın
+/// TAMAMIYLA kurulur. Formu yarım doldurup `PATCH` göndermek, boş
+/// bıraktığın alanları sunucuda siler. Koordinat çiftinin aksine bunlar
+/// birbirinden bağımsızdır — katın bilinip daire numarasının bilinmemesi
+/// olağan bir durumdur.
+@JsonKey(includeIfNull: true) String? get neighbourhood;@JsonKey(includeIfNull: true) String? get street;@JsonKey(includeIfNull: true) String? get buildingNo;@JsonKey(includeIfNull: true) String? get floor;@JsonKey(includeIfNull: true) String? get doorNo;/// Haritadan seçilen nokta.
 ///
 /// ## `@JsonKey(includeIfNull: true)` NEDEN GEREKLİ
 ///
@@ -626,16 +710,16 @@ $SavedAddressInputCopyWith<SavedAddressInput> get copyWith => _$SavedAddressInpu
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SavedAddressInput&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.label, label) || other.label == label)&&(identical(other.note, note) || other.note == note)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SavedAddressInput&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.label, label) || other.label == label)&&(identical(other.note, note) || other.note == note)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault)&&(identical(other.neighbourhood, neighbourhood) || other.neighbourhood == neighbourhood)&&(identical(other.street, street) || other.street == street)&&(identical(other.buildingNo, buildingNo) || other.buildingNo == buildingNo)&&(identical(other.floor, floor) || other.floor == floor)&&(identical(other.doorNo, doorNo) || other.doorNo == doorNo)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,line1,district,city,label,note,isDefault,latitude,longitude);
+int get hashCode => Object.hash(runtimeType,line1,district,city,label,note,isDefault,neighbourhood,street,buildingNo,floor,doorNo,latitude,longitude);
 
 @override
 String toString() {
-  return 'SavedAddressInput(line1: $line1, district: $district, city: $city, label: $label, note: $note, isDefault: $isDefault, latitude: $latitude, longitude: $longitude)';
+  return 'SavedAddressInput(line1: $line1, district: $district, city: $city, label: $label, note: $note, isDefault: $isDefault, neighbourhood: $neighbourhood, street: $street, buildingNo: $buildingNo, floor: $floor, doorNo: $doorNo, latitude: $latitude, longitude: $longitude)';
 }
 
 
@@ -646,7 +730,7 @@ abstract mixin class $SavedAddressInputCopyWith<$Res>  {
   factory $SavedAddressInputCopyWith(SavedAddressInput value, $Res Function(SavedAddressInput) _then) = _$SavedAddressInputCopyWithImpl;
 @useResult
 $Res call({
- String line1, String district, String city, String? label, String? note, bool? isDefault,@JsonKey(includeIfNull: true) double? latitude,@JsonKey(includeIfNull: true) double? longitude
+ String line1, String district, String city, String? label, String? note, bool? isDefault,@JsonKey(includeIfNull: true) String? neighbourhood,@JsonKey(includeIfNull: true) String? street,@JsonKey(includeIfNull: true) String? buildingNo,@JsonKey(includeIfNull: true) String? floor,@JsonKey(includeIfNull: true) String? doorNo,@JsonKey(includeIfNull: true) double? latitude,@JsonKey(includeIfNull: true) double? longitude
 });
 
 
@@ -663,7 +747,7 @@ class _$SavedAddressInputCopyWithImpl<$Res>
 
 /// Create a copy of SavedAddressInput
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? line1 = null,Object? district = null,Object? city = null,Object? label = freezed,Object? note = freezed,Object? isDefault = freezed,Object? latitude = freezed,Object? longitude = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? line1 = null,Object? district = null,Object? city = null,Object? label = freezed,Object? note = freezed,Object? isDefault = freezed,Object? neighbourhood = freezed,Object? street = freezed,Object? buildingNo = freezed,Object? floor = freezed,Object? doorNo = freezed,Object? latitude = freezed,Object? longitude = freezed,}) {
   return _then(_self.copyWith(
 line1: null == line1 ? _self.line1 : line1 // ignore: cast_nullable_to_non_nullable
 as String,district: null == district ? _self.district : district // ignore: cast_nullable_to_non_nullable
@@ -671,7 +755,12 @@ as String,city: null == city ? _self.city : city // ignore: cast_nullable_to_non
 as String,label: freezed == label ? _self.label : label // ignore: cast_nullable_to_non_nullable
 as String?,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
 as String?,isDefault: freezed == isDefault ? _self.isDefault : isDefault // ignore: cast_nullable_to_non_nullable
-as bool?,latitude: freezed == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
+as bool?,neighbourhood: freezed == neighbourhood ? _self.neighbourhood : neighbourhood // ignore: cast_nullable_to_non_nullable
+as String?,street: freezed == street ? _self.street : street // ignore: cast_nullable_to_non_nullable
+as String?,buildingNo: freezed == buildingNo ? _self.buildingNo : buildingNo // ignore: cast_nullable_to_non_nullable
+as String?,floor: freezed == floor ? _self.floor : floor // ignore: cast_nullable_to_non_nullable
+as String?,doorNo: freezed == doorNo ? _self.doorNo : doorNo // ignore: cast_nullable_to_non_nullable
+as String?,latitude: freezed == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
 as double?,longitude: freezed == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
 as double?,
   ));
@@ -758,10 +847,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String line1,  String district,  String city,  String? label,  String? note,  bool? isDefault, @JsonKey(includeIfNull: true)  double? latitude, @JsonKey(includeIfNull: true)  double? longitude)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String line1,  String district,  String city,  String? label,  String? note,  bool? isDefault, @JsonKey(includeIfNull: true)  String? neighbourhood, @JsonKey(includeIfNull: true)  String? street, @JsonKey(includeIfNull: true)  String? buildingNo, @JsonKey(includeIfNull: true)  String? floor, @JsonKey(includeIfNull: true)  String? doorNo, @JsonKey(includeIfNull: true)  double? latitude, @JsonKey(includeIfNull: true)  double? longitude)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SavedAddressInput() when $default != null:
-return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_that.isDefault,_that.latitude,_that.longitude);case _:
+return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_that.isDefault,_that.neighbourhood,_that.street,_that.buildingNo,_that.floor,_that.doorNo,_that.latitude,_that.longitude);case _:
   return orElse();
 
 }
@@ -779,10 +868,10 @@ return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String line1,  String district,  String city,  String? label,  String? note,  bool? isDefault, @JsonKey(includeIfNull: true)  double? latitude, @JsonKey(includeIfNull: true)  double? longitude)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String line1,  String district,  String city,  String? label,  String? note,  bool? isDefault, @JsonKey(includeIfNull: true)  String? neighbourhood, @JsonKey(includeIfNull: true)  String? street, @JsonKey(includeIfNull: true)  String? buildingNo, @JsonKey(includeIfNull: true)  String? floor, @JsonKey(includeIfNull: true)  String? doorNo, @JsonKey(includeIfNull: true)  double? latitude, @JsonKey(includeIfNull: true)  double? longitude)  $default,) {final _that = this;
 switch (_that) {
 case _SavedAddressInput():
-return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_that.isDefault,_that.latitude,_that.longitude);case _:
+return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_that.isDefault,_that.neighbourhood,_that.street,_that.buildingNo,_that.floor,_that.doorNo,_that.latitude,_that.longitude);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -799,10 +888,10 @@ return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String line1,  String district,  String city,  String? label,  String? note,  bool? isDefault, @JsonKey(includeIfNull: true)  double? latitude, @JsonKey(includeIfNull: true)  double? longitude)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String line1,  String district,  String city,  String? label,  String? note,  bool? isDefault, @JsonKey(includeIfNull: true)  String? neighbourhood, @JsonKey(includeIfNull: true)  String? street, @JsonKey(includeIfNull: true)  String? buildingNo, @JsonKey(includeIfNull: true)  String? floor, @JsonKey(includeIfNull: true)  String? doorNo, @JsonKey(includeIfNull: true)  double? latitude, @JsonKey(includeIfNull: true)  double? longitude)?  $default,) {final _that = this;
 switch (_that) {
 case _SavedAddressInput() when $default != null:
-return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_that.isDefault,_that.latitude,_that.longitude);case _:
+return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_that.isDefault,_that.neighbourhood,_that.street,_that.buildingNo,_that.floor,_that.doorNo,_that.latitude,_that.longitude);case _:
   return null;
 
 }
@@ -814,7 +903,7 @@ return $default(_that.line1,_that.district,_that.city,_that.label,_that.note,_th
 @JsonSerializable()
 
 class _SavedAddressInput implements SavedAddressInput {
-  const _SavedAddressInput({required this.line1, required this.district, required this.city, this.label, this.note, this.isDefault, @JsonKey(includeIfNull: true) this.latitude, @JsonKey(includeIfNull: true) this.longitude});
+  const _SavedAddressInput({required this.line1, required this.district, required this.city, this.label, this.note, this.isDefault, @JsonKey(includeIfNull: true) this.neighbourhood, @JsonKey(includeIfNull: true) this.street, @JsonKey(includeIfNull: true) this.buildingNo, @JsonKey(includeIfNull: true) this.floor, @JsonKey(includeIfNull: true) this.doorNo, @JsonKey(includeIfNull: true) this.latitude, @JsonKey(includeIfNull: true) this.longitude});
   factory _SavedAddressInput.fromJson(Map<String, dynamic> json) => _$SavedAddressInputFromJson(json);
 
 @override final  String line1;
@@ -823,6 +912,29 @@ class _SavedAddressInput implements SavedAddressInput {
 @override final  String? label;
 @override final  String? note;
 @override final  bool? isDefault;
+/// ## Yapılandırılmış adres alanları (B-21)
+///
+/// Beşi de aşağıdaki [latitude]/[longitude] ile **aynı güncelleme
+/// kuralına** tabidir (`docs/openapi.yaml` §SavedAddressInput `door_no`):
+///
+///   - alan yok   → mevcut değer korunur
+///   - alan null  → değer **silinir**
+///
+/// Bu yüzden aynı `@JsonKey(includeIfNull: true)` istisnası burada da
+/// geçerli: onsuz `null` hiç gönderilemez ve müşteri yanlış girdiği kat
+/// numarasını **boşaltamazdı** — düzeltmenin tek yolu adresi silip
+/// yeniden yazmak olurdu.
+///
+/// KARŞILIĞI, çağıran bilmek zorunda: bu nesne her zaman kaydın
+/// TAMAMIYLA kurulur. Formu yarım doldurup `PATCH` göndermek, boş
+/// bıraktığın alanları sunucuda siler. Koordinat çiftinin aksine bunlar
+/// birbirinden bağımsızdır — katın bilinip daire numarasının bilinmemesi
+/// olağan bir durumdur.
+@override@JsonKey(includeIfNull: true) final  String? neighbourhood;
+@override@JsonKey(includeIfNull: true) final  String? street;
+@override@JsonKey(includeIfNull: true) final  String? buildingNo;
+@override@JsonKey(includeIfNull: true) final  String? floor;
+@override@JsonKey(includeIfNull: true) final  String? doorNo;
 /// Haritadan seçilen nokta.
 ///
 /// ## `@JsonKey(includeIfNull: true)` NEDEN GEREKLİ
@@ -856,16 +968,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SavedAddressInput&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.label, label) || other.label == label)&&(identical(other.note, note) || other.note == note)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SavedAddressInput&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.label, label) || other.label == label)&&(identical(other.note, note) || other.note == note)&&(identical(other.isDefault, isDefault) || other.isDefault == isDefault)&&(identical(other.neighbourhood, neighbourhood) || other.neighbourhood == neighbourhood)&&(identical(other.street, street) || other.street == street)&&(identical(other.buildingNo, buildingNo) || other.buildingNo == buildingNo)&&(identical(other.floor, floor) || other.floor == floor)&&(identical(other.doorNo, doorNo) || other.doorNo == doorNo)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,line1,district,city,label,note,isDefault,latitude,longitude);
+int get hashCode => Object.hash(runtimeType,line1,district,city,label,note,isDefault,neighbourhood,street,buildingNo,floor,doorNo,latitude,longitude);
 
 @override
 String toString() {
-  return 'SavedAddressInput(line1: $line1, district: $district, city: $city, label: $label, note: $note, isDefault: $isDefault, latitude: $latitude, longitude: $longitude)';
+  return 'SavedAddressInput(line1: $line1, district: $district, city: $city, label: $label, note: $note, isDefault: $isDefault, neighbourhood: $neighbourhood, street: $street, buildingNo: $buildingNo, floor: $floor, doorNo: $doorNo, latitude: $latitude, longitude: $longitude)';
 }
 
 
@@ -876,7 +988,7 @@ abstract mixin class _$SavedAddressInputCopyWith<$Res> implements $SavedAddressI
   factory _$SavedAddressInputCopyWith(_SavedAddressInput value, $Res Function(_SavedAddressInput) _then) = __$SavedAddressInputCopyWithImpl;
 @override @useResult
 $Res call({
- String line1, String district, String city, String? label, String? note, bool? isDefault,@JsonKey(includeIfNull: true) double? latitude,@JsonKey(includeIfNull: true) double? longitude
+ String line1, String district, String city, String? label, String? note, bool? isDefault,@JsonKey(includeIfNull: true) String? neighbourhood,@JsonKey(includeIfNull: true) String? street,@JsonKey(includeIfNull: true) String? buildingNo,@JsonKey(includeIfNull: true) String? floor,@JsonKey(includeIfNull: true) String? doorNo,@JsonKey(includeIfNull: true) double? latitude,@JsonKey(includeIfNull: true) double? longitude
 });
 
 
@@ -893,7 +1005,7 @@ class __$SavedAddressInputCopyWithImpl<$Res>
 
 /// Create a copy of SavedAddressInput
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? line1 = null,Object? district = null,Object? city = null,Object? label = freezed,Object? note = freezed,Object? isDefault = freezed,Object? latitude = freezed,Object? longitude = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? line1 = null,Object? district = null,Object? city = null,Object? label = freezed,Object? note = freezed,Object? isDefault = freezed,Object? neighbourhood = freezed,Object? street = freezed,Object? buildingNo = freezed,Object? floor = freezed,Object? doorNo = freezed,Object? latitude = freezed,Object? longitude = freezed,}) {
   return _then(_SavedAddressInput(
 line1: null == line1 ? _self.line1 : line1 // ignore: cast_nullable_to_non_nullable
 as String,district: null == district ? _self.district : district // ignore: cast_nullable_to_non_nullable
@@ -901,9 +1013,335 @@ as String,city: null == city ? _self.city : city // ignore: cast_nullable_to_non
 as String,label: freezed == label ? _self.label : label // ignore: cast_nullable_to_non_nullable
 as String?,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
 as String?,isDefault: freezed == isDefault ? _self.isDefault : isDefault // ignore: cast_nullable_to_non_nullable
-as bool?,latitude: freezed == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
+as bool?,neighbourhood: freezed == neighbourhood ? _self.neighbourhood : neighbourhood // ignore: cast_nullable_to_non_nullable
+as String?,street: freezed == street ? _self.street : street // ignore: cast_nullable_to_non_nullable
+as String?,buildingNo: freezed == buildingNo ? _self.buildingNo : buildingNo // ignore: cast_nullable_to_non_nullable
+as String?,floor: freezed == floor ? _self.floor : floor // ignore: cast_nullable_to_non_nullable
+as String?,doorNo: freezed == doorNo ? _self.doorNo : doorNo // ignore: cast_nullable_to_non_nullable
+as String?,latitude: freezed == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
 as double?,longitude: freezed == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
 as double?,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
+mixin _$AddressSuggestion {
+
+/// Listede gösterilecek tek satırlık metin; ilçe ve ili de içerir.
+///
+/// **Sunucu kurar, istemci parçaları birleştirmez** — aynı öneri web'de
+/// ve mobilde farklı görünmesin. CSS/`toUpperCase` ile büyütülmez:
+/// Türkçe mahalle adlarının yarısı `İ`/`ı` taşıyor.
+ String get label;/// Önerinin tek satırlık hâli — doğrudan [SavedAddressInput.line1]'e
+/// yazılabilir. [label]'dan farkı: ilçe ve ili **içermez**.
+ String get line1; String get district; String get city;/// **Null olamaz.** Hizmet alanı elemesi koordinat üzerinden yapılıyor;
+/// koordinatı olmayan bir aday listeye zaten giremez. `/addresses/reverse`
+/// yanıtında bu değer isteğin kendi koordinatıdır — sağlayıcının
+/// oturttuğu (snap) nokta değil, yoksa iğne parmağın altından kayardı.
+ double get latitude; double get longitude;/// Öneriyi üreten sürücü ("osm_nominatim").
+///
+/// **Kapalı bir enum DEĞİL, bilerek** (`ErrorCode` ile aynı karar):
+/// sürücü değişebilir ve enum'a üye eklemek istemcilerdeki kapsayıcı
+/// `switch`'i kırardı. Dallanma için kullanılmaz; sağlayıcı atfını
+/// göstermek ve günlükte hangi sürücünün konuştuğunu bilmek için var.
+ String get source; String? get neighbourhood; String? get street;
+/// Create a copy of AddressSuggestion
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$AddressSuggestionCopyWith<AddressSuggestion> get copyWith => _$AddressSuggestionCopyWithImpl<AddressSuggestion>(this as AddressSuggestion, _$identity);
+
+  /// Serializes this AddressSuggestion to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AddressSuggestion&&(identical(other.label, label) || other.label == label)&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude)&&(identical(other.source, source) || other.source == source)&&(identical(other.neighbourhood, neighbourhood) || other.neighbourhood == neighbourhood)&&(identical(other.street, street) || other.street == street));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,label,line1,district,city,latitude,longitude,source,neighbourhood,street);
+
+@override
+String toString() {
+  return 'AddressSuggestion(label: $label, line1: $line1, district: $district, city: $city, latitude: $latitude, longitude: $longitude, source: $source, neighbourhood: $neighbourhood, street: $street)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $AddressSuggestionCopyWith<$Res>  {
+  factory $AddressSuggestionCopyWith(AddressSuggestion value, $Res Function(AddressSuggestion) _then) = _$AddressSuggestionCopyWithImpl;
+@useResult
+$Res call({
+ String label, String line1, String district, String city, double latitude, double longitude, String source, String? neighbourhood, String? street
+});
+
+
+
+
+}
+/// @nodoc
+class _$AddressSuggestionCopyWithImpl<$Res>
+    implements $AddressSuggestionCopyWith<$Res> {
+  _$AddressSuggestionCopyWithImpl(this._self, this._then);
+
+  final AddressSuggestion _self;
+  final $Res Function(AddressSuggestion) _then;
+
+/// Create a copy of AddressSuggestion
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? label = null,Object? line1 = null,Object? district = null,Object? city = null,Object? latitude = null,Object? longitude = null,Object? source = null,Object? neighbourhood = freezed,Object? street = freezed,}) {
+  return _then(_self.copyWith(
+label: null == label ? _self.label : label // ignore: cast_nullable_to_non_nullable
+as String,line1: null == line1 ? _self.line1 : line1 // ignore: cast_nullable_to_non_nullable
+as String,district: null == district ? _self.district : district // ignore: cast_nullable_to_non_nullable
+as String,city: null == city ? _self.city : city // ignore: cast_nullable_to_non_nullable
+as String,latitude: null == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
+as double,longitude: null == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
+as double,source: null == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
+as String,neighbourhood: freezed == neighbourhood ? _self.neighbourhood : neighbourhood // ignore: cast_nullable_to_non_nullable
+as String?,street: freezed == street ? _self.street : street // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [AddressSuggestion].
+extension AddressSuggestionPatterns on AddressSuggestion {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _AddressSuggestion value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _AddressSuggestion() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _AddressSuggestion value)  $default,){
+final _that = this;
+switch (_that) {
+case _AddressSuggestion():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _AddressSuggestion value)?  $default,){
+final _that = this;
+switch (_that) {
+case _AddressSuggestion() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String label,  String line1,  String district,  String city,  double latitude,  double longitude,  String source,  String? neighbourhood,  String? street)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _AddressSuggestion() when $default != null:
+return $default(_that.label,_that.line1,_that.district,_that.city,_that.latitude,_that.longitude,_that.source,_that.neighbourhood,_that.street);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String label,  String line1,  String district,  String city,  double latitude,  double longitude,  String source,  String? neighbourhood,  String? street)  $default,) {final _that = this;
+switch (_that) {
+case _AddressSuggestion():
+return $default(_that.label,_that.line1,_that.district,_that.city,_that.latitude,_that.longitude,_that.source,_that.neighbourhood,_that.street);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String label,  String line1,  String district,  String city,  double latitude,  double longitude,  String source,  String? neighbourhood,  String? street)?  $default,) {final _that = this;
+switch (_that) {
+case _AddressSuggestion() when $default != null:
+return $default(_that.label,_that.line1,_that.district,_that.city,_that.latitude,_that.longitude,_that.source,_that.neighbourhood,_that.street);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _AddressSuggestion extends AddressSuggestion {
+  const _AddressSuggestion({required this.label, required this.line1, required this.district, required this.city, required this.latitude, required this.longitude, required this.source, this.neighbourhood, this.street}): super._();
+  factory _AddressSuggestion.fromJson(Map<String, dynamic> json) => _$AddressSuggestionFromJson(json);
+
+/// Listede gösterilecek tek satırlık metin; ilçe ve ili de içerir.
+///
+/// **Sunucu kurar, istemci parçaları birleştirmez** — aynı öneri web'de
+/// ve mobilde farklı görünmesin. CSS/`toUpperCase` ile büyütülmez:
+/// Türkçe mahalle adlarının yarısı `İ`/`ı` taşıyor.
+@override final  String label;
+/// Önerinin tek satırlık hâli — doğrudan [SavedAddressInput.line1]'e
+/// yazılabilir. [label]'dan farkı: ilçe ve ili **içermez**.
+@override final  String line1;
+@override final  String district;
+@override final  String city;
+/// **Null olamaz.** Hizmet alanı elemesi koordinat üzerinden yapılıyor;
+/// koordinatı olmayan bir aday listeye zaten giremez. `/addresses/reverse`
+/// yanıtında bu değer isteğin kendi koordinatıdır — sağlayıcının
+/// oturttuğu (snap) nokta değil, yoksa iğne parmağın altından kayardı.
+@override final  double latitude;
+@override final  double longitude;
+/// Öneriyi üreten sürücü ("osm_nominatim").
+///
+/// **Kapalı bir enum DEĞİL, bilerek** (`ErrorCode` ile aynı karar):
+/// sürücü değişebilir ve enum'a üye eklemek istemcilerdeki kapsayıcı
+/// `switch`'i kırardı. Dallanma için kullanılmaz; sağlayıcı atfını
+/// göstermek ve günlükte hangi sürücünün konuştuğunu bilmek için var.
+@override final  String source;
+@override final  String? neighbourhood;
+@override final  String? street;
+
+/// Create a copy of AddressSuggestion
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$AddressSuggestionCopyWith<_AddressSuggestion> get copyWith => __$AddressSuggestionCopyWithImpl<_AddressSuggestion>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$AddressSuggestionToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AddressSuggestion&&(identical(other.label, label) || other.label == label)&&(identical(other.line1, line1) || other.line1 == line1)&&(identical(other.district, district) || other.district == district)&&(identical(other.city, city) || other.city == city)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude)&&(identical(other.source, source) || other.source == source)&&(identical(other.neighbourhood, neighbourhood) || other.neighbourhood == neighbourhood)&&(identical(other.street, street) || other.street == street));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,label,line1,district,city,latitude,longitude,source,neighbourhood,street);
+
+@override
+String toString() {
+  return 'AddressSuggestion(label: $label, line1: $line1, district: $district, city: $city, latitude: $latitude, longitude: $longitude, source: $source, neighbourhood: $neighbourhood, street: $street)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$AddressSuggestionCopyWith<$Res> implements $AddressSuggestionCopyWith<$Res> {
+  factory _$AddressSuggestionCopyWith(_AddressSuggestion value, $Res Function(_AddressSuggestion) _then) = __$AddressSuggestionCopyWithImpl;
+@override @useResult
+$Res call({
+ String label, String line1, String district, String city, double latitude, double longitude, String source, String? neighbourhood, String? street
+});
+
+
+
+
+}
+/// @nodoc
+class __$AddressSuggestionCopyWithImpl<$Res>
+    implements _$AddressSuggestionCopyWith<$Res> {
+  __$AddressSuggestionCopyWithImpl(this._self, this._then);
+
+  final _AddressSuggestion _self;
+  final $Res Function(_AddressSuggestion) _then;
+
+/// Create a copy of AddressSuggestion
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? label = null,Object? line1 = null,Object? district = null,Object? city = null,Object? latitude = null,Object? longitude = null,Object? source = null,Object? neighbourhood = freezed,Object? street = freezed,}) {
+  return _then(_AddressSuggestion(
+label: null == label ? _self.label : label // ignore: cast_nullable_to_non_nullable
+as String,line1: null == line1 ? _self.line1 : line1 // ignore: cast_nullable_to_non_nullable
+as String,district: null == district ? _self.district : district // ignore: cast_nullable_to_non_nullable
+as String,city: null == city ? _self.city : city // ignore: cast_nullable_to_non_nullable
+as String,latitude: null == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
+as double,longitude: null == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
+as double,source: null == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
+as String,neighbourhood: freezed == neighbourhood ? _self.neighbourhood : neighbourhood // ignore: cast_nullable_to_non_nullable
+as String?,street: freezed == street ? _self.street : street // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -1193,7 +1631,18 @@ as String?,
 mixin _$OrderCreateRequest {
 
  int get locationId; List<OrderCreateItem> get items;@DeliveryTypeConverter() DeliveryType get deliveryType;@PaymentMethodConverter() PaymentMethod get paymentMethod;/// `delivery` ise zorunlu, `pickup` ise sunucu yok sayar.
- Address? get address;/// İstenen teslim zamanı (UTC). `order_cutoff`'a takılırsa `LOCATION_CLOSED`.
+ Address? get address;/// Siparişin **hangi gün için** olduğu — `YYYY-AA-GG`, Europe/Istanbul
+/// (B-19). Verilmezse sunucu [requestedAt]'in işletme saatindeki
+/// tarihini, o da yoksa bugünü kullanır.
+///
+/// [requestedAt] ile birlikte gönderilirse **ikisinin günü aynı olmak
+/// zorundadır**, yoksa `422 VALIDATION_FAILED`. Aksi hâlde "cuma
+/// menüsünü perşembe 12:00'ye" gibi, mutfağın karşılayamayacağı bir
+/// sipariş doğardı.
+///
+/// `DateTime` değil `String`: bu bir an değil, takvimdeki bir gün —
+/// gerekçe `daily_menu.dart` kitaplık açıklamasında.
+ String? get serviceDate;/// İstenen teslim zamanı (UTC). `order_cutoff`'a takılırsa `LOCATION_CLOSED`.
  DateTime? get requestedAt; String? get customerNote;
 /// Create a copy of OrderCreateRequest
 /// with the given fields replaced by the non-null parameter values.
@@ -1207,16 +1656,16 @@ $OrderCreateRequestCopyWith<OrderCreateRequest> get copyWith => _$OrderCreateReq
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is OrderCreateRequest&&(identical(other.locationId, locationId) || other.locationId == locationId)&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.deliveryType, deliveryType) || other.deliveryType == deliveryType)&&(identical(other.paymentMethod, paymentMethod) || other.paymentMethod == paymentMethod)&&(identical(other.address, address) || other.address == address)&&(identical(other.requestedAt, requestedAt) || other.requestedAt == requestedAt)&&(identical(other.customerNote, customerNote) || other.customerNote == customerNote));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OrderCreateRequest&&(identical(other.locationId, locationId) || other.locationId == locationId)&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.deliveryType, deliveryType) || other.deliveryType == deliveryType)&&(identical(other.paymentMethod, paymentMethod) || other.paymentMethod == paymentMethod)&&(identical(other.address, address) || other.address == address)&&(identical(other.serviceDate, serviceDate) || other.serviceDate == serviceDate)&&(identical(other.requestedAt, requestedAt) || other.requestedAt == requestedAt)&&(identical(other.customerNote, customerNote) || other.customerNote == customerNote));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,locationId,const DeepCollectionEquality().hash(items),deliveryType,paymentMethod,address,requestedAt,customerNote);
+int get hashCode => Object.hash(runtimeType,locationId,const DeepCollectionEquality().hash(items),deliveryType,paymentMethod,address,serviceDate,requestedAt,customerNote);
 
 @override
 String toString() {
-  return 'OrderCreateRequest(locationId: $locationId, items: $items, deliveryType: $deliveryType, paymentMethod: $paymentMethod, address: $address, requestedAt: $requestedAt, customerNote: $customerNote)';
+  return 'OrderCreateRequest(locationId: $locationId, items: $items, deliveryType: $deliveryType, paymentMethod: $paymentMethod, address: $address, serviceDate: $serviceDate, requestedAt: $requestedAt, customerNote: $customerNote)';
 }
 
 
@@ -1227,7 +1676,7 @@ abstract mixin class $OrderCreateRequestCopyWith<$Res>  {
   factory $OrderCreateRequestCopyWith(OrderCreateRequest value, $Res Function(OrderCreateRequest) _then) = _$OrderCreateRequestCopyWithImpl;
 @useResult
 $Res call({
- int locationId, List<OrderCreateItem> items,@DeliveryTypeConverter() DeliveryType deliveryType,@PaymentMethodConverter() PaymentMethod paymentMethod, Address? address, DateTime? requestedAt, String? customerNote
+ int locationId, List<OrderCreateItem> items,@DeliveryTypeConverter() DeliveryType deliveryType,@PaymentMethodConverter() PaymentMethod paymentMethod, Address? address, String? serviceDate, DateTime? requestedAt, String? customerNote
 });
 
 
@@ -1244,14 +1693,15 @@ class _$OrderCreateRequestCopyWithImpl<$Res>
 
 /// Create a copy of OrderCreateRequest
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? locationId = null,Object? items = null,Object? deliveryType = null,Object? paymentMethod = null,Object? address = freezed,Object? requestedAt = freezed,Object? customerNote = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? locationId = null,Object? items = null,Object? deliveryType = null,Object? paymentMethod = null,Object? address = freezed,Object? serviceDate = freezed,Object? requestedAt = freezed,Object? customerNote = freezed,}) {
   return _then(_self.copyWith(
 locationId: null == locationId ? _self.locationId : locationId // ignore: cast_nullable_to_non_nullable
 as int,items: null == items ? _self.items : items // ignore: cast_nullable_to_non_nullable
 as List<OrderCreateItem>,deliveryType: null == deliveryType ? _self.deliveryType : deliveryType // ignore: cast_nullable_to_non_nullable
 as DeliveryType,paymentMethod: null == paymentMethod ? _self.paymentMethod : paymentMethod // ignore: cast_nullable_to_non_nullable
 as PaymentMethod,address: freezed == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
-as Address?,requestedAt: freezed == requestedAt ? _self.requestedAt : requestedAt // ignore: cast_nullable_to_non_nullable
+as Address?,serviceDate: freezed == serviceDate ? _self.serviceDate : serviceDate // ignore: cast_nullable_to_non_nullable
+as String?,requestedAt: freezed == requestedAt ? _self.requestedAt : requestedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,customerNote: freezed == customerNote ? _self.customerNote : customerNote // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
@@ -1350,10 +1800,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int locationId,  List<OrderCreateItem> items, @DeliveryTypeConverter()  DeliveryType deliveryType, @PaymentMethodConverter()  PaymentMethod paymentMethod,  Address? address,  DateTime? requestedAt,  String? customerNote)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int locationId,  List<OrderCreateItem> items, @DeliveryTypeConverter()  DeliveryType deliveryType, @PaymentMethodConverter()  PaymentMethod paymentMethod,  Address? address,  String? serviceDate,  DateTime? requestedAt,  String? customerNote)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _OrderCreateRequest() when $default != null:
-return $default(_that.locationId,_that.items,_that.deliveryType,_that.paymentMethod,_that.address,_that.requestedAt,_that.customerNote);case _:
+return $default(_that.locationId,_that.items,_that.deliveryType,_that.paymentMethod,_that.address,_that.serviceDate,_that.requestedAt,_that.customerNote);case _:
   return orElse();
 
 }
@@ -1371,10 +1821,10 @@ return $default(_that.locationId,_that.items,_that.deliveryType,_that.paymentMet
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int locationId,  List<OrderCreateItem> items, @DeliveryTypeConverter()  DeliveryType deliveryType, @PaymentMethodConverter()  PaymentMethod paymentMethod,  Address? address,  DateTime? requestedAt,  String? customerNote)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int locationId,  List<OrderCreateItem> items, @DeliveryTypeConverter()  DeliveryType deliveryType, @PaymentMethodConverter()  PaymentMethod paymentMethod,  Address? address,  String? serviceDate,  DateTime? requestedAt,  String? customerNote)  $default,) {final _that = this;
 switch (_that) {
 case _OrderCreateRequest():
-return $default(_that.locationId,_that.items,_that.deliveryType,_that.paymentMethod,_that.address,_that.requestedAt,_that.customerNote);case _:
+return $default(_that.locationId,_that.items,_that.deliveryType,_that.paymentMethod,_that.address,_that.serviceDate,_that.requestedAt,_that.customerNote);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1391,10 +1841,10 @@ return $default(_that.locationId,_that.items,_that.deliveryType,_that.paymentMet
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int locationId,  List<OrderCreateItem> items, @DeliveryTypeConverter()  DeliveryType deliveryType, @PaymentMethodConverter()  PaymentMethod paymentMethod,  Address? address,  DateTime? requestedAt,  String? customerNote)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int locationId,  List<OrderCreateItem> items, @DeliveryTypeConverter()  DeliveryType deliveryType, @PaymentMethodConverter()  PaymentMethod paymentMethod,  Address? address,  String? serviceDate,  DateTime? requestedAt,  String? customerNote)?  $default,) {final _that = this;
 switch (_that) {
 case _OrderCreateRequest() when $default != null:
-return $default(_that.locationId,_that.items,_that.deliveryType,_that.paymentMethod,_that.address,_that.requestedAt,_that.customerNote);case _:
+return $default(_that.locationId,_that.items,_that.deliveryType,_that.paymentMethod,_that.address,_that.serviceDate,_that.requestedAt,_that.customerNote);case _:
   return null;
 
 }
@@ -1406,7 +1856,7 @@ return $default(_that.locationId,_that.items,_that.deliveryType,_that.paymentMet
 @JsonSerializable()
 
 class _OrderCreateRequest implements OrderCreateRequest {
-  const _OrderCreateRequest({required this.locationId, required final  List<OrderCreateItem> items, @DeliveryTypeConverter() required this.deliveryType, @PaymentMethodConverter() required this.paymentMethod, this.address, this.requestedAt, this.customerNote}): _items = items;
+  const _OrderCreateRequest({required this.locationId, required final  List<OrderCreateItem> items, @DeliveryTypeConverter() required this.deliveryType, @PaymentMethodConverter() required this.paymentMethod, this.address, this.serviceDate, this.requestedAt, this.customerNote}): _items = items;
   factory _OrderCreateRequest.fromJson(Map<String, dynamic> json) => _$OrderCreateRequestFromJson(json);
 
 @override final  int locationId;
@@ -1421,6 +1871,18 @@ class _OrderCreateRequest implements OrderCreateRequest {
 @override@PaymentMethodConverter() final  PaymentMethod paymentMethod;
 /// `delivery` ise zorunlu, `pickup` ise sunucu yok sayar.
 @override final  Address? address;
+/// Siparişin **hangi gün için** olduğu — `YYYY-AA-GG`, Europe/Istanbul
+/// (B-19). Verilmezse sunucu [requestedAt]'in işletme saatindeki
+/// tarihini, o da yoksa bugünü kullanır.
+///
+/// [requestedAt] ile birlikte gönderilirse **ikisinin günü aynı olmak
+/// zorundadır**, yoksa `422 VALIDATION_FAILED`. Aksi hâlde "cuma
+/// menüsünü perşembe 12:00'ye" gibi, mutfağın karşılayamayacağı bir
+/// sipariş doğardı.
+///
+/// `DateTime` değil `String`: bu bir an değil, takvimdeki bir gün —
+/// gerekçe `daily_menu.dart` kitaplık açıklamasında.
+@override final  String? serviceDate;
 /// İstenen teslim zamanı (UTC). `order_cutoff`'a takılırsa `LOCATION_CLOSED`.
 @override final  DateTime? requestedAt;
 @override final  String? customerNote;
@@ -1438,16 +1900,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OrderCreateRequest&&(identical(other.locationId, locationId) || other.locationId == locationId)&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.deliveryType, deliveryType) || other.deliveryType == deliveryType)&&(identical(other.paymentMethod, paymentMethod) || other.paymentMethod == paymentMethod)&&(identical(other.address, address) || other.address == address)&&(identical(other.requestedAt, requestedAt) || other.requestedAt == requestedAt)&&(identical(other.customerNote, customerNote) || other.customerNote == customerNote));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OrderCreateRequest&&(identical(other.locationId, locationId) || other.locationId == locationId)&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.deliveryType, deliveryType) || other.deliveryType == deliveryType)&&(identical(other.paymentMethod, paymentMethod) || other.paymentMethod == paymentMethod)&&(identical(other.address, address) || other.address == address)&&(identical(other.serviceDate, serviceDate) || other.serviceDate == serviceDate)&&(identical(other.requestedAt, requestedAt) || other.requestedAt == requestedAt)&&(identical(other.customerNote, customerNote) || other.customerNote == customerNote));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,locationId,const DeepCollectionEquality().hash(_items),deliveryType,paymentMethod,address,requestedAt,customerNote);
+int get hashCode => Object.hash(runtimeType,locationId,const DeepCollectionEquality().hash(_items),deliveryType,paymentMethod,address,serviceDate,requestedAt,customerNote);
 
 @override
 String toString() {
-  return 'OrderCreateRequest(locationId: $locationId, items: $items, deliveryType: $deliveryType, paymentMethod: $paymentMethod, address: $address, requestedAt: $requestedAt, customerNote: $customerNote)';
+  return 'OrderCreateRequest(locationId: $locationId, items: $items, deliveryType: $deliveryType, paymentMethod: $paymentMethod, address: $address, serviceDate: $serviceDate, requestedAt: $requestedAt, customerNote: $customerNote)';
 }
 
 
@@ -1458,7 +1920,7 @@ abstract mixin class _$OrderCreateRequestCopyWith<$Res> implements $OrderCreateR
   factory _$OrderCreateRequestCopyWith(_OrderCreateRequest value, $Res Function(_OrderCreateRequest) _then) = __$OrderCreateRequestCopyWithImpl;
 @override @useResult
 $Res call({
- int locationId, List<OrderCreateItem> items,@DeliveryTypeConverter() DeliveryType deliveryType,@PaymentMethodConverter() PaymentMethod paymentMethod, Address? address, DateTime? requestedAt, String? customerNote
+ int locationId, List<OrderCreateItem> items,@DeliveryTypeConverter() DeliveryType deliveryType,@PaymentMethodConverter() PaymentMethod paymentMethod, Address? address, String? serviceDate, DateTime? requestedAt, String? customerNote
 });
 
 
@@ -1475,14 +1937,15 @@ class __$OrderCreateRequestCopyWithImpl<$Res>
 
 /// Create a copy of OrderCreateRequest
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? locationId = null,Object? items = null,Object? deliveryType = null,Object? paymentMethod = null,Object? address = freezed,Object? requestedAt = freezed,Object? customerNote = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? locationId = null,Object? items = null,Object? deliveryType = null,Object? paymentMethod = null,Object? address = freezed,Object? serviceDate = freezed,Object? requestedAt = freezed,Object? customerNote = freezed,}) {
   return _then(_OrderCreateRequest(
 locationId: null == locationId ? _self.locationId : locationId // ignore: cast_nullable_to_non_nullable
 as int,items: null == items ? _self._items : items // ignore: cast_nullable_to_non_nullable
 as List<OrderCreateItem>,deliveryType: null == deliveryType ? _self.deliveryType : deliveryType // ignore: cast_nullable_to_non_nullable
 as DeliveryType,paymentMethod: null == paymentMethod ? _self.paymentMethod : paymentMethod // ignore: cast_nullable_to_non_nullable
 as PaymentMethod,address: freezed == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
-as Address?,requestedAt: freezed == requestedAt ? _self.requestedAt : requestedAt // ignore: cast_nullable_to_non_nullable
+as Address?,serviceDate: freezed == serviceDate ? _self.serviceDate : serviceDate // ignore: cast_nullable_to_non_nullable
+as String?,requestedAt: freezed == requestedAt ? _self.requestedAt : requestedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,customerNote: freezed == customerNote ? _self.customerNote : customerNote // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
@@ -2079,7 +2542,15 @@ $PaymentCopyWith<$Res> get payment {
 /// @nodoc
 mixin _$OrderSummary {
 
- int get id; String get orderNumber;@OrderStatusConverter() OrderStatus get status; int get total; String get currency; int get itemCount; DateTime get createdAt;/// Abonelikten üretildiyse abonelik kimliği; elle siparişte `null`.
+ int get id; String get orderNumber;@OrderStatusConverter() OrderStatus get status; int get total; String get currency; int get itemCount; DateTime get createdAt;/// Siparişin **hangi gün için** olduğu (`YYYY-AA-GG`, Europe/Istanbul).
+///
+/// Listede "20 Ağustos menüsü" yazabilmek için gerekiyor: [createdAt]
+/// siparişin VERİLDİĞİ andır ve ileri tarihli siparişte o gün ile servis
+/// günü ayrıdır.
+///
+/// **İsteğe bağlı ve öyle kalmalı:** alan sözleşmeye sonradan eklendi;
+/// eski sunucu ve cihazdaki eski önbellek kaydı onu içermez.
+ String? get serviceDate;/// Abonelikten üretildiyse abonelik kimliği; elle siparişte `null`.
 /// Sipariş kartındaki "Abonelik" rozeti bunu okur.
  int? get subscriptionId;
 /// Create a copy of OrderSummary
@@ -2094,16 +2565,16 @@ $OrderSummaryCopyWith<OrderSummary> get copyWith => _$OrderSummaryCopyWithImpl<O
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is OrderSummary&&(identical(other.id, id) || other.id == id)&&(identical(other.orderNumber, orderNumber) || other.orderNumber == orderNumber)&&(identical(other.status, status) || other.status == status)&&(identical(other.total, total) || other.total == total)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.itemCount, itemCount) || other.itemCount == itemCount)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.subscriptionId, subscriptionId) || other.subscriptionId == subscriptionId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OrderSummary&&(identical(other.id, id) || other.id == id)&&(identical(other.orderNumber, orderNumber) || other.orderNumber == orderNumber)&&(identical(other.status, status) || other.status == status)&&(identical(other.total, total) || other.total == total)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.itemCount, itemCount) || other.itemCount == itemCount)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.serviceDate, serviceDate) || other.serviceDate == serviceDate)&&(identical(other.subscriptionId, subscriptionId) || other.subscriptionId == subscriptionId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,orderNumber,status,total,currency,itemCount,createdAt,subscriptionId);
+int get hashCode => Object.hash(runtimeType,id,orderNumber,status,total,currency,itemCount,createdAt,serviceDate,subscriptionId);
 
 @override
 String toString() {
-  return 'OrderSummary(id: $id, orderNumber: $orderNumber, status: $status, total: $total, currency: $currency, itemCount: $itemCount, createdAt: $createdAt, subscriptionId: $subscriptionId)';
+  return 'OrderSummary(id: $id, orderNumber: $orderNumber, status: $status, total: $total, currency: $currency, itemCount: $itemCount, createdAt: $createdAt, serviceDate: $serviceDate, subscriptionId: $subscriptionId)';
 }
 
 
@@ -2114,7 +2585,7 @@ abstract mixin class $OrderSummaryCopyWith<$Res>  {
   factory $OrderSummaryCopyWith(OrderSummary value, $Res Function(OrderSummary) _then) = _$OrderSummaryCopyWithImpl;
 @useResult
 $Res call({
- int id, String orderNumber,@OrderStatusConverter() OrderStatus status, int total, String currency, int itemCount, DateTime createdAt, int? subscriptionId
+ int id, String orderNumber,@OrderStatusConverter() OrderStatus status, int total, String currency, int itemCount, DateTime createdAt, String? serviceDate, int? subscriptionId
 });
 
 
@@ -2131,7 +2602,7 @@ class _$OrderSummaryCopyWithImpl<$Res>
 
 /// Create a copy of OrderSummary
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? orderNumber = null,Object? status = null,Object? total = null,Object? currency = null,Object? itemCount = null,Object? createdAt = null,Object? subscriptionId = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? orderNumber = null,Object? status = null,Object? total = null,Object? currency = null,Object? itemCount = null,Object? createdAt = null,Object? serviceDate = freezed,Object? subscriptionId = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,orderNumber: null == orderNumber ? _self.orderNumber : orderNumber // ignore: cast_nullable_to_non_nullable
@@ -2140,7 +2611,8 @@ as OrderStatus,total: null == total ? _self.total : total // ignore: cast_nullab
 as int,currency: null == currency ? _self.currency : currency // ignore: cast_nullable_to_non_nullable
 as String,itemCount: null == itemCount ? _self.itemCount : itemCount // ignore: cast_nullable_to_non_nullable
 as int,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime,subscriptionId: freezed == subscriptionId ? _self.subscriptionId : subscriptionId // ignore: cast_nullable_to_non_nullable
+as DateTime,serviceDate: freezed == serviceDate ? _self.serviceDate : serviceDate // ignore: cast_nullable_to_non_nullable
+as String?,subscriptionId: freezed == subscriptionId ? _self.subscriptionId : subscriptionId // ignore: cast_nullable_to_non_nullable
 as int?,
   ));
 }
@@ -2226,10 +2698,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  int total,  String currency,  int itemCount,  DateTime createdAt,  int? subscriptionId)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  int total,  String currency,  int itemCount,  DateTime createdAt,  String? serviceDate,  int? subscriptionId)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _OrderSummary() when $default != null:
-return $default(_that.id,_that.orderNumber,_that.status,_that.total,_that.currency,_that.itemCount,_that.createdAt,_that.subscriptionId);case _:
+return $default(_that.id,_that.orderNumber,_that.status,_that.total,_that.currency,_that.itemCount,_that.createdAt,_that.serviceDate,_that.subscriptionId);case _:
   return orElse();
 
 }
@@ -2247,10 +2719,10 @@ return $default(_that.id,_that.orderNumber,_that.status,_that.total,_that.curren
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  int total,  String currency,  int itemCount,  DateTime createdAt,  int? subscriptionId)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  int total,  String currency,  int itemCount,  DateTime createdAt,  String? serviceDate,  int? subscriptionId)  $default,) {final _that = this;
 switch (_that) {
 case _OrderSummary():
-return $default(_that.id,_that.orderNumber,_that.status,_that.total,_that.currency,_that.itemCount,_that.createdAt,_that.subscriptionId);case _:
+return $default(_that.id,_that.orderNumber,_that.status,_that.total,_that.currency,_that.itemCount,_that.createdAt,_that.serviceDate,_that.subscriptionId);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -2267,10 +2739,10 @@ return $default(_that.id,_that.orderNumber,_that.status,_that.total,_that.curren
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  int total,  String currency,  int itemCount,  DateTime createdAt,  int? subscriptionId)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  int total,  String currency,  int itemCount,  DateTime createdAt,  String? serviceDate,  int? subscriptionId)?  $default,) {final _that = this;
 switch (_that) {
 case _OrderSummary() when $default != null:
-return $default(_that.id,_that.orderNumber,_that.status,_that.total,_that.currency,_that.itemCount,_that.createdAt,_that.subscriptionId);case _:
+return $default(_that.id,_that.orderNumber,_that.status,_that.total,_that.currency,_that.itemCount,_that.createdAt,_that.serviceDate,_that.subscriptionId);case _:
   return null;
 
 }
@@ -2282,7 +2754,7 @@ return $default(_that.id,_that.orderNumber,_that.status,_that.total,_that.curren
 @JsonSerializable()
 
 class _OrderSummary implements OrderSummary {
-  const _OrderSummary({required this.id, required this.orderNumber, @OrderStatusConverter() required this.status, required this.total, required this.currency, required this.itemCount, required this.createdAt, this.subscriptionId});
+  const _OrderSummary({required this.id, required this.orderNumber, @OrderStatusConverter() required this.status, required this.total, required this.currency, required this.itemCount, required this.createdAt, this.serviceDate, this.subscriptionId});
   factory _OrderSummary.fromJson(Map<String, dynamic> json) => _$OrderSummaryFromJson(json);
 
 @override final  int id;
@@ -2292,6 +2764,15 @@ class _OrderSummary implements OrderSummary {
 @override final  String currency;
 @override final  int itemCount;
 @override final  DateTime createdAt;
+/// Siparişin **hangi gün için** olduğu (`YYYY-AA-GG`, Europe/Istanbul).
+///
+/// Listede "20 Ağustos menüsü" yazabilmek için gerekiyor: [createdAt]
+/// siparişin VERİLDİĞİ andır ve ileri tarihli siparişte o gün ile servis
+/// günü ayrıdır.
+///
+/// **İsteğe bağlı ve öyle kalmalı:** alan sözleşmeye sonradan eklendi;
+/// eski sunucu ve cihazdaki eski önbellek kaydı onu içermez.
+@override final  String? serviceDate;
 /// Abonelikten üretildiyse abonelik kimliği; elle siparişte `null`.
 /// Sipariş kartındaki "Abonelik" rozeti bunu okur.
 @override final  int? subscriptionId;
@@ -2309,16 +2790,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OrderSummary&&(identical(other.id, id) || other.id == id)&&(identical(other.orderNumber, orderNumber) || other.orderNumber == orderNumber)&&(identical(other.status, status) || other.status == status)&&(identical(other.total, total) || other.total == total)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.itemCount, itemCount) || other.itemCount == itemCount)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.subscriptionId, subscriptionId) || other.subscriptionId == subscriptionId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OrderSummary&&(identical(other.id, id) || other.id == id)&&(identical(other.orderNumber, orderNumber) || other.orderNumber == orderNumber)&&(identical(other.status, status) || other.status == status)&&(identical(other.total, total) || other.total == total)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.itemCount, itemCount) || other.itemCount == itemCount)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.serviceDate, serviceDate) || other.serviceDate == serviceDate)&&(identical(other.subscriptionId, subscriptionId) || other.subscriptionId == subscriptionId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,orderNumber,status,total,currency,itemCount,createdAt,subscriptionId);
+int get hashCode => Object.hash(runtimeType,id,orderNumber,status,total,currency,itemCount,createdAt,serviceDate,subscriptionId);
 
 @override
 String toString() {
-  return 'OrderSummary(id: $id, orderNumber: $orderNumber, status: $status, total: $total, currency: $currency, itemCount: $itemCount, createdAt: $createdAt, subscriptionId: $subscriptionId)';
+  return 'OrderSummary(id: $id, orderNumber: $orderNumber, status: $status, total: $total, currency: $currency, itemCount: $itemCount, createdAt: $createdAt, serviceDate: $serviceDate, subscriptionId: $subscriptionId)';
 }
 
 
@@ -2329,7 +2810,7 @@ abstract mixin class _$OrderSummaryCopyWith<$Res> implements $OrderSummaryCopyWi
   factory _$OrderSummaryCopyWith(_OrderSummary value, $Res Function(_OrderSummary) _then) = __$OrderSummaryCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String orderNumber,@OrderStatusConverter() OrderStatus status, int total, String currency, int itemCount, DateTime createdAt, int? subscriptionId
+ int id, String orderNumber,@OrderStatusConverter() OrderStatus status, int total, String currency, int itemCount, DateTime createdAt, String? serviceDate, int? subscriptionId
 });
 
 
@@ -2346,7 +2827,7 @@ class __$OrderSummaryCopyWithImpl<$Res>
 
 /// Create a copy of OrderSummary
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? orderNumber = null,Object? status = null,Object? total = null,Object? currency = null,Object? itemCount = null,Object? createdAt = null,Object? subscriptionId = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? orderNumber = null,Object? status = null,Object? total = null,Object? currency = null,Object? itemCount = null,Object? createdAt = null,Object? serviceDate = freezed,Object? subscriptionId = freezed,}) {
   return _then(_OrderSummary(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,orderNumber: null == orderNumber ? _self.orderNumber : orderNumber // ignore: cast_nullable_to_non_nullable
@@ -2355,7 +2836,8 @@ as OrderStatus,total: null == total ? _self.total : total // ignore: cast_nullab
 as int,currency: null == currency ? _self.currency : currency // ignore: cast_nullable_to_non_nullable
 as String,itemCount: null == itemCount ? _self.itemCount : itemCount // ignore: cast_nullable_to_non_nullable
 as int,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime,subscriptionId: freezed == subscriptionId ? _self.subscriptionId : subscriptionId // ignore: cast_nullable_to_non_nullable
+as DateTime,serviceDate: freezed == serviceDate ? _self.serviceDate : serviceDate // ignore: cast_nullable_to_non_nullable
+as String?,subscriptionId: freezed == subscriptionId ? _self.subscriptionId : subscriptionId // ignore: cast_nullable_to_non_nullable
 as int?,
   ));
 }
@@ -2368,7 +2850,30 @@ as int?,
 mixin _$OrderItem {
 
  int get menuId; String get name; int get quantity;/// Seçenek farkları **dahil** birim fiyat (kuruş).
- int get unitPrice; int get lineTotal; List<String> get options; String? get note;
+ int get unitPrice; int get lineTotal; List<String> get options; String? get note;/// Satırın rolü: `item` | `package` | `component` (B-19).
+///
+/// Menü paketi FİYATLI bir ÜST satır + SIFIR FİYATLI bileşen satırları
+/// olarak geliyor; parayı `package` satırı taşır. Okunabilir hâli için
+/// [OrderItemRole] eklentisine bakın.
+///
+/// **Düz `String`, enum değil** (`converters.dart` §katılık politikası):
+/// bilinmeyen bir rol çökertmemeli, ÇÜNKÜ o satır yine de siparişte
+/// duran gerçek bir yemektir. Katı bir enum `OrderStatus` gibi hata
+/// atardı ve sunucu dördüncü bir rol eklediği gün sipariş detayı hiç
+/// açılmazdı. Gevşek bir enum ise `unknown` üyesi + çevirici + eşleme
+/// tablosu getirirdi; üç yardımcının ([OrderItemRole]) okuduğu tek bir
+/// alan için bunların hiçbiri kazanç değil — [OrderItemRole.isPlainItem]
+/// tanımadığı rolü zaten sıradan satır sayıyor.
+///
+/// Varsayılan `item` ve alan opsiyonel: sözleşmedeki `default: item`
+/// bunu söylüyor ve rolü göndermeyen bir sunucu sürümünde ekran bugünkü
+/// gibi düz liste çizer.
+ String get role;/// `role: component` satırlarında, ait olduğu paket satırının [OrderDetail.items]
+/// dizisindeki **sırası** (kimliği değil). Diğer satırlarda `null`.
+///
+/// İstemci paketi ve içindekileri iç içe gösterebilsin diye.
+ int? get includedIn;/// Satır o günün menüsünden geldiyse menünün kimliği.
+ int? get dailyMenuId;
 /// Create a copy of OrderItem
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -2381,16 +2886,16 @@ $OrderItemCopyWith<OrderItem> get copyWith => _$OrderItemCopyWithImpl<OrderItem>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is OrderItem&&(identical(other.menuId, menuId) || other.menuId == menuId)&&(identical(other.name, name) || other.name == name)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.unitPrice, unitPrice) || other.unitPrice == unitPrice)&&(identical(other.lineTotal, lineTotal) || other.lineTotal == lineTotal)&&const DeepCollectionEquality().equals(other.options, options)&&(identical(other.note, note) || other.note == note));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OrderItem&&(identical(other.menuId, menuId) || other.menuId == menuId)&&(identical(other.name, name) || other.name == name)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.unitPrice, unitPrice) || other.unitPrice == unitPrice)&&(identical(other.lineTotal, lineTotal) || other.lineTotal == lineTotal)&&const DeepCollectionEquality().equals(other.options, options)&&(identical(other.note, note) || other.note == note)&&(identical(other.role, role) || other.role == role)&&(identical(other.includedIn, includedIn) || other.includedIn == includedIn)&&(identical(other.dailyMenuId, dailyMenuId) || other.dailyMenuId == dailyMenuId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,menuId,name,quantity,unitPrice,lineTotal,const DeepCollectionEquality().hash(options),note);
+int get hashCode => Object.hash(runtimeType,menuId,name,quantity,unitPrice,lineTotal,const DeepCollectionEquality().hash(options),note,role,includedIn,dailyMenuId);
 
 @override
 String toString() {
-  return 'OrderItem(menuId: $menuId, name: $name, quantity: $quantity, unitPrice: $unitPrice, lineTotal: $lineTotal, options: $options, note: $note)';
+  return 'OrderItem(menuId: $menuId, name: $name, quantity: $quantity, unitPrice: $unitPrice, lineTotal: $lineTotal, options: $options, note: $note, role: $role, includedIn: $includedIn, dailyMenuId: $dailyMenuId)';
 }
 
 
@@ -2401,7 +2906,7 @@ abstract mixin class $OrderItemCopyWith<$Res>  {
   factory $OrderItemCopyWith(OrderItem value, $Res Function(OrderItem) _then) = _$OrderItemCopyWithImpl;
 @useResult
 $Res call({
- int menuId, String name, int quantity, int unitPrice, int lineTotal, List<String> options, String? note
+ int menuId, String name, int quantity, int unitPrice, int lineTotal, List<String> options, String? note, String role, int? includedIn, int? dailyMenuId
 });
 
 
@@ -2418,7 +2923,7 @@ class _$OrderItemCopyWithImpl<$Res>
 
 /// Create a copy of OrderItem
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? menuId = null,Object? name = null,Object? quantity = null,Object? unitPrice = null,Object? lineTotal = null,Object? options = null,Object? note = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? menuId = null,Object? name = null,Object? quantity = null,Object? unitPrice = null,Object? lineTotal = null,Object? options = null,Object? note = freezed,Object? role = null,Object? includedIn = freezed,Object? dailyMenuId = freezed,}) {
   return _then(_self.copyWith(
 menuId: null == menuId ? _self.menuId : menuId // ignore: cast_nullable_to_non_nullable
 as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -2427,7 +2932,10 @@ as int,unitPrice: null == unitPrice ? _self.unitPrice : unitPrice // ignore: cas
 as int,lineTotal: null == lineTotal ? _self.lineTotal : lineTotal // ignore: cast_nullable_to_non_nullable
 as int,options: null == options ? _self.options : options // ignore: cast_nullable_to_non_nullable
 as List<String>,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
+as String,includedIn: freezed == includedIn ? _self.includedIn : includedIn // ignore: cast_nullable_to_non_nullable
+as int?,dailyMenuId: freezed == dailyMenuId ? _self.dailyMenuId : dailyMenuId // ignore: cast_nullable_to_non_nullable
+as int?,
   ));
 }
 
@@ -2512,10 +3020,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int menuId,  String name,  int quantity,  int unitPrice,  int lineTotal,  List<String> options,  String? note)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int menuId,  String name,  int quantity,  int unitPrice,  int lineTotal,  List<String> options,  String? note,  String role,  int? includedIn,  int? dailyMenuId)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _OrderItem() when $default != null:
-return $default(_that.menuId,_that.name,_that.quantity,_that.unitPrice,_that.lineTotal,_that.options,_that.note);case _:
+return $default(_that.menuId,_that.name,_that.quantity,_that.unitPrice,_that.lineTotal,_that.options,_that.note,_that.role,_that.includedIn,_that.dailyMenuId);case _:
   return orElse();
 
 }
@@ -2533,10 +3041,10 @@ return $default(_that.menuId,_that.name,_that.quantity,_that.unitPrice,_that.lin
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int menuId,  String name,  int quantity,  int unitPrice,  int lineTotal,  List<String> options,  String? note)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int menuId,  String name,  int quantity,  int unitPrice,  int lineTotal,  List<String> options,  String? note,  String role,  int? includedIn,  int? dailyMenuId)  $default,) {final _that = this;
 switch (_that) {
 case _OrderItem():
-return $default(_that.menuId,_that.name,_that.quantity,_that.unitPrice,_that.lineTotal,_that.options,_that.note);case _:
+return $default(_that.menuId,_that.name,_that.quantity,_that.unitPrice,_that.lineTotal,_that.options,_that.note,_that.role,_that.includedIn,_that.dailyMenuId);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -2553,10 +3061,10 @@ return $default(_that.menuId,_that.name,_that.quantity,_that.unitPrice,_that.lin
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int menuId,  String name,  int quantity,  int unitPrice,  int lineTotal,  List<String> options,  String? note)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int menuId,  String name,  int quantity,  int unitPrice,  int lineTotal,  List<String> options,  String? note,  String role,  int? includedIn,  int? dailyMenuId)?  $default,) {final _that = this;
 switch (_that) {
 case _OrderItem() when $default != null:
-return $default(_that.menuId,_that.name,_that.quantity,_that.unitPrice,_that.lineTotal,_that.options,_that.note);case _:
+return $default(_that.menuId,_that.name,_that.quantity,_that.unitPrice,_that.lineTotal,_that.options,_that.note,_that.role,_that.includedIn,_that.dailyMenuId);case _:
   return null;
 
 }
@@ -2568,7 +3076,7 @@ return $default(_that.menuId,_that.name,_that.quantity,_that.unitPrice,_that.lin
 @JsonSerializable()
 
 class _OrderItem implements OrderItem {
-  const _OrderItem({required this.menuId, required this.name, required this.quantity, required this.unitPrice, required this.lineTotal, final  List<String> options = const <String>[], this.note}): _options = options;
+  const _OrderItem({required this.menuId, required this.name, required this.quantity, required this.unitPrice, required this.lineTotal, final  List<String> options = const <String>[], this.note, this.role = 'item', this.includedIn, this.dailyMenuId}): _options = options;
   factory _OrderItem.fromJson(Map<String, dynamic> json) => _$OrderItemFromJson(json);
 
 @override final  int menuId;
@@ -2585,6 +3093,32 @@ class _OrderItem implements OrderItem {
 }
 
 @override final  String? note;
+/// Satırın rolü: `item` | `package` | `component` (B-19).
+///
+/// Menü paketi FİYATLI bir ÜST satır + SIFIR FİYATLI bileşen satırları
+/// olarak geliyor; parayı `package` satırı taşır. Okunabilir hâli için
+/// [OrderItemRole] eklentisine bakın.
+///
+/// **Düz `String`, enum değil** (`converters.dart` §katılık politikası):
+/// bilinmeyen bir rol çökertmemeli, ÇÜNKÜ o satır yine de siparişte
+/// duran gerçek bir yemektir. Katı bir enum `OrderStatus` gibi hata
+/// atardı ve sunucu dördüncü bir rol eklediği gün sipariş detayı hiç
+/// açılmazdı. Gevşek bir enum ise `unknown` üyesi + çevirici + eşleme
+/// tablosu getirirdi; üç yardımcının ([OrderItemRole]) okuduğu tek bir
+/// alan için bunların hiçbiri kazanç değil — [OrderItemRole.isPlainItem]
+/// tanımadığı rolü zaten sıradan satır sayıyor.
+///
+/// Varsayılan `item` ve alan opsiyonel: sözleşmedeki `default: item`
+/// bunu söylüyor ve rolü göndermeyen bir sunucu sürümünde ekran bugünkü
+/// gibi düz liste çizer.
+@override@JsonKey() final  String role;
+/// `role: component` satırlarında, ait olduğu paket satırının [OrderDetail.items]
+/// dizisindeki **sırası** (kimliği değil). Diğer satırlarda `null`.
+///
+/// İstemci paketi ve içindekileri iç içe gösterebilsin diye.
+@override final  int? includedIn;
+/// Satır o günün menüsünden geldiyse menünün kimliği.
+@override final  int? dailyMenuId;
 
 /// Create a copy of OrderItem
 /// with the given fields replaced by the non-null parameter values.
@@ -2599,16 +3133,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OrderItem&&(identical(other.menuId, menuId) || other.menuId == menuId)&&(identical(other.name, name) || other.name == name)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.unitPrice, unitPrice) || other.unitPrice == unitPrice)&&(identical(other.lineTotal, lineTotal) || other.lineTotal == lineTotal)&&const DeepCollectionEquality().equals(other._options, _options)&&(identical(other.note, note) || other.note == note));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OrderItem&&(identical(other.menuId, menuId) || other.menuId == menuId)&&(identical(other.name, name) || other.name == name)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.unitPrice, unitPrice) || other.unitPrice == unitPrice)&&(identical(other.lineTotal, lineTotal) || other.lineTotal == lineTotal)&&const DeepCollectionEquality().equals(other._options, _options)&&(identical(other.note, note) || other.note == note)&&(identical(other.role, role) || other.role == role)&&(identical(other.includedIn, includedIn) || other.includedIn == includedIn)&&(identical(other.dailyMenuId, dailyMenuId) || other.dailyMenuId == dailyMenuId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,menuId,name,quantity,unitPrice,lineTotal,const DeepCollectionEquality().hash(_options),note);
+int get hashCode => Object.hash(runtimeType,menuId,name,quantity,unitPrice,lineTotal,const DeepCollectionEquality().hash(_options),note,role,includedIn,dailyMenuId);
 
 @override
 String toString() {
-  return 'OrderItem(menuId: $menuId, name: $name, quantity: $quantity, unitPrice: $unitPrice, lineTotal: $lineTotal, options: $options, note: $note)';
+  return 'OrderItem(menuId: $menuId, name: $name, quantity: $quantity, unitPrice: $unitPrice, lineTotal: $lineTotal, options: $options, note: $note, role: $role, includedIn: $includedIn, dailyMenuId: $dailyMenuId)';
 }
 
 
@@ -2619,7 +3153,7 @@ abstract mixin class _$OrderItemCopyWith<$Res> implements $OrderItemCopyWith<$Re
   factory _$OrderItemCopyWith(_OrderItem value, $Res Function(_OrderItem) _then) = __$OrderItemCopyWithImpl;
 @override @useResult
 $Res call({
- int menuId, String name, int quantity, int unitPrice, int lineTotal, List<String> options, String? note
+ int menuId, String name, int quantity, int unitPrice, int lineTotal, List<String> options, String? note, String role, int? includedIn, int? dailyMenuId
 });
 
 
@@ -2636,7 +3170,7 @@ class __$OrderItemCopyWithImpl<$Res>
 
 /// Create a copy of OrderItem
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? menuId = null,Object? name = null,Object? quantity = null,Object? unitPrice = null,Object? lineTotal = null,Object? options = null,Object? note = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? menuId = null,Object? name = null,Object? quantity = null,Object? unitPrice = null,Object? lineTotal = null,Object? options = null,Object? note = freezed,Object? role = null,Object? includedIn = freezed,Object? dailyMenuId = freezed,}) {
   return _then(_OrderItem(
 menuId: null == menuId ? _self.menuId : menuId // ignore: cast_nullable_to_non_nullable
 as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -2645,7 +3179,10 @@ as int,unitPrice: null == unitPrice ? _self.unitPrice : unitPrice // ignore: cas
 as int,lineTotal: null == lineTotal ? _self.lineTotal : lineTotal // ignore: cast_nullable_to_non_nullable
 as int,options: null == options ? _self._options : options // ignore: cast_nullable_to_non_nullable
 as List<String>,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
+as String,includedIn: freezed == includedIn ? _self.includedIn : includedIn // ignore: cast_nullable_to_non_nullable
+as int?,dailyMenuId: freezed == dailyMenuId ? _self.dailyMenuId : dailyMenuId // ignore: cast_nullable_to_non_nullable
+as int?,
   ));
 }
 
@@ -2924,7 +3461,11 @@ mixin _$OrderDetail {
 
  int get id; String get orderNumber;@OrderStatusConverter() OrderStatus get status; List<OrderItem> get items; int get subtotal;/// `pickup` siparişte her zaman `0`.
  int get deliveryFee; int get total; String get currency;@DeliveryTypeConverter() DeliveryType get deliveryType; Payment get payment; List<StatusHistoryEntry> get statusHistory; DateTime get createdAt;/// `pickup` siparişte `null`.
- Address? get address; DateTime? get requestedAt; String? get customerNote;/// Abonelikten üretildiyse abonelik kimliği; elle siparişte `null`.
+ Address? get address; DateTime? get requestedAt;/// Siparişin hangi gün için olduğu (`YYYY-AA-GG`, Europe/Istanbul).
+/// Mutfak panosu ve üretim listesi bu güne göre çalışır.
+///
+/// [OrderSummary.serviceDate] ile aynı gerekçeyle isteğe bağlı.
+ String? get serviceDate; String? get customerNote;/// Abonelikten üretildiyse abonelik kimliği; elle siparişte `null`.
  int? get subscriptionId;
 /// Create a copy of OrderDetail
 /// with the given fields replaced by the non-null parameter values.
@@ -2938,16 +3479,16 @@ $OrderDetailCopyWith<OrderDetail> get copyWith => _$OrderDetailCopyWithImpl<Orde
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is OrderDetail&&(identical(other.id, id) || other.id == id)&&(identical(other.orderNumber, orderNumber) || other.orderNumber == orderNumber)&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.subtotal, subtotal) || other.subtotal == subtotal)&&(identical(other.deliveryFee, deliveryFee) || other.deliveryFee == deliveryFee)&&(identical(other.total, total) || other.total == total)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.deliveryType, deliveryType) || other.deliveryType == deliveryType)&&(identical(other.payment, payment) || other.payment == payment)&&const DeepCollectionEquality().equals(other.statusHistory, statusHistory)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.address, address) || other.address == address)&&(identical(other.requestedAt, requestedAt) || other.requestedAt == requestedAt)&&(identical(other.customerNote, customerNote) || other.customerNote == customerNote)&&(identical(other.subscriptionId, subscriptionId) || other.subscriptionId == subscriptionId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OrderDetail&&(identical(other.id, id) || other.id == id)&&(identical(other.orderNumber, orderNumber) || other.orderNumber == orderNumber)&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.subtotal, subtotal) || other.subtotal == subtotal)&&(identical(other.deliveryFee, deliveryFee) || other.deliveryFee == deliveryFee)&&(identical(other.total, total) || other.total == total)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.deliveryType, deliveryType) || other.deliveryType == deliveryType)&&(identical(other.payment, payment) || other.payment == payment)&&const DeepCollectionEquality().equals(other.statusHistory, statusHistory)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.address, address) || other.address == address)&&(identical(other.requestedAt, requestedAt) || other.requestedAt == requestedAt)&&(identical(other.serviceDate, serviceDate) || other.serviceDate == serviceDate)&&(identical(other.customerNote, customerNote) || other.customerNote == customerNote)&&(identical(other.subscriptionId, subscriptionId) || other.subscriptionId == subscriptionId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,orderNumber,status,const DeepCollectionEquality().hash(items),subtotal,deliveryFee,total,currency,deliveryType,payment,const DeepCollectionEquality().hash(statusHistory),createdAt,address,requestedAt,customerNote,subscriptionId);
+int get hashCode => Object.hash(runtimeType,id,orderNumber,status,const DeepCollectionEquality().hash(items),subtotal,deliveryFee,total,currency,deliveryType,payment,const DeepCollectionEquality().hash(statusHistory),createdAt,address,requestedAt,serviceDate,customerNote,subscriptionId);
 
 @override
 String toString() {
-  return 'OrderDetail(id: $id, orderNumber: $orderNumber, status: $status, items: $items, subtotal: $subtotal, deliveryFee: $deliveryFee, total: $total, currency: $currency, deliveryType: $deliveryType, payment: $payment, statusHistory: $statusHistory, createdAt: $createdAt, address: $address, requestedAt: $requestedAt, customerNote: $customerNote, subscriptionId: $subscriptionId)';
+  return 'OrderDetail(id: $id, orderNumber: $orderNumber, status: $status, items: $items, subtotal: $subtotal, deliveryFee: $deliveryFee, total: $total, currency: $currency, deliveryType: $deliveryType, payment: $payment, statusHistory: $statusHistory, createdAt: $createdAt, address: $address, requestedAt: $requestedAt, serviceDate: $serviceDate, customerNote: $customerNote, subscriptionId: $subscriptionId)';
 }
 
 
@@ -2958,7 +3499,7 @@ abstract mixin class $OrderDetailCopyWith<$Res>  {
   factory $OrderDetailCopyWith(OrderDetail value, $Res Function(OrderDetail) _then) = _$OrderDetailCopyWithImpl;
 @useResult
 $Res call({
- int id, String orderNumber,@OrderStatusConverter() OrderStatus status, List<OrderItem> items, int subtotal, int deliveryFee, int total, String currency,@DeliveryTypeConverter() DeliveryType deliveryType, Payment payment, List<StatusHistoryEntry> statusHistory, DateTime createdAt, Address? address, DateTime? requestedAt, String? customerNote, int? subscriptionId
+ int id, String orderNumber,@OrderStatusConverter() OrderStatus status, List<OrderItem> items, int subtotal, int deliveryFee, int total, String currency,@DeliveryTypeConverter() DeliveryType deliveryType, Payment payment, List<StatusHistoryEntry> statusHistory, DateTime createdAt, Address? address, DateTime? requestedAt, String? serviceDate, String? customerNote, int? subscriptionId
 });
 
 
@@ -2975,7 +3516,7 @@ class _$OrderDetailCopyWithImpl<$Res>
 
 /// Create a copy of OrderDetail
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? orderNumber = null,Object? status = null,Object? items = null,Object? subtotal = null,Object? deliveryFee = null,Object? total = null,Object? currency = null,Object? deliveryType = null,Object? payment = null,Object? statusHistory = null,Object? createdAt = null,Object? address = freezed,Object? requestedAt = freezed,Object? customerNote = freezed,Object? subscriptionId = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? orderNumber = null,Object? status = null,Object? items = null,Object? subtotal = null,Object? deliveryFee = null,Object? total = null,Object? currency = null,Object? deliveryType = null,Object? payment = null,Object? statusHistory = null,Object? createdAt = null,Object? address = freezed,Object? requestedAt = freezed,Object? serviceDate = freezed,Object? customerNote = freezed,Object? subscriptionId = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,orderNumber: null == orderNumber ? _self.orderNumber : orderNumber // ignore: cast_nullable_to_non_nullable
@@ -2991,7 +3532,8 @@ as Payment,statusHistory: null == statusHistory ? _self.statusHistory : statusHi
 as List<StatusHistoryEntry>,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,address: freezed == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
 as Address?,requestedAt: freezed == requestedAt ? _self.requestedAt : requestedAt // ignore: cast_nullable_to_non_nullable
-as DateTime?,customerNote: freezed == customerNote ? _self.customerNote : customerNote // ignore: cast_nullable_to_non_nullable
+as DateTime?,serviceDate: freezed == serviceDate ? _self.serviceDate : serviceDate // ignore: cast_nullable_to_non_nullable
+as String?,customerNote: freezed == customerNote ? _self.customerNote : customerNote // ignore: cast_nullable_to_non_nullable
 as String?,subscriptionId: freezed == subscriptionId ? _self.subscriptionId : subscriptionId // ignore: cast_nullable_to_non_nullable
 as int?,
   ));
@@ -3099,10 +3641,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  List<OrderItem> items,  int subtotal,  int deliveryFee,  int total,  String currency, @DeliveryTypeConverter()  DeliveryType deliveryType,  Payment payment,  List<StatusHistoryEntry> statusHistory,  DateTime createdAt,  Address? address,  DateTime? requestedAt,  String? customerNote,  int? subscriptionId)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  List<OrderItem> items,  int subtotal,  int deliveryFee,  int total,  String currency, @DeliveryTypeConverter()  DeliveryType deliveryType,  Payment payment,  List<StatusHistoryEntry> statusHistory,  DateTime createdAt,  Address? address,  DateTime? requestedAt,  String? serviceDate,  String? customerNote,  int? subscriptionId)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _OrderDetail() when $default != null:
-return $default(_that.id,_that.orderNumber,_that.status,_that.items,_that.subtotal,_that.deliveryFee,_that.total,_that.currency,_that.deliveryType,_that.payment,_that.statusHistory,_that.createdAt,_that.address,_that.requestedAt,_that.customerNote,_that.subscriptionId);case _:
+return $default(_that.id,_that.orderNumber,_that.status,_that.items,_that.subtotal,_that.deliveryFee,_that.total,_that.currency,_that.deliveryType,_that.payment,_that.statusHistory,_that.createdAt,_that.address,_that.requestedAt,_that.serviceDate,_that.customerNote,_that.subscriptionId);case _:
   return orElse();
 
 }
@@ -3120,10 +3662,10 @@ return $default(_that.id,_that.orderNumber,_that.status,_that.items,_that.subtot
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  List<OrderItem> items,  int subtotal,  int deliveryFee,  int total,  String currency, @DeliveryTypeConverter()  DeliveryType deliveryType,  Payment payment,  List<StatusHistoryEntry> statusHistory,  DateTime createdAt,  Address? address,  DateTime? requestedAt,  String? customerNote,  int? subscriptionId)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  List<OrderItem> items,  int subtotal,  int deliveryFee,  int total,  String currency, @DeliveryTypeConverter()  DeliveryType deliveryType,  Payment payment,  List<StatusHistoryEntry> statusHistory,  DateTime createdAt,  Address? address,  DateTime? requestedAt,  String? serviceDate,  String? customerNote,  int? subscriptionId)  $default,) {final _that = this;
 switch (_that) {
 case _OrderDetail():
-return $default(_that.id,_that.orderNumber,_that.status,_that.items,_that.subtotal,_that.deliveryFee,_that.total,_that.currency,_that.deliveryType,_that.payment,_that.statusHistory,_that.createdAt,_that.address,_that.requestedAt,_that.customerNote,_that.subscriptionId);case _:
+return $default(_that.id,_that.orderNumber,_that.status,_that.items,_that.subtotal,_that.deliveryFee,_that.total,_that.currency,_that.deliveryType,_that.payment,_that.statusHistory,_that.createdAt,_that.address,_that.requestedAt,_that.serviceDate,_that.customerNote,_that.subscriptionId);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -3140,10 +3682,10 @@ return $default(_that.id,_that.orderNumber,_that.status,_that.items,_that.subtot
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  List<OrderItem> items,  int subtotal,  int deliveryFee,  int total,  String currency, @DeliveryTypeConverter()  DeliveryType deliveryType,  Payment payment,  List<StatusHistoryEntry> statusHistory,  DateTime createdAt,  Address? address,  DateTime? requestedAt,  String? customerNote,  int? subscriptionId)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String orderNumber, @OrderStatusConverter()  OrderStatus status,  List<OrderItem> items,  int subtotal,  int deliveryFee,  int total,  String currency, @DeliveryTypeConverter()  DeliveryType deliveryType,  Payment payment,  List<StatusHistoryEntry> statusHistory,  DateTime createdAt,  Address? address,  DateTime? requestedAt,  String? serviceDate,  String? customerNote,  int? subscriptionId)?  $default,) {final _that = this;
 switch (_that) {
 case _OrderDetail() when $default != null:
-return $default(_that.id,_that.orderNumber,_that.status,_that.items,_that.subtotal,_that.deliveryFee,_that.total,_that.currency,_that.deliveryType,_that.payment,_that.statusHistory,_that.createdAt,_that.address,_that.requestedAt,_that.customerNote,_that.subscriptionId);case _:
+return $default(_that.id,_that.orderNumber,_that.status,_that.items,_that.subtotal,_that.deliveryFee,_that.total,_that.currency,_that.deliveryType,_that.payment,_that.statusHistory,_that.createdAt,_that.address,_that.requestedAt,_that.serviceDate,_that.customerNote,_that.subscriptionId);case _:
   return null;
 
 }
@@ -3155,7 +3697,7 @@ return $default(_that.id,_that.orderNumber,_that.status,_that.items,_that.subtot
 @JsonSerializable()
 
 class _OrderDetail extends OrderDetail {
-  const _OrderDetail({required this.id, required this.orderNumber, @OrderStatusConverter() required this.status, required final  List<OrderItem> items, required this.subtotal, required this.deliveryFee, required this.total, required this.currency, @DeliveryTypeConverter() required this.deliveryType, required this.payment, required final  List<StatusHistoryEntry> statusHistory, required this.createdAt, this.address, this.requestedAt, this.customerNote, this.subscriptionId}): _items = items,_statusHistory = statusHistory,super._();
+  const _OrderDetail({required this.id, required this.orderNumber, @OrderStatusConverter() required this.status, required final  List<OrderItem> items, required this.subtotal, required this.deliveryFee, required this.total, required this.currency, @DeliveryTypeConverter() required this.deliveryType, required this.payment, required final  List<StatusHistoryEntry> statusHistory, required this.createdAt, this.address, this.requestedAt, this.serviceDate, this.customerNote, this.subscriptionId}): _items = items,_statusHistory = statusHistory,super._();
   factory _OrderDetail.fromJson(Map<String, dynamic> json) => _$OrderDetailFromJson(json);
 
 @override final  int id;
@@ -3186,6 +3728,11 @@ class _OrderDetail extends OrderDetail {
 /// `pickup` siparişte `null`.
 @override final  Address? address;
 @override final  DateTime? requestedAt;
+/// Siparişin hangi gün için olduğu (`YYYY-AA-GG`, Europe/Istanbul).
+/// Mutfak panosu ve üretim listesi bu güne göre çalışır.
+///
+/// [OrderSummary.serviceDate] ile aynı gerekçeyle isteğe bağlı.
+@override final  String? serviceDate;
 @override final  String? customerNote;
 /// Abonelikten üretildiyse abonelik kimliği; elle siparişte `null`.
 @override final  int? subscriptionId;
@@ -3203,16 +3750,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OrderDetail&&(identical(other.id, id) || other.id == id)&&(identical(other.orderNumber, orderNumber) || other.orderNumber == orderNumber)&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.subtotal, subtotal) || other.subtotal == subtotal)&&(identical(other.deliveryFee, deliveryFee) || other.deliveryFee == deliveryFee)&&(identical(other.total, total) || other.total == total)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.deliveryType, deliveryType) || other.deliveryType == deliveryType)&&(identical(other.payment, payment) || other.payment == payment)&&const DeepCollectionEquality().equals(other._statusHistory, _statusHistory)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.address, address) || other.address == address)&&(identical(other.requestedAt, requestedAt) || other.requestedAt == requestedAt)&&(identical(other.customerNote, customerNote) || other.customerNote == customerNote)&&(identical(other.subscriptionId, subscriptionId) || other.subscriptionId == subscriptionId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OrderDetail&&(identical(other.id, id) || other.id == id)&&(identical(other.orderNumber, orderNumber) || other.orderNumber == orderNumber)&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.subtotal, subtotal) || other.subtotal == subtotal)&&(identical(other.deliveryFee, deliveryFee) || other.deliveryFee == deliveryFee)&&(identical(other.total, total) || other.total == total)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.deliveryType, deliveryType) || other.deliveryType == deliveryType)&&(identical(other.payment, payment) || other.payment == payment)&&const DeepCollectionEquality().equals(other._statusHistory, _statusHistory)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.address, address) || other.address == address)&&(identical(other.requestedAt, requestedAt) || other.requestedAt == requestedAt)&&(identical(other.serviceDate, serviceDate) || other.serviceDate == serviceDate)&&(identical(other.customerNote, customerNote) || other.customerNote == customerNote)&&(identical(other.subscriptionId, subscriptionId) || other.subscriptionId == subscriptionId));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,orderNumber,status,const DeepCollectionEquality().hash(_items),subtotal,deliveryFee,total,currency,deliveryType,payment,const DeepCollectionEquality().hash(_statusHistory),createdAt,address,requestedAt,customerNote,subscriptionId);
+int get hashCode => Object.hash(runtimeType,id,orderNumber,status,const DeepCollectionEquality().hash(_items),subtotal,deliveryFee,total,currency,deliveryType,payment,const DeepCollectionEquality().hash(_statusHistory),createdAt,address,requestedAt,serviceDate,customerNote,subscriptionId);
 
 @override
 String toString() {
-  return 'OrderDetail(id: $id, orderNumber: $orderNumber, status: $status, items: $items, subtotal: $subtotal, deliveryFee: $deliveryFee, total: $total, currency: $currency, deliveryType: $deliveryType, payment: $payment, statusHistory: $statusHistory, createdAt: $createdAt, address: $address, requestedAt: $requestedAt, customerNote: $customerNote, subscriptionId: $subscriptionId)';
+  return 'OrderDetail(id: $id, orderNumber: $orderNumber, status: $status, items: $items, subtotal: $subtotal, deliveryFee: $deliveryFee, total: $total, currency: $currency, deliveryType: $deliveryType, payment: $payment, statusHistory: $statusHistory, createdAt: $createdAt, address: $address, requestedAt: $requestedAt, serviceDate: $serviceDate, customerNote: $customerNote, subscriptionId: $subscriptionId)';
 }
 
 
@@ -3223,7 +3770,7 @@ abstract mixin class _$OrderDetailCopyWith<$Res> implements $OrderDetailCopyWith
   factory _$OrderDetailCopyWith(_OrderDetail value, $Res Function(_OrderDetail) _then) = __$OrderDetailCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String orderNumber,@OrderStatusConverter() OrderStatus status, List<OrderItem> items, int subtotal, int deliveryFee, int total, String currency,@DeliveryTypeConverter() DeliveryType deliveryType, Payment payment, List<StatusHistoryEntry> statusHistory, DateTime createdAt, Address? address, DateTime? requestedAt, String? customerNote, int? subscriptionId
+ int id, String orderNumber,@OrderStatusConverter() OrderStatus status, List<OrderItem> items, int subtotal, int deliveryFee, int total, String currency,@DeliveryTypeConverter() DeliveryType deliveryType, Payment payment, List<StatusHistoryEntry> statusHistory, DateTime createdAt, Address? address, DateTime? requestedAt, String? serviceDate, String? customerNote, int? subscriptionId
 });
 
 
@@ -3240,7 +3787,7 @@ class __$OrderDetailCopyWithImpl<$Res>
 
 /// Create a copy of OrderDetail
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? orderNumber = null,Object? status = null,Object? items = null,Object? subtotal = null,Object? deliveryFee = null,Object? total = null,Object? currency = null,Object? deliveryType = null,Object? payment = null,Object? statusHistory = null,Object? createdAt = null,Object? address = freezed,Object? requestedAt = freezed,Object? customerNote = freezed,Object? subscriptionId = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? orderNumber = null,Object? status = null,Object? items = null,Object? subtotal = null,Object? deliveryFee = null,Object? total = null,Object? currency = null,Object? deliveryType = null,Object? payment = null,Object? statusHistory = null,Object? createdAt = null,Object? address = freezed,Object? requestedAt = freezed,Object? serviceDate = freezed,Object? customerNote = freezed,Object? subscriptionId = freezed,}) {
   return _then(_OrderDetail(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,orderNumber: null == orderNumber ? _self.orderNumber : orderNumber // ignore: cast_nullable_to_non_nullable
@@ -3256,7 +3803,8 @@ as Payment,statusHistory: null == statusHistory ? _self._statusHistory : statusH
 as List<StatusHistoryEntry>,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,address: freezed == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
 as Address?,requestedAt: freezed == requestedAt ? _self.requestedAt : requestedAt // ignore: cast_nullable_to_non_nullable
-as DateTime?,customerNote: freezed == customerNote ? _self.customerNote : customerNote // ignore: cast_nullable_to_non_nullable
+as DateTime?,serviceDate: freezed == serviceDate ? _self.serviceDate : serviceDate // ignore: cast_nullable_to_non_nullable
+as String?,customerNote: freezed == customerNote ? _self.customerNote : customerNote // ignore: cast_nullable_to_non_nullable
 as String?,subscriptionId: freezed == subscriptionId ? _self.subscriptionId : subscriptionId // ignore: cast_nullable_to_non_nullable
 as int?,
   ));

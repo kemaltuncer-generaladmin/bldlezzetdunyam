@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { IconCart } from '@/components/icons';
+import { ShoppingBasket } from 'lucide-react';
 import { MinOrderProgress } from '@/components/min-order-progress';
+import { Button } from '@/components/ui/button';
 import { CART_CHANGED_EVENT } from '@/lib/cart-events';
-import { formatPrice } from '@/lib/format';
+import { Money } from '@/components/money';
+import { businessToday, isBusinessDate, serviceDayTitle } from '@/lib/business-date';
 
 type CartSummary = {
   count: number;
@@ -14,6 +16,9 @@ type CartSummary = {
   remainingToMinimum: number;
   hasUnavailable: boolean;
   orderingOpen: boolean;
+  /** Sepetin bağlı olduğu servis günü (`YYYY-AA-GG`); boş sepette `null`. */
+  serviceDate: string | null;
+  dayOrderable: boolean;
 };
 
 function parseSummary(value: unknown): CartSummary | null {
@@ -28,6 +33,8 @@ function parseSummary(value: unknown): CartSummary | null {
     remainingToMinimum: num('remaining_to_minimum'),
     hasUnavailable: raw.has_unavailable === true,
     orderingOpen: raw.ordering_open === true,
+    serviceDate: typeof raw.service_date === 'string' ? raw.service_date : null,
+    dayOrderable: raw.day_orderable === true,
   };
 }
 
@@ -76,28 +83,41 @@ export function CartSummaryPanel() {
   return (
     <aside
       aria-label="Sepet özeti"
-      className="sticky top-32 hidden h-fit bld-card p-5 lg:block"
+      className="sticky top-32 hidden h-fit rounded-md bg-card p-5 text-card-foreground shadow-card lg:block dark:shadow-none dark:inset-ring dark:inset-ring-white/5"
       data-testid="cart-summary-panel"
     >
-      <h2 className="flex items-center gap-2 text-base font-bold">
-        <IconCart className="h-5 w-5 text-brand-700" />
+      <h2 className="flex items-center gap-2 font-display text-h3 font-semibold text-heading">
+        <ShoppingBasket
+          strokeWidth={1.75}
+          aria-hidden="true"
+          className="size-5 text-primary-text"
+        />
         Sepetim
       </h2>
 
+      {/* Sepet bir güne bağlı; hangi gün olduğu tutardan önce gelir. */}
+      {summary?.serviceDate && isBusinessDate(summary.serviceDate) && (
+        <p className="mt-1 text-body-sm text-muted-foreground">
+          {serviceDayTitle(summary.serviceDate, businessToday())}
+        </p>
+      )}
+
       {count === 0 ? (
-        <p className="mt-3 text-sm text-neutral-600">
-          Sepetiniz henüz boş. Beğendiğiniz ürünleri ekledikçe tutar burada görünür.
+        <p className="mt-3 text-body-sm text-muted-foreground">
+          Sepetiniz henüz boş. Bir gün seçip o günün menüsünü ekledikçe tutar burada görünür.
         </p>
       ) : (
         <>
-          <dl className="mt-4 space-y-2 text-sm">
+          <dl className="mt-4 space-y-2 text-body-sm">
             <div className="flex justify-between gap-3">
-              <dt className="text-neutral-600">Ürün</dt>
+              <dt className="text-muted-foreground">Ürün</dt>
               <dd className="font-medium">{count} adet</dd>
             </div>
             <div className="flex justify-between gap-3">
-              <dt className="text-neutral-600">Ara toplam</dt>
-              <dd className="text-lg font-bold">{formatPrice(summary?.subtotal ?? 0)}</dd>
+              <dt className="text-muted-foreground">Ara toplam</dt>
+              <dd>
+                <Money kurus={summary?.subtotal ?? 0} size="lg" />
+              </dd>
             </div>
           </dl>
 
@@ -110,14 +130,14 @@ export function CartSummaryPanel() {
           )}
 
           {summary?.hasUnavailable && (
-            <p className="mt-3 rounded-md bg-danger/10 px-3 py-2 text-xs text-danger">
+            <p className="mt-3 rounded-sm bg-danger-surface px-3 py-2 text-body-sm text-danger-foreground">
               Sepetinizde tükenen ürün var, sipariş öncesi çıkarmanız gerekiyor.
             </p>
           )}
 
-          <Link href="/sepet" className="mt-4 bld-btn-primary w-full">
-            Sepete git
-          </Link>
+          <Button asChild className="mt-4 w-full">
+            <Link href="/sepet">Sepete git</Link>
+          </Button>
         </>
       )}
     </aside>
@@ -134,24 +154,32 @@ export function CartSummaryBar() {
 
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-neutral-0/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(28,25,23,0.08)] backdrop-blur-sm lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 pb-[env(safe-area-inset-bottom)] shadow-overlay backdrop-blur-sm lg:hidden"
       data-testid="cart-summary-bar"
     >
       <div className="mx-auto flex max-w-content items-center gap-3 px-4 py-3">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold">
-            {summary.count} ürün · {formatPrice(summary.subtotal)}
+          <p className="truncate text-body-sm font-semibold">
+            {summary.count} ürün · <Money kurus={summary.subtotal} size="sm" />
           </p>
+          {summary.serviceDate && isBusinessDate(summary.serviceDate) && (
+            <p className="truncate text-caption text-muted-foreground">
+              {serviceDayTitle(summary.serviceDate, businessToday())}
+            </p>
+          )}
           {summary.minOrderTotal > 0 && summary.remainingToMinimum > 0 && (
-            <p className="truncate text-xs text-neutral-600">
-              Asgari tutara {formatPrice(summary.remainingToMinimum)} kaldı
+            <p className="truncate text-caption text-muted-foreground">
+              Asgari tutara <Money kurus={summary.remainingToMinimum} size="sm" tone="muted" />{' '}
+              kaldı
             </p>
           )}
         </div>
-        <Link href="/sepet" className="bld-btn-primary shrink-0">
-          <IconCart className="h-5 w-5" />
-          Sepete git
-        </Link>
+        <Button asChild className="shrink-0">
+          <Link href="/sepet">
+            <ShoppingBasket strokeWidth={1.75} aria-hidden="true" />
+            Sepete git
+          </Link>
+        </Button>
       </div>
     </div>
   );

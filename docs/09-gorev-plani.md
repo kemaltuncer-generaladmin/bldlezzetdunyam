@@ -384,6 +384,293 @@ mobil uygulamanın gerisinde".
    işlem arasında çöken kasa o sipariş için kuyrukta **sıfır** iş bırakırdı.
    Sıra ters çevrildi: en kötü ihtimalde fazladan bir fiş basılır.
 
+## 8.9 Günün menüsü turu — B-19 (13.08.2026)
+
+İşletme sahibinin kararı: **satış artık katalogdan değil, GÜNÜN MENÜSÜ
+üzerinden.** Yönetici takvimden gün gün menü giriyor; o gün yalnız o menü
+satılıyor — paket olarak ya da içindeki ürünler tek tek. Katalog listeleme
+ve ürün detayı web ile mobilden kalkıyor, ürün KAYITLARI duruyor: onlar artık
+günün menüsünün kalemleri.
+
+### Katman 1 — Admin paneli: aylık menü takvimi
+
+Turun kilit taşı. **Menü girilmeden ne web ne mobil sınanabilir**, bu yüzden
+ilk çıktı bu ekran.
+
+| Dosya | İş |
+|---|---|
+| `src/Http/Controllers/Admin/DailyMenus.php` | Ay ızgarası + beş AJAX işleyicisi |
+| `resources/views/dailymenus/index.blade.php` | Ekran, kopyalama ve toplu işlem kartları, gün tablosu (JSON) |
+| `resources/views/_partials/dailymenus/month_grid.blade.php` | Yedi sütunlu ay ızgarası, gün kutusu, rozetler |
+| `resources/views/_partials/dailymenus/day_editor.blade.php` | Tek `<dialog>`, otuz bir gün; kalem satırı `<template>`'i |
+| `resources/css/dailymenu.css` | Yalnız bu ekranda yüklenen düzen (admin.css'e dokunulmadı) |
+| `resources/lang/{tr,en}/dailymenu.php` | 120 anahtar, iki dilde birebir |
+| `src/Admin/AdminRegistrar.php` | `Veykemtu.DailyMenu` yetkisi + "Restoran" grubunda priority 88 |
+
+**Çekirdeğin `ListController`/`FormController`'ı KULLANILMADI.** Burada
+kaydedilen şey tek bir model değil: bir gün kaydı, N kalem satırı, kopyalama
+semantiği ve toplu durum değişimi birlikte yaşıyor. Ayrıca ekranın birincil
+görünümü bir liste değil, bir AY IZGARASI — yönetici "18 Ağustos'ta ne var"
+sorusunu satır satır bir listede değil, takvimde cevaplıyor. Kalıp
+`PhoneOrders` ile aynı ve gerekçesi orada da yazılı.
+
+**Yetki SEKİZİNCİ ayrı kutu.** Bu ekran şirketin ne satacağına ve hangi
+fiyata satacağına karar veriyor. Sipariş görüntüleme yetkisiyle aynı kutuya
+konsaydı, siparişlere bakabilen herkes gelecek ayı yeniden fiyatlandırabilirdi.
+
+### ÜÇ KURAL
+
+1. **Kopya her zaman TASLAK olarak düşer** (`DailyMenus::copyDay()`),
+   kaynak yayında olsa bile. Bir ayı kazara yayına almak, `status` alanının
+   var olma sebebi olan sızıntının ta kendisi: yarım girilmiş bir perşembe
+   kopyalandığı anda müşteriye görünür ve pişmeyecek bir yemek satılır.
+
+2. **Kapalı günler her zaman atlanır**, `overwrite` verilse bile.
+   `DailyMenuService::verdict()` kapalı günü her şeyin önünde tutuyor;
+   kopyanın oraya menü yazması, ızgarada "yayında" görünen ama satılamayan
+   bir gün üretirdi — yani yöneticinin emeğini boşa harcardı.
+
+3. **Siparişi olan gün kilitli.** `package_price_kurus`, `status` ve kalem
+   satırları donar; başlık, açıklama ve iç not düzenlenebilir kalır
+   (kozmetik, üstelik sipariş satırındaki ad `orderLineName()` ile zaten
+   kopyalanmış). **Gerekçe:** `OrderEditor` paketi gün satırından YENİDEN
+   fiyatlıyor. Sipariş varken fiyat değiştirilseydi, yalnızca notu düzelten
+   bir revizyon siparişi sessizce yeniden fiyatlandırır ve cari deftere
+   uydurma bir iade/ek ücret yazardı — üstelik defter revizyon başına
+   idempotent olduğu için **kendiliğinden düzelmez**.
+   İptal edilmiş sipariş günü kilitlemez: iptal cari borcu ters kayıtla
+   nötrledi ve durum makinesi iptal edilmiş siparişin revizyonuna izin
+   vermiyor. Sayılsaydı tek bir iptal o günü sonsuza kadar kilitlerdi.
+
+Kopyalama ve toplu işlem **atladığı her günü sebebiyle raporlar**
+("5 gün kopyalandı, 2 gün atlandı: 18.08 kapalı gün, 20.08 siparişi var").
+İstenenden azını sessizce yapan bir kopya, reddeden bir kopyadan kötüdür:
+yönetici atlanan günün menüsüz kaldığını ancak o sabah öğrenir.
+
+### Turda yakalanan hatalar
+
+1. **Menü kalemleri yanlış sırada okunuyordu — ve bu sıra KALICI OLARAK
+   BOZULUYORDU.** `veykemtu_daily_menu_items` üzerinde
+   `(daily_menu_id, menu_id)` tekil indeksi var; MySQL sırasız bir okumada
+   kalemleri o indeksten, yani **ürün kimliği sırasında** getiriyor. Ekleme
+   sırası gibi görünen şey aslında ürün kimliği sırasıydı ve sonradan
+   kataloğa eklenmiş bir çorba listenin altına düşüyordu. Panelde bu yalnız
+   kozmetik değil: gün düzenleyici kalemleri o sırayla çiziyor ve kaydet'e
+   basıldığı anda `sort_order` **o yanlış sırayla** yeniden yazılıyor —
+   yöneticinin girdiği sıra geri dönülemez biçimde kayboluyordu. Sıra artık
+   `DailyMenu::$relation` içinde (`'order' => ['sort_order asc', 'id asc']`);
+   okuma yerlerine dağıtılmış bir sıralama, unutulan ilk okumada sessizce
+   bozuluyor. Çekirdeğin tanıdığı anahtar `'order'`; daha önce denenen
+   `'sort'` **sessizce yok sayılıyor**
+   (`Flame\Database\Relations\DefinedConstraints`).
+2. **Flash mesajının oturum anahtarı tahmin edilmişti.** Testler Laravel
+   dünyasının alışıldık `flash_notification` anahtarını okuyordu; TastyIgniter
+   ise anahtarı çalışma bağlamına göre seçiyor
+   (`System\ServiceProvider::resolveFlashSessionKey` → panelde
+   `flash_data_admin`). Kopyalama raporu yazılmıştı, yalnız başka bir
+   kutudaydı ve testler "rapor hiç üretilmiyor" diye kırmızıydı.
+3. **Ay sonunda kırılacak bir test.** Toplu işlem testi ayı `now()`'dan,
+   siparişli günü `now()+1`'den türetiyordu; ayın son gününde sipariş
+   sonraki aya düşer ve toplu işlem onu hiç görmezdi. Ay artık siparişli
+   günden türetiliyor.
+
+### Çekirdek tuzağı — işleyici imzası
+
+`AdminController::processHandlers()` işleyiciyi `[$this->action, ...$params]`
+ile çağırıyor: **ilk argüman her zaman bağlam adıdır.** Tek parametreli
+yazılan `onXxx(?string $date)` `"index"` alır ve ekran sebebi anlaşılmayan
+bir 406 döner (B-14'te sahada oldu). Bu ekranın beş işleyicisi de
+`(string $context, ?string $recordId = null)` ile başlıyor ve
+`AdminDailyMenuTest::test_her_isleyici_baglam_argumaniyla_baslar` bunu
+yansımayla kilitliyor.
+
+İkinci tuzak: para alanları `type="text"`, `number` **değil** — çekirdek
+number postback'ini `(int)`'e daraltıp kuruşu yiyor (`LiraField` docblock'u).
+
+### Doğrulama
+
+```bash
+cd platform
+vendor/bin/phpunit --testsuite Veykemtu   # 353/353
+```
+
+Yeni göç **yok**: takvim ekranı B-19'un backend turunda açılan
+`veykemtu_daily_menus` / `veykemtu_daily_menu_items` tablolarını kullanıyor.
+Menü kaydedilince ve yayına alınınca `SiteRevalidator` sitenin ISR
+önbelleğini tazeliyor — yönetici yarınki menüyü akşam giriyor ve bir sonraki
+ISR turuna kadar eski menü kalırsa müşteri var olmayan bir yemeği sipariş
+etmeye çalışır.
+
+## 8.10 Abonelik `menu_mode = daily_menu` — nihayet çalışıyor (14.08.2026)
+
+`docs/11` §7.5'te "Ertelenen" diye duran mod açıldı. Erteleme gerekçesi
+("günün menüsü kaynağı yok") B-19 ile ortadan kalkmıştı;
+`veykemtu_daily_menus` o kaynağın kendisi.
+
+### Asıl kilit formdaydı, kodda değil
+
+`OrderFactory` daily_menu'yü açıkça reddediyordu ve `SubscriptionController`
+modu `fixed_list`'e zorluyordu — ama ikisi düzeltilse bile mod
+**seçilemiyordu**: `resources/models/subscription.php` içinde `menu_mode`
+form alanı hiç yoktu. `Subscriptions::formExtendModel` içindeki
+`$model->menu_mode ??= MENU_FIXED_LIST` yalnızca varsayılanı yazar; formda
+alan bulunmayınca her kayıt `fixed_list` doğar. Alan artık `radiotoggle`
+olarak **yalnız oluşturma bağlamında** var (menü kaynağı sözleşmenin kendisi;
+çalışan bir aboneliğinkini değiştirmek takvimini değiştirmekle aynı şey) ve
+ürün satırı repeater'ı `trigger` ile `fixed_list`'e bağlı.
+
+`trigger` yalnızca **gizler**; alan DOM'da kalır ve doluysa gönderilir. Bu
+yüzden `formAfterCreate` daily_menu'de satırları yazmadan dönüyor ve API ucu
+daily_menu + `lines` birleşimini 422 ile reddediyor — iki içerik kaynağı,
+panelde gerçekle çelişen bir liste demekti.
+
+### Şekil, tek seferlik siparişle aynı olmak zorunda
+
+Abonelik siparişi de fiyatlı bir `role = "package"` üst satırı + sıfır
+fiyatlı `role = "component"` satırları olarak yazılıyor. Sebep kozmetik
+değil: `ProductionListService`, `SubscriptionKitchenPlan::totals` ve
+`OrderPresenter::kitchenItems` üçü de `bld_line_role != 'package'`
+süzgecini kullanıyor. Bileşenler üst satırsız yazılsaydı süzgeç abonelikte
+hiçbir şey elemez, mutfak şeridi iki kaynaktan iki farklı şekil görürdü.
+
+Fiyat **her iki modda da** `agreed_unit_price_kurus` ve daily_menu'de de
+zorunlu: sözleşme "o gün ne pişerse pişsin porsiyonu şu kadar" der. Günün
+`package_price_kurus` değeri hiç okunmuyor — o gün vitrinde paket
+satılmasa bile abonelik üretimi koşar.
+
+### Menü yoksa: gürültü değil, tek satır
+
+`veykemtu:abonelik-uret` hedef gün için daily_menu aboneliği varken
+yayınlanmış menü yoksa **vitrin başına tek** hata satırı basar (abonelik
+başına bir yığın izi değil), o abonelikleri üretime hiç sokmaz ve `FAILURE`
+döner. `veykemtu_subscription_runs` satırı yazılmadığı için menü
+yayınlandıktan sonra komut yeniden koşturulunca sipariş doğar; UNIQUE kısıtı
+tek sipariş garantisini korur.
+
+Aynı durum iki yerde daha görünüyor:
+
+* `SubscriptionKitchenPlan::warnings` → `kind = 'not_generated'`. **Yeni bir
+  tür uydurulmadı**: `mutfakapp/lib/src/data/subscription_plan.dart` içinde
+  `isCritical => kind == 'not_generated'` sabit kodlu; yeni tür mavi/bilgi
+  olarak çizilirdi ve "yarınki 400 porsiyonun menüsü yok" alarmdır.
+* Gösterge panelindeki BLD kutusu → önümüzdeki yedi günün menüsü olmayan
+  günleri **adlarıyla**. Gece üretimi 22:00'de yarın için koşuyor; uyarıyı
+  kimsenin izlemediği ikinci bir cron'a bağlamak yerine yöneticinin zaten
+  her sabah baktığı yere koymak, görülme ihtimalini tek başına belirliyor.
+  Kapalı günler elenir — bayramda menü olmaması eksiklik değil, kararın
+  kendisi.
+
+### Doğrulama
+
+```bash
+cd platform
+vendor/bin/phpunit --testsuite Veykemtu   # 368/368
+```
+
+Yeni göç **yok**. Sözleşme additive: `SubscriptionCreate.menu_mode`
+(gönderilmezse `fixed_list`, eski davranış birebir korunur).
+
+## 8.11 Akıllı adres — B-21 backend (14.08.2026)
+
+Adres bugüne kadar tek bir serbest metindi (`address_1`). Kurye onu okuyordu
+ama sistem hiçbir parçasını bilmiyordu. B-21 iki şey ekliyor: adresin
+**parçalanmış hâli** ve o parçaları dolduran bir **geocoder**.
+
+| Kimlik | İş | Durum |
+|---|---|---|
+| B-21 | `addresses` tablosuna beş yapılandırılmış sütun; `Geocoding` sürücü katmanı (OSM/Nominatim + sahte); `GET /addresses/suggest` ve `/addresses/reverse`; defter + sipariş uçlarında kabul/kopyalama/yanıt | **Bitti** |
+
+### Sürücü arayüzü, sağlayıcıdan önce
+
+`Services/Geocoding/Geocoder` üç metot: `suggest`, `reverse`, `name`.
+Bugünkü gerçeklemesi `NominatimGeocoder` — anahtar istemiyor, faturası yok.
+`docs/11` §F2-01 Google Places'i planlıyor; o gün değişecek tek yer
+`Extension::registerGeocoder()` içindeki tek satır olmalı. Bu yüzden
+**sürücü hizmet alanını bilmez**: kutuya göre eleme, kanonik ilçe yazımı,
+önbellek ve arıza yutma `AddressLookup` içinde. Sürücüye konsaydı her yeni
+sağlayıcı aynı kuralı baştan uygulamak zorunda kalırdı.
+
+### Türkiye'ye özgü tuzak — `city` şehir değil
+
+Nominatim'in Konya yanıtı (ölçüldü, tahmin edilmedi):
+
+```json
+{"suburb":"Feritpaşa Mahallesi","city":"Konya","town":"Selçuklu","province":"Konya"}
+```
+
+Yani **mahalle `suburb`'te, ilçe `town`'da** ve `city` büyükşehrin kendisi.
+"city = şehir, suburb = ilçe" diye okuyan sezgisel eşleme her öneriyi
+"Feritpaşa Mahallesi" ilçesine düşürür, hizmet alanı elemesinden geçemez ve
+öneri kutusu **hep boş** görünür — hata da vermez.
+
+### Arıza sipariş akışını durdurmaz
+
+Sağlayıcı çökerse `/suggest` `200` + boş liste, `/reverse` `200` + `null`
+döner; ayrım yalnızca sunucu günlüğüne yazılır. `5xx` dönseydi dışarıdaki
+bir servisin bizim ödeme ekranımızı kapatabilmesi demek olurdu — oysa öneri
+bir **kolaylık**, adres elle de yazılabiliyor. Tek istisna ters
+geocoding'de kutu dışı nokta: orada `422` +
+`details.reason = "out_of_service_area"`, çünkü kullanıcı haritayı gördü ve
+teslimat yapmadığımız bir yeri **kasten** seçti.
+
+Eleme hem kutuya hem ilçe adına bakıyor: kutu (37.80–38.10 / 32.35–32.75)
+Meram'ı da içine alan kaba bir dikdörtgen. Kutu dışı aday listeye hiç
+girmez — "teslimat yok" diye işaretlenip gösterilmez.
+
+### `line1` zorunlu kalır ama artık türetilebiliyor
+
+`line1`'i isteğe bağlı yapmak sözleşmeyi kırardı: fiş, kurye ekranı ve
+sahadaki istemci sürümleri yalnız onu okuyor. Tek gevşeme
+`required_without_all:neighbourhood,street,building_no` — yeni form
+parçaları gönderdiğinde cümleyi **sunucu** kuruyor
+(`StructuredAddress::compose`, "Feritpaşa Mah. Kültür Sk. No:12/A Kat:3
+Daire:7"). Kat ve daire de cümleye giriyor: kurye adresi arar değil OKUR.
+Gönderilen `line1` **aynen korunuyor** — her zaman türetilseydi "mavi
+kepenkli dükkân" gibi kuryenin gerçekten kullandığı tarifler silinirdi.
+
+Beş alan `latitude`/`longitude` ile aynı güncelleme kuralını izliyor:
+`null` göndermek siler, hiç göndermemek korur. Koordinat çiftinin aksine
+**birbirinden bağımsız** — kat bilinip daire bilinmemesi olağan.
+
+### Yeni `.env` girdileri
+
+```
+GEOCODER_CONTACT=     # OSM kullanım şartı: User-Agent'ta iletişim adresi. Boşsa APP_URL.
+GEOCODER_URL=         # Boşsa https://nominatim.openstreetmap.org
+```
+
+Genel Nominatim sunucusu **saniyede 1 istek** şart koşuyor ve engel SESSİZ
+oluyor (öneri kutusu boş açılır, hata görünmez). Trafik büyüdüğünde doğru
+hamle oran sınırını yükseltmek değil, `GEOCODER_URL` ile kendi örneğimize
+geçmek. Yük ayrıca 24 saatlik sunucu önbelleğiyle ve `bld-adres` sınırıyla
+(30/dk, **hesap** başına — IP başına olsaydı tek NAT arkasındaki ofis
+çalışanları birbirini kilitlerdi) tutuluyor.
+
+### Sunucuda koşturulacak göç (1 adet)
+
+```
+2026_08_16_000001_add_structured_address_columns
+```
+
+`addresses` tablosuna `bld_neighbourhood`, `bld_street`, `bld_building_no`,
+`bld_floor`, `bld_door_no`. Hepsi nullable ve hepsi metin (`12/A`, `Zemin`
+sahada yaygın). **Eski satırlar ayrıştırılmıyor**: geriye dönük bir regex
+satırların çoğunda çalışır, azında çalışmaz — ve çalışmadığı her satırda
+kuryeyi yanlış kapıya götürür.
+
+### Doğrulama
+
+```bash
+cd platform
+vendor/bin/phpunit --testsuite Veykemtu   # 388/388
+```
+
+`tests/Feature/AddressSuggestTest.php` (20 test) sahte sürücüyle koşuyor,
+`Http::fake()` ile değil: sahte HTTP gövdesi Nominatim'in biçimini teste
+kopyalar ve sürücü değiştiği gün testler sağlayıcıya göre yeniden yazılmak
+zorunda kalırdı. Doğrulanan şey uygulama davranışı — eleme, önbellek, hata
+yutma, kopyalama.
+
 ## 9. Kapsam kesme sırası (takvim sıkışırsa)
 
 Sırayla feda edilir:

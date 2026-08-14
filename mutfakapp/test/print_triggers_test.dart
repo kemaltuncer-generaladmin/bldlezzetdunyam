@@ -2,6 +2,10 @@
 ///
 /// K-20 KURALI: sipariş başına tam **iki** kâğıt. Kurye fişi otomatik
 /// basılmıyor; düzenlemeler tek güncel kâğıtta birleşiyor.
+///
+/// 14.08.2026 EKİ: o iki kâğıt **asla aynı turda** çıkmaz. Sahadaki şikâyet
+/// "arka arkaya fiş basılıyor"du; bir turda sipariş başına en çok bir iş
+/// üretiliyor, mutfak önce, ertelenen iş bir sonraki yoklamada çıkıyor.
 library;
 
 import 'package:bld_api_client/bld_api_client.dart';
@@ -31,6 +35,22 @@ void main() {
   List<PrintTriggerJob> tick(List<KitchenOrder> orders, {Duration? after}) {
     if (after != null) now = now.add(after);
     return triggers.jobsFor(orders);
+  }
+
+  /// Siparişin İKİ fişini de bastırıp "hepsi basıldı" durumuna getirir.
+  ///
+  /// İki tur sürüyor: turda sipariş başına tek kâğıt kuralıyla mutfak ve
+  /// müşteri fişi aynı yoklamada çıkmıyor. Revizyon testlerinin çoğu
+  /// "her iki tip de basılmış" durumundan başladığı için bu kurulum
+  /// tek satırda toplandı.
+  void printBothReceipts(int id, {int revisionNo = 0}) {
+    final order = makeOrder(
+      id: id,
+      status: OrderStatus.hazir,
+      revisionNo: revisionNo,
+    );
+    triggers.jobsFor([order]);
+    triggers.jobsFor([order]);
   }
 
   test('YENİ durumda hiçbir fiş çıkmaz', () {
@@ -79,17 +99,17 @@ void main() {
     final produced = <PrintTriggerJob>[];
     for (final status in OrderStatus.values) {
       produced.addAll(
-        PrintTriggers(clock: () => now).jobsFor([
-          makeOrder(id: 11, status: status),
-        ]),
+        PrintTriggers(
+          clock: () => now,
+        ).jobsFor([makeOrder(id: 11, status: status)]),
       );
     }
 
     expect(produced.map((j) => j.type), isNot(contains(ReceiptType.kurye)));
   });
 
-  test('hazir durumu tekrar yayınlanırsa ikinci fiş çıkmaz', () {
-    triggers.jobsFor([makeOrder(id: 1, status: OrderStatus.hazir)]);
+  test('iki fiş de çıktıktan sonra hazir tekrar yayınlanırsa fiş çıkmaz', () {
+    printBothReceipts(1);
 
     expect(
       triggers.jobsFor([makeOrder(id: 1, status: OrderStatus.hazir)]),
@@ -97,13 +117,17 @@ void main() {
     );
   });
 
-  test('hazir olarak ilk kez görülen sipariş İKİ fiş tetikler', () {
-    final jobs = triggers.jobsFor([
-      makeOrder(id: 9, status: OrderStatus.hazir),
-    ]);
+  test('hazir olarak ilk kez görülen sipariş ÖNCE mutfak, SONRAKİ turda '
+      'müşteri fişi tetikler', () {
+    // Şikâyetin ta kendisi: iki eşik aynı yoklamada aşılıyordu ve tezgâha
+    // 1,2 saniye arayla iki kâğıt birden düşüyordu. Sipariş iki yoklama
+    // arasında `yeni`den `hazir`a atlarsa bu her seferinde oluyor.
+    final order = makeOrder(id: 9, status: OrderStatus.hazir);
 
-    expect(jobs, [
+    expect(triggers.jobsFor([order]), [
       const PrintTriggerJob(9, ReceiptType.mutfak),
+    ]);
+    expect(triggers.jobsFor([order]), [
       const PrintTriggerJob(9, ReceiptType.musteri),
     ]);
   });
@@ -111,11 +135,14 @@ void main() {
   test('yolda durumu da müşteri fişi tetikler', () {
     // hazir iken kapanıp yolda iken açılan uygulamada fiş hiç basılmamış
     // olabilir; tetiği kaçırmaktansa fazladan çağırmak yeğdir (idempotent).
-    final jobs = triggers.jobsFor([
-      makeOrder(id: 4, status: OrderStatus.yolda),
-    ]);
+    final order = makeOrder(id: 4, status: OrderStatus.yolda);
 
-    expect(jobs, contains(const PrintTriggerJob(4, ReceiptType.musteri)));
+    triggers.jobsFor([order]); // turun kâğıdı mutfak fişi
+
+    expect(
+      triggers.jobsFor([order]),
+      contains(const PrintTriggerJob(4, ReceiptType.musteri)),
+    );
   });
 
   test('hazir öncesi durumlar müşteri fişi tetiklemez', () {
@@ -128,21 +155,129 @@ void main() {
     }
   });
 
-  test('gel-al: hazir atlanıp teslim edildi görülürse iki fiş de çıkar', () {
+  test('gel-al: hazir atlanıp teslim edildi görülürse ÖNCE mutfak, SONRAKİ '
+      'turda müşteri fişi çıkar', () {
     // Gel-al siparişi `hazir`dan doğrudan `teslim_edildi`ye geçer. Arada
-    // bir yayın kaçarsa müşteri fişi hiç basılmamış olurdu.
-    final jobs = triggers.jobsFor([
-      makeOrder(
-        id: 8,
-        status: OrderStatus.teslimEdildi,
-        deliveryType: DeliveryType.pickup,
-      ),
-    ]);
+    // bir yayın kaçarsa müşteri fişi hiç basılmamış olurdu; iki tura
+    // yayılsa da her iki kâğıt da çıkar.
+    final order = makeOrder(
+      id: 8,
+      status: OrderStatus.teslimEdildi,
+      deliveryType: DeliveryType.pickup,
+    );
 
-    expect(jobs, [
+    expect(triggers.jobsFor([order]), [
       const PrintTriggerJob(8, ReceiptType.mutfak),
+    ]);
+    expect(triggers.jobsFor([order]), [
       const PrintTriggerJob(8, ReceiptType.musteri),
     ]);
+  });
+
+  test('ERTELENEN MÜŞTERİ FİŞİ BİR SONRAKİ TURDA MUTLAKA ÇIKAR', () {
+    // Ertelemenin bedeli fişin kaybolması olamaz. `_readyOrders` mutfak
+    // fişi çıkarken kasten işaretlenmiyor; işaretlenseydi sipariş "müşteri
+    // fişi basıldı" sayılır ve kâğıt hiçbir turda çıkmazdı.
+    final order = makeOrder(id: 31, status: OrderStatus.hazir);
+
+    expect(triggers.jobsFor([order]), [
+      const PrintTriggerJob(31, ReceiptType.mutfak),
+    ]);
+    expect(triggers.jobsFor([order]), [
+      const PrintTriggerJob(31, ReceiptType.musteri),
+    ]);
+    expect(
+      triggers.jobsFor([order]),
+      isEmpty,
+      reason: 'sipariş başına tam iki kâğıt — üçüncüsü yok',
+    );
+  });
+
+  test('ERTELENEN MÜŞTERİ FİŞİ SİPARİŞ LİSTEDEN DÜŞSE BİLE ÇIKAR', () {
+    // BUGÜN KAYBOLAN TAM SENARYO. Gel-al siparişi ilk kez `hazir` görülüyor
+    // (mutfak fişi çıkıyor, müşteri fişi ertelenıyor), sonra teslim ediliyor
+    // ve `PollingOrderSource` onu listeden düşürüyor. İş yalnız eşiğin
+    // yeniden değerlendirilmesine bırakılsaydı o eşik bir daha hiç
+    // yoklanmaz, kuryenin adres ve tahsilat bilgisini taşıyan tek kâğıt
+    // sessizce kaybolurdu.
+    expect(
+      triggers.jobsFor([
+        makeOrder(
+          id: 34,
+          status: OrderStatus.hazir,
+          deliveryType: DeliveryType.pickup,
+        ),
+      ]),
+      [const PrintTriggerJob(34, ReceiptType.mutfak)],
+    );
+
+    expect(triggers.jobsFor(const []), [
+      const PrintTriggerJob(34, ReceiptType.musteri),
+    ]);
+    expect(triggers.jobsFor(const []), isEmpty, reason: 'yalnız bir kez');
+  });
+
+  test('ERTELENEN FİŞ, LİSTEDEN DÜŞMEDEN ÖNCEKİ REVİZYONLA ÇIKAR', () {
+    // Erteleme sırasında sipariş düzenlenirse bekleyen kâğıt eski sürümü
+    // basmamalı: sipariş listede görüldükçe kayıt tazeleniyor.
+    triggers.jobsFor([makeOrder(id: 35, status: OrderStatus.hazir)]);
+
+    expect(
+      triggers.jobsFor([
+        makeOrder(id: 35, status: OrderStatus.hazir, revisionNo: 4),
+      ]),
+      [const PrintTriggerJob(35, ReceiptType.musteri, 4)],
+    );
+  });
+
+  test('ertelenen müşteri fişi sipariş ilerlese bile çıkar', () {
+    // Erteleme sırasında durum `hazir`dan `yolda`ya geçebilir. Eşik "o
+    // durum ya da ötesi" diye okunduğu için fiş yine çıkar.
+    triggers.jobsFor([makeOrder(id: 32, status: OrderStatus.hazir)]);
+
+    expect(triggers.jobsFor([makeOrder(id: 32, status: OrderStatus.yolda)]), [
+      const PrintTriggerJob(32, ReceiptType.musteri),
+    ]);
+  });
+
+  test('ERTELENEN İŞ, SİPARİŞ İPTAL OLURSA HİÇ ÇIKMAZ', () {
+    // Mutfak fişi çıktı, müşteri fişi bir sonraki tura ertelendi; o tur
+    // gelmeden sipariş iptal edildi. İptal edilen siparişin fişi çöpe
+    // giden kâğıttır.
+    expect(triggers.jobsFor([makeOrder(id: 33, status: OrderStatus.hazir)]), [
+      const PrintTriggerJob(33, ReceiptType.mutfak),
+    ]);
+
+    expect(
+      triggers.jobsFor([makeOrder(id: 33, status: OrderStatus.iptal)]),
+      isEmpty,
+    );
+    expect(
+      triggers.jobsFor(const []),
+      isEmpty,
+      reason: 'sipariş listeden düşünce de ertelenen iş dirilmemeli',
+    );
+  });
+
+  test('BEKLEYEN REVİZE FİŞ İLE İLK MÜŞTERİ FİŞİ AYNI TURDA ÇIKMAZ', () {
+    // Sipariş `onaylandi` iken mutfak fişi çıktı, sonra düzenlendi. Bekletme
+    // penceresinin dolduğu turda sipariş `hazir` oluyor: bir yanda salınacak
+    // revize mutfak fişi, öbür yanda hiç basılmamış müşteri fişi var. İkisi
+    // aynı turda çıksaydı şikâyet edilen "arka arkaya" durumu geri gelirdi.
+    triggers.jobsFor([makeOrder(id: 41, status: OrderStatus.onaylandi)]);
+    tick([makeOrder(id: 41, status: OrderStatus.onaylandi, revisionNo: 1)]);
+
+    expect(
+      tick([
+        makeOrder(id: 41, status: OrderStatus.hazir, revisionNo: 1),
+      ], after: const Duration(seconds: 25)),
+      [const PrintTriggerJob(41, ReceiptType.mutfak, 1)],
+    );
+
+    expect(
+      tick([makeOrder(id: 41, status: OrderStatus.hazir, revisionNo: 1)]),
+      [const PrintTriggerJob(41, ReceiptType.musteri, 1)],
+    );
   });
 
   test('adrese gönderim: durum makinesi boyunca tam olarak İKİ fiş çıkar', () {
@@ -165,36 +300,56 @@ void main() {
 
   group('Revizyon (K-20)', () {
     test('sessiz pencere dolmadan hiçbir fiş çıkmaz', () {
-      triggers.jobsFor([makeOrder(id: 3, status: OrderStatus.hazir)]);
+      printBothReceipts(3);
 
-      final order = makeOrder(
-        id: 3,
-        status: OrderStatus.hazir,
-        revisionNo: 1,
-      );
+      final order = makeOrder(id: 3, status: OrderStatus.hazir, revisionNo: 1);
 
       expect(tick([order]), isEmpty, reason: 'revizyon anında basılmamalı');
       expect(tick([order], after: const Duration(seconds: 5)), isEmpty);
       expect(tick([order], after: const Duration(seconds: 5)), isEmpty);
     });
 
-    test('pencere dolunca basılmış fişler GÜNCEL hâliyle yeniden çıkar', () {
-      triggers.jobsFor([makeOrder(id: 3, status: OrderStatus.hazir)]);
+    test('pencere dolunca basılmış fişler GÜNCEL hâliyle, TURDA BİRER TANE '
+        'yeniden çıkar', () {
+      printBothReceipts(3);
 
       final order = makeOrder(id: 3, status: OrderStatus.hazir, revisionNo: 1);
       tick([order]);
 
       expect(tick([order], after: const Duration(seconds: 25)), [
         const PrintTriggerJob(3, ReceiptType.mutfak, 1),
-        const PrintTriggerJob(3, ReceiptType.musteri, 1),
+      ]);
+      expect(tick([order]), [const PrintTriggerJob(3, ReceiptType.musteri, 1)]);
+    });
+
+    test('REVİZYON SALINIMINDA hiçbir tur iki iş birden döndürmez', () {
+      printBothReceipts(21);
+
+      final rounds = <List<PrintTriggerJob>>[
+        tick([makeOrder(id: 21, status: OrderStatus.hazir, revisionNo: 1)]),
+        tick([
+          makeOrder(id: 21, status: OrderStatus.hazir, revisionNo: 1),
+        ], after: const Duration(seconds: 25)),
+        tick([makeOrder(id: 21, status: OrderStatus.hazir, revisionNo: 1)]),
+        tick([makeOrder(id: 21, status: OrderStatus.hazir, revisionNo: 1)]),
+      ];
+
+      for (final round in rounds) {
+        expect(round.length, lessThanOrEqualTo(1), reason: '$round');
+      }
+
+      // Bekletilen iki tip iki ayrı yoklamaya dağıldı, sıra mutfak önce.
+      expect(rounds.expand((round) => round).toList(), [
+        const PrintTriggerJob(21, ReceiptType.mutfak, 1),
+        const PrintTriggerJob(21, ReceiptType.musteri, 1),
       ]);
     });
 
-    test('HIZLI ARKA ARKAYA ÜÇ KAYIT TEK KÂĞIT ÜRETİR', () {
+    test('HIZLI ARKA ARKAYA ÜÇ KAYIT YALNIZ SON SÜRÜMÜ BASAR', () {
       // Bu turun başlık testi. Personel müşteriyle telefonda konuşurken
       // birkaç kez kaydediyor; eski davranışta her kayıt iki kâğıt demekti
       // ve iki kez düzenlenmiş sipariş yedi kâğıt çıkarıyordu.
-      triggers.jobsFor([makeOrder(id: 3, status: OrderStatus.hazir)]);
+      printBothReceipts(3);
 
       tick([makeOrder(id: 3, status: OrderStatus.hazir, revisionNo: 1)]);
       tick([
@@ -204,21 +359,23 @@ void main() {
         makeOrder(id: 3, status: OrderStatus.hazir, revisionNo: 3),
       ], after: const Duration(seconds: 5));
 
-      final jobs = tick([
+      final first = tick([
         makeOrder(id: 3, status: OrderStatus.hazir, revisionNo: 3),
       ], after: const Duration(seconds: 25));
-
-      // Ara sürümler (1 ve 2) hiç kâğıda çıkmıyor; yalnız sonuncusu.
-      expect(jobs, [
-        const PrintTriggerJob(3, ReceiptType.mutfak, 3),
-        const PrintTriggerJob(3, ReceiptType.musteri, 3),
+      final second = tick([
+        makeOrder(id: 3, status: OrderStatus.hazir, revisionNo: 3),
       ]);
+
+      // Ara sürümler (1 ve 2) hiç kâğıda çıkmıyor; yalnız sonuncusu — ve o
+      // da tek turda değil, art arda iki yoklamada.
+      expect(first, [const PrintTriggerJob(3, ReceiptType.mutfak, 3)]);
+      expect(second, [const PrintTriggerJob(3, ReceiptType.musteri, 3)]);
     });
 
     test('düzenleme durmazsa üst sınırda basılır', () {
       // Beş dakika düzenlemeye devam eden personel yüzünden mutfak ASIL
       // siparişi pişirmeye devam etmemeli.
-      triggers.jobsFor([makeOrder(id: 3, status: OrderStatus.hazir)]);
+      printBothReceipts(3);
 
       var revision = 0;
       final produced = <PrintTriggerJob>[];
@@ -247,10 +404,7 @@ void main() {
       );
       tick([revised]);
 
-      final afterWindow = tick(
-        [revised],
-        after: const Duration(seconds: 25),
-      );
+      final afterWindow = tick([revised], after: const Duration(seconds: 25));
 
       // Mutfak fişi basılmıştı → yeniden çıkar. Müşteri fişi basılmamıştı.
       expect(afterWindow, [const PrintTriggerJob(12, ReceiptType.mutfak, 1)]);
@@ -271,9 +425,7 @@ void main() {
     });
 
     test('aynı revizyon tekrar görülürse fiş çıkmaz', () {
-      triggers.jobsFor([
-        makeOrder(id: 5, status: OrderStatus.hazir, revisionNo: 2),
-      ]);
+      printBothReceipts(5, revisionNo: 2);
 
       expect(
         tick([
@@ -286,26 +438,22 @@ void main() {
     test('AÇILIŞTA revizyonlu sipariş GECİKMEDEN basılır', () {
       // Uygulama yeniden başladığında hafıza boş. Bu cihaz o sipariş için
       // henüz hiçbir şey basmadı, yani geçersiz kılınacak bir kâğıt yok:
-      // bekletmek boşuna gecikme olurdu.
-      final first = triggers.jobsFor([
-        makeOrder(id: 6, status: OrderStatus.hazir, revisionNo: 3),
-      ]);
+      // bekletmek boşuna gecikme olurdu. İki kâğıt art arda yoklamalarda
+      // çıkıyor — bekletme penceresi hiç beklenmiyor.
+      final order = makeOrder(id: 6, status: OrderStatus.hazir, revisionNo: 3);
 
-      expect(first, [
+      expect(triggers.jobsFor([order]), [
         const PrintTriggerJob(6, ReceiptType.mutfak, 3),
+      ]);
+      expect(triggers.jobsFor([order]), [
         const PrintTriggerJob(6, ReceiptType.musteri, 3),
       ]);
 
-      expect(
-        tick([
-          makeOrder(id: 6, status: OrderStatus.hazir, revisionNo: 3),
-        ], after: const Duration(seconds: 30)),
-        isEmpty,
-      );
+      expect(tick([order], after: const Duration(seconds: 30)), isEmpty);
     });
 
     test('iptal edilen siparişin bekleyen revize fişi basılmaz', () {
-      triggers.jobsFor([makeOrder(id: 14, status: OrderStatus.hazir)]);
+      printBothReceipts(14);
       tick([makeOrder(id: 14, status: OrderStatus.hazir, revisionNo: 1)]);
 
       // Bekletme penceresi dolmadan sipariş iptal edildi.
@@ -324,16 +472,13 @@ void main() {
       // `PollingOrderSource` teslim edilen siparişi listeden çıkarıyor.
       // Bekletme sipariş listesinden bağımsız salınmalı, yoksa teslim
       // edilmiş bir siparişin güncel fişi hiç çıkmazdı.
-      triggers.jobsFor([makeOrder(id: 15, status: OrderStatus.hazir)]);
+      printBothReceipts(15);
       tick([makeOrder(id: 15, status: OrderStatus.hazir, revisionNo: 1)]);
 
-      expect(
-        tick([], after: const Duration(seconds: 30)),
-        [
-          const PrintTriggerJob(15, ReceiptType.mutfak, 1),
-          const PrintTriggerJob(15, ReceiptType.musteri, 1),
-        ],
-      );
+      expect(tick([], after: const Duration(seconds: 30)), [
+        const PrintTriggerJob(15, ReceiptType.mutfak, 1),
+      ]);
+      expect(tick([]), [const PrintTriggerJob(15, ReceiptType.musteri, 1)]);
     });
   });
 

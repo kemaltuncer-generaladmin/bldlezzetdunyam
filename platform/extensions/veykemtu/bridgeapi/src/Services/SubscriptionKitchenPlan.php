@@ -6,8 +6,10 @@ namespace Veykemtu\BridgeApi\Services;
 
 use Igniter\Cart\Models\Order;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Veykemtu\BridgeApi\Models\ClosedDay;
+use Veykemtu\BridgeApi\Models\DailyMenu;
 use Veykemtu\BridgeApi\Models\Subscription;
 use Veykemtu\BridgeApi\Support\BusinessTime;
 
@@ -101,6 +103,12 @@ class SubscriptionKitchenPlan
             ->whereNotNull('orders.bld_subscription_id')
             ->whereNotIn('orders.status_id', $terminal)
             ->whereDate('orders.order_date', $date->toDateString())
+            // Menü paketinin üst satırı toplamlara girmez (B-19); pişecek
+            // olan bileşenler, onlar zaten gerçek adlarıyla burada.
+            ->where(function ($query): void {
+                $query->whereNull('order_menus.bld_line_role')
+                    ->orWhere('order_menus.bld_line_role', '!=', 'package');
+            })
             ->groupBy('order_menus.name')
             ->orderByDesc(DB::raw('SUM(order_menus.quantity)'))
             ->get([
@@ -132,10 +140,35 @@ class SubscriptionKitchenPlan
             ];
         }
 
+        $expectedSubscriptions = $this->expectedSubscriptions($date);
+
+        /*
+         * GÜNÜN MENÜSÜ YOK — `not_generated` İLE, YENİ BİR TÜRLE DEĞİL.
+         *
+         * `menu_mode = daily_menu` aboneliği o günün yayınlanmış menüsünden
+         * üretiliyor; menü yoksa gece işi hiç sipariş açamaz. KDS uyarıyı
+         * KIRMIZI çizmeli ve `mutfakapp` bunu `kind == 'not_generated'`
+         * karşılaştırmasıyla, SABİT KODLU olarak belirliyor
+         * (`lib/src/data/subscription_plan.dart`). Buraya "menü yok" diye
+         * yeni bir tür yazsaydık ekran onu mavi/bilgi olarak çizerdi —
+         * "yarınki 400 porsiyonun menüsü yok" bilgi değil, alarmdır.
+         *
+         * En üstte duruyor: aşağıdaki genel "üretim koşmamış" uyarısıyla
+         * aynı anda doğru olabilirler ama yöneticinin yapabileceği iş bu.
+         */
+        foreach ($this->missingDailyMenus($date, $expectedSubscriptions) as $missing) {
+            $warnings[] = [
+                'kind' => 'not_generated',
+                'message' => "Bu gün için {$missing['count']} günün-menüsü aboneliği "
+                    ."({$missing['portions']} porsiyon) bekleniyor ama günün menüsü "
+                    .'YAYINLANMAMIŞ. Menü yayınlanmadan abonelik siparişi üretilemez.',
+            ];
+        }
+
         // ÜRETİM KOŞMADI MI? En sinsi durum: sipariş yok ama olması
         // gerekiyor. Mutfak "bugün abonelik yok" sanıp hazırlık yapmıyor,
         // akşam 22:00'deki cron çalışmamış oluyor.
-        $expected = $this->expectedSubscriptionCount($date);
+        $expected = $expectedSubscriptions->count();
         if ($expected > 0 && $orders === []) {
             $warnings[] = [
                 'kind' => 'not_generated',
@@ -160,18 +193,58 @@ class SubscriptionKitchenPlan
     }
 
     /**
-     * O gün çalışması beklenen abonelik sayısı.
+     * O gün çalışması beklenen abonelikler.
      *
      * `runsOnDate()` modelin kendi kuralı; burada yeniden yazmıyoruz —
-     * iki ayrı kural, iki ayrı cevap demek olurdu.
+     * iki ayrı kural, iki ayrı cevap demek olurdu. `runsOnDate()` duraklama
+     * ve istisna bağıntılarını okuduğu için ikisi peşinen yükleniyor;
+     * yoksa abonelik başına iki sorgu daha çıkar.
+     *
+     * @return Collection<int, Subscription>
      */
-    private function expectedSubscriptionCount(Carbon $date): int
+    private function expectedSubscriptions(Carbon $date): Collection
     {
         return Subscription::query()
             ->where('status', Subscription::STATUS_ACTIVE)
+            ->with(['pauses', 'exceptions'])
             ->get()
-            ->filter(fn(Subscription $s): bool => $s->runsOnDate($date))
-            ->count();
+            ->filter(fn(Subscription $s): bool => $s->runsOnDate($date));
+    }
+
+    /**
+     * Menüsü yayınlanmamış vitrinler — YALNIZCA `daily_menu` abonelikleri.
+     *
+     * Vitrin bazında gruplanıyor: tek satırda "şu vitrinde N abonelik, M
+     * porsiyon" demek, abonelik başına bir uyarı basmaktan okunur.
+     *
+     * @param  Collection<int, Subscription>  $expected
+     * @return list<array{location_id:int, count:int, portions:int}>
+     */
+    private function missingDailyMenus(Carbon $date, Collection $expected): array
+    {
+        $missing = [];
+
+        $daily = $expected->filter(
+            static fn(Subscription $s): bool => $s->menu_mode === Subscription::MENU_DAILY,
+        );
+
+        foreach ($daily->groupBy('location_id') as $locationId => $group) {
+            $locationId = (int) $locationId;
+
+            if (DailyMenu::findPublished($locationId, $date) !== null) {
+                continue;
+            }
+
+            $missing[] = [
+                'location_id' => $locationId,
+                'count' => $group->count(),
+                'portions' => (int) $group->sum(
+                    static fn(Subscription $s): int => max(1, $s->quantityForDate($date)),
+                ),
+            ];
+        }
+
+        return $missing;
     }
 
     /** @return list<string> */

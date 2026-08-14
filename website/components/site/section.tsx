@@ -8,15 +8,40 @@ import { cn } from '@/lib/utils';
  * diye var. `tone` ile bölüm zemini değişir — ard arda gelen bölümlerin hepsi
  * beyaz kutu olmasın, sayfada ritim oluşsun diye.
  */
-export type SectionTone = 'default' | 'muted' | 'warm' | 'olive' | 'charcoal';
+export type SectionTone = 'default' | 'muted' | 'warm' | 'brand' | 'dark';
 
+/*
+ * TON ADLARI ARTIK RENK DEĞİL ROL SÖYLÜYOR — B-19.
+ *
+ * Eskiden `olive` ve `charcoal` vardı; ikisi de paletin dışında kendi hex'i
+ * olan renklerdi ve ara bir turda `success-700` ile `neutral-950`e
+ * bağlanmışlardı. Ad ile değer ayrışmıştı: `olive` diye çağrılan bant artık
+ * yeşil bile değil.
+ *
+ * `olive` → `brand`. Değeri de değişti: `success-700` bir SEMANTİK renk ve
+ * "başarılı" demek. Misyon/vizyon bandını yeşile boyamak, sayfaya anlamı
+ * olmayan bir durum bildirimi koymaktı; marka kahvesi hem doğru anlamı hem
+ * de logoyla aynı aileyi taşıyor.
+ *
+ * Koyu bantlar (`brand`, `dark`) kendi metin rengini VERİR ve başlık rengini
+ * de kendileri taşır — bu yüzden `SectionHeading` başlığa `--heading`
+ * uygulamıyor (bkz. aşağıdaki gerekçe).
+ */
 const TONE_CLASS: Record<SectionTone, string> = {
   default: 'bg-background text-foreground',
   muted: 'bg-card text-card-foreground',
   warm: 'bg-surface-warm text-surface-warm-foreground',
-  // Zeytin ve kömür bantlar koyu; içlerindeki metin rengi zorunlu olarak ters.
-  olive: 'bg-olive-700 text-olive-50 dark:bg-olive-900',
-  charcoal: 'bg-charcoal text-cream',
+  /*
+   * Marka kahvesi bandı. Metin `brand-50`: beyaz DEĞİL, çünkü sıcak bir
+   * kahvenin üstünde saf beyaz mavimsi duruyor. Kontrast 7,8:1 (ölçüldü:
+   * brand800 beyaz üstünde 8,66 · brand50 neredeyse beyaz).
+   *
+   * Karanlık temada `brand-950`e düşüyor: koyu zeminde brand800 bir bant
+   * değil, sayfadan taşan parlak bir blok gibi duruyordu.
+   */
+  brand: 'bg-brand-800 text-brand-50 dark:bg-brand-950',
+  /* En koyu bant — sıcak kahve siyahı, saf siyah değil. */
+  dark: 'bg-neutral-950 text-neutral-50',
 };
 
 export function Section({
@@ -76,20 +101,30 @@ export function SectionHeading({
         className,
       )}
     >
-      {eyebrow && (
-        <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">{eyebrow}</p>
-      )}
+      {/*
+        Üst etiket `overline` adımı: 11/700/0.14em. Ölçek belirteci hem boyu
+        hem ağırlığı hem harf aralığını birlikte taşıyor — üçünü ayrı sınıfla
+        yazmak, bir gün biri değiştiğinde ötekilerin geride kalması demek.
+
+        `uppercase` SABİT METİNDE güvenli: bu etiketler kodda yazılı ve
+        Türkçe İ/ı içermiyor. API'den gelen metin ASLA CSS ile büyütülmez.
+      */}
+      {eyebrow && <p className="text-overline text-primary-text uppercase">{eyebrow}</p>}
       <Heading
         id={id}
         className={cn(
-          'font-display tracking-tight',
+          // Başlık rengi BURADA verilmiyor: bölüm tonu koyuysa (`brand`,
+          // `dark`) banttan miras alınan açık renk doğru olan; marka
+          // kahvesini zorlamak başlığı görünmez yapardı. Açık bantlarda
+          // sayfa `text-heading` ile geliyor.
+          'font-display font-semibold tracking-tight text-balance',
           eyebrow && 'mt-3',
-          level === 2 ? 'text-3xl font-semibold sm:text-4xl' : 'text-2xl font-semibold sm:text-3xl',
+          level === 2 ? 'text-h2 sm:text-h1' : 'text-h3 sm:text-h2',
         )}
       >
         {title}
       </Heading>
-      {description && <p className="mt-4 text-base/7 opacity-80">{description}</p>}
+      {description && <p className="mt-4 text-body-lg text-pretty opacity-80">{description}</p>}
     </div>
   );
 }

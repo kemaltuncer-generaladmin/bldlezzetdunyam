@@ -1,98 +1,189 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
+import Link from 'next/link';
+import { ArrowRight, UtensilsCrossed } from 'lucide-react';
 import { CartSummaryBar, CartSummaryPanel } from '@/components/cart-summary';
-import { EmptyState } from '@/components/empty-state';
 import { ErrorState } from '@/components/error-state';
-import { IconPlate } from '@/components/icons';
 import { JsonLd } from '@/components/json-ld';
 import { LocationFacts } from '@/components/location-facts';
-import { MenuBrowser } from '@/components/menu-browser';
+import { StatePanel } from '@/components/state-panel';
+import { Button } from '@/components/ui/button';
 import { KitchenBusyBanner } from '@/components/kitchen-busy-banner';
 import { OrderingClosedBanner } from '@/components/ordering-banner';
+import { DayPicker, findCalendarDay, nextOrderableDay } from '@/components/menu/day-picker';
+import { DailyMenuItemCard, DailyMenuPackageCard } from '@/components/menu/daily-menu-cards';
 import { SITE_URL } from '@/lib/api/client';
-import { fetchCatalog, isOrderingOpen } from '@/lib/api/catalog';
+import {
+  canOrderDay,
+  fetchDailyMenuSnapshot,
+  lastOrderableDate,
+  packageAdvantageKurus,
+  type DailyMenuSnapshot,
+} from '@/lib/api/daily-menu';
+import { isOrderingOpen } from '@/lib/api/catalog';
+import { formatLongDate, parseBusinessDate, relativeDayLabel } from '@/lib/business-date';
 import { schemaOrgPrice } from '@/lib/format';
-import { productSlug } from '@/lib/slug';
+import { dayUnavailableCopy } from '@/lib/labels';
 import { PHOTO } from '@/lib/site-images';
-import type { CatalogSnapshot } from '@/lib/api/catalog';
 
-/** ISR 60 sn — `docs/06` §2/§7. */
-export const revalidate = 60;
+/**
+ * GÜNÜN MENÜSÜ — sitenin tek satış ekranı (B-19).
+ *
+ * ## Neden ISR yok?
+ *
+ * Bu sayfa artık iki sebeple istek başına çiziliyor:
+ *   1. Seçili gün adreste (`?gun=`), yani içerik zaten isteğe bağlı.
+ *   2. SİPARİŞ KARARI BURADA VERİLİYOR. Yönetici menüyü yayından
+ *      kaldırdığında ya da kesim saati geçtiğinde altmış saniye boyunca
+ *      "sepete ekle" düğmesi çalışmaya devam edemez.
+ *
+ * SEO kaybı yok: sayfa yine sunucuda tam içerikle üretiliyor, `metadata` ve
+ * JSON-LD duruyor. Kaybedilen yalnızca önbellek isabeti.
+ *
+ * ## Katalog gitti
+ *
+ * Kategori gezgini (`MenuBrowser`), arama ve ürün detay bağlantıları
+ * kaldırıldı: satılan şey artık bir katalog değil, O GÜNÜN menüsü. Ürün
+ * kayıtları duruyor — menünün kalemleri onlar.
+ */
+export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = {
-  title: 'Günün Menüsü',
-  description:
-    'Bugün mutfaktan çıkanlar: çorbalar, ana yemekler, salatalar ve tatlılar. Fiyatlarıyla bakın, adrese teslim ya da gel-al sipariş verin.',
-  alternates: { canonical: '/menu' },
-  openGraph: {
-    title: 'Günün Menüsü | Benim Lezzet Dünyam',
-    description: 'Bugün mutfaktan ne çıktı? Fiyatlarıyla bakın.',
-    url: '/menu',
-    type: 'website',
-  },
-};
+type SearchParams = { gun?: string | string[] };
 
-function menuJsonLd(snapshot: CatalogSnapshot): Record<string, unknown> {
+function readDay(params: SearchParams): string | null {
+  const raw = Array.isArray(params.gun) ? params.gun[0] : params.gun;
+  return parseBusinessDate(raw);
+}
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}): Promise<Metadata> {
+  const day = readDay(await searchParams);
+  const title = day ? `${formatLongDate(day)} Menüsü` : 'Günün Menüsü';
+
   return {
-    '@context': 'https://schema.org',
-    '@type': 'Menu',
-    name: 'Benim Lezzet Dünyam catering menüsü',
-    url: `${SITE_URL}/menu`,
-    inLanguage: 'tr-TR',
-    hasMenuSection: snapshot.categories.map((category) => ({
-      '@type': 'MenuSection',
-      name: category.name,
-      hasMenuItem: (category.items ?? []).map((item) => ({
-        '@type': 'MenuItem',
-        name: item.name,
-        ...(item.description ? { description: item.description } : {}),
-        url: `${SITE_URL}/urun/${productSlug(item)}`,
-        offers: {
-          '@type': 'Offer',
-          price: schemaOrgPrice(item.price),
-          priceCurrency: item.currency,
-          availability: item.is_available
-            ? 'https://schema.org/InStock'
-            : 'https://schema.org/OutOfStock',
-        },
-      })),
-    })),
+    title,
+    description:
+      'Her gün yeni bir menü: paketin tamamını ya da içindeki yemekleri tek tek sipariş edin. Bugüne ve ileri günlere sipariş verebilirsiniz.',
+    /*
+     * Canonical HER GÜNDE `/menu`. Gün parametreli adresler aynı sayfanın
+     * takvim durumlarıdır; her birini ayrı bir sayfa olarak dizine vermek
+     * otuz kopya içerik üretirdi.
+     */
+    alternates: { canonical: '/menu' },
+    openGraph: {
+      title: `${title} | Benim Lezzet Dünyam`,
+      description: 'Bugün mutfaktan ne çıktı? Menü ve fiyatlar.',
+      url: '/menu',
+      type: 'website',
+    },
   };
 }
 
-export default async function MenuPage() {
-  let snapshot: CatalogSnapshot;
+/** O günün menüsü `Menu` + tek bir `MenuSection` olarak işaretleniyor. */
+function menuJsonLd(snapshot: DailyMenuSnapshot): Record<string, unknown> {
+  const { menu, selectedDate } = snapshot;
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Menu',
+    name: `${formatLongDate(selectedDate)} menüsü`,
+    url: `${SITE_URL}/menu`,
+    inLanguage: 'tr-TR',
+    hasMenuSection: [
+      {
+        '@type': 'MenuSection',
+        name: menu?.title ?? 'Günün menüsü',
+        ...(menu?.description ? { description: menu.description } : {}),
+        hasMenuItem: (menu?.items ?? []).map((item) => ({
+          '@type': 'MenuItem',
+          name: item.name,
+          ...(item.description ? { description: item.description } : {}),
+          offers: {
+            '@type': 'Offer',
+            price: schemaOrgPrice(item.price),
+            priceCurrency: item.currency,
+            availability: item.is_available
+              ? 'https://schema.org/InStock'
+              : 'https://schema.org/OutOfStock',
+            // Menü o güne ait: teklifin geçerlilik günü de o gün.
+            availabilityStarts: selectedDate,
+            availabilityEnds: selectedDate,
+          },
+        })),
+      },
+    ],
+  };
+}
+
+export default async function MenuPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const requestedDay = readDay(await searchParams);
+
+  let snapshot: DailyMenuSnapshot;
   try {
-    snapshot = await fetchCatalog();
+    snapshot = await fetchDailyMenuSnapshot(requestedDay);
   } catch {
     return (
       <div className="mx-auto max-w-content px-4 py-16">
         <ErrorState
           title="Menü yüklenemedi"
-          message="Menü yüklenemedi, tekrar deneyin."
+          message="Günün menüsü yüklenemedi, tekrar deneyin."
           retryHref="/menu"
         />
       </div>
     );
   }
 
-  const orderingOpen = isOrderingOpen(snapshot.location);
-  const categories = snapshot.categories.filter((category) => (category.items ?? []).length > 0);
+  const { location, menu, calendar, today, selectedDate } = snapshot;
+
+  if (!location || !menu) {
+    return (
+      <div className="mx-auto max-w-content px-4 py-16">
+        <ErrorState
+          title="Menü yüklenemedi"
+          message="Vitrin bilgisine ulaşılamadı. Kısa süre sonra tekrar deneyin."
+          retryHref="/menu"
+        />
+      </div>
+    );
+  }
+
+  const orderingOpen = isOrderingOpen(location);
+  const canOrder = canOrderDay(location, menu);
+  const calendarDay = findCalendarDay(calendar, selectedDate);
+  const advantage = packageAdvantageKurus(menu);
+  const nextDay = nextOrderableDay(calendar, selectedDate);
+
+  /*
+   * DÜĞMENİN KAPALI OLMA SEBEBİ. Marka kılavuzu: "Devre dışı buton HER ZAMAN
+   * bir sebep metniyle birlikte." İki ayrı kapı var ve müşteriye söylenecek
+   * şey farklı: gün kapalıysa başka gün seçmeli, şalter kapalıysa beklemeli.
+   */
+  const disabledReason = !orderingOpen
+    ? 'Sipariş alımı kapalı'
+    : !menu.is_orderable
+      ? 'Bu güne sipariş alınmıyor'
+      : 'Şu anda eklenemiyor';
+
+  const unavailable = dayUnavailableCopy(
+    menu.unavailable_reason,
+    selectedDate,
+    calendarDay?.note ?? null,
+  );
 
   return (
     <>
       <JsonLd data={menuJsonLd(snapshot)} />
 
       {/*
-        Sipariş başlığı da kurumsal sayfalarla aynı dili konuşuyor: fotoğraflı
-        koyu bant. Önceki sürüm `from-brand-50` gradyanı ve doğrudan
-        `text-neutral-*` sınıfları kullanıyordu; karanlık temada soluk kalıyor
-        ve sitenin geri kalanından kopuk duruyordu.
-
-        Vitrin bilgileri (asgari sepet, teslimat ücreti, tahmini süre) bandın
-        içinde: sipariş kararını etkileyen sayılar, menüye inmeden görünmeli.
+        Sipariş başlığı kurumsal sayfalarla aynı dili konuşuyor: fotoğraflı
+        koyu bant. Vitrin bilgileri (asgari sepet, teslimat ücreti, tahmini
+        süre) bandın içinde — sipariş kararını etkileyen sayılar menüye
+        inmeden görünmeli.
       */}
-      <div className="relative isolate border-b bg-charcoal text-cream">
+      <div className="relative isolate border-b bg-neutral-950 text-neutral-50">
         <Image
           alt={PHOTO.menuVitrin.alt}
           src={PHOTO.menuVitrin.src}
@@ -103,55 +194,100 @@ export default async function MenuPage() {
         />
         <div
           aria-hidden="true"
-          className="absolute inset-0 -z-10 bg-linear-to-r from-charcoal/90 via-charcoal/80 to-charcoal/50"
+          className="absolute inset-0 -z-10 bg-linear-to-r from-neutral-950/90 via-neutral-950/80 to-neutral-950/50"
         />
 
         <div className="mx-auto max-w-content px-4 py-10 sm:px-6 sm:py-14">
-          <p className="text-xs font-semibold tracking-[0.14em] text-brand-300 uppercase">
-            Günün menüsü
+          <p className="text-overline text-brand-300 uppercase">
+            {relativeDayLabel(selectedDate, today)}
           </p>
-          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-5xl">
-            Bugün ne var?
+          <h1 className="mt-2 font-display text-h1 font-semibold tracking-tight sm:text-display">
+            Günün menüsü
           </h1>
-          <p className="mt-4 max-w-2xl text-base/7 text-cream/80">
-            Her sabah pişirdiklerimiz. Fiyatlar porsiyon başına ve KDV dâhil.
+          <p className="mt-4 max-w-2xl text-body-lg text-neutral-50/80">
+            Her gün tek bir menü çıkarıyoruz. Menünün tamamını paket fiyatıyla ya da içindeki
+            yemekleri tek tek alabilirsiniz. Bugüne ve ileri günlere sipariş verebilirsiniz.
           </p>
 
-          <LocationFacts location={snapshot.location} className="mt-6" />
+          <LocationFacts location={location} className="mt-6" />
         </div>
       </div>
 
       {/* Alt sepet çubuğu içeriği kapatmasın diye mobilde alttan boşluk. */}
       <div className="mx-auto max-w-content px-4 pt-6 pb-28 sm:pt-8 lg:pb-16">
         <div className="space-y-3 empty:hidden">
-          {!orderingOpen && <OrderingClosedBanner location={snapshot.location} />}
+          {!orderingOpen && <OrderingClosedBanner location={location} />}
           <KitchenBusyBanner />
         </div>
 
-        {categories.length === 0 ? (
-          <EmptyState
-            className="mt-8"
-            icon={<IconPlate className="h-8 w-8" />}
-            title="Bugün henüz bir şey çıkmadı"
-            message="Menü hazırlanınca burada görünecek. Biraz sonra tekrar bakın."
-            actionHref="/"
-            actionLabel="Ana sayfaya dön"
-          />
-        ) : (
-          <div className="mt-4 grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
-            {/*
-             * `min-w-0`: ızgara öğeleri varsayılan olarak `min-width: auto`
-             * taşır, yani içeriklerinden dar olamazlar. Kategori şeridi
-             * (`bld-rail`) telefonda ekrandan geniş olduğu için sütun onunla
-             * birlikte büyüyor ve SAYFA yatay kayıyordu — oysa şeridin kendi
-             * içinde kayması gerekiyor. 390 px'te belge 529 px'e çıkıyordu.
-             */}
-            <div className="min-w-0">
-              <MenuBrowser categories={categories} orderingOpen={orderingOpen} />
-            </div>
-            <CartSummaryPanel />
+        <div className="mt-4 grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
+          <div className="min-w-0 space-y-8">
+            <DayPicker
+              calendar={calendar}
+              today={today}
+              selectedDate={selectedDate}
+              lastDate={lastOrderableDate(location, today)}
+            />
+
+            {!menu.is_orderable && (
+              <StatePanel
+                tone={menu.closed ? 'error' : 'offline'}
+                role={menu.closed ? 'alert' : 'status'}
+                icon={<UtensilsCrossed aria-hidden="true" strokeWidth={1.75} />}
+                title={unavailable.title}
+                message={unavailable.message}
+                action={
+                  nextDay ? (
+                    <Button asChild variant="outline">
+                      <Link href={`/menu?gun=${nextDay.date}`}>
+                        {formatLongDate(nextDay.date)} menüsüne bak
+                        <ArrowRight strokeWidth={1.75} aria-hidden="true" />
+                      </Link>
+                    </Button>
+                  ) : undefined
+                }
+              />
+            )}
+
+            {menu.package && (
+              <DailyMenuPackageCard
+                menu={menu}
+                daily={menu.package}
+                serviceDate={selectedDate}
+                advantageKurus={advantage}
+                canOrder={canOrder}
+                disabledReason={disabledReason}
+              />
+            )}
+
+            {menu.items.length > 0 && (
+              <section aria-labelledby="kalemler">
+                <h2 id="kalemler" className="font-display text-h3 font-semibold text-heading">
+                  {menu.package ? 'Ayrı ayrı da alabilirsiniz' : 'Bu günün yemekleri'}
+                </h2>
+                <p className="mt-1 text-body-sm text-muted-foreground">
+                  {menu.package
+                    ? 'Menünün tamamını istemiyorsanız içindeki yemekleri tek tek sipariş edebilirsiniz.'
+                    : 'Bu gün paket satışı yok; yemekleri tek tek sipariş edebilirsiniz.'}
+                </p>
+
+                <ul className="mt-4 space-y-3">
+                  {menu.items.map((item) => (
+                    <DailyMenuItemCard
+                      key={item.id}
+                      item={item}
+                      serviceDate={selectedDate}
+                      canOrder={canOrder}
+                      disabledReason={disabledReason}
+                    />
+                  ))}
+                </ul>
+              </section>
+            )}
           </div>
-        )}
+
+          <CartSummaryPanel />
+        </div>
       </div>
 
       <CartSummaryBar />

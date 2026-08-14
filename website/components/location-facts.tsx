@@ -4,6 +4,7 @@ import { formatPrice } from '@/lib/format';
 import { readLocationEta } from '@/lib/eta';
 import { paymentMethodLabel } from '@/lib/labels';
 import { cn } from '@/lib/utils';
+import { isOfferedPaymentMethod } from '@/lib/validation/checkout';
 import type { Location } from '@/lib/api/types';
 
 type Fact = {
@@ -75,12 +76,20 @@ export function LocationFacts({
     });
   }
 
-  if (location.payment_methods.length > 0) {
+  /*
+   * `account` SÜZÜLÜYOR (B-19) — ödeme adımıyla AYNI süzgeç.
+   *
+   * Vitrinde cari açık olabilir ama site onu sunmuyor; çipte "Cari hesap"
+   * yazıp ödeme adımında listelememek, müşteriye menü sayfasında söz verip
+   * onay adımında geri almak olurdu.
+   */
+  const offeredMethods = location.payment_methods.filter(isOfferedPaymentMethod);
+  if (offeredMethods.length > 0) {
     facts.push({
       key: 'payment',
       icon: <IconWallet className="h-4 w-4" />,
       label: 'Ödeme',
-      value: location.payment_methods.map(paymentMethodLabel).join(' · '),
+      value: offeredMethods.map(paymentMethodLabel).join(' · '),
     });
   }
 
@@ -88,20 +97,26 @@ export function LocationFacts({
    * Çipler kendi renklerini taşır, kapsayıcıdan miras ALMAZ.
    *
    * Bileşen artık koyu, fotoğraflı bir bandın içinde de kullanılıyor. `dd`
-   * kendi rengini vermediğinde banttan `text-cream` miras alıyor ve beyaz
-   * çipin üzerinde okunmaz hâle geliyordu — asgari sepet tutarı ekranda
-   * görünmüyordu.
+   * kendi rengini vermediğinde banttan `text-neutral-50` miras alıyor ve
+   * beyaz çipin üzerinde okunmaz hâle geliyordu — asgari sepet tutarı
+   * ekranda görünmüyordu.
    */
   return (
     <dl className={cn('flex flex-wrap gap-2', className)}>
       {facts.map((fact) => (
         <div
           key={fact.key}
-          className="flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-0 px-3 py-1.5 text-sm text-neutral-900 shadow-xs"
+          className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-body-sm text-foreground shadow-card"
         >
-          <span className="text-brand-700">{fact.icon}</span>
-          <dt className="text-neutral-600">{fact.label}:</dt>
-          <dd className="font-semibold text-neutral-900">{fact.value}</dd>
+          <span className="text-primary-text">{fact.icon}</span>
+          <dt className="text-muted-foreground">{fact.label}:</dt>
+          {/*
+            `tabular-nums` var, `bld-money` YOK: çiplerin bir kısmı para
+            (asgari sepet, teslimat ücreti) ama bir kısmı ödeme yöntemi
+            listesi. Kısayolun getirdiği `white-space: nowrap` o listeyi dar
+            ekranda taşırırdı; rakam hizası ise her değerde doğru.
+          */}
+          <dd className="font-semibold text-foreground tabular-nums">{fact.value}</dd>
         </div>
       ))}
     </dl>

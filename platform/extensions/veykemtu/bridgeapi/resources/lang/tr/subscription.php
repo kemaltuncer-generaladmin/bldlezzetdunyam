@@ -18,6 +18,11 @@ return [
     'label_time_from' => 'Teslim saati (başlangıç)',
     'help_time_from' => 'SS:DD biçiminde, örneğin 12:00. Boş bırakılırsa 12:00 kabul edilir.',
     'label_time_to' => 'Teslim saati (bitiş)',
+    'label_menu_mode' => 'Porsiyonun içeriği nereden gelsin?',
+    'help_menu_mode' => 'SABİT LİSTE: her gün aynı ürünler pişer, aşağıdaki listeyi siz yazarsınız. GÜNÜN MENÜSÜ: o gün takvime girilen menü ne ise abone onu alır — ürün listesi sorulmaz. Her iki modda da fiyat aşağıdaki anlaşmalı porsiyon fiyatıdır; günün menüsü modunda o gün ne pişerse pişsin porsiyon fiyatı değişmez.',
+    'menu_mode_fixed' => 'Sabit liste',
+    'menu_mode_daily' => 'Günün menüsü',
+
     'section_lines' => 'Porsiyon içeriği',
     'section_lines_comment' => 'Bir porsiyonun neyden oluştuğunu yazın. Adetler PORSİYON BAŞINADIR: 1 çorba + 1 ana yemek yazıp günlük 100 porsiyon derseniz mutfağa 100 çorba ve 100 ana yemek düşer. Fiyat satırlardan değil, aşağıdaki anlaşmalı porsiyon fiyatından hesaplanır.',
     'prompt_line' => 'Ürün ekle',

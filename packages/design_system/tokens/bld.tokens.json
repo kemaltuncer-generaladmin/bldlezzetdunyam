@@ -1,0 +1,737 @@
+{
+  "$schema": "https://bld.local/schemas/bld.tokens.schema.json",
+  "meta": {
+    "name": "BLD marka renk belirteçleri",
+    "version": "2.0.0",
+    "description": "Web (Next.js), mobil (Flutter) ve yönetim panelinin (TastyIgniter) TEK renk kaynağı. Bu dosya elle düzenlenir; üç yüzeyin dosyaları `dart run bld_design_system:gen_tokens` ile ÜRETİLİR.",
+    "source": "Palet logodan ölçüldü: aşçı şapkası + buğdaydan küre amblemi, gradyan #941C01 -> #DD5D02, kelime markası kahvesi #5F1B08, zemin #F6F5F3.",
+    "contrastFormula": "WCAG 2.1 bağıl parlaklık: L = 0,2126R + 0,7152G + 0,0722B (sRGB doğrusallaştırılmış, eşik 0,03928), oran = (Lacik + 0,05) / (Lkoyu + 0,05). Aynı formülün PHP sürümü: platform/extensions/veykemtu/bridgeapi/src/Admin/BrandGuard.php.",
+    "rules": [
+      "brand500 ve daha AÇIĞI beyaz metin TAŞIMAZ; beyaz yazı brand700'den başlar.",
+      "neutral400 METİN DEĞİLDİR: kenarlık, ayraç ve ikon rengidir.",
+      "Yayınlanmış bir belirtecin adı DEĞİŞMEZ, yalnız EKLENİR (AGENTS.md §2.3 ile aynı ilke)."
+    ],
+    "outputs": [
+      "packages/design_system/lib/src/colors.dart",
+      "website/app/tokens.css",
+      "platform/extensions/veykemtu/bridgeapi/resources/css/tokens.css"
+    ]
+  },
+  "invariants": {
+    "textContrastMin": 4.5,
+    "uiComponentContrastMin": 3.0,
+    "brandWhiteTextFromShade": 700,
+    "brandWhiteTextTrapShade": 500,
+    "minDangerBrandHueDistanceDeg": 12.0
+  },
+  "primitives": {
+    "brand": {
+      "50": {
+        "value": "#FEF2E8",
+        "note": "En açık marka yüzeyi — tonal buton ve accent zemini. Metin taşımaz, üstüne brand800 yazılır. Beyaz üstünde 1,10:1 · neutral50 üstünde 1,02:1 · koyu zemin (#1B120C) üstünde 16,76:1."
+      },
+      "100": {
+        "value": "#FDE2CC",
+        "note": "Marka yüzeyinin ikinci adımı — skeleton parıltısı, seçili çip zemini. Beyaz üstünde 1,24:1 · neutral50 üstünde 1,15:1 · koyu zemin (#1B120C) üstünde 14,87:1."
+      },
+      "200": {
+        "value": "#FCC7A2",
+        "note": "Koyu temada başlık rengi; açık temada yalnız dekoratif (kenarlık, ayraç). Beyaz üstünde 1,52:1 · neutral50 üstünde 1,41:1 · koyu zemin (#1B120C) üstünde 12,15:1."
+      },
+      "300": {
+        "value": "#F7A470",
+        "note": "Koyu temanın birincil DOLGUSU (üstünde neutral950 yazı) ve görsel yer tutucusunun buğday çizgisi. Beyaz üstünde 2,00:1 · neutral50 üstünde 1,86:1 · koyu zemin (#1B120C) üstünde 9,22:1."
+      },
+      "400": {
+        "value": "#E8863F",
+        "note": "Koyu temanın birincil METİN/bağlantı rengi. Açık temada metin taşımaz. Beyaz üstünde 2,65:1 · neutral50 üstünde 2,46:1 · koyu zemin (#1B120C) üstünde 6,95:1."
+      },
+      "500": {
+        "value": "#DD5D02",
+        "note": "LOGO gradyanının açık ucu. TUZAK: beyaz metin TAŞIMAZ — 3,72 AA altındadır. Beyaz üstünde 3,72:1 · neutral50 üstünde 3,46:1 · koyu zemin (#1B120C) üstünde 4,96:1."
+      },
+      "600": {
+        "value": "#C24A02",
+        "note": "Odak halkası ve açık tema ikonu. Beyaz metin için sınırda: yalnız büyük metinde kullanılır. Beyaz üstünde 4,91:1 · neutral50 üstünde 4,56:1 · koyu zemin (#1B120C) üstünde 3,75:1."
+      },
+      "700": {
+        "value": "#A8320A",
+        "note": "Açık temanın birincil DOLGUSU ve bağlantı rengi. Beyaz metin buradan başlar. Beyaz üstünde 6,72:1 · neutral50 üstünde 6,24:1 · koyu zemin (#1B120C) üstünde 2,75:1."
+      },
+      "800": {
+        "value": "#941C01",
+        "note": "Birincil butonun hover adımı; tonal buton yazısı (brand50 üstünde). Beyaz üstünde 8,66:1 · neutral50 üstünde 8,04:1 · koyu zemin (#1B120C) üstünde 2,13:1."
+      },
+      "900": {
+        "value": "#5F1B08",
+        "note": "LOGO kelime markasının kahvesi. Açık temada BAŞLIK rengi. Beyaz üstünde 12,75:1 · neutral50 üstünde 11,84:1 · koyu zemin (#1B120C) üstünde 1,45:1."
+      },
+      "950": {
+        "value": "#3D0E05",
+        "note": "En koyu marka adımı — koyu tema zemini bununla aynı ailede kalsın diye tutuldu. Beyaz üstünde 16,62:1 · neutral50 üstünde 15,44:1 · koyu zemin (#1B120C) üstünde 1,11:1."
+      }
+    },
+    "neutral": {
+      "0": {
+        "value": "#FFFFFF",
+        "note": "Kart, popover ve form alanı zemini. Beyaz üstünde 1,00:1 · neutral50 üstünde 1,08:1 · koyu zemin (#1B120C) üstünde 18,45:1."
+      },
+      "50": {
+        "value": "#FAF6F0",
+        "note": "Uygulama zemini (açık tema). Saf beyaz değil: kart kenarı görünsün diye. Beyaz üstünde 1,08:1 · neutral50 üstünde 1,00:1 · koyu zemin (#1B120C) üstünde 17,13:1."
+      },
+      "100": {
+        "value": "#F2EBE3",
+        "note": "Sessiz yüzey (muted) ve skeleton tabanı. Beyaz üstünde 1,18:1 · neutral50 üstünde 1,10:1 · koyu zemin (#1B120C) üstünde 15,61:1."
+      },
+      "200": {
+        "value": "#E5DACE",
+        "note": "DEKORATİF kenarlık ve ayraç. Kontrol kenarlığı DEĞİL (1,38 — 1.4.11 geçmez). Beyaz üstünde 1,38:1 · neutral50 üstünde 1,28:1 · koyu zemin (#1B120C) üstünde 13,40:1."
+      },
+      "300": {
+        "value": "#D2C3B4",
+        "note": "Koyu temanın sessiz metni; açık temada devre dışı öğe kenarlığı. Beyaz üstünde 1,72:1 · neutral50 üstünde 1,60:1 · koyu zemin (#1B120C) üstünde 10,72:1."
+      },
+      "400": {
+        "value": "#A28A78",
+        "note": "İŞLEVSEL kenarlık (form alanı, checkbox). METİN DEĞİLDİR. Beyaz üstünde 3,26:1 · neutral50 üstünde 3,03:1 · koyu zemin (#1B120C) üstünde 5,66:1."
+      },
+      "500": {
+        "value": "#7A5A4A",
+        "note": "Placeholder metni. Gövde metni için kullanılmaz. Beyaz üstünde 6,20:1 · neutral50 üstünde 5,76:1 · koyu zemin (#1B120C) üstünde 2,98:1."
+      },
+      "600": {
+        "value": "#6B4636",
+        "note": "İkincil metin (muted-foreground). Beyaz üstünde 8,22:1 · neutral50 üstünde 7,64:1 · koyu zemin (#1B120C) üstünde 2,24:1."
+      },
+      "700": {
+        "value": "#523527",
+        "note": "Vurgulu ikincil metin, ikon. Beyaz üstünde 11,07:1 · neutral50 üstünde 10,28:1 · koyu zemin (#1B120C) üstünde 1,67:1."
+      },
+      "800": {
+        "value": "#3B2519",
+        "note": "Koyu yüzey (açık temada ters bant). Beyaz üstünde 14,34:1 · neutral50 üstünde 13,32:1 · koyu zemin (#1B120C) üstünde 1,29:1."
+      },
+      "900": {
+        "value": "#2A1A12",
+        "note": "Gövde metni (açık tema). Beyaz üstünde 16,73:1 · neutral50 üstünde 15,54:1 · koyu zemin (#1B120C) üstünde 1,10:1."
+      },
+      "950": {
+        "value": "#1B120C",
+        "note": "Koyu temanın zemini ve açık temada en koyu ters bant. Beyaz üstünde 18,45:1 · neutral50 üstünde 17,13:1 · koyu zemin (#1B120C) üstünde 1,00:1."
+      }
+    },
+    "success": {
+      "50": {
+        "value": "#ECF7EB",
+        "note": "Başarı tinti — açık tema. Beyaz üstünde 1,10:1 · neutral50 üstünde 1,02:1 · koyu zemin (#1B120C) üstünde 16,75:1."
+      },
+      "400": {
+        "value": "#6FB268",
+        "note": "Koyu temanın başarı METNİ. Beyaz üstünde 2,55:1 · neutral50 üstünde 2,37:1 · koyu zemin (#1B120C) üstünde 7,24:1."
+      },
+      "600": {
+        "value": "#3E8237",
+        "note": "Beyaz metin taşıyan başarı dolgusu. Beyaz üstünde 4,72:1 · neutral50 üstünde 4,38:1 · koyu zemin (#1B120C) üstünde 3,91:1."
+      },
+      "700": {
+        "value": "#2F6A2A",
+        "note": "Açık temanın başarı METNİ. 600 zemin üstünde AA altında kalıyor, o yüzden metin 700. Beyaz üstünde 6,53:1 · neutral50 üstünde 6,07:1 · koyu zemin (#1B120C) üstünde 2,82:1."
+      }
+    },
+    "warning": {
+      "50": {
+        "value": "#FAF3E5",
+        "note": "Uyarı tinti — açık tema (çevrimdışı durumu). Beyaz üstünde 1,10:1 · neutral50 üstünde 1,03:1 · koyu zemin (#1B120C) üstünde 16,70:1."
+      },
+      "300": {
+        "value": "#D8B66D",
+        "note": "Koyu temanın uyarı METNİ. Beyaz üstünde 1,94:1 · neutral50 üstünde 1,80:1 · koyu zemin (#1B120C) üstünde 9,51:1."
+      },
+      "600": {
+        "value": "#926800",
+        "note": "Beyaz metin taşıyan uyarı dolgusu. Beyaz üstünde 5,00:1 · neutral50 üstünde 4,64:1 · koyu zemin (#1B120C) üstünde 3,69:1."
+      },
+      "700": {
+        "value": "#785400",
+        "note": "Açık temanın uyarı METNİ. Beyaz üstünde 6,85:1 · neutral50 üstünde 6,36:1 · koyu zemin (#1B120C) üstünde 2,69:1."
+      }
+    },
+    "danger": {
+      "50": {
+        "value": "#FFEAEA",
+        "note": "Hata tinti — açık tema. Beyaz üstünde 1,15:1 · neutral50 üstünde 1,07:1 · koyu zemin (#1B120C) üstünde 15,99:1."
+      },
+      "300": {
+        "value": "#F08A93",
+        "note": "Koyu temanın hata METNİ ve yıkıcı dolgusu (üstünde neutral950). Beyaz üstünde 2,40:1 · neutral50 üstünde 2,23:1 · koyu zemin (#1B120C) üstünde 7,70:1."
+      },
+      "600": {
+        "value": "#C12440",
+        "note": "Onay diyaloğunun yıkıcı dolgusu (beyaz metin). Beyaz üstünde 5,84:1 · neutral50 üstünde 5,43:1 · koyu zemin (#1B120C) üstünde 3,16:1."
+      },
+      "700": {
+        "value": "#A51C34",
+        "note": "Açık temanın hata METNİ ve yerinde yıkıcı eylem yazısı. Beyaz üstünde 7,46:1 · neutral50 üstünde 6,93:1 · koyu zemin (#1B120C) üstünde 2,47:1."
+      }
+    },
+    "info": {
+      "50": {
+        "value": "#EAF5FF",
+        "note": "Bilgi tinti — açık tema. Beyaz üstünde 1,11:1 · neutral50 üstünde 1,03:1 · koyu zemin (#1B120C) üstünde 16,69:1."
+      },
+      "300": {
+        "value": "#8BBFF9",
+        "note": "Koyu temanın bilgi METNİ. Beyaz üstünde 1,92:1 · neutral50 üstünde 1,79:1 · koyu zemin (#1B120C) üstünde 9,59:1."
+      },
+      "600": {
+        "value": "#2E72B9",
+        "note": "Beyaz metin taşıyan bilgi dolgusu. Beyaz üstünde 4,97:1 · neutral50 üstünde 4,62:1 · koyu zemin (#1B120C) üstünde 3,71:1."
+      },
+      "700": {
+        "value": "#215D99",
+        "note": "Açık temanın bilgi METNİ. Beyaz üstünde 6,80:1 · neutral50 üstünde 6,31:1 · koyu zemin (#1B120C) üstünde 2,71:1."
+      }
+    }
+  },
+  "aliases": {
+    "success": {
+      "value": "success.700",
+      "note": "Çıplak ad = METİN adımı. `text-success` / `BldColors.success` çağrı yerlerinin tamamı metin ve tint için kullanıyor; dolgu isteyen yer numaralı adımı açıkça yazar."
+    },
+    "warning": {
+      "value": "warning.700",
+      "note": "Çıplak ad = METİN adımı."
+    },
+    "danger": {
+      "value": "danger.700",
+      "note": "Çıplak ad = METİN adımı."
+    },
+    "info": {
+      "value": "info.700",
+      "note": "Çıplak ad = METİN adımı."
+    }
+  },
+  "roles": {
+    "light": {
+      "background": {
+        "value": "neutral.50",
+        "kind": "surface",
+        "note": "Uygulama zemini. Saf beyaz DEĞİL: kart beyazı zeminin üstünde kendi kenarını gösterebilsin diye."
+      },
+      "surface-1": {
+        "value": "neutral.0",
+        "kind": "surface",
+        "note": "Birinci yükseltme. AÇIK temada yükseltme GÖLGEDİR, açıklık adımı değil — bu yüzden card ile aynı değer."
+      },
+      "surface-2": {
+        "value": "neutral.0",
+        "kind": "surface",
+        "note": "İkinci yükseltme (sheet, dialog). Yine gölge ile ayrışır, renkle değil."
+      },
+      "foreground": {
+        "value": "neutral.900",
+        "kind": "text",
+        "on": "background",
+        "contrast": 15.54,
+        "note": "Gövde metni. background üstünde 15,54:1 (metin eşiği 4,50)."
+      },
+      "heading": {
+        "value": "brand.900",
+        "kind": "text",
+        "on": "background",
+        "contrast": 11.84,
+        "note": "Başlıklar marka kahvesi — web, mobil ve panelin tek ürün gibi okunmasını sağlayan en ucuz hamle. background üstünde 11,84:1 (metin eşiği 4,50)."
+      },
+      "muted": {
+        "value": "neutral.100",
+        "kind": "surface",
+        "note": "Sessiz yüzey — bölüm ayracı, sekme zemini."
+      },
+      "muted-foreground": {
+        "value": "neutral.600",
+        "kind": "text",
+        "on": "background",
+        "contrast": 7.64,
+        "note": "İkincil metin. background üstünde 7,64:1 (metin eşiği 4,50)."
+      },
+      "placeholder": {
+        "value": "neutral.500",
+        "kind": "text",
+        "on": "surface-1",
+        "contrast": 6.2,
+        "note": "Form alanı yer tutucu metni. muted-foreground ile aynı değil: placeholder daha sessiz olmalı ama okunur kalmalı. surface-1 üstünde 6,20:1 (metin eşiği 4,50)."
+      },
+      "card": {
+        "value": "neutral.0",
+        "kind": "surface",
+        "note": "Kart ve liste satırı zemini."
+      },
+      "card-foreground": {
+        "value": "neutral.900",
+        "kind": "text",
+        "on": "card",
+        "contrast": 16.73,
+        "note": "Kart içi metin. card üstünde 16,73:1 (metin eşiği 4,50)."
+      },
+      "popover": {
+        "value": "neutral.0",
+        "kind": "surface",
+        "note": "Açılır katman zemini."
+      },
+      "popover-foreground": {
+        "value": "neutral.900",
+        "kind": "text",
+        "on": "popover",
+        "contrast": 16.73,
+        "note": "Açılır katman metni. popover üstünde 16,73:1 (metin eşiği 4,50)."
+      },
+      "primary": {
+        "value": "brand.700",
+        "kind": "fill",
+        "label": "primary-foreground",
+        "contrast": 6.72,
+        "note": "Birincil buton dolgusu. brand600 DEĞİL: beyaz etiket 4,91 ile sınırda kalıyordu. Etiketi (primary-foreground) ile 6,72:1 (metin eşiği 4,50)."
+      },
+      "primary-foreground": {
+        "value": "neutral.0",
+        "kind": "on-fill",
+        "note": "Birincil buton etiketi."
+      },
+      "primary-hover": {
+        "value": "brand.800",
+        "kind": "fill",
+        "label": "primary-foreground",
+        "contrast": 8.66,
+        "note": "Birincil butonun hover adımı. Etiketi (primary-foreground) ile 8,66:1 (metin eşiği 4,50)."
+      },
+      "primary-text": {
+        "value": "brand.700",
+        "kind": "text",
+        "on": "background",
+        "contrast": 6.24,
+        "note": "Ghost buton ve marka vurgulu metin. background üstünde 6,24:1 (metin eşiği 4,50)."
+      },
+      "secondary": {
+        "value": "brand.50",
+        "kind": "fill",
+        "label": "secondary-foreground",
+        "contrast": 7.87,
+        "note": "Tonal buton dolgusu. Etiketi (secondary-foreground) ile 7,87:1 (metin eşiği 4,50)."
+      },
+      "secondary-foreground": {
+        "value": "brand.800",
+        "kind": "on-fill",
+        "note": "Tonal buton etiketi."
+      },
+      "accent": {
+        "value": "brand.50",
+        "kind": "fill",
+        "label": "accent-foreground",
+        "contrast": 7.87,
+        "note": "Vurgu yüzeyi — seçili satır, hover zemini. Etiketi (accent-foreground) ile 7,87:1 (metin eşiği 4,50)."
+      },
+      "accent-foreground": {
+        "value": "brand.800",
+        "kind": "on-fill",
+        "note": "Vurgu yüzeyi metni."
+      },
+      "surface-warm": {
+        "value": "brand.50",
+        "kind": "surface",
+        "note": "Sıcak anlatım bandı (hero, öne çıkan bölüm)."
+      },
+      "surface-warm-foreground": {
+        "value": "neutral.900",
+        "kind": "text",
+        "on": "surface-warm",
+        "contrast": 15.2,
+        "note": "Sıcak bant metni. surface-warm üstünde 15,20:1 (metin eşiği 4,50)."
+      },
+      "border": {
+        "value": "neutral.200",
+        "kind": "decorative",
+        "note": "DEKORATİF ayraç. Kontrol kenarlığı olarak KULLANILMAZ — 1.4.11 eşiğini geçmez, input rolü onun içindir."
+      },
+      "input": {
+        "value": "neutral.400",
+        "kind": "ui",
+        "on": "card",
+        "contrast": 3.26,
+        "note": "İŞLEVSEL kontrol kenarlığı (form alanı, checkbox, radio). WCAG 1.4.11 için >= 3,0 olmak zorunda. card üstünde 3,26:1 (kontrol eşiği 3,00)."
+      },
+      "ring": {
+        "value": "brand.600",
+        "kind": "ui",
+        "on": "background",
+        "contrast": 4.56,
+        "note": "Odak halkası. 2px + 2px offset ile çizilir. background üstünde 4,56:1 (kontrol eşiği 3,00)."
+      },
+      "link": {
+        "value": "brand.700",
+        "kind": "text",
+        "on": "background",
+        "contrast": 6.24,
+        "note": "Bağlantı metni. background üstünde 6,24:1 (metin eşiği 4,50)."
+      },
+      "destructive": {
+        "value": "danger.600",
+        "kind": "fill",
+        "label": "destructive-foreground",
+        "contrast": 5.84,
+        "note": "Onay diyaloğundaki dolu yıkıcı buton. Etiketi (destructive-foreground) ile 5,84:1 (metin eşiği 4,50)."
+      },
+      "destructive-foreground": {
+        "value": "neutral.0",
+        "kind": "on-fill",
+        "note": "Yıkıcı buton etiketi."
+      },
+      "success": {
+        "value": "success.700",
+        "kind": "text",
+        "on": "background",
+        "contrast": 6.07,
+        "note": "Başarı METNİ. 600 adımı neutral50 zemininde 4,38 veriyor — AA altı, o yüzden metin 700. background üstünde 6,07:1 (metin eşiği 4,50)."
+      },
+      "success-surface": {
+        "value": "success.50",
+        "kind": "surface",
+        "note": "Başarı tinti."
+      },
+      "success-foreground": {
+        "value": "success.700",
+        "kind": "text",
+        "on": "success-surface",
+        "contrast": 5.93,
+        "note": "Tint üstündeki başarı metni. success-surface üstünde 5,93:1 (metin eşiği 4,50)."
+      },
+      "warning": {
+        "value": "warning.700",
+        "kind": "text",
+        "on": "background",
+        "contrast": 6.36,
+        "note": "Uyarı METNİ (çevrimdışı durumu). background üstünde 6,36:1 (metin eşiği 4,50)."
+      },
+      "warning-surface": {
+        "value": "warning.50",
+        "kind": "surface",
+        "note": "Uyarı tinti."
+      },
+      "warning-foreground": {
+        "value": "warning.700",
+        "kind": "text",
+        "on": "warning-surface",
+        "contrast": 6.2,
+        "note": "Tint üstündeki uyarı metni. warning-surface üstünde 6,20:1 (metin eşiği 4,50)."
+      },
+      "danger": {
+        "value": "danger.700",
+        "kind": "text",
+        "on": "background",
+        "contrast": 6.93,
+        "note": "Hata METNİ ve yerinde yıkıcı eylem yazısı. background üstünde 6,93:1 (metin eşiği 4,50)."
+      },
+      "danger-surface": {
+        "value": "danger.50",
+        "kind": "surface",
+        "note": "Hata tinti."
+      },
+      "danger-foreground": {
+        "value": "danger.700",
+        "kind": "text",
+        "on": "danger-surface",
+        "contrast": 6.47,
+        "note": "Tint üstündeki hata metni. danger-surface üstünde 6,47:1 (metin eşiği 4,50)."
+      },
+      "info": {
+        "value": "info.700",
+        "kind": "text",
+        "on": "background",
+        "contrast": 6.31,
+        "note": "Bilgi METNİ. background üstünde 6,31:1 (metin eşiği 4,50)."
+      },
+      "info-surface": {
+        "value": "info.50",
+        "kind": "surface",
+        "note": "Bilgi tinti."
+      },
+      "info-foreground": {
+        "value": "info.700",
+        "kind": "text",
+        "on": "info-surface",
+        "contrast": 6.15,
+        "note": "Tint üstündeki bilgi metni. info-surface üstünde 6,15:1 (metin eşiği 4,50)."
+      },
+      "skeleton-base": {
+        "value": "neutral.100",
+        "kind": "decorative",
+        "note": "Skeleton tabanı."
+      },
+      "skeleton-sheen": {
+        "value": "neutral.200",
+        "kind": "decorative",
+        "note": "Skeleton parıltısı — 1200 ms."
+      }
+    },
+    "dark": {
+      "background": {
+        "value": "neutral.950",
+        "kind": "surface",
+        "note": "Koyu tema zemini. Nötr siyah değil: marka ailesinin en koyu kahvesi."
+      },
+      "surface-1": {
+        "value": "#261B14",
+        "kind": "surface",
+        "note": "Birinci yükseltme. KOYU temada yükseltme AÇIKLIK adımıdır, gölge değil."
+      },
+      "surface-2": {
+        "value": "#32261E",
+        "kind": "surface",
+        "note": "İkinci yükseltme (sheet, dialog, popover)."
+      },
+      "foreground": {
+        "value": "neutral.100",
+        "kind": "text",
+        "on": "background",
+        "contrast": 15.61,
+        "note": "Gövde metni. background üstünde 15,61:1 (metin eşiği 4,50)."
+      },
+      "heading": {
+        "value": "brand.200",
+        "kind": "text",
+        "on": "background",
+        "contrast": 12.15,
+        "note": "TÜRETİLDİ: açık temada başlık brand900 (marka kahvesi). Koyu temada aynı rolün aynadaki karşılığı marka ailesinin açık ucudur; brand200 seçildi. background üstünde 12,15:1 (metin eşiği 4,50)."
+      },
+      "muted": {
+        "value": "#32261E",
+        "kind": "surface",
+        "note": "Sessiz yüzey."
+      },
+      "muted-foreground": {
+        "value": "neutral.300",
+        "kind": "text",
+        "on": "muted",
+        "contrast": 8.53,
+        "note": "İkincil metin. muted üstünde 8,53:1 (metin eşiği 4,50)."
+      },
+      "placeholder": {
+        "value": "neutral.400",
+        "kind": "text",
+        "on": "card",
+        "contrast": 5.16,
+        "note": "Form alanı yer tutucusu. card üstünde 5,16:1 (metin eşiği 4,50)."
+      },
+      "card": {
+        "value": "#261B14",
+        "kind": "surface",
+        "note": "Kart zemini = surface-1."
+      },
+      "card-foreground": {
+        "value": "neutral.100",
+        "kind": "text",
+        "on": "card",
+        "contrast": 14.22,
+        "note": "Kart içi metin. card üstünde 14,22:1 (metin eşiği 4,50)."
+      },
+      "popover": {
+        "value": "#32261E",
+        "kind": "surface",
+        "note": "Açılır katman = surface-2."
+      },
+      "popover-foreground": {
+        "value": "neutral.100",
+        "kind": "text",
+        "on": "popover",
+        "contrast": 12.41,
+        "note": "Açılır katman metni. popover üstünde 12,41:1 (metin eşiği 4,50)."
+      },
+      "primary": {
+        "value": "brand.300",
+        "kind": "fill",
+        "label": "primary-foreground",
+        "contrast": 9.22,
+        "note": "Koyu temanın birincil DOLGUSU. İlişki tersine döner: açık dolgu + koyu etiket. Etiketi (primary-foreground) ile 9,22:1 (metin eşiği 4,50)."
+      },
+      "primary-foreground": {
+        "value": "neutral.950",
+        "kind": "on-fill",
+        "note": "Birincil buton etiketi (koyu)."
+      },
+      "primary-hover": {
+        "value": "brand.200",
+        "kind": "fill",
+        "label": "primary-foreground",
+        "contrast": 12.15,
+        "note": "Birincil butonun hover adımı — koyu temada hover DAHA AÇIK olur. Etiketi (primary-foreground) ile 12,15:1 (metin eşiği 4,50)."
+      },
+      "primary-text": {
+        "value": "brand.400",
+        "kind": "text",
+        "on": "background",
+        "contrast": 6.95,
+        "note": "Ghost buton ve marka vurgulu METİN. Dolgudan farklı ton: brand300 metin olarak fazla parlak. background üstünde 6,95:1 (metin eşiği 4,50)."
+      },
+      "secondary": {
+        "value": "#462314",
+        "kind": "fill",
+        "label": "secondary-foreground",
+        "contrast": 6.95,
+        "note": "Tonal buton dolgusu. Etiketi (secondary-foreground) ile 6,95:1 (metin eşiği 4,50)."
+      },
+      "secondary-foreground": {
+        "value": "brand.300",
+        "kind": "on-fill",
+        "note": "Tonal buton etiketi."
+      },
+      "accent": {
+        "value": "#462314",
+        "kind": "fill",
+        "label": "accent-foreground",
+        "contrast": 6.95,
+        "note": "Vurgu yüzeyi. Etiketi (accent-foreground) ile 6,95:1 (metin eşiği 4,50)."
+      },
+      "accent-foreground": {
+        "value": "brand.300",
+        "kind": "on-fill",
+        "note": "Vurgu yüzeyi metni."
+      },
+      "surface-warm": {
+        "value": "#462314",
+        "kind": "surface",
+        "note": "Sıcak anlatım bandı."
+      },
+      "surface-warm-foreground": {
+        "value": "neutral.100",
+        "kind": "text",
+        "on": "surface-warm",
+        "contrast": 11.76,
+        "note": "Sıcak bant metni. surface-warm üstünde 11,76:1 (metin eşiği 4,50)."
+      },
+      "border": {
+        "value": "#43352B",
+        "kind": "decorative",
+        "note": "DEKORATİF ayraç."
+      },
+      "input": {
+        "value": "#75655A",
+        "kind": "ui",
+        "on": "background",
+        "contrast": 3.31,
+        "note": "İŞLEVSEL kontrol kenarlığı. surface-2 üstünde 2,63 kalıyor — form alanı surface-2 üstüne KOYULMAZ. background üstünde 3,31:1 (kontrol eşiği 3,00)."
+      },
+      "ring": {
+        "value": "brand.400",
+        "kind": "ui",
+        "on": "background",
+        "contrast": 6.95,
+        "note": "Odak halkası. background üstünde 6,95:1 (kontrol eşiği 3,00)."
+      },
+      "link": {
+        "value": "brand.400",
+        "kind": "text",
+        "on": "background",
+        "contrast": 6.95,
+        "note": "Bağlantı metni. background üstünde 6,95:1 (metin eşiği 4,50)."
+      },
+      "destructive": {
+        "value": "danger.300",
+        "kind": "fill",
+        "label": "destructive-foreground",
+        "contrast": 7.7,
+        "note": "Dolu yıkıcı buton — açık dolgu + koyu etiket. Etiketi (destructive-foreground) ile 7,70:1 (metin eşiği 4,50)."
+      },
+      "destructive-foreground": {
+        "value": "neutral.950",
+        "kind": "on-fill",
+        "note": "Yıkıcı buton etiketi."
+      },
+      "success": {
+        "value": "success.400",
+        "kind": "text",
+        "on": "background",
+        "contrast": 7.24,
+        "note": "Başarı METNİ. background üstünde 7,24:1 (metin eşiği 4,50)."
+      },
+      "success-surface": {
+        "value": "#1F341C",
+        "kind": "surface",
+        "note": "Başarı tinti."
+      },
+      "success-foreground": {
+        "value": "success.400",
+        "kind": "text",
+        "on": "success-surface",
+        "contrast": 5.26,
+        "note": "Tint üstündeki başarı metni. success-surface üstünde 5,26:1 (metin eşiği 4,50)."
+      },
+      "warning": {
+        "value": "warning.300",
+        "kind": "text",
+        "on": "background",
+        "contrast": 9.51,
+        "note": "Uyarı METNİ. background üstünde 9,51:1 (metin eşiği 4,50)."
+      },
+      "warning-surface": {
+        "value": "#392C0C",
+        "kind": "surface",
+        "note": "Uyarı tinti."
+      },
+      "warning-foreground": {
+        "value": "warning.300",
+        "kind": "text",
+        "on": "warning-surface",
+        "contrast": 7.04,
+        "note": "Tint üstündeki uyarı metni. warning-surface üstünde 7,04:1 (metin eşiği 4,50)."
+      },
+      "danger": {
+        "value": "danger.300",
+        "kind": "text",
+        "on": "background",
+        "contrast": 7.7,
+        "note": "Hata METNİ. background üstünde 7,70:1 (metin eşiği 4,50)."
+      },
+      "danger-surface": {
+        "value": "#4B1D20",
+        "kind": "surface",
+        "note": "Hata tinti."
+      },
+      "danger-foreground": {
+        "value": "danger.300",
+        "kind": "text",
+        "on": "danger-surface",
+        "contrast": 5.86,
+        "note": "Tint üstündeki hata metni. danger-surface üstünde 5,86:1 (metin eşiği 4,50)."
+      },
+      "info": {
+        "value": "info.300",
+        "kind": "text",
+        "on": "background",
+        "contrast": 9.59,
+        "note": "Bilgi METNİ. background üstünde 9,59:1 (metin eşiği 4,50)."
+      },
+      "info-surface": {
+        "value": "#1A2F46",
+        "kind": "surface",
+        "note": "Bilgi tinti."
+      },
+      "info-foreground": {
+        "value": "info.300",
+        "kind": "text",
+        "on": "info-surface",
+        "contrast": 7.09,
+        "note": "Tint üstündeki bilgi metni. info-surface üstünde 7,09:1 (metin eşiği 4,50)."
+      },
+      "skeleton-base": {
+        "value": "#32261E",
+        "kind": "decorative",
+        "note": "Skeleton tabanı."
+      },
+      "skeleton-sheen": {
+        "value": "#43352B",
+        "kind": "decorative",
+        "note": "Skeleton parıltısı."
+      }
+    }
+  }
+}

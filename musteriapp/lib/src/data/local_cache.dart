@@ -4,9 +4,11 @@
 /// korunur. Bu dosya o iki şeyi saklar; iş kuralı içermez.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:bld_api_client/bld_api_client.dart';
+import 'package:bld_core/bld_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Menü ve sepetin cihazdaki kopyası.
@@ -18,11 +20,27 @@ import 'package:shared_preferences/shared_preferences.dart';
 class LocalCache {
   const LocalCache(this._prefs);
 
+  /// Kalıcı sepetin şema sürümü.
+  ///
+  /// **1 → 2 (B-19):** sepet artık bir SERVİS GÜNÜNE bağlı (`Cart.serviceDate`).
+  /// Sürümsüz eski kayıtlar okunmuyor, SİLİNİYOR. Göç etmek teknik olarak
+  /// mümkündü — eski sepete bugünün tarihini yazmak — ama o sepet dünkü
+  /// menüden dolduruldu: kalemler bugün var olmayabilir ve fiyatları
+  /// değişmiş olabilir. Kullanıcının sepetini sessizce yanlış güne bağlamak,
+  /// boş bir sepetten çok daha pahalıya patlar; sunucu siparişi reddettiğinde
+  /// müşteri hatanın nereden geldiğini anlayamaz.
+  static const int cartSchemaVersion = 2;
+
   static const String _menuKey = 'bld.cache.menu';
   static const String _menuLocationKey = 'bld.cache.menu.location';
   static const String _menuAtKey = 'bld.cache.menu.at';
   static const String _locationKey = 'bld.cache.location';
+  static const String _dailyMenuPrefix = 'bld.cache.gunun-menusu.';
+  static const String _calendarKey = 'bld.cache.menu-takvimi';
+  static const String _calendarLocationKey = 'bld.cache.menu-takvimi.location';
   static const String _cartKey = 'bld.cart';
+  static const String _cartVersionField = 'v';
+  static const String _cartPayloadField = 'cart';
   static const String _reminderOnKey = 'bld.bildirim.gunluk.acik';
   static const String _reminderHourKey = 'bld.bildirim.gunluk.saat';
   static const String _reminderMinuteKey = 'bld.bildirim.gunluk.dakika';
@@ -96,16 +114,110 @@ class LocalCache {
     return DateTime.tryParse(raw)?.toUtc();
   }
 
+  // ── Günün menüsü ────────────────────────────────────────────────────────
+
+  /// Bir günün menüsünü saklar ve GEÇMİŞ günleri temizler.
+  ///
+  /// Her gün ayrı anahtarda: müşteri gün şeridinde ileri geri gezinirken
+  /// çevrimdışı kalırsa gezdiği günlerin hepsi elinde kalsın. Tek bir
+  /// anahtarda tutsaydık son bakılan gün dışındaki her şey kaybolurdu.
+  ///
+  /// Budama yazma sırasında yapılıyor: ileri görüş penceresi 30 gün, yani
+  /// biriken kayıt sayısı doğal olarak sınırlı — asıl risk sayı değil,
+  /// **geçmiş** günlerin kalması. Geçmişe sipariş verilemiyor ve o kayıtlar
+  /// bir daha okunmayacak.
+  Future<void> writeDailyMenu(int locationId, DailyMenu menu) async {
+    await _prefs.setString(
+      _dailyMenuKey(locationId, menu.date),
+      jsonEncode(menu.toJson()),
+    );
+    await _pruneDailyMenus(BusinessDate.today());
+  }
+
+  /// Kayıtlı günün menüsü. Yoksa, başka vitrine aitse veya bozuksa `null`.
+  DailyMenu? readDailyMenu(int locationId, String date) {
+    final raw = _prefs.getString(_dailyMenuKey(locationId, date));
+    if (raw == null) return null;
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return null;
+      return DailyMenu.fromJson(Map<String, dynamic>.from(decoded));
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Menü takvimi. Tek kayıt tutulur: gün şeridi her açılışta aynı geniş
+  /// aralığı (bugün → ileri görüş sonu) istiyor, aralık başına kayıt tutmak
+  /// aynı veriyi çoğaltmaktan başka bir şey yapmazdı.
+  Future<void> writeMenuCalendar(
+    int locationId,
+    List<MenuCalendarDay> days,
+  ) async {
+    await _prefs.setString(
+      _calendarKey,
+      jsonEncode([for (final day in days) day.toJson()]),
+    );
+    await _prefs.setInt(_calendarLocationKey, locationId);
+  }
+
+  /// Kayıtlı takvim; **geçmiş günler ayıklanmış** hâlde döner.
+  ///
+  /// Ayıklama okuma tarafında: kayıt dün yazılmış olabilir ve içindeki "dün"
+  /// bugün artık seçilebilir bir gün değil. Yazarken temizlemek yetmezdi.
+  List<MenuCalendarDay>? readMenuCalendar(int locationId, {String? today}) {
+    if (_prefs.getInt(_calendarLocationKey) != locationId) return null;
+
+    final raw = _prefs.getString(_calendarKey);
+    if (raw == null) return null;
+
+    final from = today ?? BusinessDate.today();
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return null;
+      return [
+        for (final entry in decoded)
+          MenuCalendarDay.fromJson(Map<String, dynamic>.from(entry as Map)),
+      ].where((day) => !BusinessDate.isBefore(day.date, from)).toList();
+    } on Object {
+      return null;
+    }
+  }
+
+  String _dailyMenuKey(int locationId, String date) =>
+      '$_dailyMenuPrefix$locationId.$date';
+
+  Future<void> _pruneDailyMenus(String today) async {
+    for (final key in _prefs.getKeys()) {
+      if (!key.startsWith(_dailyMenuPrefix)) continue;
+      // Anahtarın son parçası gün: `<önek><vitrin>.<YYYY-AA-GG>`.
+      final date = key.split('.').last;
+      if (BusinessDate.isValid(date) && BusinessDate.isBefore(date, today)) {
+        await _prefs.remove(key);
+      }
+    }
+  }
+
   // ── Sepet ───────────────────────────────────────────────────────────────
 
+  /// Sepeti [cartSchemaVersion] damgasıyla saklar.
   Future<void> writeCart(Object? json) async {
     if (json == null) {
       await _prefs.remove(_cartKey);
       return;
     }
-    await _prefs.setString(_cartKey, jsonEncode(json));
+    await _prefs.setString(
+      _cartKey,
+      jsonEncode({_cartVersionField: cartSchemaVersion, _cartPayloadField: json}),
+    );
   }
 
+  /// Kayıtlı sepet. Başka bir şemadan kalan kayıt okunmaz ve SİLİNİR.
+  ///
+  /// Silme beklenmiyor (`unawaited`): çağıran `Notifier.build()` içinde,
+  /// eşzamanlı bir bağlamda. Yazma başarısız olsa bile zarar yok — bir
+  /// sonraki okuma sürümü yine tanımaz ve yine `null` döner.
   Map<String, dynamic>? readCart() {
     final raw = _prefs.getString(_cartKey);
     if (raw == null) return null;
@@ -113,7 +225,15 @@ class LocalCache {
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! Map) return null;
-      return Map<String, dynamic>.from(decoded);
+
+      if (decoded[_cartVersionField] != cartSchemaVersion) {
+        unawaited(_prefs.remove(_cartKey));
+        return null;
+      }
+
+      final payload = decoded[_cartPayloadField];
+      if (payload is! Map) return null;
+      return Map<String, dynamic>.from(payload);
     } on Object {
       return null;
     }

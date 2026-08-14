@@ -7,8 +7,12 @@
 library;
 
 abstract final class BldMotion {
-  /// Basış geri bildirimi, chip seçimi.
-  static const int fastMs = 120;
+  /// ÇIKIŞLAR ve basış geri bildirimi.
+  ///
+  /// 120 değil 150: web tarafı (`--duration-fast`) 150 ms kullanıyordu ve iki
+  /// yüzey aynı hareketi farklı hızda oynatıyordu. Kural şu — çıkışlar `fast`,
+  /// girişler `base`; kullanıcı kapattığı şeyi beklemek istemez.
+  static const int fastMs = 150;
 
   /// Standart giriş/çıkış, liste öğesi belirişi.
   static const int baseMs = 220;

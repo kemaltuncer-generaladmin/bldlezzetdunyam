@@ -86,8 +86,8 @@ export default async function CerezPolitikasiPage() {
       <Section>
         <div className="max-w-3xl">
           {/* Uyarı en üstte: hukuki metinlerde taslak olma durumu okunmadan görülmeli. */}
-          <Alert className="border-warning/40 bg-warning/10">
-            <TriangleAlert aria-hidden="true" className="text-warning" />
+          <Alert variant="warning">
+            <TriangleAlert strokeWidth={1.75} aria-hidden="true" />
             <AlertTitle>Bu metin taslaktır, hukuk danışmanı onayı gerekir</AlertTitle>
             <AlertDescription>
               Aşağıdaki tablo sitenin bugün yazdığı çerezleri birebir anlatır; metnin kendisi hukuki
@@ -114,8 +114,8 @@ export default async function CerezPolitikasiPage() {
           </div>
 
           {/* Geniş tablo yalnızca kendi kabında yatay kayar; sayfa gövdesi kaymaz. */}
-          <div className="mt-6 overflow-x-auto rounded-xl border">
-            <table className="w-full min-w-[46rem] border-collapse text-left text-sm">
+          <div className="mt-6 overflow-x-auto rounded-md border">
+            <table className="w-full min-w-[46rem] border-collapse text-left text-body-sm">
               <caption className="sr-only">
                 Sitede kullanılan çerezlerin adı, türü, amacı, saklanma süresi ve tarayıcı
                 betiklerine açık olup olmadığı.
@@ -142,7 +142,7 @@ export default async function CerezPolitikasiPage() {
               <tbody className="divide-y">
                 {COOKIES.map((cookie) => (
                   <tr key={cookie.name}>
-                    <th scope="row" className="px-4 py-3 font-mono text-xs font-semibold">
+                    <th scope="row" className="px-4 py-3 font-mono text-caption font-semibold">
                       {cookie.name}
                     </th>
                     <td className="px-4 py-3 whitespace-nowrap">{cookie.category}</td>

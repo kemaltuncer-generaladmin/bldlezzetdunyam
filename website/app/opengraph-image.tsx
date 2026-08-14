@@ -28,29 +28,37 @@ export const contentType = 'image/png';
 export const alt = 'Benim Lezzet Dünyam — kurumsal catering ve toplu yemek hizmeti';
 
 /**
- * Fontlar depodan okunuyor, ağdan değil.
+ * Fontlar ve amblem depodan okunuyor, ağdan değil.
  *
  * Font verilmediğinde satori Google Fonts'a çıkıyor ve bu ortamda
  * `Failed to load dynamic font for ğş` hatasıyla zaman aşımına uğradı —
  * yani Türkçe karakterler kutu olarak çizilecekti. Gerekçenin tamamı ve
  * lisans: `assets/fonts/README.md`.
+ *
+ * Amblem PLAKASIZ sürümden geliyor (`public/emblem.png`). Plakalı
+ * `icon-512.png` kullanılsaydı koyu kartın ortasında turuncu bir kare
+ * belirir, kartın kendi zemini iki katmana bölünürdü.
  */
-async function fonts() {
-  const dir = join(process.cwd(), 'assets', 'fonts');
+async function assets() {
+  const fontDir = join(process.cwd(), 'assets', 'fonts');
 
-  const [regular, bold] = await Promise.all([
-    readFile(join(dir, 'LiberationSans-Regular.ttf')),
-    readFile(join(dir, 'LiberationSans-Bold.ttf')),
+  const [regular, bold, emblem] = await Promise.all([
+    readFile(join(fontDir, 'LiberationSans-Regular.ttf')),
+    readFile(join(fontDir, 'LiberationSans-Bold.ttf')),
+    readFile(join(process.cwd(), 'public', 'emblem.png')),
   ]);
 
-  return [
-    { name: 'Liberation Sans', data: regular, weight: 400 as const, style: 'normal' as const },
-    { name: 'Liberation Sans', data: bold, weight: 700 as const, style: 'normal' as const },
-  ];
+  return {
+    fonts: [
+      { name: 'Liberation Sans', data: regular, weight: 400 as const, style: 'normal' as const },
+      { name: 'Liberation Sans', data: bold, weight: 700 as const, style: 'normal' as const },
+    ],
+    emblem: `data:image/png;base64,${emblem.toString('base64')}`,
+  };
 }
 
 export default async function OpengraphImage() {
-  const [content, fontData] = await Promise.all([fetchSiteContent(), fonts()]);
+  const [content, { fonts, emblem }] = await Promise.all([fetchSiteContent(), assets()]);
   const { brand } = content;
 
   return new ImageResponse(
@@ -62,46 +70,35 @@ export default async function OpengraphImage() {
         flexDirection: 'column',
         justifyContent: 'space-between',
         padding: 72,
-        // Kömür zemin: sitenin koyu bantlarıyla aynı. Paylaşım akışlarında
-        // beyaz kartların arasında ayrışıyor.
-        background: '#241f1b',
+        // Koyu temanın zemini (neutral950). Paylaşım akışlarında beyaz
+        // kartların arasında ayrışıyor.
+        background: '#1B120C',
         fontFamily: 'Liberation Sans',
       }}
     >
-      {/* Sıcaklık lekesi — sitedeki CTA bandının aynısı. */}
+      {/*
+        Radyal parıltı — brand700. `radial-gradient` yerine bulanıklaştırılmış
+        daire: satori'nin gradyan çözümleyicisi bu boyutta bantlanma
+        üretiyordu, blur filtresi düzgün bir düşüş veriyor.
+      */}
       <div
         style={{
           position: 'absolute',
-          top: -160,
-          right: -120,
-          width: 520,
-          height: 520,
+          top: -180,
+          right: -140,
+          width: 620,
+          height: 620,
           borderRadius: '50%',
-          background: 'rgba(234,88,12,0.35)',
-          filter: 'blur(90px)',
+          background: 'rgba(168,50,10,0.55)',
+          filter: 'blur(110px)',
           display: 'flex',
         }}
       />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-        <div
-          style={{
-            width: 72,
-            height: 72,
-            borderRadius: 18,
-            background: 'linear-gradient(135deg,#f97316,#c2410c)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontSize: 24,
-            fontWeight: 700,
-            letterSpacing: -0.5,
-          }}
-        >
-          BLD
-        </div>
-        <div style={{ display: 'flex', color: '#faf6ee', fontSize: 30, fontWeight: 600 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+        {/* satori yalnızca <img> çiziyor; `next/image` bir ImageResponse ağacında çalışmaz. */}
+        <img alt="" src={emblem} width={62} height={90} />
+        <div style={{ display: 'flex', color: '#F2EBE3', fontSize: 30, fontWeight: 700 }}>
           {brand.name}
         </div>
       </div>
@@ -110,7 +107,7 @@ export default async function OpengraphImage() {
         <div
           style={{
             display: 'flex',
-            color: '#faf6ee',
+            color: '#F2EBE3',
             fontSize: 66,
             fontWeight: 700,
             lineHeight: 1.15,
@@ -120,25 +117,19 @@ export default async function OpengraphImage() {
         >
           {brand.tagline}
         </div>
-        <div
-          style={{
-            display: 'flex',
-            color: 'rgba(250,246,238,0.68)',
-            fontSize: 28,
-            maxWidth: 860,
-          }}
-        >
+        <div style={{ display: 'flex', color: '#D2C3B4', fontSize: 28, maxWidth: 860 }}>
           {brand.description}
         </div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <div style={{ display: 'flex', width: 44, height: 4, background: '#f97316' }} />
-        <div style={{ display: 'flex', color: 'rgba(250,246,238,0.55)', fontSize: 24 }}>
+        {/* brand400: koyu zeminde marka rengi olarak okunabilen adım. */}
+        <div style={{ display: 'flex', width: 44, height: 4, background: '#E8863F' }} />
+        <div style={{ display: 'flex', color: '#A28A78', fontSize: 24 }}>
           Kurumsal toplu yemek · Taşıma yemek · Organizasyon catering
         </div>
       </div>
     </div>,
-    { ...size, fonts: fontData },
+    { ...size, fonts },
   );
 }

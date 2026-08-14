@@ -62,8 +62,9 @@ class ServiceAreaFields extends StatelessWidget {
               DropdownMenuItem<String>(value: name, child: Text(name)),
           ],
           onChanged: onDistrictChanged,
-          validator: (value) =>
-              ServiceArea.coversDistrict(value) ? null : l10n.addressDistrictRequired,
+          validator: (value) => ServiceArea.coversDistrict(value)
+              ? null
+              : l10n.addressDistrictRequired,
         ),
         const SizedBox(height: BldSpacing.sm),
 

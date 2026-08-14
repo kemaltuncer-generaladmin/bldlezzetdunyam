@@ -10,13 +10,29 @@ import { FormField, inputClass } from '@/components/form-field';
 import { MapPickerLazy, type MapPin } from '@/components/address/map-picker-lazy';
 import { paymentMethodHint, paymentMethodLabel } from '@/lib/labels';
 import { SERVICE_AREA_CITY, SERVICE_AREA_DISTRICTS } from '@/lib/service-area';
-import { checkoutSchema, type CheckoutValues } from '@/lib/validation/checkout';
+import {
+  checkoutSchema,
+  type CheckoutPaymentMethod,
+  type CheckoutValues,
+} from '@/lib/validation/checkout';
 import { cn } from '@/lib/utils';
-import type { LocationEta, PaymentMethod, SavedAddress } from '@/lib/api/types';
+import type { LocationEta, SavedAddress } from '@/lib/api/types';
 
 type Props = {
-  /** Yalnızca vitrinin açık ödeme yöntemleri (`docs/06` §3). */
-  paymentMethods: PaymentMethod[];
+  /**
+   * Vitrinin açık VE sitenin sunduğu ödeme yöntemleri (`docs/06` §3).
+   * Süzme çağıranda: `account` müşteri arayüzünden kaldırıldı (B-19).
+   */
+  paymentMethods: readonly CheckoutPaymentMethod[];
+  /**
+   * Siparişin hangi gün için olduğu (`YYYY-AA-GG`) — sepetten geliyor.
+   *
+   * Saat seçici bu güne KİLİTLENİYOR: sözleşme `requested_at` ile
+   * `service_date`in aynı gün olmasını şart koşuyor, yoksa
+   * `422 VALIDATION_FAILED`. "Cuma menüsünü perşembe 12:00'ye" mutfağın
+   * karşılayamayacağı bir sipariş.
+   */
+  serviceDate: string;
   /** `datetime-local` alt sınırı, Europe/Istanbul duvar saati. */
   minRequestedAt: string;
   orderCutoff: string | null;
@@ -32,6 +48,7 @@ type Props = {
 
 export function CheckoutForm({
   paymentMethods,
+  serviceDate,
   minRequestedAt,
   orderCutoff,
   eta,
@@ -108,14 +125,17 @@ export function CheckoutForm({
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-6">
       {serverState.status === 'error' && serverState.message && (
-        <p role="alert" className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+        <p
+          role="alert"
+          className="rounded-md bg-danger-surface px-3 py-2 text-sm text-danger-foreground"
+        >
           {serverState.message}
         </p>
       )}
 
       <section className="bld-card p-5">
         <fieldset>
-          <legend className="text-lg font-semibold text-neutral-900">Teslimat şekli</legend>
+          <legend className="text-lg font-semibold text-foreground">Teslimat şekli</legend>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <RadioCard
               {...register('delivery_type')}
@@ -136,7 +156,7 @@ export function CheckoutForm({
       {/* Gel-al siparişte adres adımı tamamen atlanır (docs/06 §3). */}
       {isDelivery && (
         <section className="space-y-4 bld-card p-5">
-          <h2 className="text-lg font-semibold text-neutral-900">Teslimat adresi</h2>
+          <h2 className="text-lg font-semibold text-foreground">Teslimat adresi</h2>
 
           {/*
             KAYITLI ADRES SEÇİMİ — W-15.
@@ -247,7 +267,7 @@ export function CheckoutForm({
                   autoComplete="address-level1"
                   aria-invalid={invalid}
                   aria-describedby={describedBy}
-                  className={cn(inputClass(invalid), 'bg-neutral-50 text-neutral-700')}
+                  className={cn(inputClass(invalid), 'bg-background text-muted-foreground')}
                 />
               )}
             </FormField>
@@ -293,9 +313,9 @@ export function CheckoutForm({
 
       <section className="bld-card p-5">
         <fieldset>
-          <legend className="text-lg font-semibold text-neutral-900">Teslim zamanı</legend>
+          <legend className="text-lg font-semibold text-foreground">Teslim zamanı</legend>
           {orderCutoff && (
-            <p className="mt-1 text-sm text-neutral-600">
+            <p className="mt-1 text-sm text-muted-foreground">
               Günlük son sipariş saatimiz {orderCutoff}.
             </p>
           )}
@@ -331,8 +351,8 @@ export function CheckoutForm({
             <div className="mt-4">
               <FormField
                 id="requested_at_local"
-                label="Teslim tarihi ve saati"
-                hint="Türkiye saatiyle."
+                label="Teslim saati"
+                hint={`Türkiye saatiyle ve yalnızca ${serviceDate} günü içinde.`}
                 error={fieldError('requested_at_local')}
               >
                 {({ id, describedBy, invalid }) => (
@@ -341,6 +361,14 @@ export function CheckoutForm({
                     id={id}
                     type="datetime-local"
                     min={minRequestedAt}
+                    /*
+                     * Üst sınır servis gününün sonu. Alt sınır bugüne
+                     * veriliyorsa "şimdi + 30 dk", ileri güne veriliyorsa
+                     * o günün başı (`app/odeme/page.tsx`). Sunucu aynı
+                     * kuralı yeniden uyguluyor; buradaki sınır yalnızca
+                     * kullanıcıyı reddedilecek bir saatten koruyor.
+                     */
+                    max={`${serviceDate}T23:59`}
                     aria-invalid={invalid}
                     aria-describedby={describedBy}
                     className={inputClass(invalid)}
@@ -354,8 +382,8 @@ export function CheckoutForm({
 
       <section className="bld-card p-5">
         <fieldset>
-          <legend className="text-lg font-semibold text-neutral-900">Ödeme yöntemi</legend>
-          <p className="mt-1 text-sm text-neutral-600">
+          <legend className="text-lg font-semibold text-foreground">Ödeme yöntemi</legend>
+          <p className="mt-1 text-sm text-muted-foreground">
             Yalnızca şu anda açık olan yöntemler listelenir.
           </p>
 
@@ -372,7 +400,7 @@ export function CheckoutForm({
           </div>
 
           {fieldError('payment_method') && (
-            <p role="alert" className="mt-2 text-sm text-danger">
+            <p role="alert" className="mt-2 text-sm text-danger-foreground">
               {fieldError('payment_method')}
             </p>
           )}
@@ -408,7 +436,7 @@ export function CheckoutForm({
         {pending ? 'Sipariş oluşturuluyor…' : 'Siparişi onayla'}
       </button>
 
-      <p className="text-center text-xs text-neutral-600">
+      <p className="text-center text-xs text-muted-foreground">
         Siparişi onaylayarak mesafeli satış sözleşmesini kabul etmiş olursunuz. Ödenecek tutar
         sunucuda hesaplanır.
       </p>
@@ -430,14 +458,14 @@ function RadioCard({ title, body, className, ...inputProps }: RadioCardProps) {
     <label
       htmlFor={id}
       className={cn(
-        'flex cursor-pointer gap-3 rounded-lg border border-neutral-200 bg-neutral-0 p-3 text-sm hover:border-brand-300 has-checked:border-brand-600 has-checked:bg-brand-50',
+        'flex cursor-pointer gap-3 rounded-lg border border-border bg-card p-3 text-sm hover:border-brand-300 has-checked:border-brand-600 has-checked:bg-brand-50',
         className,
       )}
     >
       <input {...inputProps} id={id} type="radio" className="mt-1 h-4 w-4 accent-brand-600" />
       <span>
-        <span className="block font-semibold text-neutral-900">{title}</span>
-        {body && <span className="mt-0.5 block text-neutral-600">{body}</span>}
+        <span className="block font-semibold text-foreground">{title}</span>
+        {body && <span className="mt-0.5 block text-muted-foreground">{body}</span>}
       </span>
     </label>
   );

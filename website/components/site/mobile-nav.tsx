@@ -58,12 +58,10 @@ const CHANNEL_ICONS = { phone: Phone, whatsapp: MessageCircle, email: Mail } as 
  */
 export function MobileNav({
   brandName,
-  brandShortName,
   logoSrc,
   channels,
 }: {
   brandName?: string;
-  brandShortName?: string;
   logoSrc?: string | null;
   channels: readonly MobileNavChannel[];
 }) {
@@ -85,7 +83,7 @@ export function MobileNav({
           className={cn(!onOrderingRoute && 'xl:hidden')}
           aria-label="Menüyü aç"
         >
-          <Menu aria-hidden="true" />
+          <Menu aria-hidden="true" strokeWidth={1.75} />
         </Button>
       </SheetTrigger>
 
@@ -93,7 +91,7 @@ export function MobileNav({
         <SheetHeader className="border-b p-4 text-left">
           <SheetTitle asChild>
             <span>
-              <BrandMark brandName={brandName} brandShortName={brandShortName} logoSrc={logoSrc} />
+              <BrandMark brandName={brandName} logoSrc={logoSrc} />
             </span>
           </SheetTitle>
           <SheetDescription className="sr-only">
@@ -112,7 +110,7 @@ export function MobileNav({
                       href={item.href}
                       aria-current={isActive ? 'page' : undefined}
                       className={cn(
-                        'flex min-h-11 items-center rounded-lg px-3 text-[0.95rem] font-medium transition-colors',
+                        'flex min-h-11 items-center rounded-sm px-3 text-body-lg font-medium transition-colors duration-(--duration-fast)',
                         isActive ? 'bg-accent text-accent-foreground' : 'hover:bg-muted',
                       )}
                     >
@@ -128,9 +126,9 @@ export function MobileNav({
                             <Link
                               href={child.href}
                               className={cn(
-                                'flex min-h-11 items-center rounded-lg px-3 text-sm transition-colors',
+                                'flex min-h-11 items-center rounded-sm px-3 text-body transition-colors duration-(--duration-fast)',
                                 pathname === child.href
-                                  ? 'font-medium text-primary'
+                                  ? 'font-medium text-primary-text'
                                   : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                               )}
                             >
@@ -146,7 +144,7 @@ export function MobileNav({
             })}
           </ul>
 
-          <ul className="mt-6 space-y-0.5 border-t pt-4 text-xs text-muted-foreground">
+          <ul className="mt-6 space-y-0.5 border-t border-border pt-4 text-body-sm text-muted-foreground">
             {LEGAL_NAV.map((link) => (
               <li key={link.href}>
                 <SheetClose asChild>
@@ -179,7 +177,7 @@ export function MobileNav({
               <SheetClose key={channel.href} asChild>
                 <Button asChild variant="outline" size="lg" className="w-full">
                   <a href={channel.href}>
-                    <Icon aria-hidden="true" />
+                    <Icon aria-hidden="true" strokeWidth={1.75} />
                     {label}
                   </a>
                 </Button>

@@ -89,6 +89,23 @@ abstract class Location with _$Location {
     /// Süreli durdurmanın bitişi; süresizse `null`.
     DateTime? orderingResumesAt,
 
+    /// Satış **günün menüsü** üzerinden mi yürüyor? (B-19)
+    ///
+    /// Sunucu tarafı şalter, bilerek: günün menüsü akışına geçmek bir ay
+    /// ileriye menü girilmiş olmasını gerektiriyor. Şalter olmasaydı geri
+    /// dönmek üç uygulamayı birden yeniden yayınlamak demekti.
+    ///
+    /// Varsayılanı `false`: alan sözleşmeye sonradan eklendi ve eski
+    /// sunucu/önbellek onu içermiyor — o durumda eski katalog akışı çalışır.
+    @Default(false) bool dailyMenuEnabled,
+
+    /// Bugünden itibaren kaç gün sonrasına sipariş alınabileceği.
+    ///
+    /// Gün seçici takvimi bu kadar ileriye çizer; **sunucu aynı sınırı
+    /// `POST /orders` üzerinde yeniden uygular** — istemcinin çizdiği takvim
+    /// bir kolaylıktır, kapı değil.
+    @Default(30) int maxLookaheadDays,
+
     /// Kuruş. Altında sipariş `422 VALIDATION_FAILED`.
     required int minOrderTotal,
 

@@ -19,6 +19,10 @@
   "errorServerError": "Sunucuda bir hata oluştu. Lütfen daha sonra tekrar deneyin.",
   "errorNetwork": "Bağlantı kurulamadı. İnternetinizi kontrol edin.",
   "errorUnknown": "Beklenmeyen bir hata oluştu.",
+  "errorTitle": "Bir şeyler ters gitti",
+  "@errorTitle": {
+    "description": "Hata ekranının başlığı. Ayrıntıyı hata KODUNA göre seçilen mesaj taşır; başlık sabittir ve kullanıcıya ekranın dolamadığını tek bakışta söyler."
+  },
   "splashChecking": "Bağlanılıyor…",
   "updateTitle": "Güncelleme gerekli",
   "updateBody": "Uygulamanın bu sürümü artık desteklenmiyor. Devam etmek için Google Play üzerinden güncelleyin.",
@@ -65,10 +69,6 @@
   "navMenu": "Menü",
   "navOrders": "Siparişlerim",
   "navAccount": "Hesabım",
-  "menuTitle": "Menü",
-  "menuSearchHint": "Ürün ara",
-  "menuSearchEmpty": "Aramanıza uygun ürün yok.",
-  "menuEmpty": "Menü şu anda boş.",
   "menuItemUnavailable": "Satışta değil",
   "menuOrderingClosed": "Şu anda sipariş alınmıyor. Menüyü inceleyebilirsiniz.",
   "menuCutoff": "Son sipariş saati {time}",
@@ -209,7 +209,6 @@
   "addressNote": "Adres tarifi (isteğe bağlı)",
   "checkoutRequestedAt": "İstenen teslim zamanı",
   "checkoutRequestedAtAsap": "En kısa sürede",
-  "checkoutPickDateTime": "Zaman seç",
   "checkoutClearRequestedAt": "Temizle",
   "checkoutPaymentMethod": "Ödeme yöntemi",
   "checkoutPaymentMethodsEmpty": "Bu vitrin için açık ödeme yöntemi bildirilmedi.",
@@ -451,14 +450,6 @@
   "@homeGreeting": {
     "description": "Ana sayfa karşılama başlığı"
   },
-  "homeCategories": "Kategoriler",
-  "@homeCategories": {
-    "description": "Kategori şeridi başlığı"
-  },
-  "homeFeatured": "Bugün öne çıkanlar",
-  "@homeFeatured": {
-    "description": "Öne çıkan ürünler şeridi başlığı"
-  },
   "homeSeeAll": "Tümünü gör",
   "@homeSeeAll": {
     "description": "Menüye giden bağlantı"
@@ -510,7 +501,6 @@
   "orderingDisabledBody": "Hesabınız sipariş vermeye kapalı. Kurumsal onay için bizimle iletişime geçin.",
   "navSubscriptions": "Abonelik",
   "accountSubscriptions": "Aboneliklerim",
-  "accountStatementShortcut": "Cari hesabım",
   "accountCompanyLabel": "Firma",
   "subscriptionsTitle": "Aboneliklerim",
   "subscriptionsEmpty": "Henüz aboneliğiniz yok. Kurumsal öğle yemeği için talep oluşturun.",
@@ -575,22 +565,188 @@
   "dayFri": "Cum",
   "daySat": "Cmt",
   "daySun": "Paz",
-  "accountStatementTitle": "Cari hesabım",
-  "accountBalanceLabel": "Güncel bakiye",
-  "accountBalanceDebtNote": "Ödenmemiş bakiye",
-  "accountBalanceCreditNote": "Lehinize bakiye",
-  "accountBalanceZeroNote": "Bakiye sıfır",
-  "accountStatementEmpty": "Bu aralıkta hareket yok.",
-  "accountStatementEntries": "Hareketler",
-  "accountDebit": "Borç",
-  "accountCredit": "Alacak",
-  "accountSourceOrder": "Sipariş",
-  "accountSourceSubscription": "Abonelik",
-  "accountSourcePayment": "Tahsilat",
-  "accountSourceManual": "Elle giriş",
-  "accountSourceAdjustment": "Düzeltme",
   "productSoldOutToday": "Bugünlük tükendi",
   "@productSoldOutToday": {
     "description": "Mutfağın günlük tükendi işareti (K-11)."
+  },
+  "commonIncrease": "Bir artır",
+  "@commonIncrease": {
+    "description": "Adet sayacındaki artı düğmesinin ekran okuyucu etiketi."
+  },
+  "commonDecrease": "Bir azalt",
+  "@commonDecrease": {
+    "description": "Adet sayacındaki eksi düğmesinin ekran okuyucu etiketi."
+  },
+  "dayToday": "Bugün",
+  "@dayToday": {
+    "description": "Gün şeridindeki ilk kutu."
+  },
+  "dayTomorrow": "Yarın",
+  "@dayTomorrow": {
+    "description": "Gün şeridindeki ikinci kutu."
+  },
+  "dailyMenuTitle": "Günün menüsü",
+  "@dailyMenuTitle": {
+    "description": "Menü sekmesinin başlığı (B-19)."
+  },
+  "dailyMenuCalendarOpen": "Takvimden gün seç",
+  "@dailyMenuCalendarOpen": {
+    "description": "Menü başlığındaki takvim düğmesinin ipucu ve ekran okuyucu etiketi."
+  },
+  "dailyMenuCalendarTitle": "Gün seçin",
+  "@dailyMenuCalendarTitle": {
+    "description": "Takvim sayfasının başlığı."
+  },
+  "dailyMenuLegendHasMenu": "Menü var",
+  "@dailyMenuLegendHasMenu": {
+    "description": "Takvim açıklaması."
+  },
+  "dailyMenuLegendClosed": "Kapalı",
+  "@dailyMenuLegendClosed": {
+    "description": "Takvim açıklaması."
+  },
+  "dailyMenuClosedDays": "Kapalı günler",
+  "@dailyMenuClosedDays": {
+    "description": "Takvimin altındaki, kapalı günleri nedenleriyle listeleyen bölüm."
+  },
+  "dailyMenuClosedTitle": "Bu gün kapalıyız",
+  "@dailyMenuClosedTitle": {
+    "description": "Kapalı günün boş durumu."
+  },
+  "dailyMenuClosedBody": "Başka bir gün seçerek menüleri inceleyebilirsiniz.",
+  "@dailyMenuClosedBody": {
+    "description": "Kapalı günün boş durum mesajı."
+  },
+  "dailyMenuMissingTitle": "Bu güne menü girilmedi",
+  "@dailyMenuMissingTitle": {
+    "description": "Menüsü olmayan günün boş durumu."
+  },
+  "dailyMenuMissingBody": "Menü hazırlandığında burada görünecek. Takvimden başka bir güne bakabilirsiniz.",
+  "@dailyMenuMissingBody": {
+    "description": "Menüsü olmayan günün boş durum mesajı."
+  },
+  "dailyMenuNotOrderable": "Bu güne şu anda sipariş verilemiyor.",
+  "@dailyMenuNotOrderable": {
+    "description": "Sunucunun bildirdiği sebep tanınmadığında kullanılan genel metin."
+  },
+  "dailyMenuPackageBadge": "Günün menüsü",
+  "@dailyMenuPackageBadge": {
+    "description": "Paket kartının rozeti."
+  },
+  "dailyMenuPackageIncludes": "Menüde neler var",
+  "@dailyMenuPackageIncludes": {
+    "description": "Paketin içindeki yemeklerin başlığı."
+  },
+  "dailyMenuPackageAdd": "Menüyü sepete ekle",
+  "@dailyMenuPackageAdd": {
+    "description": "Paketi sepete ekleme düğmesi."
+  },
+  "dailyMenuPackageSoldOut": "Bugünün menüsü tükendi.",
+  "@dailyMenuPackageSoldOut": {
+    "description": "Paket satılabilir değilken ve sunucu sebep bildirmediğinde."
+  },
+  "dailyMenuSaving": "{amount} avantajlı",
+  "@dailyMenuSaving": {
+    "description": "Paket fiyatının kalemlerin toplamından ne kadar ucuz olduğu.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "dailyMenuItemsSection": "Tek tek almak isterseniz",
+  "@dailyMenuItemsSection": {
+    "description": "Menü kalemlerinin listesinin başlığı."
+  },
+  "dailyMenuOffline": "Bu menü cihazınızdaki kopyadan gösteriliyor; sipariş vermek için bağlantı gerekir.",
+  "@dailyMenuOffline": {
+    "description": "Günün menüsü önbellekten geldiğinde."
+  },
+  "dailyMenuItemMissing": "Bu yemek {date} menüsünde yer almıyor.",
+  "@dailyMenuItemMissing": {
+    "description": "Derin bağlantı o gün olmayan bir kaleme işaret ettiğinde.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "dailyMenuOfDay": "{date} menüsü",
+  "@dailyMenuOfDay": {
+    "description": "Kalem detayında hangi günün menüsüne bakıldığı.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "cartServiceDate": "{date} menüsü",
+  "@cartServiceDate": {
+    "description": "Sepetin bağlı olduğu servis günü.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "cartDayChanged": "Sepetiniz {date} gününe taşındı. Önceki güne eklediğiniz ürünler kaldırıldı.",
+  "@cartDayChanged": {
+    "description": "Başka bir güne ait sepet boşaltıldığında.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "cartDayInvalidTitle": "Sepet bu haliyle gönderilemiyor",
+  "@cartDayInvalidTitle": {
+    "description": "Sepetin servis günü geçersiz olduğunda gösterilen başlık."
+  },
+  "cartDayMissing": "Sepetinizin hangi güne ait olduğu belirlenemedi. Sepeti boşaltıp yeniden seçim yapın.",
+  "@cartDayMissing": {
+    "description": "Dolu sepette servis günü yokken."
+  },
+  "cartDayPast": "Sepetiniz {date} gününe ait ve o gün geçti. Sepeti boşaltıp yeniden seçim yapın.",
+  "@cartDayPast": {
+    "description": "Sepetin servis günü geçmişte kaldığında.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "checkoutServiceDateToday": "Bugünün menüsü için sipariş veriyorsunuz.",
+  "@checkoutServiceDateToday": {
+    "description": "Ödeme ekranındaki servis günü bandı."
+  },
+  "checkoutServiceDateFuture": "{date} menüsü için sipariş veriyorsunuz.",
+  "@checkoutServiceDateFuture": {
+    "description": "İleri tarihli siparişte ödeme ekranındaki servis günü bandı.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "checkoutPickTime": "Saat seç",
+  "@checkoutPickTime": {
+    "description": "İstenen teslim saatini seçme düğmesi. Gün seçilmez; sepet zaten bir güne bağlı."
+  },
+  "ordersServiceDate": "{date} menüsü",
+  "@ordersServiceDate": {
+    "description": "Sipariş listesinde siparişin hangi güne verildiği.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "trackingServiceDate": "Servis günü",
+  "@trackingServiceDate": {
+    "description": "Sipariş takibindeki alan adı."
+  },
+  "homeTodaysMenu": "Bugünün menüsü",
+  "@homeTodaysMenu": {
+    "description": "Ana sayfadaki bölüm başlığı."
   }
 }

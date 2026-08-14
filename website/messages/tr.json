@@ -8,7 +8,8 @@
   },
   "errors": {
     "notFoundTitle": "Aradığınız sayfa bulunamadı",
-    "notFoundBody": "Bağlantı değişmiş veya sayfa kaldırılmış olabilir. Ana sayfadan devam edebilirsiniz.",
-    "goToMenu": "Ana sayfaya dön"
+    "notFoundBody": "Bağlantı değişmiş veya sayfa kaldırılmış olabilir. Günün menüsünden devam edebilirsiniz.",
+    "goToMenu": "Günün menüsüne git",
+    "goToQuote": "Teklif Al"
   }
 }

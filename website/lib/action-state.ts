@@ -7,11 +7,23 @@
  * olarak geçer ve `undefined` alan hatalarına yol açar.
  */
 
+/**
+ * `conflict` DÖRDÜNCÜ BİR DURUM ve hatadan ayrı (B-19).
+ *
+ * Sepet TEK bir servis gününe bağlı; başka bir günün ürünü eklenmek
+ * istendiğinde yapılacak şey belli ama KARARI KULLANICI VERİYOR — sepeti
+ * sıfırlayıp yeni güne geçmek ya da vazgeçmek. Bunu `error` olarak taşımak,
+ * ekranın kırmızı bir uyarı gösterip hiçbir çıkış sunmaması demekti;
+ * sessizce sıfırlamak ise müşterinin hazırladığı sepeti haber vermeden
+ * silmek olurdu.
+ */
 export type CartActionState = {
-  status: 'idle' | 'ok' | 'error';
+  status: 'idle' | 'ok' | 'error' | 'conflict';
   message: string | null;
   /** Her işlemde değişir; istemci bunu tetikleyici olarak kullanır. */
   at: number;
+  /** `conflict` durumunda sepetin ŞU ANDA bağlı olduğu gün. */
+  conflictServiceDate?: string | null;
 };
 
 export const IDLE_CART_STATE: CartActionState = { status: 'idle', message: null, at: 0 };
@@ -101,24 +113,13 @@ export type CancelState = {
 
 export const IDLE_CANCEL_STATE: CancelState = { status: 'idle', message: null, at: 0 };
 
-/**
- * Cari ödeme başlatma durumu — W-12.
+/*
+ * `AccountPaymentState` KALDIRILDI (B-19).
  *
- * Başarı durumu YOK ve olamaz: başarılı akış sağlayıcının sayfasına
- * yönlendiriyor, yani bu bileşen artık ekranda değil. Yalnızca hata
- * taşınıyor.
+ * Cari ödeme formu ve onu besleyen sunucu eylemi müşteri arayüzünden
+ * çıktı; geriye taşıyacak durumu olmayan bir tip kalmıştı. Uçların kendisi
+ * duruyor (`lib/api/account.ts`) ama onlar durum tipi kullanmıyor.
  */
-export type AccountPaymentState = {
-  status: 'idle' | 'error';
-  message: string | null;
-  at: number;
-};
-
-export const IDLE_ACCOUNT_PAYMENT_STATE: AccountPaymentState = {
-  status: 'idle',
-  message: null,
-  at: 0,
-};
 
 /**
  * Abonelik self-servis eylemlerinin ortak durumu — W-13.

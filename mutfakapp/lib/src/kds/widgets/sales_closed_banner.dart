@@ -16,6 +16,7 @@ import '../../data/providers.dart';
 import '../../data/sales_control.dart';
 import '../../l10n/app_localizations.dart';
 import '../../sales/sales_control_screen.dart';
+import '../../settings/lock_ui.dart';
 
 class SalesClosedBanner extends ConsumerWidget {
   const SalesClosedBanner({super.key});
@@ -30,11 +31,19 @@ class SalesClosedBanner extends ConsumerWidget {
 
     final l10n = AppL10n.of(context);
     final now = ref.watch(clockProvider).value ?? DateTime.now().toUtc();
+    // Satış kontrolü kilitliyse ŞERİT DURUR — bilgi taşıyor ve mutfağın
+    // satışın kapalı olduğunu görmesi kilitten bağımsız. Kapanan yalnız
+    // ekrana giden yol: dokunuş kilit metnini gösterir.
+    final allowed = ref.watch(
+      kdsSettingsProvider.select((settings) => settings.allowSalesControl),
+    );
 
     return Material(
       color: const Color(BldColors.danger),
       child: InkWell(
-        onTap: () => Navigator.of(context).push(SalesControlScreen.route()),
+        onTap: allowed
+            ? () => Navigator.of(context).push(SalesControlScreen.route())
+            : () => showLockMessage(context, ref),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: BldSpacing.md,
@@ -60,10 +69,10 @@ class SalesClosedBanner extends ConsumerWidget {
                   ),
                 ),
               ),
-              const Icon(
-                Icons.chevron_right,
+              Icon(
+                allowed ? Icons.chevron_right : Icons.lock_outline,
                 size: 30,
-                color: Color(BldColors.neutral900),
+                color: const Color(BldColors.neutral900),
               ),
             ],
           ),

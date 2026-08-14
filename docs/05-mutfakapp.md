@@ -411,6 +411,38 @@ tetiği kaçırmaktansa fazladan çağırmak yeğdir — kuyruktaki
 doğrudan oraya geçer ve arada bir yayın kaçarsa müşteri fişi hiç
 basılmazdı.
 
+#### TURDA TEK FİŞ — K-21 (14.08.2026)
+
+**Bir yoklama turunda, bir sipariş için en fazla bir iş kuyruğa girer.**
+Öncelik mutfak > müşteri.
+
+Şikâyet şuydu: *"arka arkaya fiş basılıyor."* Tasarım doğruydu — mutfak
+fişi onayda, müşteri fişi `hazir`da — ama **iki eşik aynı turda
+aşılabiliyordu** ve o anda iki kâğıt 1200 ms arayla peş peşe çıkıyordu.
+Üç yoldan oluyordu:
+
+1. Sipariş iki yoklama arasında `yeni`den `hazir`a atlarsa, KDS onu ilk
+   kez `hazir` olarak görür ve her iki eşiği aynı turda geçer.
+2. Revizyon bekletmesi salınırken, basılmış tiplerin **hepsi** aynı turda
+   dökülüyordu.
+3. Bekletmedeki bir revize mutfak fişi ile **hiç basılmamış** ilk müşteri
+   fişi aynı tura denk gelebiliyordu (sipariş `onaylandi` iken düzenlenir,
+   pencerenin dolduğu turda `hazir` olur).
+
+Artık ertelenen tip **bir sonraki turda** çıkar. Aşamalar hiçbir koşulda
+birleşmez: mutfak kâğıdı yemeğe başlamak için, müşteri/kurye kâğıdı kapıya
+çıkmak için basılır ve ikisinin arasında gerçek bir iş vardır.
+
+> **ERTELEME KÜMEYİ İŞARETLEMEZ.** `_acceptedOrders` / `_readyOrders`
+> kümeleri "bu cihaz bunu bir kez bastı" demektir. Ertelenen fişi orada
+> işaretlemek onu bastırmaz, **tamamen kaybettirirdi.**
+
+> **ERTELENEN İŞ SİPARİŞ LİSTESİNDEN BAĞIMSIZ SALINIR.** Sipariş ertelemeden
+> sonra `teslim_edildi` olup panodan düşerse bile fiş çıkar. Aksi hâlde
+> kurye kâğıtsız yola çıkardı — müşterinin elinde kalan tek belge o.
+
+İptal kuralı korunur: sipariş `iptal` görülürse ertelenen iş de düşer.
+
 #### Revizyon tetiği ve birleştirme penceresi — K-20 (14.08.2026)
 
 Yukarıdaki iki satır **düzenlenmemiş** sipariş içindir. Sipariş
@@ -609,7 +641,10 @@ olmamalı.
 ## 7. İlk kurulum akışı (eşleme)
 
 1. Uygulama ilk açılışta "Sunucu adresi" + "Eşleme kodu" ekranı gösterir.
-2. Yönetici admin panelden cihaz ekler, 12 karakterlik kod alır.
+2. Yönetici admin panelden (ya da Kontrol Merkezi'ndeki KDS Yönetimi
+   ekranından) cihaz ekler, `XXXX-XXXX` biçiminde **9 karakterlik** kod alır.
+   Alfabede 0/O ve 1/I yoktur — kod mutfakta, çoğu zaman kötü ışıkta, elle
+   giriliyor. Sütun `varchar(16)`; belge uzun süre "12 karakter" diyordu.
 3. Kod girilir → `POST /api/kitchen/pair` → token alınır, `shared_preferences`'a yazılır.
 4. Sonraki açılışlarda doğrudan sipariş ekranı gelir.
 5. Token iptal edilirse (`403 DEVICE_REVOKED`) uygulama eşleme ekranına döner.
@@ -697,10 +732,16 @@ karışır.
 
 ### Ayarların tek kaynağı SUNUCUDUR (05.08.2026)
 
-Dokuz ayarın tamamı admin panelden yönetilir ve sağlık bildiriminin
-yanıtıyla kasaya iner: ses, yoklama aralığı, uyarı eşiği, geciken eşiği,
-yazıcı yolu, kod sayfası, sağlık sıklığı, bağlantı uyarısı aralığı ve
-alarmın susturulabilirliği.
+Ayarların tamamı sunucudan yönetilir ve sağlık bildiriminin yanıtıyla
+kasaya iner: ses, yoklama aralığı, uyarı eşiği, geciken eşiği, yazıcı
+yolu, kod sayfası, sağlık sıklığı, bağlantı uyarısı aralığı, alarmın
+susturulabilirliği, ses seviyesi, çıkış cihazı, anons ve dokunmatik kip
+(16 alan) — artı K-21 ile gelen 7 kilit alanı (§8.5).
+
+> **Sayı burada sabitlenmez.** Bu paragraf uzun süre "dokuz ayar" dedi ve
+> alan sayısı 16'ya çıktığında kimse belgeyi güncellemedi. Normatif liste
+> `docs/openapi.yaml` → `KitchenSettings`; kod tarafında
+> `KitchenDeviceSettings::forDevice`.
 
 > **`null` = "yönetici dokunmadı"**, "kapalı" değil. O alanda kasa kendi
 > derleme varsayılanını korur. `null`'ı "varsayılana dön" diye yorumlamak,
@@ -746,6 +787,52 @@ yalnızca sürtünme üretiyordu. Ayarlar doğrudan açılır.
 - Kuyruk görüntüleme + elle yeniden basma
 - Cihaz eşlemesini sıfırla
 - Sürüm bilgisi + güncelleme kontrolü
+
+## 8.5 Kilit politikası — K-21 (14.08.2026)
+
+Mutfak ekranının yönetimi Kontrol Merkezi'ne taşındı. Kasadaki personel
+siparişi işler; **yapılandırmayı yapmaz.** Kilit, yedi yönetilen ayarla
+kurulur ve diğer 16 ayarla aynı yoldan (sağlık yanıtı) iner.
+
+| Anahtar | Kapattığı yetenek |
+|---|---|
+| `allow_settings` | Ayarlar ekranı (durum çubuğu ve eylemler sayfası girişleri dâhil) |
+| `allow_server_change` | Sunucu adresini değiştirme + cihaz eşlemesini sıfırlama |
+| `allow_window_controls` | Tam ekrandan çıkma / pencereyi küçültme |
+| `allow_order_edit` | Kasadan sipariş düzenleme (revizyon) |
+| `allow_manual_reprint` | Karttan ve kuyruk listesinden elle yeniden basma |
+| `allow_sales_control` | Satış şalteri ve "bugün tükendi" |
+| `lock_message` | Kilitli bir eyleme dokunulduğunda gösterilecek metin (≤160) |
+
+> **Varsayılan `null` = serbest.** Alanların eklenmesi sahadaki hiçbir
+> kasayı kilitlemez; kilit ancak yönetici açıkça `false` yazınca doğar.
+> Tersi olsaydı sunucu güncellemesi mutfağı bir gecede kilitlerdi.
+
+**Kilit siparişe dokunmaz.** Durum ilerletme, geri alma şeridi, alarm
+susturma, arama ve elle yenileme her koşulda açık kalır. Kilitlenen şey
+yapılandırmadır, işin kendisi değil — mutfağı çalışamaz hâle getiren bir
+kilit, ilk yoğun serviste kapatılır ve bir daha açılmaz.
+
+**Kilitli düğme gizlenmez, pasifleşir** ve dokunulduğunda `lock_message`
+gösterilir. Gizlemek personele "bozuldu" dedirtir ve mutfaktan telefon
+açtırır; pasif bir düğme "bu artık merkezden yönetiliyor" der.
+
+**Kilit diske yazılır.** Kasa ağsız açıldığında ilk sağlık turu
+`health_seconds` (varsayılan 60 sn) sonra gelir. Kilit yalnız bellekte
+dursaydı kasa o pencerede serbest açılırdı ve kilidi aşmanın yolu
+"kapat–aç" olurdu. Aynı turda, bugüne kadar diske hiç yazılmayan dört
+ayar da kalıcı hâle getirildi (`printer_code_page`, `health_seconds`,
+`connection_alarm_seconds`, `alarm_silenceable`) — kod sayfası
+yeniden başlatmada varsayılana döndüğü için arada basılan fişlerde
+Türkçe harfler boşluğa dönüyordu.
+
+### Kilit yetkilendirme DEĞİLDİR
+
+Kilit bir arayüz kolaylığıdır: kasayı eline geçiren biri `.deb`'i
+değiştirip kilidi kaldırabilir. Gerçek sınır sunucudadır — cihaz
+token'ının kapsamı (`kitchen`) ve iptal edilebilirliği. Kilit, yetkili
+personelin yanlışlıkla yapılandırma bozmasını engeller; kötü niyetli
+birini engellemez ve öyle pazarlanmamalıdır.
 
 ## 9. Güncelleme
 

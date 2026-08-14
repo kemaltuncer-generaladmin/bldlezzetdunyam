@@ -51,10 +51,10 @@ export function KitchenBusyBanner() {
   return (
     <div
       role="status"
-      className="rounded-card border border-brand-600/40 bg-brand-50 px-4 py-3 text-sm text-neutral-900"
+      className="rounded-card border border-brand-600/40 bg-brand-50 px-4 py-3 text-sm text-foreground"
     >
       <p className="font-semibold">Mutfağımız yoğun</p>
-      <p className="mt-1 text-neutral-800">{notice}</p>
+      <p className="mt-1 text-foreground">{notice}</p>
     </div>
   );
 }

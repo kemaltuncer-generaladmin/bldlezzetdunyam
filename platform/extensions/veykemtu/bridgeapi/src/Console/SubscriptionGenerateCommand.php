@@ -6,9 +6,11 @@ namespace Veykemtu\BridgeApi\Console;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 use Veykemtu\BridgeApi\Models\ClosedDay;
+use Veykemtu\BridgeApi\Models\DailyMenu;
 use Veykemtu\BridgeApi\Models\Subscription;
 use Veykemtu\BridgeApi\Services\OrderFactory;
 use Veykemtu\BridgeApi\Support\BusinessTime;
@@ -23,6 +25,12 @@ use Veykemtu\BridgeApi\Support\BusinessTime;
  * İDEMPOTENT: `veykemtu_subscription_runs` üzerindeki
  * `UNIQUE(subscription_id, delivery_point_id, service_date)` + varlık kontrolü
  * — komut iki kez koşsa da aynı gün için ikinci sipariş doğmaz.
+ *
+ * `menu_mode = daily_menu` abonelikleri için ÖN KONTROL var
+ * ([reportMissingDailyMenus]): o günün menüsü yayınlanmamışsa vitrin başına
+ * tek bir hata satırı basılır ve o abonelikler üretime hiç sokulmaz. Koşum
+ * satırı yazılmadığı için menü yayınlandıktan sonra komut yeniden
+ * koşturulunca sipariş doğar — başarısızlık bir sonraki denemeyi engellemez.
  */
 class SubscriptionGenerateCommand extends Command
 {
@@ -60,6 +68,8 @@ class SubscriptionGenerateCommand extends Command
             $dryRun ? ' (kuru koşum)' : '',
         ));
 
+        $locationsWithoutMenu = $this->reportMissingDailyMenus($subscriptions, $serviceDate);
+
         $created = 0;
         $skipped = 0;
         $failed = 0;
@@ -80,6 +90,24 @@ class SubscriptionGenerateCommand extends Command
 
                 if ($exists) {
                     $skipped++;
+
+                    continue;
+                }
+
+                /*
+                 * SEBEBİ ZATEN BİR KEZ SÖYLENDİ.
+                 *
+                 * Menüsü olmayan bir vitrinin `daily_menu` abonelikleri
+                 * burada üretime hiç sokulmuyor: `OrderFactory` her biri
+                 * için ayrı ayrı patlar ve 40 abonelikte 40 satırlık,
+                 * hepsi aynı şeyi söyleyen bir hata yığını çıkardı.
+                 * Hata SAYILIYOR (komut FAILURE dönsün, zamanlayıcı
+                 * sessizce başarılı görünmesin) ama tekrar yazılmıyor.
+                 */
+                if ($subscription->menu_mode === Subscription::MENU_DAILY
+                    && in_array((int) $subscription->location_id, $locationsWithoutMenu, true)
+                ) {
+                    $failed++;
 
                     continue;
                 }
@@ -122,5 +150,54 @@ class SubscriptionGenerateCommand extends Command
         ));
 
         return $failed > 0 ? self::FAILURE : self::SUCCESS;
+    }
+
+    /**
+     * `daily_menu` abonelikleri için menüsü YAYINLANMAMIŞ vitrinleri bulur
+     * ve her biri için TEK bir yüksek sesli hata satırı basar.
+     *
+     * NEDEN ÖN KONTROL: gece işi 22:00'de yarın için koşuyor. Yarının
+     * menüsü o saate kadar yayınlanmamışsa yüzlerce porsiyon düşer ve bunu
+     * gören tek yer bu komutun çıktısı. Kontrol döngünün içinde kalsaydı
+     * mesaj abonelik sayısı kadar tekrarlanır, gerçek sebep yığın izlerinin
+     * arasında kaybolurdu.
+     *
+     * @param  Collection<int, Subscription>  $subscriptions
+     * @return list<int>  Menüsü olmayan vitrinlerin kimlikleri
+     */
+    private function reportMissingDailyMenus(Collection $subscriptions, Carbon $serviceDate): array
+    {
+        $missing = [];
+
+        $daily = $subscriptions->filter(
+            static fn(Subscription $s): bool => $s->menu_mode === Subscription::MENU_DAILY,
+        );
+
+        foreach ($daily->groupBy('location_id') as $locationId => $group) {
+            $locationId = (int) $locationId;
+
+            if (DailyMenu::findPublished($locationId, $serviceDate) !== null) {
+                continue;
+            }
+
+            $missing[] = $locationId;
+
+            $portions = $group->sum(
+                static fn(Subscription $s): int => max(1, $s->quantityForDate($serviceDate)),
+            );
+
+            $this->components->error(sprintf(
+                '%s için GÜNÜN MENÜSÜ YAYINLANMAMIŞ (vitrin #%d): %d abonelik, '
+                    .'%d porsiyon üretilemiyor. Menüyü yayınlayıp '
+                    .'`php artisan veykemtu:abonelik-uret --date=%s` komutunu tekrar koşun.',
+                $serviceDate->toDateString(),
+                $locationId,
+                $group->count(),
+                $portions,
+                $serviceDate->toDateString(),
+            ));
+        }
+
+        return $missing;
     }
 }

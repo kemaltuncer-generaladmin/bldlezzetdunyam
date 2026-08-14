@@ -9,9 +9,10 @@
 /// korur. `null`'ı "kapat" ya da "varsayılana dön" diye yorumlamak,
 /// yönetici tek bir ayarı değiştirdiğinde diğer sekizini sıfırlardı.
 ///
-/// SES ÇIKIŞI (`audio_sink`) İSTİSNA: boş dize gelirse "varsayılan çıkışa
-/// dön" demektir. Yönetici seçtiği çıkışı geri alabilmeli ve `null`
-/// "dokunmadı" anlamına ayrılmış durumda.
+/// SES ÇIKIŞI (`audio_sink`) VE KİLİT METNİ (`lock_message`) İSTİSNA: boş
+/// dize gelirse "varsayılana dön" demektir. Yönetici seçtiği çıkışı ya da
+/// yazdığı cümleyi geri alabilmeli ve `null` "dokunmadı" anlamına ayrılmış
+/// durumda.
 library;
 
 import '../settings/kds_settings.dart';
@@ -47,6 +48,16 @@ KdsSettings applyManagedSettings(
     healthSeconds: managed.healthSeconds,
     connectionAlarmSeconds: managed.connectionAlarmSeconds,
     alarmSilenceable: managed.alarmSilenceable,
+    // Kilit politikası (K-21 §2.2). Aynı kural: `null` dokunmadı demek,
+    // `false` kilitler. Yerel varsayılan `true` olduğu için yeni alanların
+    // gelmesi bugünkü kasaları kilitlemez.
+    allowSettings: managed.allowSettings,
+    allowServerChange: managed.allowServerChange,
+    allowWindowControls: managed.allowWindowControls,
+    allowOrderEdit: managed.allowOrderEdit,
+    allowManualReprint: managed.allowManualReprint,
+    allowSalesControl: managed.allowSalesControl,
+    lockMessage: managed.lockMessage,
   );
 
   // Sınırlar YİNE UYGULANIR. Sunucu da kırpıyor ama ona güvenip

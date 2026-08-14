@@ -79,26 +79,35 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.4
   flutter_native_splash: ^2.4.6
 
-# GEÇİCİ marka logosu (owner nihai logoyu verince `assets/icon/*` değişip
-# `dart run flutter_launcher_icons` + `flutter_native_splash:create` yeniden
-# koşulur). Palet kilitli turuncu: brand600 #EA580C.
+# Zemin rengi #941C01 = brand800 (`packages/design_system/tokens/bld.tokens.json`),
+# logo gradyanının KOYU ucu. Eski #EA580C artık palette hiç yok — o turuncu
+# emekliye ayrıldı.
+#
+# NEDEN gradyanın parlak ucu (brand500 #DD5D02) DEĞİL: `assets/icon/*` beyaz
+# çizimler ve palet kuralı net — brand500 ve daha açığı beyaz taşımaz
+# (3,72 < 4,50). brand800 beyazı 8,66'da taşır.
+#
+# ⚠ `android/` ve `ios/` altındaki ÜRETİLMİŞ varlıklar hâlâ eski turuncuyla
+# basılı. Bu blok kaynaktır, onlar çıktı; nihai amblem çizildikten sonra
+# `dart run flutter_launcher_icons` + `dart run flutter_native_splash:create`
+# birlikte koşulmalı.
 flutter_launcher_icons:
   image_path: "assets/icon/app_icon.png"
   android: true
   ios: true
   remove_alpha_ios: true
   min_sdk_android: 21
-  adaptive_icon_background: "#EA580C"
+  adaptive_icon_background: "#941C01"
   adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
 
 flutter_native_splash:
-  color: "#EA580C"
+  color: "#941C01"
   image: assets/icon/splash_logo.png
   android: true
   ios: true
   web: false
   android_12:
-    color: "#EA580C"
+    color: "#941C01"
     image: assets/icon/splash_logo.png
 
 flutter:
@@ -109,10 +118,18 @@ flutter:
   # Değişken (variable) fontlar: tek dosya, ağırlık tanımı YOK — Flutter
   # TextStyle.fontWeight'i fontun `wght` eksenine kendisi eşler. Çalışma
   # anında Google Fonts indirilmez; çevrimdışı menü kararıyla tutarlı.
+  #
+  # İKİSİ DE ALT KÜMELENMİŞ (latin + latin-ext + ₺, wght 400–700). Nasıl ve
+  # neden: assets/fonts/README.md. Font dosyasını yayınlanan tam sürümle
+  # DEĞİŞTİRMEYİN — paket 590 KB birden büyür.
+  #
+  # Sora KALDIRILDI: başlık ailesi artık Source Serif 4
+  # (`BldFontFamily.display`). Sora geometrik bir sans'tı, logonun tırnaklı
+  # harf biçimiyle ilgisi yoktu ve içinde `₺` bile bulunmuyordu.
   fonts:
     - family: Inter
       fonts:
         - asset: assets/fonts/Inter-Variable.ttf
-    - family: Sora
+    - family: SourceSerif4
       fonts:
-        - asset: assets/fonts/Sora-Variable.ttf
+        - asset: assets/fonts/SourceSerif4-Variable.ttf

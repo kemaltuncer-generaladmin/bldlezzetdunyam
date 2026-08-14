@@ -87,6 +87,17 @@ class _OrderTile extends StatelessWidget {
                   style: textTheme.titleMedium,
                 ),
                 const SizedBox(height: BldSpacing.xs),
+                // SERVİS GÜNÜ, veriliş anından ÖNCE ve daha belirgin: ileri
+                // tarihli sipariş bu üründe kural. "Hangi gün yemek
+                // gelecek" sorusunun cevabı `created_at` değil
+                // `service_date` — ikisi çoğu zaman farklı günler.
+                if (order.serviceDate != null)
+                  Text(
+                    l10n.ordersServiceDate(
+                      BusinessDate.long(order.serviceDate!),
+                    ),
+                    style: textTheme.bodyMedium,
+                  ),
                 Text(
                   '${TurkishTime.longDateTime(order.createdAt)}'
                   '  ·  ${l10n.cartItemCount(order.itemCount)}',
@@ -111,7 +122,7 @@ class _OrderTile extends StatelessWidget {
               ),
               const SizedBox(height: BldSpacing.lg),
               Icon(
-                Icons.chevron_right,
+                Icons.chevron_right_outlined,
                 color: bldColor(BldColors.neutral400),
               ),
             ],

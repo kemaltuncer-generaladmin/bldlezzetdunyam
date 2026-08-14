@@ -1,7 +1,5 @@
 import type { MetadataRoute } from 'next';
 import { SITE_URL } from '@/lib/api/client';
-import { fetchCatalog, flattenItems } from '@/lib/api/catalog';
-import { productSlug } from '@/lib/slug';
 
 export const revalidate = 3600;
 
@@ -14,14 +12,18 @@ export const revalidate = 3600;
  * haritasında ilan etmek, arama motoruna "buraya git" deyip kapıda başka
  * yere göndermek olurdu — tarama bütçesini boşa harcar.
  *
- * Geriye iki grup kalıyor: sabit sayfalar ve MENÜ ÜRÜNLERİ. Ürünler
- * kataloğdan geliyor, yani yeni bir yemek eklendiğinde harita kendiliğinden
- * güncelleniyor.
+ * ÜRÜN ADRESLERİ DE ÇIKTI (B-19). Satış artık günün menüsü üzerinden
+ * yürüyor; `/urun/{slug}` sayfaları kaldırıldı ve `/menu`ye yönlendiriliyor
+ * (`next.config.ts`). Yönlendirilen bir adresi haritada ilan etmek, arama
+ * motoruna "buraya git" deyip kapıda başka yere göndermek olurdu.
  *
- * Sipariş API'si erişilemezse yalnızca sabit sayfalar yayınlanır — harita
- * hiçbir koşulda boş kalmaz.
+ * Gün parametreli menü adresleri (`/menu?gun=…`) de HARİTADA YOK: hepsi
+ * `/menu`ye canonical veriyor, yani ayrı sayfa değiller.
+ *
+ * Harita artık API'ye HİÇ bağlı değil — sipariş altyapısı kapalıyken de
+ * doğru üretiliyor.
  */
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
 
   /*
@@ -55,18 +57,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.2,
   }));
 
-  const baseEntries = [...staticEntries, ...legalEntries];
-
-  try {
-    const { categories } = await fetchCatalog();
-    const productEntries: MetadataRoute.Sitemap = flattenItems(categories).map((item) => ({
-      url: `${SITE_URL}/urun/${productSlug(item)}`,
-      lastModified: now,
-      changeFrequency: 'weekly',
-      priority: 0.4,
-    }));
-    return [...baseEntries, ...productEntries];
-  } catch {
-    return baseEntries;
-  }
+  return [...staticEntries, ...legalEntries];
 }

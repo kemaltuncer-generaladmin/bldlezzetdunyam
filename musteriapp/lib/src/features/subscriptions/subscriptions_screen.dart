@@ -61,7 +61,7 @@ class SubscriptionsScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(l10n.subscriptionsTitle)),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push(Routes.subscriptionNew),
-        icon: const Icon(Icons.add),
+        icon: const Icon(Icons.add_outlined),
         label: Text(l10n.subscriptionsNew),
       ),
       body: async.when(
@@ -127,7 +127,7 @@ class _SubscriptionTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(BldRadius.md),
             ),
             child: Icon(
-              Icons.event_repeat,
+              Icons.event_repeat_outlined,
               color: bldColor(BldColors.brand700),
             ),
           ),
@@ -162,7 +162,10 @@ class _SubscriptionTile extends StatelessWidget {
               ],
             ),
           ),
-          Icon(Icons.chevron_right, color: bldColor(BldColors.neutral400)),
+          Icon(
+            Icons.chevron_right_outlined,
+            color: bldColor(BldColors.neutral400),
+          ),
         ],
       ),
     );

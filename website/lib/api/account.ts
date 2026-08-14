@@ -6,11 +6,23 @@ import type { AccountPaymentStarted, AccountStatement, AccountSummary } from './
 /**
  * Cari hesap uçları — W-12.
  *
- * Uçlar `docs/openapi.yaml` içinde zaten tanımlıydı ama sitede hiç
- * çağrılmıyordu: cari self-servisi "mobil uygulamaya özgü" diye
- * planlanmıştı (`docs/06` B2B notu). O karar v2.0'da değişti — kurumsal
- * müşterinin çoğu siparişi masaüstünden veriyor ve borcunu görmek için
- * telefon uygulaması indirmek zorunda kalması anlamsızdı.
+ * ## BU DOSYA ŞU AN HİÇBİR YERDEN ÇAĞRILMIYOR VE BU KASITLI (B-19)
+ *
+ * İşletme sahibinin kararıyla cari hesap **müşteri arayüzlerinden** kalktı:
+ * `/hesabim/cari` sayfası, bakiye kartı, ödeme formu ve `account` ödeme
+ * yöntemi web'den; karşılıkları mobilden kaldırıldı. Sipariş artık günün
+ * menüsü üzerinden yürüyor ve tahsilat müşteri kendi kendine yapmıyor.
+ *
+ * ARKA UÇ, API VE ADMIN PANEL AYNEN DURUYOR: `/account/summary`,
+ * `/account/statement` ve `/account/payments` sözleşmede (`docs/openapi.yaml`)
+ * yayınlanmış uçlar; panelden cari işleyen personel onları kullanmaya devam
+ * ediyor. Bu istemci sarmalayıcısını silmek sözleşmeyi kırmaz ama arayüz geri
+ * istendiğinde üç ucun tip güvenli çağrısını sıfırdan yazdırırdı — dosyanın
+ * bedeli, kullanılmadığı sürece derlemeye giren birkaç satır.
+ *
+ * KULLANMADAN ÖNCE: cari yüzeyini geri açmak bir ÜRÜN kararıdır, bir içe
+ * aktarma satırı değil. Yeni bir çağrı eklemeden önce kararın geri alındığını
+ * doğrula.
  *
  * `server-only`: token httpOnly çerezde duruyor ve tarayıcıya hiç
  * geçmiyor. Bu modülün istemciden içe aktarılması derleme hatası verir.

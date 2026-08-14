@@ -32,6 +32,19 @@ class ProductionListService
                 OrderStatusTransition::PREPARING,
             ])
             ->whereDate('o.order_date', $today)
+            /*
+             * MENÜ PAKETİ SATIRI ŞERİDE GİRMEZ (B-19).
+             *
+             * Paket bir üst satır + altında bileşen satırları olarak
+             * yazılıyor. Üst satır da sayılsaydı mutfak "40 Günün Menüsü"
+             * satırını görürdü — hiçbir işe yaramayan ve gerçek toplamların
+             * arasına karışan bir satır. Bileşenler gerçek `menu_id`'leriyle
+             * burada zaten toplanıyor: "40 tavuk sote" oradan geliyor.
+             */
+            ->where(function ($query): void {
+                $query->whereNull('om.bld_line_role')
+                    ->orWhere('om.bld_line_role', '!=', 'package');
+            })
             ->groupBy('om.menu_id', 'om.name')
             ->orderByDesc(DB::raw('SUM(om.quantity)'))
             ->get([

@@ -202,8 +202,32 @@ girer girmez geçerliliğini görmeli, siparişi gönderdiğinde değil.
 > aynı). İki indirimin çakışıp toplamı eksiye düşürme riski (§6) böylece davet
 > edilmez.
 >
-> **Ertelenen:** `menu_mode = daily_menu` ("günün menüsü" kaynağı yok) — yalnız
-> `fixed_list` tam desteklenir.
+> **YAPILDI (B-19 sonrası):** `menu_mode = daily_menu` artık çalışıyor. Erteleme
+> gerekçesi ("günün menüsü kaynağı yok") B-19 ile ortadan kalktı:
+> `veykemtu_daily_menus` o kaynağın kendisi. `OrderFactory` o servis gününün
+> **yayınlanmış** menüsünü çözüp siparişi tek seferlik menü siparişiyle **aynı
+> şekilde** üretiyor — fiyatlı bir paket üst satırı + sıfır fiyatlı bileşen
+> satırları — ki `ProductionListService`, `SubscriptionKitchenPlan::totals` ve
+> `OrderPresenter::kitchenItems` içindeki `bld_line_role != 'package'` süzgeci
+> abonelikte ve tek seferlik siparişte aynı davransın.
+>
+> Fiyat **her iki modda da** `agreed_unit_price_kurus`: sözleşme "o gün ne
+> pişerse pişsin porsiyonu şu kadar" der, fiyatı günün menüsünden almak mutfak
+> pahalı bir gün girdiğinde faturayı sessizce büyütürdü. Bu yüzden anlaşmalı
+> fiyat `daily_menu`'de de ZORUNLU.
+>
+> **Menü yoksa sessizce atlanmaz.** `veykemtu:abonelik-uret` hedef gün için
+> `daily_menu` aboneliği varken yayınlanmış menü yoksa **tek** ve yüksek sesli
+> bir hata satırı basar (abonelik başına bir yığın izi değil), o abonelikleri
+> üretime hiç sokmaz ve `FAILURE` döner. `veykemtu_subscription_runs` satırı
+> yazılmadığı için menü yayınlandıktan sonra komut yeniden koşturulunca sipariş
+> doğar; `UNIQUE(subscription_id, delivery_point_id, service_date)` tek sipariş
+> garantisini korur. Mutfak tarafında `SubscriptionKitchenPlan` aynı durumu
+> `kind = 'not_generated'` ile bildirir (KDS o türü **kırmızı** çiziyor; yeni
+> bir tür mavi/bilgi olarak görünürdü). Gösterge panelindeki BLD kutusu da
+> önümüzdeki yedi günün menüsü olmayan günlerini adlarıyla listeler — gece
+> üretimi 22:00'de yarın için koştuğundan uyarı yöneticinin zaten baktığı
+> yerde durmalı.
 
 **Catering'in asıl iş modeli bu, tek seferlik sipariş değil.** Müşterinin
 tarifi: *"adam aylık abone olacak öğle yemeği için, mesela 20 adet her gün

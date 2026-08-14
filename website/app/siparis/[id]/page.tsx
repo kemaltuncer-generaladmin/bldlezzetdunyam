@@ -8,6 +8,7 @@ import { ApiError } from '@/lib/api/client';
 import { fetchPrimaryLocation } from '@/lib/api/catalog';
 import { fetchOrder } from '@/lib/api/orders';
 import { readEtaWindow } from '@/lib/eta';
+import { businessToday, parseBusinessDate, serviceDayTitle } from '@/lib/business-date';
 import { formatDateTime } from '@/lib/format';
 import { requireSession } from '@/lib/require-session';
 import type { EtaWindow, OrderDetail } from '@/lib/api/types';
@@ -58,16 +59,30 @@ export default async function OrderTrackingPage({ params }: { params: Promise<{ 
     eta = null;
   }
 
+  const serviceDate = parseBusinessDate(order.service_date);
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
-      <nav aria-label="Ekmek kırıntısı" className="mb-4 text-sm text-neutral-600">
-        <Link href="/siparislerim" className="rounded-sm hover:text-brand-700 hover:underline">
+      <nav aria-label="Ekmek kırıntısı" className="mb-4 text-body-sm text-muted-foreground">
+        <Link href="/siparislerim" className="rounded-sm text-link hover:underline">
           Siparişlerim
         </Link>
       </nav>
 
-      <h1 className="text-3xl font-bold text-neutral-900">Sipariş {order.order_number}</h1>
-      <p className="mt-1 text-sm text-neutral-600">
+      <h1 className="font-display text-h1 font-semibold text-heading">
+        Sipariş {order.order_number}
+      </h1>
+      {/*
+        SERVİS GÜNÜ ÖNCE, OLUŞTURMA ANI SONRA. İleri tarihli siparişte
+        müşterinin aradığı bilgi "hangi güne verdim"; siparişi ne zaman
+        verdiği ikincil.
+      */}
+      <p className="mt-1 text-body-sm text-muted-foreground">
+        {serviceDate && (
+          <span className="font-medium text-foreground">
+            {serviceDayTitle(serviceDate, businessToday())} ·{' '}
+          </span>
+        )}
         {formatDateTime(order.created_at)} tarihinde oluşturuldu.
       </p>
 

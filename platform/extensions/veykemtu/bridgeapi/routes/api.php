@@ -18,6 +18,11 @@ use Veykemtu\BridgeApi\Http\Controllers\AppVersionController;
 use Veykemtu\BridgeApi\Http\Controllers\AuthController;
 use Veykemtu\BridgeApi\Http\Controllers\BbdController;
 use Veykemtu\BridgeApi\Http\Controllers\CatalogController;
+use Veykemtu\BridgeApi\Http\Controllers\Control\DeviceController as ControlDeviceController;
+use Veykemtu\BridgeApi\Http\Controllers\Control\MenuController as ControlMenuController;
+use Veykemtu\BridgeApi\Http\Controllers\Control\OrderController as ControlOrderController;
+use Veykemtu\BridgeApi\Http\Controllers\Control\OverviewController as ControlOverviewController;
+use Veykemtu\BridgeApi\Http\Controllers\Control\PrintJobController as ControlPrintJobController;
 use Veykemtu\BridgeApi\Http\Controllers\HealthController;
 use Veykemtu\BridgeApi\Http\Controllers\KitchenController;
 use Veykemtu\BridgeApi\Http\Controllers\OrderController;
@@ -54,6 +59,14 @@ Route::prefix('api')
 
         Route::get('locations', [CatalogController::class, 'locations']);
         Route::get('locations/{location}/menu', [CatalogController::class, 'menu']);
+
+        /*
+         * Günün menüsü ve menü takvimi (B-19). Kimlik gerektirmez:
+         * `/menu` ile aynı gerekçe — site bunları SSR sırasında çekiyor ve
+         * token istemek statik üretimi zorlaştırıp hiçbir şeyi korumazdı.
+         */
+        Route::get('locations/{location}/daily-menu', [CatalogController::class, 'dailyMenu']);
+        Route::get('locations/{location}/menu-calendar', [CatalogController::class, 'menuCalendar']);
         Route::get('app-version', [AppVersionController::class, 'show']);
 
         // Kurumsal site içeriği. Kimlik gerektirmez — içerik zaten herkese
@@ -108,6 +121,24 @@ Route::prefix('api')
             // gerekçe AddressController sınıf yorumunda.
             Route::get('addresses', [AddressController::class, 'index']);
             Route::post('addresses', [AddressController::class, 'store']);
+
+            /*
+             * Adres yardımcıları (B-21) — SABİT PARÇALI YOLLAR `{address}`
+             * ÖNÜNDE. Yönlendirici önce eşleşeni alır: `addresses/{address}`
+             * üstte kalsaydı `suggest` bir kimlik sanılıp 404 dönerdi.
+             * Bugün `{address}` yalnızca PATCH/DELETE ile tanımlı, yani
+             * çakışma henüz yok — sıra, ileride bir `GET addresses/{id}`
+             * eklendiği gün sessizce kırılmasın diye şimdiden doğru.
+             *
+             * KİMLİK GEREKİR (müşteri kapsamının içindeler): anonim bir
+             * geocoder proxy'si sağlayıcı kotamızı yabancılara harcatır.
+             * Sınır da hesap başına — gerekçe `Extension::registerRateLimiters`.
+             */
+            Route::middleware('throttle:bld-adres')->group(function (): void {
+                Route::get('addresses/suggest', [AddressController::class, 'suggest']);
+                Route::get('addresses/reverse', [AddressController::class, 'reverse']);
+            });
+
             Route::patch('addresses/{address}', [AddressController::class, 'update']);
             Route::delete('addresses/{address}', [AddressController::class, 'destroy']);
 
@@ -182,4 +213,53 @@ Route::prefix('api')
                 Route::get('bbd-orders', [KitchenController::class, 'bbdOrders']);
                 Route::post('bbd-orders/{receipt}/ack', [KitchenController::class, 'ackBbd']);
             });
+
+        // ── Kontrol Merkezi (K-21) ───────────────────────────────────────
+        //
+        // Kimlik doğrulaması İMZAYLA, cihaz token'ıyla değil. Kontrol
+        // Merkezi kasa gibi eşleşMEZ: eşleşseydi her isteği bir kasanın
+        // `last_seen_at`'ini tazeler ve panelde açık duran bir ekran,
+        // mutfakta olmayan bir kasayı "çevrimiçi" gösterirdi. Gerekçenin
+        // tamamı `Http\Middleware\VerifyControlSignature` sınıf yorumunda.
+        //
+        // `bld.headers` UYGULANMAZ: Kontrol Merkezi bir müşteri istemcisi
+        // değil, yöneten bir sistem; ondan `X-App-Id` beklemek anlamsız
+        // olurdu (BBD köprüsüyle aynı gerekçe).
+        Route::withoutMiddleware(['bld.headers'])->group(function (): void {
+            Route::prefix('control/kds')
+                ->middleware(['control.signature', 'throttle:bld-control'])
+                ->group(function (): void {
+                    // Panel açılışı: tek istekte cihaz, sipariş ve fiş sayıları.
+                    Route::get('overview', [ControlOverviewController::class, 'show']);
+
+                    // Cihazlar. Yazma uçlarının hepsi `reason` + `actor`
+                    // ister ve `veykemtu_control_audit`'e satır yazar.
+                    Route::get('devices', [ControlDeviceController::class, 'index']);
+                    Route::post('devices', [ControlDeviceController::class, 'store']);
+                    Route::patch('devices/{device}', [ControlDeviceController::class, 'update']);
+                    Route::post('devices/{device}/pairing-code', [ControlDeviceController::class, 'pairingCode']);
+                    // İPTAL SATIRI SİLMEZ — `KitchenDevice::revoke()`.
+                    Route::post('devices/{device}/revoke', [ControlDeviceController::class, 'revoke']);
+                    Route::patch('devices/{device}/settings', [ControlDeviceController::class, 'updateSettings']);
+                    Route::get('devices/{device}/commands', [ControlDeviceController::class, 'commands']);
+                    Route::post('devices/{device}/commands', [ControlDeviceController::class, 'sendCommand']);
+
+                    // Fiş DENETİM kaydı. Kuyruk değil: KDS'in kalıcı
+                    // kuyruğu kasanın diskinde ve sunucuda karşılığı yok.
+                    Route::get('print-jobs', [ControlPrintJobController::class, 'index']);
+
+                    // Siparişler ve revizyon. İş mantığı `OrderEditor` ve
+                    // `OrderStatusTransition`'da; bu uçlar yalnız kabuk.
+                    Route::get('orders', [ControlOrderController::class, 'index']);
+                    Route::get('orders/{order}', [ControlOrderController::class, 'show']);
+                    Route::get('orders/{order}/revisions', [ControlOrderController::class, 'revisions']);
+                    Route::post('orders/{order}/revisions', [ControlOrderController::class, 'storeRevision']);
+                    Route::post('orders/{order}/status', [ControlOrderController::class, 'setStatus']);
+
+                    // Düzenleme ekranının ürün seçicisi. `menu_id` kimsenin
+                    // ezberinde değil; elle yazılan bir kimlik siparişe
+                    // başka bir ürün koyar ve bunu mutfak fark eder.
+                    Route::get('menu', [ControlMenuController::class, 'index']);
+                });
+        });
     });

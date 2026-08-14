@@ -66,7 +66,7 @@ export default async function HomePage() {
       <JsonLd data={faqJsonLd(faq)} />
 
       {/* ── 1. Hero ───────────────────────────────────────────────────────── */}
-      <section className="relative isolate border-b bg-charcoal text-cream">
+      <section className="relative isolate border-b bg-neutral-950 text-neutral-50">
         <Image
           alt={PHOTO.hero.alt}
           src={PHOTO.hero.src}
@@ -78,43 +78,61 @@ export default async function HomePage() {
         {/*
           İki katman: soldan sağa koyu geçiş metni taşır, alttaki hafif
           karartma fotoğrafın parlak bölgelerinde başlığın kontrastını
-          garantiler. Ölçüldü — en açık bölgede bile krem/zemin 7:1 üstünde.
+          garantiler. Ölçüldü — en açık bölgede bile metin/zemin 7:1 üstünde.
+
+          Fotoğrafa MARKA RENGİ overlay ATILMIYOR: yemeğin gerçek rengi
+          ürünün kendisi. Karartma nötr (`neutral-950`).
         */}
         <div
           aria-hidden="true"
-          className="absolute inset-0 -z-10 bg-linear-to-r from-charcoal via-charcoal/85 to-charcoal/40"
+          className="absolute inset-0 -z-10 bg-linear-to-r from-neutral-950 via-neutral-950/85 to-neutral-950/40"
         />
 
         <div className="mx-auto max-w-content px-4 py-20 sm:px-6 sm:py-28 lg:py-36">
           <div className="max-w-2xl">
-            <p className="inline-flex items-center gap-2 rounded-full border border-cream/25 bg-cream/10 px-3 py-1.5 text-xs font-semibold text-cream backdrop-blur-sm">
-              <UtensilsCrossed aria-hidden="true" className="size-3.5" />
+            {/* Overline adımı: 11/700/0.14em. Sabit metin, İ/ı yok — `uppercase` güvenli. */}
+            <p className="inline-flex items-center gap-2 rounded-full border border-neutral-50/25 bg-neutral-50/10 px-3 py-1.5 text-overline text-neutral-50 uppercase backdrop-blur-sm">
+              <UtensilsCrossed strokeWidth={1.75} aria-hidden="true" className="size-3.5" />
               Kurumsal yemek ve catering
             </p>
 
-            <h1 className="mt-6 font-display text-4xl font-semibold tracking-tight sm:text-6xl sm:leading-[1.05]">
+            <h1 className="mt-6 font-display text-h1 font-semibold tracking-tight text-balance sm:text-display">
               Sabah beşte ocak yanar,
               <br />
+              {/*
+                Vurgu `brand-300`: koyu zeminde marka turuncusunun okunur
+                adımı. `brand-500` ve daha koyusu bu zeminde metin olarak
+                sönüyor.
+              */}
               <span className="text-brand-300">öğlende yemeğiniz masada.</span>
             </h1>
 
-            <p className="mt-6 max-w-xl text-base/7 text-cream/80 sm:text-lg/8">
+            <p className="mt-6 max-w-xl text-body-lg text-neutral-50/80">
               Ofislere, fabrikalara, okullara ve davetlere yemek hazırlıyoruz. Menüyü birlikte
               kuruyoruz, teslim saatini siz söylüyorsunuz.
             </p>
 
             <div className="mt-9 flex flex-wrap gap-3">
-              <Button asChild size="lg" className="bg-brand-500 text-charcoal hover:bg-brand-400">
+              {/*
+                Koyu zeminde BİRİNCİL eylem `brand-300` dolgu + koyu yazı
+                (9,22:1). `--primary` (brand700) burada kullanılamaz: kahve
+                dolgu, kahve-siyahı bandın içinde kayboluyor.
+              */}
+              <Button
+                asChild
+                size="lg"
+                className="bg-brand-300 text-neutral-950 hover:bg-brand-200"
+              >
                 <Link href="/teklif-al">
                   Teklif Al
-                  <ArrowRight aria-hidden="true" />
+                  <ArrowRight strokeWidth={1.75} aria-hidden="true" />
                 </Link>
               </Button>
               <Button
                 asChild
                 size="lg"
                 variant="outline"
-                className="border-cream/35 bg-transparent text-cream hover:bg-cream/10 hover:text-cream"
+                className="border-neutral-50/35 bg-transparent text-neutral-50 hover:bg-neutral-50/10 hover:text-neutral-50"
               >
                 <Link href="/menu">Günün menüsüne bak</Link>
               </Button>
@@ -193,14 +211,14 @@ export default async function HomePage() {
           <Button asChild variant="outline" size="lg">
             <Link href="/teklif-al">
               Size uygun düzeni konuşalım
-              <ArrowRight aria-hidden="true" />
+              <ArrowRight strokeWidth={1.75} aria-hidden="true" />
             </Link>
           </Button>
         </div>
       </Section>
 
       {/* ── 4. Nasıl çalışıyoruz ──────────────────────────────────────────── */}
-      <Section tone="charcoal" aria-labelledby="surec-baslik">
+      <Section tone="dark" aria-labelledby="surec-baslik">
         <div className="grid gap-12 lg:grid-cols-[1fr_1.1fr] lg:items-start lg:gap-16">
           <div className="lg:sticky lg:top-28">
             <SectionHeading
@@ -209,14 +227,14 @@ export default async function HomePage() {
               title="İlk telefondan ilk servise"
               description="Dört adım. Hepsinde kimin ne yapacağı belli, sürpriz sevmiyoruz."
             />
-            <div className="mt-8 overflow-hidden rounded-2xl">
+            <div className="mt-8 overflow-hidden rounded-md">
               <Image
                 alt={PHOTO.mutfakEkip.alt}
                 src={PHOTO.mutfakEkip.src}
                 width={1400}
                 height={933}
                 sizes="(max-width: 1024px) 100vw, 460px"
-                className="h-full w-full object-cover"
+                className="h-full w-full bld-photo"
               />
             </div>
           </div>
@@ -248,7 +266,7 @@ export default async function HomePage() {
               width={1400}
               height={933}
               sizes="(max-width: 1024px) 45vw, 280px"
-              className="mt-8 aspect-4/5 w-full rounded-2xl object-cover"
+              className="mt-8 aspect-4/5 w-full rounded-md bld-photo"
             />
             <Image
               alt={PHOTO.kaliteEldiven.alt}
@@ -256,7 +274,7 @@ export default async function HomePage() {
               width={1400}
               height={933}
               sizes="(max-width: 1024px) 45vw, 280px"
-              className="aspect-4/5 w-full rounded-2xl object-cover"
+              className="aspect-4/5 w-full rounded-md bld-photo"
             />
           </div>
 
@@ -283,7 +301,7 @@ export default async function HomePage() {
             <Button asChild variant="outline" size="lg" className="mt-10">
               <Link href="/kurumsal#kalite">
                 Zincirin tamamı
-                <ArrowRight aria-hidden="true" />
+                <ArrowRight strokeWidth={1.75} aria-hidden="true" />
               </Link>
             </Button>
           </div>
@@ -318,7 +336,7 @@ export default async function HomePage() {
           <Button asChild variant="outline" size="lg">
             <Link href="/kurumsal#alanlar">
               Tüm alanlar
-              <ArrowRight aria-hidden="true" />
+              <ArrowRight strokeWidth={1.75} aria-hidden="true" />
             </Link>
           </Button>
         </div>
@@ -337,10 +355,10 @@ export default async function HomePage() {
           <Accordion type="single" collapsible className="w-full">
             {faq.map((item, index) => (
               <AccordionItem key={item.question} value={`sss-${index}`}>
-                <AccordionTrigger className="text-left text-base font-medium">
+                <AccordionTrigger className="text-left text-title font-medium">
                   {item.question}
                 </AccordionTrigger>
-                <AccordionContent className="text-sm/7 text-muted-foreground">
+                <AccordionContent className="text-body text-muted-foreground">
                   {item.answer}
                 </AccordionContent>
               </AccordionItem>

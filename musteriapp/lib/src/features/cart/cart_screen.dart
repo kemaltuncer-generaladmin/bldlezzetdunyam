@@ -32,11 +32,21 @@ class CartScreen extends ConsumerWidget {
     final cart = ref.watch(cartProvider);
     final offline = ref.watch(connectivityProvider);
     final location = ref.watch(locationProvider).valueOrNull?.location;
+    final today = ref.watch(businessTodayProvider);
 
     final minOrderTotal = location?.minOrderTotal ?? 0;
     final missing = minOrderTotal - cart.subtotal;
     final belowMinimum = cart.isNotEmpty && missing > 0;
     final orderingClosed = location != null && !location.acceptsOrders;
+
+    final dayProblem = cartDayProblem(cart, today: today);
+    final dayMessage = switch (dayProblem) {
+      null => null,
+      CartDayProblem.missing => l10n.cartDayMissing,
+      CartDayProblem.past => l10n.cartDayPast(
+        BusinessDate.long(cart.serviceDate ?? ''),
+      ),
+    };
 
     return Scaffold(
       appBar: AppBar(
@@ -59,6 +69,8 @@ class CartScreen extends ConsumerWidget {
           : Column(
               children: [
                 if (offline) OfflineBanner(message: l10n.offlineOrderBlocked),
+                if (cart.serviceDate != null && dayProblem == null)
+                  _ServiceDayHeader(serviceDate: cart.serviceDate!),
                 Expanded(
                   child: ListView.separated(
                     padding: const EdgeInsets.all(BldSpacing.md),
@@ -73,7 +85,11 @@ class CartScreen extends ConsumerWidget {
                   cart: cart,
                   // Teslimat tipi ödeme ekranında seçiliyor; sepette adrese
                   // gönderim tahmini gösterilir, orada seçime göre güncellenir.
-                  eta: location?.etaFor(DeliveryType.delivery),
+                  // İLERİ TARİHLİ sepette hiç gösterilmiyor: "yaklaşık 75
+                  // dakika" cuma menüsü için anlamsız.
+                  eta: cart.serviceDate == today
+                      ? location?.etaFor(DeliveryType.delivery)
+                      : null,
                   belowMinimumMessage: belowMinimum
                       ? l10n.cartMinOrderNotMet(
                           Money.format(minOrderTotal),
@@ -84,12 +100,63 @@ class CartScreen extends ConsumerWidget {
                       ? l10n.checkoutOrderingClosed
                       : null,
                   offlineMessage: offline ? l10n.offlineOrderBlocked : null,
-                  onCheckout: (belowMinimum || orderingClosed || offline)
+                  dayMessage: dayMessage,
+                  onCheckout:
+                      (belowMinimum ||
+                          orderingClosed ||
+                          offline ||
+                          dayProblem != null)
                       ? null
                       : () => context.push(Routes.checkout),
                 ),
               ],
             ),
+    );
+  }
+}
+
+/// Sepetin bağlı olduğu servis günü.
+///
+/// Sepet listesinin ÜSTÜNDE, kalemlerin dışında: gün kalemlerin bir özelliği
+/// değil, sepetin tamamının özelliği. Satır başına yazsaydık dört kalemde
+/// dört kez aynı tarihi okutur ve yine de "hepsi aynı gün mü" sorusunu
+/// cevaplamazdık.
+class _ServiceDayHeader extends StatelessWidget {
+  const _ServiceDayHeader({required this.serviceDate});
+
+  final String serviceDate;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      color: theme.colorScheme.secondaryContainer,
+      padding: const EdgeInsets.symmetric(
+        horizontal: BldSpacing.md,
+        vertical: BldSpacing.sm + 2,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.event_outlined,
+            size: 18,
+            color: theme.colorScheme.onSecondaryContainer,
+          ),
+          const SizedBox(width: BldSpacing.sm),
+          Expanded(
+            child: Text(
+              l10n.cartServiceDate(BusinessDate.long(serviceDate)),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSecondaryContainer,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -140,6 +207,19 @@ class _CartLineTile extends ConsumerWidget {
                           fontStyle: FontStyle.italic,
                         ),
                       ),
+                    ],
+                    // Paketin İÇİ, paket satırının altında ve FİYATSIZ.
+                    // Fiyatı paket satırı taşıyor; bileşenlere "0,00 ₺"
+                    // yazmak bedavaya yemek verdiğimiz izlenimi bırakıyor.
+                    if (line.isPackage) ...[
+                      const SizedBox(height: BldSpacing.xs),
+                      for (final component in line.packageComponents)
+                        Text(
+                          component.quantity > 1
+                              ? '· ${component.quantity} × ${component.name}'
+                              : '· ${component.name}',
+                          style: textTheme.bodySmall,
+                        ),
                     ],
                   ],
                 ),
@@ -203,7 +283,7 @@ class _MiniStepper extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _btn(Icons.remove, onDecrement),
+          _btn(Icons.remove_outlined, onDecrement),
           SizedBox(
             width: 32,
             child: Text(
@@ -212,7 +292,7 @@ class _MiniStepper extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
-          _btn(Icons.add, onIncrement),
+          _btn(Icons.add_outlined, onIncrement),
         ],
       ),
     );
@@ -242,6 +322,7 @@ class _CartSummary extends StatelessWidget {
     this.belowMinimumMessage,
     this.closedMessage,
     this.offlineMessage,
+    this.dayMessage,
   });
 
   final Cart cart;
@@ -251,12 +332,22 @@ class _CartSummary extends StatelessWidget {
   final String? closedMessage;
   final String? offlineMessage;
 
+  /// Sepetin günüyle ilgili engel (`cartDayProblem`).
+  final String? dayMessage;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final textTheme = Theme.of(context).textTheme;
     final eta = this.eta;
-    final blockers = [?closedMessage, ?offlineMessage, ?belowMinimumMessage];
+    // Sıra ÖNEMLİ: günü geçmiş bir sepette "en az tutar" uyarısı yazmak,
+    // müşteriyi hiçbir işe yaramayacak bir kalem eklemeye yönlendirirdi.
+    final blockers = [
+      ?dayMessage,
+      ?closedMessage,
+      ?offlineMessage,
+      ?belowMinimumMessage,
+    ];
 
     return Container(
       decoration: BoxDecoration(

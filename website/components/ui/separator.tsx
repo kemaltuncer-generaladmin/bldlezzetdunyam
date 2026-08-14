@@ -5,6 +5,12 @@ import { Separator as SeparatorPrimitive } from 'radix-ui';
 
 import { cn } from '@/lib/utils';
 
+/**
+ * Ayraç — DEKORATİF `--border` rengiyle çizilir.
+ *
+ * Kontrol kenarlığı için kullanılmaz; onun rengi `--input` ve kontrast eşiği
+ * farklı (bkz. `input.tsx`).
+ */
 function Separator({
   className,
   orientation = 'horizontal',

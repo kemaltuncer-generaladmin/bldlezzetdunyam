@@ -10,7 +10,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
+use Veykemtu\BridgeApi\Services\Geocoding\AddressLookup;
 use Veykemtu\BridgeApi\Services\ServiceArea;
+use Veykemtu\BridgeApi\Services\StructuredAddress;
 
 /**
  * Müşterinin adres defteri — `docs/openapi.yaml` §Adresler.
@@ -31,6 +33,8 @@ use Veykemtu\BridgeApi\Services\ServiceArea;
  */
 class AddressController extends ApiController
 {
+    public function __construct(private readonly AddressLookup $lookup) {}
+
     public function index(Request $request): JsonResponse
     {
         $rows = $this->query($request)
@@ -83,6 +87,103 @@ class AddressController extends ApiController
     }
 
     /**
+     * Adres önerisi — `GET /api/addresses/suggest?q=&limit=`.
+     *
+     * SAĞLAYICI ÇÖKERSE `200` + BOŞ LİSTE. Bu ucun `5xx` dönmesi, dışarıdaki
+     * bir servisin kendi sipariş akışımızı durdurabilmesi demek olurdu; oysa
+     * öneri bir KOLAYLIK — adres alanları elle de doldurulabiliyor ve harita
+     * iğnesi isteğe bağlı. Arıza `AddressLookup` içinde yutulup günlüğe
+     * yazılıyor.
+     *
+     * Boş liste iki şeyi birden anlatır ("uyan adres yok" / "şu an öneri
+     * veremiyoruz") ve istemci ikisini AYIRT ETMEZ: doğru davranış ikisinde
+     * de aynı, alanları elle doldurtmak.
+     *
+     * `422` yalnızca isteğin KENDİSİ bozuksa: `q` yok ya da 3 karakterden
+     * kısa. Bu bir istemci hatasıdır (debounce kapısı sızdırmış demektir) ve
+     * sağlayıcı arızasıyla aynı yanıta karışmasın diye ayrı tutuluyor.
+     */
+    public function suggest(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'q' => [
+                'required',
+                'string',
+                'min:'.AddressLookup::MIN_QUERY_LENGTH,
+                'max:'.AddressLookup::MAX_QUERY_LENGTH,
+            ],
+            // Üst sınır 10: liste bir metin alanının altında açılan bir
+            // katman ve telefonda onuncu satır zaten klavyenin altında
+            // kalıyor. Ayrıca her satır sağlayıcıdan gelen bir yük.
+            'limit' => ['sometimes', 'integer', 'min:1', 'max:'.AddressLookup::MAX_LIMIT],
+        ]);
+
+        return $this->noStore([
+            'data' => $this->lookup->suggest(
+                (string) $data['q'],
+                (int) ($data['limit'] ?? AddressLookup::DEFAULT_LIMIT),
+            ),
+        ]);
+    }
+
+    /**
+     * Ters geocoding — `GET /api/addresses/reverse?lat=&lng=`.
+     *
+     * Haritaya iğne bırakıldığında adres metnini kendiliğinden doldurur.
+     *
+     * KUTU DIŞI NOKTA `422`, boş yanıt değil. Öneri ucunda sessiz boş liste
+     * doğruydu çünkü orada söylenecek net bir şey yok; burada var: kullanıcı
+     * haritayı GÖRDÜ ve teslimat yapmadığımız bir yeri kasten seçti. Sessiz
+     * bir boş yanıt "arıza var" gibi okunurdu.
+     *
+     * Sağlayıcı o noktayı bilmiyorsa ya da erişilemiyorsa `200` + `data:
+     * null` — istemci iğneyi KORUR ve alanları elle doldurtur.
+     */
+    public function reverse(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            // `lat`/`lng` ÇİFT hâlinde zorunlu. Kayıtlı adreste yarım
+            // koordinat sessizce `null`'a düşüyor; burada çifti tamamlamanın
+            // yolu yok — sorulacak bir nokta yoksa soru da yoktur.
+            'lat' => ['required', 'numeric', 'between:-90,90'],
+            'lng' => ['required', 'numeric', 'between:-180,180'],
+        ]);
+
+        $latitude = (float) $data['lat'];
+        $longitude = (float) $data['lng'];
+
+        if (!ServiceArea::containsPoint($latitude, $longitude)) {
+            throw ApiException::validationFailed(
+                'Seçilen konum hizmet alanımızın dışında.',
+                // Sözleşme bu gerekçeyi ADIYLA istiyor: istemci "kutu dışı"
+                // durumunu diğer doğrulama hatalarından ayırıp haritada
+                // bölgeyi gösterebiliyor.
+                ['reason' => 'out_of_service_area'],
+            );
+        }
+
+        return $this->noStore([
+            'data' => $this->lookup->reverse($latitude, $longitude),
+        ]);
+    }
+
+    /**
+     * Ara katmanların paylaşımlı önbelleğine GİRMEYEN yanıt.
+     *
+     * `/suggest` ve `/reverse` yanıtı giriş yapmış bir müşterinin yazdığı
+     * metne bağlı ve yazılan adres kişisel veridir (`docs/02` §6). Bir vekil
+     * ya da CDN bunu paylaşımlı önbelleğe alsaydı bir müşterinin aradığı
+     * adres başkasına dönebilirdi.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function noStore(array $data): JsonResponse
+    {
+        return $this->json($data)
+            ->header('Cache-Control', 'private, no-store');
+    }
+
+    /**
      * Defterden siler.
      *
      * Bu GERÇEK bir silmedir ve güvenlidir: sipariş adresleri ayrı
@@ -113,7 +214,26 @@ class AddressController extends ApiController
     {
         $data = $request->validate([
             'label' => ['sometimes', 'nullable', 'string', 'max:64'],
-            'line1' => ['required', 'string', 'max:255'],
+
+            /*
+             * `line1` ZORUNLU KALIR — sözleşme (`SavedAddressInput`) onu
+             * `required` listesinde tutuyor ve tutmaya devam edecek: sahadaki
+             * istemci sürümleri yalnız bu alanı gönderiyor, fiş ve kurye
+             * ekranı yalnız bunu basıyor.
+             *
+             * Tek gevşeme, yapılandırılmış alanlarla dolduran YENİ istemci
+             * için: mahalle/sokak/bina gönderip `line1` göndermezse sunucu
+             * cümleyi kurar. Kural `required` yerine `required_without_all`
+             * yazılmasa türetme HİÇ ÇALIŞAMAZDI — istek doğrulamadan
+             * geçemeden reddedilirdi.
+             *
+             * Gönderilen `line1` AYNEN KORUNUR (bkz. `fill()`): müşteri
+             * kendi yazdığını görebilmeli.
+             */
+            'line1' => [
+                'required_without_all:'.implode(',', StructuredAddress::LINE_SOURCES),
+                'nullable', 'string', 'max:255',
+            ],
 
             // Hizmet alanı denetimi sipariş ucundakiyle aynı (`ServiceArea`).
             // Defter gevşek bırakılsaydı müşteri teslimat yapmadığımız bir
@@ -129,6 +249,12 @@ class AddressController extends ApiController
             // enlem/boylam sessizce kaydedilir ve kurye okyanusa gönderilir.
             'latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
+
+            // Yapılandırılmış beş alan (B-21). Kurallar `StructuredAddress`
+            // içinde: aynı beş alan sipariş ucunda da doğrulanıyor ve iki
+            // listenin ayrışması, defterde kabul edilen bir adresin siparişte
+            // reddedilmesi demek olurdu.
+            ...StructuredAddress::rules(),
         ]);
 
         // Çift tamsa kutunun içinde olmalı. Aralık denetimi (`between`)
@@ -155,10 +281,26 @@ class AddressController extends ApiController
         // kurye notunu taşır. İki farklı eşleme, ikisinin ayrıştığı gün
         // adresin yarısının kaybolması demekti.
         $address->bld_label = $data['label'] ?? null;
-        $address->address_1 = (string) $data['line1'];
         $address->state = (string) $data['district'];
         $address->city = (string) $data['city'];
         $address->address_2 = $data['note'] ?? null;
+
+        // Parçalar ÖNCE yazılıyor: `line1` türetilecekse cümle, isteğin
+        // getirdiği YENİ değerlerden kurulmalı. Sıra ters olsaydı bir
+        // güncellemede eski daire numarası cümlede kalırdı.
+        StructuredAddress::write($address, $data);
+
+        /*
+         * Müşterinin yazdığı `line1` AYNEN korunur; türetme yalnızca boş
+         * geldiğinde çalışır. Her zaman türetilseydi "Sanayi sitesi, mavi
+         * kepenkli dükkân" gibi kuryenin gerçekten kullandığı tarifler
+         * sessizce silinir ve yerine parçalardan kurulmuş yavan bir cümle
+         * yazılırdı.
+         */
+        $line1 = trim((string) ($data['line1'] ?? ''));
+        $address->address_1 = $line1 !== ''
+            ? $line1
+            : StructuredAddress::lineFor($address);
 
         // `array_key_exists`, `??` DEĞİL: `null` göndermek "koordinatı sil"
         // demek ve saygı görmeli. `??` ile yazılsaydı iğnesini kaldıran
@@ -192,6 +334,13 @@ class AddressController extends ApiController
                 ? (string) $address->bld_label
                 : null,
             'line1' => (string) $address->address_1,
+
+            // Yapılandırılmış alanlar (B-21). Eski kayıtlarda hepsi `null`
+            // ve öyle kalıyor: geçmiş adresleri geriye dönük ayrıştırmak,
+            // ayrıştırmanın yanlış olduğu her satırda kuryeyi yanlış kapıya
+            // götürürdü.
+            ...StructuredAddress::read($address),
+
             'district' => (string) ($address->state ?? ''),
             'city' => (string) ($address->city ?? ''),
             'note' => $address->address_2 !== null && $address->address_2 !== ''

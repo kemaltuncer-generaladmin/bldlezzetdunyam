@@ -278,7 +278,13 @@ export function CorporateRegisterForm({ next }: { next: string }) {
         )}
       </div>
 
-      <Button type="submit" size="lg" className="w-full" disabled={pending}>
+      <Button
+        type="submit"
+        size="lg"
+        className="w-full"
+        disabled={pending}
+        disabledReason="Hesap oluşturuluyor, işlem sürüyor."
+      >
         {pending ? 'Hesap oluşturuluyor…' : 'Hesabı oluştur ve sipariş vermeye başla'}
       </Button>
 

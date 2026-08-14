@@ -619,7 +619,20 @@ mixin _$Location {
 /// ve eski sunucu/önbellek onu içermez. `null` normal bir durumdur —
 /// istemci o zaman genel bir metin gösterir.
  String? get orderingPauseReason;/// Süreli durdurmanın bitişi; süresizse `null`.
- DateTime? get orderingResumesAt;/// Kuruş. Altında sipariş `422 VALIDATION_FAILED`.
+ DateTime? get orderingResumesAt;/// Satış **günün menüsü** üzerinden mi yürüyor? (B-19)
+///
+/// Sunucu tarafı şalter, bilerek: günün menüsü akışına geçmek bir ay
+/// ileriye menü girilmiş olmasını gerektiriyor. Şalter olmasaydı geri
+/// dönmek üç uygulamayı birden yeniden yayınlamak demekti.
+///
+/// Varsayılanı `false`: alan sözleşmeye sonradan eklendi ve eski
+/// sunucu/önbellek onu içermiyor — o durumda eski katalog akışı çalışır.
+ bool get dailyMenuEnabled;/// Bugünden itibaren kaç gün sonrasına sipariş alınabileceği.
+///
+/// Gün seçici takvimi bu kadar ileriye çizer; **sunucu aynı sınırı
+/// `POST /orders` üzerinde yeniden uygular** — istemcinin çizdiği takvim
+/// bir kolaylıktır, kapı değil.
+ int get maxLookaheadDays;/// Kuruş. Altında sipariş `422 VALIDATION_FAILED`.
  int get minOrderTotal;/// Bu vitrinde **açık** olan ödeme yöntemleri. İstemci yalnızca bunları gösterir.
 @PaymentMethodConverter() List<PaymentMethod> get paymentMethods;/// Günlük son sipariş saati (`HH:mm`, Europe/Istanbul) veya `null`.
  String? get orderCutoff;/// Teslim süresi tahminleri.
@@ -641,16 +654,16 @@ $LocationCopyWith<Location> get copyWith => _$LocationCopyWithImpl<Location>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Location&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.slug, slug) || other.slug == slug)&&(identical(other.isOpen, isOpen) || other.isOpen == isOpen)&&(identical(other.orderingEnabled, orderingEnabled) || other.orderingEnabled == orderingEnabled)&&(identical(other.orderingPauseReason, orderingPauseReason) || other.orderingPauseReason == orderingPauseReason)&&(identical(other.orderingResumesAt, orderingResumesAt) || other.orderingResumesAt == orderingResumesAt)&&(identical(other.minOrderTotal, minOrderTotal) || other.minOrderTotal == minOrderTotal)&&const DeepCollectionEquality().equals(other.paymentMethods, paymentMethods)&&(identical(other.orderCutoff, orderCutoff) || other.orderCutoff == orderCutoff)&&(identical(other.eta, eta) || other.eta == eta));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Location&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.slug, slug) || other.slug == slug)&&(identical(other.isOpen, isOpen) || other.isOpen == isOpen)&&(identical(other.orderingEnabled, orderingEnabled) || other.orderingEnabled == orderingEnabled)&&(identical(other.orderingPauseReason, orderingPauseReason) || other.orderingPauseReason == orderingPauseReason)&&(identical(other.orderingResumesAt, orderingResumesAt) || other.orderingResumesAt == orderingResumesAt)&&(identical(other.dailyMenuEnabled, dailyMenuEnabled) || other.dailyMenuEnabled == dailyMenuEnabled)&&(identical(other.maxLookaheadDays, maxLookaheadDays) || other.maxLookaheadDays == maxLookaheadDays)&&(identical(other.minOrderTotal, minOrderTotal) || other.minOrderTotal == minOrderTotal)&&const DeepCollectionEquality().equals(other.paymentMethods, paymentMethods)&&(identical(other.orderCutoff, orderCutoff) || other.orderCutoff == orderCutoff)&&(identical(other.eta, eta) || other.eta == eta));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,slug,isOpen,orderingEnabled,orderingPauseReason,orderingResumesAt,minOrderTotal,const DeepCollectionEquality().hash(paymentMethods),orderCutoff,eta);
+int get hashCode => Object.hash(runtimeType,id,name,slug,isOpen,orderingEnabled,orderingPauseReason,orderingResumesAt,dailyMenuEnabled,maxLookaheadDays,minOrderTotal,const DeepCollectionEquality().hash(paymentMethods),orderCutoff,eta);
 
 @override
 String toString() {
-  return 'Location(id: $id, name: $name, slug: $slug, isOpen: $isOpen, orderingEnabled: $orderingEnabled, orderingPauseReason: $orderingPauseReason, orderingResumesAt: $orderingResumesAt, minOrderTotal: $minOrderTotal, paymentMethods: $paymentMethods, orderCutoff: $orderCutoff, eta: $eta)';
+  return 'Location(id: $id, name: $name, slug: $slug, isOpen: $isOpen, orderingEnabled: $orderingEnabled, orderingPauseReason: $orderingPauseReason, orderingResumesAt: $orderingResumesAt, dailyMenuEnabled: $dailyMenuEnabled, maxLookaheadDays: $maxLookaheadDays, minOrderTotal: $minOrderTotal, paymentMethods: $paymentMethods, orderCutoff: $orderCutoff, eta: $eta)';
 }
 
 
@@ -661,7 +674,7 @@ abstract mixin class $LocationCopyWith<$Res>  {
   factory $LocationCopyWith(Location value, $Res Function(Location) _then) = _$LocationCopyWithImpl;
 @useResult
 $Res call({
- int id, String name, String slug, bool isOpen, bool orderingEnabled, String? orderingPauseReason, DateTime? orderingResumesAt, int minOrderTotal,@PaymentMethodConverter() List<PaymentMethod> paymentMethods, String? orderCutoff, LocationEta? eta
+ int id, String name, String slug, bool isOpen, bool orderingEnabled, String? orderingPauseReason, DateTime? orderingResumesAt, bool dailyMenuEnabled, int maxLookaheadDays, int minOrderTotal,@PaymentMethodConverter() List<PaymentMethod> paymentMethods, String? orderCutoff, LocationEta? eta
 });
 
 
@@ -678,7 +691,7 @@ class _$LocationCopyWithImpl<$Res>
 
 /// Create a copy of Location
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? slug = null,Object? isOpen = null,Object? orderingEnabled = null,Object? orderingPauseReason = freezed,Object? orderingResumesAt = freezed,Object? minOrderTotal = null,Object? paymentMethods = null,Object? orderCutoff = freezed,Object? eta = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? slug = null,Object? isOpen = null,Object? orderingEnabled = null,Object? orderingPauseReason = freezed,Object? orderingResumesAt = freezed,Object? dailyMenuEnabled = null,Object? maxLookaheadDays = null,Object? minOrderTotal = null,Object? paymentMethods = null,Object? orderCutoff = freezed,Object? eta = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -687,7 +700,9 @@ as String,isOpen: null == isOpen ? _self.isOpen : isOpen // ignore: cast_nullabl
 as bool,orderingEnabled: null == orderingEnabled ? _self.orderingEnabled : orderingEnabled // ignore: cast_nullable_to_non_nullable
 as bool,orderingPauseReason: freezed == orderingPauseReason ? _self.orderingPauseReason : orderingPauseReason // ignore: cast_nullable_to_non_nullable
 as String?,orderingResumesAt: freezed == orderingResumesAt ? _self.orderingResumesAt : orderingResumesAt // ignore: cast_nullable_to_non_nullable
-as DateTime?,minOrderTotal: null == minOrderTotal ? _self.minOrderTotal : minOrderTotal // ignore: cast_nullable_to_non_nullable
+as DateTime?,dailyMenuEnabled: null == dailyMenuEnabled ? _self.dailyMenuEnabled : dailyMenuEnabled // ignore: cast_nullable_to_non_nullable
+as bool,maxLookaheadDays: null == maxLookaheadDays ? _self.maxLookaheadDays : maxLookaheadDays // ignore: cast_nullable_to_non_nullable
+as int,minOrderTotal: null == minOrderTotal ? _self.minOrderTotal : minOrderTotal // ignore: cast_nullable_to_non_nullable
 as int,paymentMethods: null == paymentMethods ? _self.paymentMethods : paymentMethods // ignore: cast_nullable_to_non_nullable
 as List<PaymentMethod>,orderCutoff: freezed == orderCutoff ? _self.orderCutoff : orderCutoff // ignore: cast_nullable_to_non_nullable
 as String?,eta: freezed == eta ? _self.eta : eta // ignore: cast_nullable_to_non_nullable
@@ -788,10 +803,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  String? orderingPauseReason,  DateTime? orderingResumesAt,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff,  LocationEta? eta)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  String? orderingPauseReason,  DateTime? orderingResumesAt,  bool dailyMenuEnabled,  int maxLookaheadDays,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff,  LocationEta? eta)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Location() when $default != null:
-return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.orderingPauseReason,_that.orderingResumesAt,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff,_that.eta);case _:
+return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.orderingPauseReason,_that.orderingResumesAt,_that.dailyMenuEnabled,_that.maxLookaheadDays,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff,_that.eta);case _:
   return orElse();
 
 }
@@ -809,10 +824,10 @@ return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnable
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  String? orderingPauseReason,  DateTime? orderingResumesAt,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff,  LocationEta? eta)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  String? orderingPauseReason,  DateTime? orderingResumesAt,  bool dailyMenuEnabled,  int maxLookaheadDays,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff,  LocationEta? eta)  $default,) {final _that = this;
 switch (_that) {
 case _Location():
-return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.orderingPauseReason,_that.orderingResumesAt,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff,_that.eta);case _:
+return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.orderingPauseReason,_that.orderingResumesAt,_that.dailyMenuEnabled,_that.maxLookaheadDays,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff,_that.eta);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -829,10 +844,10 @@ return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnable
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  String? orderingPauseReason,  DateTime? orderingResumesAt,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff,  LocationEta? eta)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  String slug,  bool isOpen,  bool orderingEnabled,  String? orderingPauseReason,  DateTime? orderingResumesAt,  bool dailyMenuEnabled,  int maxLookaheadDays,  int minOrderTotal, @PaymentMethodConverter()  List<PaymentMethod> paymentMethods,  String? orderCutoff,  LocationEta? eta)?  $default,) {final _that = this;
 switch (_that) {
 case _Location() when $default != null:
-return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.orderingPauseReason,_that.orderingResumesAt,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff,_that.eta);case _:
+return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnabled,_that.orderingPauseReason,_that.orderingResumesAt,_that.dailyMenuEnabled,_that.maxLookaheadDays,_that.minOrderTotal,_that.paymentMethods,_that.orderCutoff,_that.eta);case _:
   return null;
 
 }
@@ -844,7 +859,7 @@ return $default(_that.id,_that.name,_that.slug,_that.isOpen,_that.orderingEnable
 @JsonSerializable()
 
 class _Location extends Location {
-  const _Location({required this.id, required this.name, required this.slug, required this.isOpen, required this.orderingEnabled, this.orderingPauseReason, this.orderingResumesAt, required this.minOrderTotal, @PaymentMethodConverter() required final  List<PaymentMethod> paymentMethods, this.orderCutoff, this.eta}): _paymentMethods = paymentMethods,super._();
+  const _Location({required this.id, required this.name, required this.slug, required this.isOpen, required this.orderingEnabled, this.orderingPauseReason, this.orderingResumesAt, this.dailyMenuEnabled = false, this.maxLookaheadDays = 30, required this.minOrderTotal, @PaymentMethodConverter() required final  List<PaymentMethod> paymentMethods, this.orderCutoff, this.eta}): _paymentMethods = paymentMethods,super._();
   factory _Location.fromJson(Map<String, dynamic> json) => _$LocationFromJson(json);
 
 @override final  int id;
@@ -862,6 +877,21 @@ class _Location extends Location {
 @override final  String? orderingPauseReason;
 /// Süreli durdurmanın bitişi; süresizse `null`.
 @override final  DateTime? orderingResumesAt;
+/// Satış **günün menüsü** üzerinden mi yürüyor? (B-19)
+///
+/// Sunucu tarafı şalter, bilerek: günün menüsü akışına geçmek bir ay
+/// ileriye menü girilmiş olmasını gerektiriyor. Şalter olmasaydı geri
+/// dönmek üç uygulamayı birden yeniden yayınlamak demekti.
+///
+/// Varsayılanı `false`: alan sözleşmeye sonradan eklendi ve eski
+/// sunucu/önbellek onu içermiyor — o durumda eski katalog akışı çalışır.
+@override@JsonKey() final  bool dailyMenuEnabled;
+/// Bugünden itibaren kaç gün sonrasına sipariş alınabileceği.
+///
+/// Gün seçici takvimi bu kadar ileriye çizer; **sunucu aynı sınırı
+/// `POST /orders` üzerinde yeniden uygular** — istemcinin çizdiği takvim
+/// bir kolaylıktır, kapı değil.
+@override@JsonKey() final  int maxLookaheadDays;
 /// Kuruş. Altında sipariş `422 VALIDATION_FAILED`.
 @override final  int minOrderTotal;
 /// Bu vitrinde **açık** olan ödeme yöntemleri. İstemci yalnızca bunları gösterir.
@@ -896,16 +926,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Location&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.slug, slug) || other.slug == slug)&&(identical(other.isOpen, isOpen) || other.isOpen == isOpen)&&(identical(other.orderingEnabled, orderingEnabled) || other.orderingEnabled == orderingEnabled)&&(identical(other.orderingPauseReason, orderingPauseReason) || other.orderingPauseReason == orderingPauseReason)&&(identical(other.orderingResumesAt, orderingResumesAt) || other.orderingResumesAt == orderingResumesAt)&&(identical(other.minOrderTotal, minOrderTotal) || other.minOrderTotal == minOrderTotal)&&const DeepCollectionEquality().equals(other._paymentMethods, _paymentMethods)&&(identical(other.orderCutoff, orderCutoff) || other.orderCutoff == orderCutoff)&&(identical(other.eta, eta) || other.eta == eta));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Location&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.slug, slug) || other.slug == slug)&&(identical(other.isOpen, isOpen) || other.isOpen == isOpen)&&(identical(other.orderingEnabled, orderingEnabled) || other.orderingEnabled == orderingEnabled)&&(identical(other.orderingPauseReason, orderingPauseReason) || other.orderingPauseReason == orderingPauseReason)&&(identical(other.orderingResumesAt, orderingResumesAt) || other.orderingResumesAt == orderingResumesAt)&&(identical(other.dailyMenuEnabled, dailyMenuEnabled) || other.dailyMenuEnabled == dailyMenuEnabled)&&(identical(other.maxLookaheadDays, maxLookaheadDays) || other.maxLookaheadDays == maxLookaheadDays)&&(identical(other.minOrderTotal, minOrderTotal) || other.minOrderTotal == minOrderTotal)&&const DeepCollectionEquality().equals(other._paymentMethods, _paymentMethods)&&(identical(other.orderCutoff, orderCutoff) || other.orderCutoff == orderCutoff)&&(identical(other.eta, eta) || other.eta == eta));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,slug,isOpen,orderingEnabled,orderingPauseReason,orderingResumesAt,minOrderTotal,const DeepCollectionEquality().hash(_paymentMethods),orderCutoff,eta);
+int get hashCode => Object.hash(runtimeType,id,name,slug,isOpen,orderingEnabled,orderingPauseReason,orderingResumesAt,dailyMenuEnabled,maxLookaheadDays,minOrderTotal,const DeepCollectionEquality().hash(_paymentMethods),orderCutoff,eta);
 
 @override
 String toString() {
-  return 'Location(id: $id, name: $name, slug: $slug, isOpen: $isOpen, orderingEnabled: $orderingEnabled, orderingPauseReason: $orderingPauseReason, orderingResumesAt: $orderingResumesAt, minOrderTotal: $minOrderTotal, paymentMethods: $paymentMethods, orderCutoff: $orderCutoff, eta: $eta)';
+  return 'Location(id: $id, name: $name, slug: $slug, isOpen: $isOpen, orderingEnabled: $orderingEnabled, orderingPauseReason: $orderingPauseReason, orderingResumesAt: $orderingResumesAt, dailyMenuEnabled: $dailyMenuEnabled, maxLookaheadDays: $maxLookaheadDays, minOrderTotal: $minOrderTotal, paymentMethods: $paymentMethods, orderCutoff: $orderCutoff, eta: $eta)';
 }
 
 
@@ -916,7 +946,7 @@ abstract mixin class _$LocationCopyWith<$Res> implements $LocationCopyWith<$Res>
   factory _$LocationCopyWith(_Location value, $Res Function(_Location) _then) = __$LocationCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String name, String slug, bool isOpen, bool orderingEnabled, String? orderingPauseReason, DateTime? orderingResumesAt, int minOrderTotal,@PaymentMethodConverter() List<PaymentMethod> paymentMethods, String? orderCutoff, LocationEta? eta
+ int id, String name, String slug, bool isOpen, bool orderingEnabled, String? orderingPauseReason, DateTime? orderingResumesAt, bool dailyMenuEnabled, int maxLookaheadDays, int minOrderTotal,@PaymentMethodConverter() List<PaymentMethod> paymentMethods, String? orderCutoff, LocationEta? eta
 });
 
 
@@ -933,7 +963,7 @@ class __$LocationCopyWithImpl<$Res>
 
 /// Create a copy of Location
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? slug = null,Object? isOpen = null,Object? orderingEnabled = null,Object? orderingPauseReason = freezed,Object? orderingResumesAt = freezed,Object? minOrderTotal = null,Object? paymentMethods = null,Object? orderCutoff = freezed,Object? eta = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? slug = null,Object? isOpen = null,Object? orderingEnabled = null,Object? orderingPauseReason = freezed,Object? orderingResumesAt = freezed,Object? dailyMenuEnabled = null,Object? maxLookaheadDays = null,Object? minOrderTotal = null,Object? paymentMethods = null,Object? orderCutoff = freezed,Object? eta = freezed,}) {
   return _then(_Location(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -942,7 +972,9 @@ as String,isOpen: null == isOpen ? _self.isOpen : isOpen // ignore: cast_nullabl
 as bool,orderingEnabled: null == orderingEnabled ? _self.orderingEnabled : orderingEnabled // ignore: cast_nullable_to_non_nullable
 as bool,orderingPauseReason: freezed == orderingPauseReason ? _self.orderingPauseReason : orderingPauseReason // ignore: cast_nullable_to_non_nullable
 as String?,orderingResumesAt: freezed == orderingResumesAt ? _self.orderingResumesAt : orderingResumesAt // ignore: cast_nullable_to_non_nullable
-as DateTime?,minOrderTotal: null == minOrderTotal ? _self.minOrderTotal : minOrderTotal // ignore: cast_nullable_to_non_nullable
+as DateTime?,dailyMenuEnabled: null == dailyMenuEnabled ? _self.dailyMenuEnabled : dailyMenuEnabled // ignore: cast_nullable_to_non_nullable
+as bool,maxLookaheadDays: null == maxLookaheadDays ? _self.maxLookaheadDays : maxLookaheadDays // ignore: cast_nullable_to_non_nullable
+as int,minOrderTotal: null == minOrderTotal ? _self.minOrderTotal : minOrderTotal // ignore: cast_nullable_to_non_nullable
 as int,paymentMethods: null == paymentMethods ? _self._paymentMethods : paymentMethods // ignore: cast_nullable_to_non_nullable
 as List<PaymentMethod>,orderCutoff: freezed == orderCutoff ? _self.orderCutoff : orderCutoff // ignore: cast_nullable_to_non_nullable
 as String?,eta: freezed == eta ? _self.eta : eta // ignore: cast_nullable_to_non_nullable

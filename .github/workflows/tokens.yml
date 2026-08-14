@@ -1,0 +1,100 @@
+# Marka belirteçleri — tazelik kapısı
+#
+# Palet ÜÇ yüzeyde birden yaşıyor: Flutter (`colors.dart`), site
+# (`website/app/tokens.css`) ve yönetim paneli (`resources/css/tokens.css`).
+# Üçü de `packages/design_system/tokens/bld.tokens.json` dosyasından
+# ÜRETİLİYOR.
+#
+# NEDEN AYRI BİR HAT: bu üç çıktı üç farklı iş hattının (`dart`, `website`,
+# `platform`) `paths:` filtresine düşüyor. Yalnız `website/**` değişen bir
+# PR'da dart hattı hiç koşmaz; üretilmiş CSS'i elle düzenleyen biri o PR'da
+# yakalanmazdı. Bu hat, kaynağın VEYA çıktılardan herhangi birinin değiştiği
+# her PR'da koşar.
+#
+# Kapı iki şeyi birden doğruluyor:
+#   1. Çıktılar kaynakla güncel mi.
+#   2. Paletin DEĞİŞMEZLERİ hâlâ geçerli mi (kontrast testleri).
+name: belirtecler
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/design_system/**'
+      - 'website/app/tokens.css'
+      - 'platform/extensions/veykemtu/bridgeapi/resources/css/tokens.css'
+      - '.github/workflows/tokens.yml'
+  pull_request:
+    paths:
+      - 'packages/design_system/**'
+      - 'website/app/tokens.css'
+      - 'platform/extensions/veykemtu/bridgeapi/resources/css/tokens.css'
+      - '.github/workflows/tokens.yml'
+
+jobs:
+  tazelik-ve-kontrast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Üretecin kendisi saf Dart (`dart:io` + `dart:convert`) ve hiçbir pakete
+      # bağlı değil. Yine de Flutter SDK'sı kuruluyor: kök `pubspec.yaml` bir
+      # pub workspace ve `mutfakapp` üyesi olduğu için çıplak `dart pub get`
+      # "flutter_test from sdk which doesn't exist" ile düşüyor (bkz.
+      # `.github/workflows/dart.yml` içindeki aynı not).
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Bağımlılıklar
+        run: flutter pub get
+
+      - name: Belirteçleri yeniden üret
+        run: dart run packages/design_system/tool/gen_tokens.dart
+
+      - name: Üretilen dosyalar commitli hâlle aynı mı
+        # `--check` de aynı sonucu verir; `git diff` ek olarak FARKI yazdırıyor,
+        # böylece hatayı gören kişi neyin kaydığını doğrudan çıktıda görüyor.
+        run: |
+          if ! git diff --quiet -- \
+            packages/design_system/lib/src/colors.dart \
+            website/app/tokens.css \
+            platform/extensions/veykemtu/bridgeapi/resources/css/tokens.css; then
+            echo '::error::Belirteç çıktıları bayat. `dart run packages/design_system/tool/gen_tokens.dart` koşup sonucu commitleyin.'
+            git --no-pager diff -- \
+              packages/design_system/lib/src/colors.dart \
+              website/app/tokens.css \
+              platform/extensions/veykemtu/bridgeapi/resources/css/tokens.css
+            exit 1
+          fi
+          echo 'Belirteç çıktıları güncel.'
+
+      - name: Üreteç deterministik mi
+        # İkinci koşu hiçbir dosyayı değiştirmemeli. Değiştirseydi bu kapı her
+        # PR'da rastgele kırmızı yanar ve kimse ona güvenmezdi.
+        run: dart run packages/design_system/tool/gen_tokens.dart --check
+
+      - name: Kontrast değişmezleri
+        run: dart test packages/design_system
+
+      - name: Analiz ve biçim
+        run: |
+          dart analyze packages/design_system
+          dart format --output=none --set-exit-if-changed packages/design_system
+
+      # Belirteç çıktılarının elle düzenlenmediğini ayrıca doğrular: `--check`
+      # yalnızca İÇERİĞE bakıyor, bu adım ÜRETİLDİ başlığının silinmediğine
+      # bakıyor. Başlık silinip dosya elle sahiplenilirse üreteç bir sonraki
+      # koşuda o değişikliği sessizce siler.
+      - name: ÜRETİLDİ başlığı yerinde mi
+        run: |
+          for f in \
+            packages/design_system/lib/src/colors.dart \
+            website/app/tokens.css \
+            platform/extensions/veykemtu/bridgeapi/resources/css/tokens.css; do
+            if ! head -n 5 "$f" | grep -q 'ÜRETİLDİ — ELLE DÜZENLEME'; then
+              echo "::error file=$f::ÜRETİLDİ başlığı yok — dosya elle sahiplenilmiş olabilir."
+              exit 1
+            fi
+          done
+          echo 'Üretim başlıkları yerinde.'

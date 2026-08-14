@@ -7,10 +7,14 @@ namespace Veykemtu\BridgeApi\Http\Controllers;
 use Igniter\Cart\Models\Menu;
 use Igniter\Local\Models\Location;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
+use Veykemtu\BridgeApi\Models\DailyMenu;
+use Veykemtu\BridgeApi\Services\DailyMenuService;
 use Veykemtu\BridgeApi\Services\EtaService;
 use Veykemtu\BridgeApi\Services\LocationGate;
 use Veykemtu\BridgeApi\Services\MenuAvailability;
+use Veykemtu\BridgeApi\Support\BusinessTime;
 use Veykemtu\BridgeApi\Support\Money;
 
 /**
@@ -25,6 +29,7 @@ class CatalogController extends ApiController
         private readonly LocationGate $gate,
         private readonly EtaService $eta,
         private readonly MenuAvailability $availability,
+        private readonly DailyMenuService $dailyMenus,
     ) {}
 
     /**
@@ -47,14 +52,7 @@ class CatalogController extends ApiController
 
     public function menu(int $location): JsonResponse
     {
-        $model = Location::query()
-            ->where('location_id', $location)
-            ->where('location_status', true)
-            ->first();
-
-        if ($model === null) {
-            throw ApiException::notFound('Vitrin bulunamadı.');
-        }
+        $this->activeLocation($location);
 
         // Bağıntı adları kurulu sürümden doğrulandı (B-02): MenuItemOption'ın
         // değerleri `menu_option_values`'tır, `option_values` değil.
@@ -104,6 +102,198 @@ class CatalogController extends ApiController
         return $this->json(['data' => $data]);
     }
 
+    /**
+     * Günün menüsü — `GET /locations/{id}/daily-menu?date=` (B-19).
+     *
+     * Menü olmayan gün de **200** döner: boş gün bir hata değil, bir
+     * cevaptır. 404 istemcileri gereksiz hata ekranına sokardı.
+     */
+    public function dailyMenu(Request $request, int $location): JsonResponse
+    {
+        $model = $this->activeLocation($location);
+
+        $date = $this->dailyMenus->resolveServiceDate(
+            $request->query('date') !== null ? (string) $request->query('date') : null,
+            null,
+        );
+
+        $verdict = $this->dailyMenus->verdict($model, $date);
+        $menu = $verdict['menu'];
+
+        if ($menu === null) {
+            return $this->json([
+                'data' => [
+                    'id' => null,
+                    'date' => $date->toDateString(),
+                    'title' => null,
+                    'description' => null,
+                    'image_url' => null,
+                    'package' => null,
+                    'items_total' => null,
+                    'currency' => 'TRY',
+                    'closed' => $verdict['closed'],
+                    'is_orderable' => false,
+                    'unavailable_reason' => $verdict['reason'],
+                    'items' => [],
+                ],
+            ]);
+        }
+
+        // Tükenme YALNIZ bugün için okunur — mutfak gelecek salı köftenin
+        // biteceğini bilemez (`docs/03` §3).
+        $soldOutReasons = $date->isSameDay(BusinessTime::now())
+            ? $this->availability->soldOutReasons()
+            : [];
+
+        $items = [];
+
+        foreach ($menu->items as $dayItem) {
+            $product = $dayItem->menu;
+
+            if ($product === null) {
+                continue;
+            }
+
+            $payload = $this->menuItemPayload($product, $soldOutReasons);
+            // O güne fiyat istisnası girilmişse geçerli olan odur; müşteri
+            // gördüğü fiyatla ödeyeceği fiyatı ayrı hesaplamaz.
+            $payload['price'] = $dayItem->effectiveUnitPriceKurus();
+            $payload['name'] = $dayItem->displayName();
+
+            $items[] = $payload;
+        }
+
+        return $this->json([
+            'data' => [
+                'id' => (int) $menu->id,
+                'date' => $menu->menu_date->toDateString(),
+                'title' => $menu->title,
+                'description' => $menu->description,
+                'image_url' => null,
+                'package' => $this->packagePayload($model, $menu, $soldOutReasons),
+                'items_total' => $menu->itemsTotalKurus(),
+                'currency' => 'TRY',
+                'closed' => $verdict['closed'],
+                'is_orderable' => $verdict['orderable'],
+                'unavailable_reason' => $verdict['reason'],
+                'items' => $items,
+            ],
+        ]);
+    }
+
+    /**
+     * Menü takvimi — gün seçiciyi çizmek için.
+     */
+    public function menuCalendar(Request $request, int $location): JsonResponse
+    {
+        $model = $this->activeLocation($location);
+
+        $from = $request->query('from') !== null
+            ? $this->dailyMenus->resolveServiceDate((string) $request->query('from'), null)
+            : BusinessTime::now()->startOfDay();
+
+        $to = $request->query('to') !== null
+            ? $this->dailyMenus->resolveServiceDate((string) $request->query('to'), null)
+            : $from->copy()->addDays(30);
+
+        return $this->json([
+            'data' => $this->dailyMenus->calendar($model, $from, $to),
+        ]);
+    }
+
+    /**
+     * Paket bölümü — `null` ise o gün paket satılmıyor.
+     *
+     * @param  array<int, string|null>  $soldOutReasons
+     * @return array<string, mixed>|null
+     */
+    private function packagePayload(
+        Location $location,
+        DailyMenu $menu,
+        array $soldOutReasons,
+    ): ?array {
+        if (!$menu->sellsPackage()) {
+            return null;
+        }
+
+        $packageMenuId = $this->gate->dailyPackageMenuId($location);
+
+        if ($packageMenuId === null) {
+            // Paket ürünü yapılandırılmamış — fiyat girilmiş olsa bile
+            // sipariş edilemez. Sessizce fiyatlı göstermek, sepete
+            // eklenemeyen bir kart üretirdi.
+            return null;
+        }
+
+        $components = [];
+        $soldOutReason = null;
+
+        foreach ($menu->items as $dayItem) {
+            if (!$dayItem->is_required) {
+                continue;
+            }
+
+            $product = $dayItem->menu;
+
+            if ($product === null) {
+                continue;
+            }
+
+            $productId = (int) $product->menu_id;
+
+            // ZORUNLU BİR KALEM TÜKENDİYSE PAKET DE DÜŞER: ana yemeği
+            // olmayan bir menüyü satmak, bir telefon özrünü kırka çevirir.
+            if (array_key_exists($productId, $soldOutReasons)) {
+                $soldOutReason = $soldOutReasons[$productId]
+                    ?? "{$product->menu_name} bugünlük tükendi.";
+            }
+
+            $components[] = [
+                'menu_id' => $productId,
+                'name' => $dayItem->displayName(),
+                'quantity' => max(1, (int) $dayItem->quantity),
+                'image_url' => $this->imageUrl($product),
+                'allergens' => $product->allergens
+                    ->map(static fn($ingredient): string => (string) $ingredient->name)
+                    ->values()
+                    ->all(),
+            ];
+        }
+
+        if ($components === []) {
+            return null;
+        }
+
+        if (array_key_exists($packageMenuId, $soldOutReasons)) {
+            $soldOutReason ??= $soldOutReasons[$packageMenuId] ?? 'Günün menüsü bugünlük tükendi.';
+        }
+
+        return [
+            'menu_id' => $packageMenuId,
+            'name' => $menu->title ?? 'Günün Menüsü',
+            'price' => (int) $menu->package_price_kurus,
+            'currency' => 'TRY',
+            'is_available' => $soldOutReason === null,
+            'sold_out_reason' => $soldOutReason,
+            'components' => $components,
+        ];
+    }
+
+    /** @throws ApiException */
+    private function activeLocation(int $location): Location
+    {
+        $model = Location::query()
+            ->where('location_id', $location)
+            ->where('location_status', true)
+            ->first();
+
+        if ($model === null) {
+            throw ApiException::notFound('Vitrin bulunamadı.');
+        }
+
+        return $model;
+    }
+
     /** @return array<string, mixed> */
     private function locationPayload(Location $location): array
     {
@@ -119,6 +309,15 @@ class CatalogController extends ApiController
             'ordering_resumes_at' => $this->gate->pauseEndsAt($location)
                 ?->toIso8601ZuluString(),
             'order_cutoff' => $this->gate->orderCutoff($location),
+            /*
+             * Satış günün menüsü üzerinden mi yürüyor? (B-19)
+             *
+             * Sunucu tarafı şalter: istemciler bu akışa geçmeden önce ileriye
+             * menü girilmiş olmalı ve geri dönmek üç uygulamayı birden
+             * yeniden yayınlamayı gerektirmemeli.
+             */
+            'daily_menu_enabled' => $this->gate->dailyMenuEnabled($location),
+            'max_lookahead_days' => $this->gate->maxLookaheadDays($location),
             'min_order_total' => $this->gate->minOrderTotal($location),
             'delivery_fee' => $this->gate->deliveryFee($location),
             'payment_methods' => $this->gate->paymentMethods($location),

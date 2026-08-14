@@ -1,6 +1,7 @@
 # Paylaşım kartı fontları
 
-`app/opengraph-image.tsx` ve `app/apple-icon.tsx` bu dosyaları kullanır.
+`app/opengraph-image.tsx` bu dosyaları kullanır. `app/apple-icon.tsx` metin
+içermiyor, font okumuyor.
 
 ## Neden depoda duruyorlar?
 
@@ -22,8 +23,8 @@ Türkçe (`ı İ ğ Ğ ş Ş ç ö ü`) tam kapsanıyor ve boyutu makul: 410 kB 
 414 kB bold. Sistemdeki alternatif DejaVu Sans 760 kB'dı.
 
 **WOFF2 KULLANILAMAZ** — satori yalnızca TTF/OTF/WOFF okuyor. Sitenin kendi
-fontları (Inter, Playfair) `next/font` üzerinden WOFF2 olarak geliyor, bu
-yüzden onlar burada kullanılamıyor.
+fontları (Inter, Source Serif 4) `next/font` üzerinden WOFF2 olarak geliyor,
+bu yüzden onlar burada kullanılamıyor.
 
 ## Lisans
 

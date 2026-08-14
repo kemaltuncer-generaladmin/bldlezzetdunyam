@@ -178,7 +178,10 @@ class _SubscriptionCreateScreenState
     final location = ref.watch(locationProvider).valueOrNull;
     final menuItems = location == null
         ? const <MenuItem>[]
-        : (ref.watch(menuProvider(location.location.id)).valueOrNull?.allItems ??
+        : (ref
+                      .watch(menuProvider(location.location.id))
+                      .valueOrNull
+                      ?.allItems ??
                   const <MenuItem>[])
               .where((i) => i.isAvailable)
               .toList();
@@ -219,8 +222,7 @@ class _SubscriptionCreateScreenState
                 padding: const EdgeInsets.only(bottom: BldSpacing.sm),
                 child: _PickedRow(
                   product: entry.value,
-                  onIncrement: () =>
-                      setState(() => entry.value.quantity++),
+                  onIncrement: () => setState(() => entry.value.quantity++),
                   onDecrement: () => setState(() {
                     if (entry.value.quantity > 1) {
                       entry.value.quantity--;
@@ -234,7 +236,7 @@ class _SubscriptionCreateScreenState
           const SizedBox(height: BldSpacing.sm),
           OutlinedButton.icon(
             onPressed: menuItems.isEmpty ? null : () => _addProduct(menuItems),
-            icon: const Icon(Icons.add),
+            icon: const Icon(Icons.add_outlined),
             label: Text(l10n.subscriptionCreateAddProduct),
           ),
           const SizedBox(height: BldSpacing.lg),
@@ -261,12 +263,12 @@ class _SubscriptionCreateScreenState
                   onPressed: _portions > 1
                       ? () => setState(() => _portions--)
                       : null,
-                  icon: const Icon(Icons.remove),
+                  icon: const Icon(Icons.remove_outlined),
                 ),
                 const SizedBox(width: BldSpacing.sm),
                 IconButton.filled(
                   onPressed: () => setState(() => _portions++),
-                  icon: const Icon(Icons.add),
+                  icon: const Icon(Icons.add_outlined),
                 ),
               ],
             ),
@@ -507,9 +509,7 @@ class _ProductPickerSheet extends StatelessWidget {
             Flexible(
               child: ListView.separated(
                 shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: BldSpacing.md,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: BldSpacing.md),
                 itemCount: items.length,
                 separatorBuilder: (_, _) =>
                     const SizedBox(height: BldSpacing.sm),
@@ -536,7 +536,7 @@ class _ProductPickerSheet extends StatelessWidget {
                           ),
                         ),
                         Icon(
-                          Icons.add_circle,
+                          Icons.add_circle_outline,
                           color: bldColor(BldColors.brand600),
                         ),
                       ],

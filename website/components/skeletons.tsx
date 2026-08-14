@@ -1,63 +1,53 @@
-/** Yükleniyor durumları skeleton ile gösterilir (`docs/06` §5). */
+import { Skeleton } from '@/components/ui/skeleton';
 
-export function ProductCardSkeleton() {
-  return (
-    <div className="overflow-hidden bld-card" aria-hidden="true">
-      <div className="aspect-4/3 bld-skeleton rounded-none" />
-      <div className="space-y-2 p-4">
-        <div className="h-5 w-2/3 bld-skeleton" />
-        <div className="h-4 w-full bld-skeleton" />
-        <div className="h-6 w-24 bld-skeleton" />
-        <div className="h-11 w-full bld-skeleton" />
-      </div>
-    </div>
-  );
-}
+/**
+ * Yükleme yer tutucuları.
+ *
+ * ## Kural: iskelet GERÇEK düzeni yansıtır
+ *
+ * Kutu SAYISI ve YÜKSEKLİKLERİ, yerini tutacağı bileşenden ölçülür. Yaklaşık
+ * bir iskelet, içerik geldiğinde sayfayı zıplatıyor ve kullanıcı okumaya
+ * başladığı satırı kaybediyor. Bu dosyadaki her ölçü bir bileşene dayanıyor
+ * ve karşılığı yorumda yazılı — o bileşen değişirse burası da değişmeli.
+ *
+ * Spinner yok (400 ms altı buton içi hariç): dönen bir çark "bir şey oluyor"
+ * der, iskelet "ŞU gelecek" der.
+ */
 
-export function ProductGridSkeleton({ count = 6 }: { count?: number }) {
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      {Array.from({ length: count }, (_, index) => (
-        <ProductCardSkeleton key={index} />
-      ))}
-    </div>
-  );
-}
-
-/** Arama kutusu, sıralama ve kategori çubuğunun yer tutucusu. */
-export function MenuToolbarSkeleton() {
-  return (
-    <div aria-hidden="true">
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="h-12 flex-1 bld-skeleton" />
-        <div className="h-12 w-full bld-skeleton sm:w-52" />
-        <div className="h-12 w-32 bld-skeleton" />
-      </div>
-      <div className="mt-4 flex gap-2 overflow-hidden">
-        {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="h-11 w-28 shrink-0 bld-skeleton rounded-full" />
-        ))}
-      </div>
-    </div>
-  );
-}
-
+/**
+ * Sepet/sipariş satırı listesi.
+ *
+ * Satırın solunda 56 px'lik 1:1 görsel var (marka kılavuzu: sepet/sipariş
+ * satırı görseli 56 px kare) — iskelette de o kare duruyor, yoksa içerik
+ * gelince metin sağa kayıyor.
+ */
 export function ListSkeleton({ rows = 4 }: { rows?: number }) {
   return (
     <div className="space-y-3" aria-hidden="true">
       {Array.from({ length: rows }, (_, index) => (
-        <div key={index} className="flex items-center justify-between gap-4 bld-card p-4">
+        <div
+          key={index}
+          className="flex items-center gap-4 rounded-md bg-card p-4 shadow-card dark:shadow-none dark:inset-ring dark:inset-ring-white/5"
+        >
+          <Skeleton className="size-14 shrink-0 rounded-md" />
           <div className="w-full space-y-2">
-            <div className="h-5 w-32 bld-skeleton" />
-            <div className="h-4 w-48 bld-skeleton" />
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-4 w-56" />
           </div>
-          <div className="h-6 w-20 shrink-0 bld-skeleton" />
+          <Skeleton className="h-6 w-20 shrink-0" />
         </div>
       ))}
     </div>
   );
 }
 
+/**
+ * Yükleniyor duyurusu.
+ *
+ * İskelet `aria-hidden`: ekran okuyucuya on beş boş kutu okutmanın anlamı
+ * yok. Durumu tek bir kibar satır duyuruyor (`role="status"` — kullanıcı
+ * cümlesini bitirsin, sonra duyulsun).
+ */
 export function LoadingAnnouncement({ label = 'Yükleniyor' }: { label?: string }) {
   return (
     <p role="status" aria-live="polite" className="sr-only">

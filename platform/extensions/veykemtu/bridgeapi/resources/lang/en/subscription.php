@@ -16,6 +16,11 @@ return [
     'label_time_from' => 'Delivery time (from)',
     'help_time_from' => 'HH:MM format, e.g. 12:00. Defaults to 12:00 when empty.',
     'label_time_to' => 'Delivery time (to)',
+    'label_menu_mode' => 'Where do the portion contents come from?',
+    'help_menu_mode' => 'FIXED LIST: the same items are cooked every day and you write the list below. DAILY MENU: the subscriber gets whatever menu is scheduled for that day — no product list is asked for. In both modes the price is the agreed per-portion price below; with the daily menu it stays the same whatever is cooked that day.',
+    'menu_mode_fixed' => 'Fixed list',
+    'menu_mode_daily' => 'Daily menu',
+
     'section_lines' => 'Portion contents',
     'section_lines_comment' => 'Describe what one portion consists of. Quantities are PER PORTION: 1 soup + 1 main with a daily count of 100 sends 100 soups and 100 mains to the kitchen. The price comes from the agreed per-portion price below, not from these lines.',
     'prompt_line' => 'Add item',

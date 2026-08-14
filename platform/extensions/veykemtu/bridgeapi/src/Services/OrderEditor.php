@@ -9,6 +9,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
 use Veykemtu\BridgeApi\Models\AccountLedgerEntry;
+use Veykemtu\BridgeApi\Models\DailyMenu;
 use Veykemtu\BridgeApi\Support\BusinessTime;
 use Veykemtu\BridgeApi\Support\Money;
 use Veykemtu\Payment\Refunds\RefundManager;
@@ -77,10 +78,23 @@ class OrderEditor
 
         $before = $this->snapshot($order);
 
-        // Uygunluk zorlanmıyor: personel telefonda konuşup **adedi
-        // azaltmak** isterken, o üründe stok bittiği için düzenlemenin
-        // tamamen reddedilmesi saçma olurdu — kalem zaten siparişte.
-        $lines = $this->lines->resolve($items, enforceAvailability: false);
+        /*
+         * Uygunluk zorlanmıyor: personel telefonda konuşup **adedi
+         * azaltmak** isterken, o üründe stok bittiği için düzenlemenin
+         * tamamen reddedilmesi saçma olurdu — kalem zaten siparişte.
+         *
+         * MENÜ ÜYELİĞİ DE ZORLANMIYOR (B-19), aynı gerekçeyle: satır zaten
+         * siparişte ve o günün menüsü sonradan düzenlenmiş olabilir. Ama
+         * GÜN YİNE DE ÇÖZÜLÜYOR — menü paketinin fiyatı ondan geliyor ve
+         * gün olmadan paket satırı `LineResolver` tarafından reddedilir
+         * (sıfır liraya satılmasın diye).
+         */
+        $lines = $this->lines->resolve(
+            $items,
+            enforceAvailability: false,
+            day: $this->dayOf($order),
+            enforceMembership: false,
+        );
 
         $subtotal = array_sum(array_column($lines, 'line_total'));
         $deliveryFee = $this->deliveryFeeOf($order);
@@ -99,6 +113,17 @@ class OrderEditor
                 $local = $requestedAt->copy()->setTimezone(BusinessTime::ZONE);
                 $order->order_date = $local->toDateString();
                 $order->order_time = $local->format('H:i:s');
+                /*
+                 * `bld_service_date === DATE(order_date)` DEĞİŞMEZİ (B-19).
+                 *
+                 * Mutfak teslimi başka bir güne taşıyabiliyor (bugünkü
+                 * davranış, korunuyor) — o zaman servis günü de taşınmalı,
+                 * yoksa sipariş mutfak panosunda bir günde, üretim listesinde
+                 * başka bir günde görünürdü. Satırların hangi menüden geldiği
+                 * `order_menus.bld_daily_menu_id` içinde kayıtlı kalır;
+                 * taşınan şey siparişin günü, geçmişi değil.
+                 */
+                $order->bld_service_date = $local->toDateString();
                 $order->order_time_is_asap = false;
             }
 
@@ -373,5 +398,28 @@ class OrderEditor
             ->value('value');
 
         return $value === null ? 0 : Money::toKurus($value);
+    }
+
+    /**
+     * Siparişin bağlı olduğu günün menüsü — yoksa `null` (B-19).
+     *
+     * Menü sonradan taslağa çekilmiş ya da silinmiş olabilir; o hâlde
+     * `null` dönüyor ve düzenleme ürün satırlarıyla normal şekilde
+     * ilerliyor. Sipariş bir PAKET satırı taşıyorsa `LineResolver` bunu
+     * ayrıca reddeder — paketi fiyatsız yazmaktansa düzenlemeyi durdurmak
+     * doğru olan.
+     */
+    private function dayOf(Order $order): ?DailyMenu
+    {
+        $date = $order->bld_service_date ?? $order->order_date;
+
+        if ($date === null) {
+            return null;
+        }
+
+        return DailyMenu::findPublished(
+            (int) $order->location_id,
+            $date instanceof Carbon ? $date : Carbon::parse((string) $date),
+        );
     }
 }

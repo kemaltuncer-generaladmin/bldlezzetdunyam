@@ -21,7 +21,8 @@ class ForceUpdateScreen extends ConsumerWidget {
     final gate = ref.watch(versionGateProvider);
     final minSupported = gate.valueOrNull?.minSupported;
     final installed =
-        gate.valueOrNull?.installedVersion ?? const VersionGate.undetermined().installedVersion;
+        gate.valueOrNull?.installedVersion ??
+        const VersionGate.undetermined().installedVersion;
 
     return PopScope(
       canPop: false,
@@ -41,7 +42,7 @@ class ForceUpdateScreen extends ConsumerWidget {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      Icons.system_update,
+                      Icons.system_update_outlined,
                       size: 44,
                       color: bldColor(BldColors.brand500),
                     ),

@@ -2,10 +2,13 @@ import { NextResponse } from 'next/server';
 
 import { fetchMe } from '@/lib/api/auth';
 import { fetchOrders } from '@/lib/api/orders';
+import { fetchPrimaryLocation } from '@/lib/api/catalog';
+import { canOrderDay, fetchDailyMenu } from '@/lib/api/daily-menu';
+import { businessToday } from '@/lib/business-date';
 import { readToken } from '@/lib/session';
 
 /**
- * Ana sayfadaki hızlı sipariş kutusunun verisi — W-10.
+ * Ana sayfadaki hızlı sipariş kutusunun verisi — W-10, B-19 ile genişletildi.
  *
  * NEDEN AYRI UÇ: ana sayfa ISR ile önbellekli ve öyle kalmalı (SEO). Oturumu
  * sunucu bileşeninde okumak sayfayı dinamik yapar ve her ziyaretçi için
@@ -15,26 +18,72 @@ import { readToken } from '@/lib/session';
  * YANIT HİÇBİR KOŞULDA 401 DÖNMEZ. Giriş yapmamış ziyaretçi bu ucun normal
  * bir tüketicisi — ona hata dönmek, tarayıcı konsolunu her ana sayfa
  * ziyaretinde kırmızıya boyardı. Oturum yoksa `logged_in: false` döner.
+ *
+ * BUGÜNÜN MENÜSÜ DE BURADAN GELİYOR: kutunun "aynı siparişi tekrarla"
+ * düğmesi ancak bugün menü varsa ve sipariş alınıyorsa iş görüyor. Menü
+ * bilgisi ISR'lı sayfadan değil bu taze uçtan geldiği için kutu, kesim saati
+ * geçer geçmez doğru şeyi söylüyor.
  */
 export const dynamic = 'force-dynamic';
+
+type TodaySummary = {
+  date: string;
+  title: string | null;
+  has_menu: boolean;
+  is_orderable: boolean;
+  package_price: number | null;
+};
+
+/** Menü okunamazsa kutu menüsüz çalışmaya devam eder — `null` döner. */
+async function readToday(): Promise<TodaySummary | null> {
+  const date = businessToday();
+  try {
+    const location = await fetchPrimaryLocation('fresh');
+    if (!location) return null;
+
+    const menu = await fetchDailyMenu(location.id, date, 'fresh');
+
+    return {
+      date,
+      title: menu.title ?? null,
+      has_menu: menu.items.length > 0,
+      // Gün kapısı VE anlık şalter birlikte: kutu "sipariş verilebilir mi"
+      // sorusuna tek bir cevap istiyor.
+      is_orderable: canOrderDay(location, menu),
+      package_price: menu.package?.price ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
 
 export async function GET() {
   const token = await readToken();
 
   if (!token) {
     return NextResponse.json(
-      { logged_in: false, can_order: false, first_name: null, last_order: null },
+      {
+        logged_in: false,
+        can_order: false,
+        first_name: null,
+        last_order: null,
+        today: await readToday(),
+      },
       { headers: { 'Cache-Control': 'no-store' } },
     );
   }
 
   try {
     /*
-     * İki istek paralel. Sıralı olsaydı kart, en yavaş ikisinin TOPLAMI
-     * kadar sonra görünürdü; ana sayfanın üstünde duran bir kutu için bu
-     * fark hissediliyor.
+     * Üç istek paralel. Sıralı olsaydı kart, en yavaşların TOPLAMI kadar
+     * sonra görünürdü; ana sayfanın üstünde duran bir kutu için bu fark
+     * hissediliyor.
      */
-    const [customer, orders] = await Promise.all([fetchMe(token), fetchOrders(token, 1, 1)]);
+    const [customer, orders, today] = await Promise.all([
+      fetchMe(token),
+      fetchOrders(token, 1, 1),
+      readToday(),
+    ]);
 
     const last = orders.data[0] ?? null;
 
@@ -43,6 +92,7 @@ export async function GET() {
         logged_in: true,
         can_order: customer.can_order ?? false,
         first_name: customer.first_name,
+        today,
         last_order: last
           ? {
               id: last.id,

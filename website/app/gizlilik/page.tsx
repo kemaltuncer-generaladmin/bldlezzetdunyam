@@ -77,8 +77,8 @@ function pendingFields(
 /** `null` alanlar için ortak işaret — sahte değer basmak yerine eksikliği söyler. */
 function MissingValue() {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-md bg-warning/10 px-2 py-0.5 text-xs font-semibold text-warning">
-      <TriangleAlert aria-hidden="true" className="size-3.5" />
+    <span className="inline-flex items-center gap-1.5 rounded-xs bg-warning-surface px-2 py-0.5 text-caption font-semibold text-warning-foreground">
+      <TriangleAlert strokeWidth={1.75} aria-hidden="true" className="size-3.5" />
       Girilmesi gerekiyor
     </span>
   );
@@ -100,11 +100,13 @@ export default async function GizlilikPage() {
           {/*
             Bu metin bir taslaktır ve hukuki görüş yerine geçmez. Uyarı sayfanın
             en üstünde duruyor: aşağı kaydırmadan görülmezse işlevi kalmıyor.
-            (Mevcut `LegalNotice` bileşeni yerine Alert kullanıldı; o bileşenin
-            renkleri açık temaya sabitlenmiş durumda.)
+            (`LegalNotice` bileşeni yerine `Alert variant="warning"` kullanılıyor:
+            eski bileşenin renkleri açık temaya sabitlenmişti ve dört yasal
+            metnin ikisi onu, ikisi Alert'i kullanıyordu. Bileşen B-19'da
+            kaldırıldı, dördü de bu kalıba geçti.)
           */}
-          <Alert className="border-warning/40 bg-warning/10">
-            <TriangleAlert aria-hidden="true" className="text-warning" />
+          <Alert variant="warning">
+            <TriangleAlert strokeWidth={1.75} aria-hidden="true" />
             <AlertTitle>Bu metin taslaktır, hukuk danışmanı onayı gerekir</AlertTitle>
             <AlertDescription>
               Aşağıdaki içerik sitenin gerçekte ne yaptığını anlatmak için hazırlandı; hukuki
@@ -114,16 +116,19 @@ export default async function GizlilikPage() {
           </Alert>
 
           {pending.length > 0 && (
-            <div className="mt-6 rounded-xl border p-5">
-              <h2 className="text-base font-semibold">Yayın öncesi tamamlanacak bilgiler</h2>
-              <p className="mt-1 text-sm/6 text-muted-foreground">
+            <div className="mt-6 rounded-md border p-5">
+              <h2 className="font-display text-h3 font-semibold text-heading">
+                Yayın öncesi tamamlanacak bilgiler
+              </h2>
+              <p className="mt-1 text-body text-muted-foreground">
                 Aşağıdaki bilgiler işletmeden alınmadığı için metne yazılmadı. Bilgi girildiğinde bu
                 kutu kendiliğinden kaybolur.
               </p>
-              <ul className="mt-3 grid gap-1.5 text-sm sm:grid-cols-2">
+              <ul className="mt-3 grid gap-1.5 text-body-sm sm:grid-cols-2">
                 {pending.map((field) => (
                   <li key={field} className="flex items-start gap-2">
                     <TriangleAlert
+                      strokeWidth={1.75}
                       aria-hidden="true"
                       className="mt-0.5 size-3.5 shrink-0 text-warning"
                     />
@@ -155,14 +160,14 @@ export default async function GizlilikPage() {
             </p>
           </div>
 
-          <dl className="mt-6 divide-y rounded-xl border">
+          <dl className="mt-6 divide-y rounded-md border">
             {controller.map((field) => (
               <div
                 key={field.label}
                 className="grid gap-1 px-4 py-3 sm:grid-cols-[15rem_1fr] sm:items-center sm:gap-4"
               >
-                <dt className="text-sm font-semibold">{field.label}</dt>
-                <dd className="text-sm">{field.value ?? <MissingValue />}</dd>
+                <dt className="text-label">{field.label}</dt>
+                <dd className="text-body">{field.value ?? <MissingValue />}</dd>
               </div>
             ))}
           </dl>
@@ -251,8 +256,8 @@ export default async function GizlilikPage() {
             <ul>
               <li>
                 Oturum bilgisi tarayıcı tarafındaki koda kapalı (
-                <code className="rounded bg-muted px-1 py-0.5 text-sm">httpOnly</code>) bir çerezde
-                tutulur; sayfadaki JavaScript bu değeri okuyamaz.
+                <code className="rounded-xs bg-muted px-1 py-0.5 text-body-sm">httpOnly</code>) bir
+                çerezde tutulur; sayfadaki JavaScript bu değeri okuyamaz.
               </li>
               <li>
                 Sepet çerezi ürün adı ve fiyat taşımaz, yalnızca ürün kimliği ve adet tutar; tutar
@@ -282,7 +287,7 @@ export default async function GizlilikPage() {
           </div>
 
           {(contact.email !== null || contact.phone !== null) && (
-            <ul className="mt-4 space-y-1 text-sm">
+            <ul className="mt-4 space-y-1 text-body-sm">
               {contact.email && (
                 <li>
                   E-posta:{' '}

@@ -6,7 +6,7 @@ import { ArrowRight, RotateCcw, UtensilsCrossed } from 'lucide-react';
 import { repeatOrderAction } from '@/app/actions/order';
 import { IDLE_CART_STATE } from '@/lib/action-state';
 import { Button } from '@/components/ui/button';
-import { formatPrice } from '@/lib/format';
+import { Money } from '@/components/money';
 import { CART_CHANGED_EVENT } from '@/lib/cart-events';
 
 type QuickOrderData = {
@@ -19,6 +19,14 @@ type QuickOrderData = {
     total: number;
     created_at: string;
     item_count: number;
+  } | null;
+  /** Bugünün menüsü — `/api/hizli-siparis` taze okuyor (B-19). */
+  today: {
+    date: string;
+    title: string | null;
+    has_menu: boolean;
+    is_orderable: boolean;
+    package_price: number | null;
   } | null;
 };
 
@@ -72,13 +80,19 @@ export function QuickOrder() {
 
   if (data === null) return null;
 
+  // Menü okunamadıysa (uç düştü) düğme AÇIK bırakılıyor: sunucu eylemi
+  // kararı yeniden veriyor ve kapalı bir düğme, çalışan bir akışı sebepsiz
+  // yere kapatmaktan daha kötü.
+  const todayClosed = data.today !== null && !data.today.is_orderable;
+  const todayTitle = data.today?.has_menu ? data.today.title : null;
+
   return (
     <div className="rounded-xl border bg-card p-5 shadow-sm sm:p-6">
       {state.message && (
         <p
           role="status"
           className={`mb-4 rounded-md px-3 py-2 text-sm ${
-            state.status === 'error' ? 'bg-danger/10 text-danger' : 'bg-success/10'
+            state.status === 'error' ? 'bg-danger-surface text-danger' : 'bg-success-surface'
           }`}
         >
           {state.message}
@@ -89,7 +103,9 @@ export function QuickOrder() {
         <>
           <h2 className="text-lg font-semibold">Sipariş vermek için giriş yapın</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Telefonunuza gelen kodla saniyeler içinde girebilirsiniz — şifre gerekmez.
+            {todayTitle
+              ? `Bugün mutfakta: ${todayTitle}. Telefonunuza gelen kodla saniyeler içinde girebilirsiniz — şifre gerekmez.`
+              : 'Telefonunuza gelen kodla saniyeler içinde girebilirsiniz — şifre gerekmez.'}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button asChild size="lg">
@@ -126,28 +142,40 @@ export function QuickOrder() {
               <p className="mt-1 text-sm text-muted-foreground">
                 Son siparişiniz {formatDate(data.last_order.created_at)} ·{' '}
                 {data.last_order.item_count} ürün ·{' '}
-                <span className="tabular-nums">{formatPrice(data.last_order.total)}</span>
+                <Money kurus={data.last_order.total} size="sm" />
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2">
+                {/*
+                  TEKRAR HER ZAMAN BUGÜNE KURULUYOR (`repeatOrderAction`) ve
+                  yalnızca bugünün menüsünde olan satırlar ekleniyor. Bugün
+                  sipariş alınmıyorsa düğme kapalı ve SEBEBİ yazıyor —
+                  basıldığında hata mesajı vermek, kullanıcıyı boşuna
+                  tıklatmak olurdu.
+                */}
                 <Button
                   type="button"
                   size="lg"
-                  disabled={pending}
+                  disabled={pending || todayClosed}
+                  disabledReason={
+                    todayClosed
+                      ? 'Bugün için sipariş alınmıyor. Takvimden başka bir gün seçebilirsiniz.'
+                      : 'Sipariş sepete ekleniyor.'
+                  }
                   onClick={() => {
                     const formData = new FormData();
                     formData.set('order_id', String(data.last_order?.id));
                     startTransition(() => formAction(formData));
                   }}
                 >
-                  <RotateCcw aria-hidden="true" />
+                  <RotateCcw strokeWidth={1.75} aria-hidden="true" />
                   {pending ? 'Sepete ekleniyor…' : 'Aynı siparişi tekrarla'}
                 </Button>
 
                 <Button asChild variant="outline" size="lg">
                   <Link href="/menu">
-                    <UtensilsCrossed aria-hidden="true" />
-                    Menüye göz at
+                    <UtensilsCrossed strokeWidth={1.75} aria-hidden="true" />
+                    {todayTitle ?? 'Günün menüsü'}
                   </Link>
                 </Button>
 
@@ -155,7 +183,7 @@ export function QuickOrder() {
                   <Button asChild variant="ghost" size="lg">
                     <Link href="/sepet">
                       Sepete git
-                      <ArrowRight aria-hidden="true" />
+                      <ArrowRight strokeWidth={1.75} aria-hidden="true" />
                     </Link>
                   </Button>
                 )}
@@ -164,12 +192,14 @@ export function QuickOrder() {
           ) : (
             <>
               <p className="mt-1 text-sm text-muted-foreground">
-                Henüz siparişiniz yok. Bugünün menüsünden başlayın.
+                {todayTitle
+                  ? `Henüz siparişiniz yok. Bugün mutfakta: ${todayTitle}.`
+                  : 'Henüz siparişiniz yok. Takvimden bir gün seçip başlayın.'}
               </p>
               <Button asChild size="lg" className="mt-4">
                 <Link href="/menu">
-                  <UtensilsCrossed aria-hidden="true" />
-                  Bugünün menüsü
+                  <UtensilsCrossed strokeWidth={1.75} aria-hidden="true" />
+                  Günün menüsü
                 </Link>
               </Button>
             </>

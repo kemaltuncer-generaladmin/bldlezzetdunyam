@@ -1,4 +1,4 @@
-import { formatPriceDelta } from '@/lib/format';
+import { Money } from '@/components/money';
 import type { MenuItem, MenuOption } from '@/lib/api/types';
 
 /**
@@ -22,27 +22,28 @@ export function ProductOptions({ item }: { item: MenuItem }) {
 
         return (
           <fieldset key={option.id} className="border-0 p-0">
-            <legend className="text-sm font-semibold text-neutral-900">
+            <legend className="text-label">
               {option.name}
               {option.required ? (
-                <span className="ml-2 text-xs font-medium text-danger">Zorunlu</span>
+                <span className="ml-2 text-caption font-medium text-danger">Zorunlu</span>
               ) : (
-                <span className="ml-2 text-xs font-normal text-neutral-600">İsteğe bağlı</span>
+                <span className="ml-2 text-caption font-normal text-muted-foreground">
+                  İsteğe bağlı
+                </span>
               )}
             </legend>
-            <p id={descriptionId} className="mt-0.5 text-xs text-neutral-600">
+            <p id={descriptionId} className="mt-0.5 text-caption text-muted-foreground">
               {multi ? 'Birden fazla seçebilirsiniz.' : 'Bir seçenek seçin.'}
             </p>
 
             <div className="mt-2 space-y-2">
               {option.values.map((value, index) => {
                 const inputId = `secenek-${option.id}-${value.id}`;
-                const delta = formatPriceDelta(value.price_delta);
                 return (
                   <label
                     key={value.id}
                     htmlFor={inputId}
-                    className="flex cursor-pointer items-center gap-3 rounded-lg border border-neutral-200 bg-neutral-0 px-3 py-2.5 text-sm hover:border-brand-300 has-checked:border-brand-600 has-checked:bg-brand-50"
+                    className="flex min-h-11 cursor-pointer items-center gap-3 rounded-sm border border-input bg-card px-3 py-2.5 text-body hover:border-brand-300 has-checked:border-ring has-checked:bg-accent"
                   >
                     <input
                       id={inputId}
@@ -51,10 +52,10 @@ export function ProductOptions({ item }: { item: MenuItem }) {
                       value={value.id}
                       aria-describedby={descriptionId}
                       defaultChecked={!multi && option.required && index === 0}
-                      className="h-4 w-4 shrink-0 accent-brand-600"
+                      className="size-4 shrink-0 accent-primary"
                     />
-                    <span className="flex-1 text-neutral-900">{value.name}</span>
-                    {delta && <span className="text-neutral-600">{delta}</span>}
+                    <span className="flex-1">{value.name}</span>
+                    <Money kurus={value.price_delta} size="sm" signed />
                   </label>
                 );
               })}

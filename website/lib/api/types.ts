@@ -39,6 +39,22 @@ export type MenuItem = Schemas['MenuItem'];
 export type MenuOption = Schemas['MenuOption'];
 export type MenuOptionValue = Schemas['MenuOptionValue'];
 
+/** Günün menüsü (B-19). */
+export type DailyMenu = Schemas['DailyMenu'];
+export type DailyMenuPackage = Schemas['DailyMenuPackage'];
+/** Paketin içindeki yemek. Sözleşmede satır içi tanımlı, adı buradan gelir. */
+export type DailyMenuComponent = DailyMenuPackage['components'][number];
+export type MenuCalendarDay = Schemas['MenuCalendarDay'];
+/**
+ * `is_orderable` yanlışken sunucunun verdiği makine okunur sebep.
+ *
+ * `null` DIŞARIDA BIRAKILDI: alan `null` da olabiliyor ama o hâli "sebep yok"
+ * demek, yani gösterilecek bir metni de yok. Metin eşlemesi
+ * (`lib/labels.ts`) böylece beş sebebin hepsini karşılamak ZORUNDA kalıyor —
+ * sözleşmeye altıncı sebep eklendiğinde derleyici burayı gösterir.
+ */
+export type DailyMenuUnavailableReason = NonNullable<DailyMenu['unavailable_reason']>;
+
 export type Address = Schemas['Address'];
 export type OrderCreateRequest = Schemas['OrderCreateRequest'];
 export type OrderCreateItem = OrderCreateRequest['items'][number];
@@ -60,6 +76,8 @@ export type PublicOrderTracking = Schemas['PublicOrderTracking'];
 // Sarmalayıcı gövdeler de sözleşmeden çıkarılır, elle yazılmaz.
 export type LocationListResponse = JsonOk<operations['listLocations']>;
 export type MenuResponse = JsonOk<operations['getMenu']>;
+export type DailyMenuResponse = JsonOk<operations['getDailyMenu']>;
+export type MenuCalendarResponse = JsonOk<operations['getMenuCalendar']>;
 export type OrderListResponse = JsonOk<operations['listOrders']>;
 export type OrderCreatedResponse = JsonCreated<operations['createOrder']>;
 export type LoginRequest = NonNullable<

@@ -39,9 +39,16 @@ const nextConfig: NextConfig = {
    * Paylaşım kartının fontları `readFile` ile okunuyor ve statik analizle
    * görülemiyor; bu satır olmadan üretim imajında dosya bulunamıyor ve kart
    * çalışma anında patlıyor. Yerelde çalıştığı için gözden kaçması çok kolay.
+   *
+   * `public/emblem.png` de AYNI TUZAKTA: iki metadata rotası onu `readFile`
+   * ile okuyor. `public/` klasörünün imaja kopyalanması Dockerfile'ın ayrı
+   * bir COPY satırına bağlı — yani bu dosyanın varlığı imajı kimin nasıl
+   * kurduğuna göre değişiyordu. İz listesine yazınca dosya rotanın kendi
+   * bağımlılığı oluyor ve dağıtım biçiminden bağımsız hâle geliyor.
    */
   outputFileTracingIncludes: {
-    '/opengraph-image': ['./assets/fonts/*.ttf'],
+    '/opengraph-image': ['./assets/fonts/*.ttf', './public/emblem.png'],
+    '/apple-icon': ['./public/emblem.png'],
   },
   experimental: {
     /*
@@ -85,6 +92,22 @@ const nextConfig: NextConfig = {
       // Menü çözümleri → gerçek menü. Ziyaretçinin aradığı zaten buydu.
       { source: '/menu-cozumleri', destination: '/menu', permanent: true },
 
+      /*
+       * ÜRÜN DETAY SAYFALARI KALDIRILDI — B-19.
+       *
+       * Satış artık günün menüsü üzerinden yürüyor: bir yemek yalnızca
+       * menüsünde yer aldığı gün ve o günün fiyatıyla satılıyor. Güne bağlı
+       * olmayan bir ürün sayfası, sepete eklenemeyen bir fiyat gösterirdi.
+       * Ürün KAYITLARI duruyor (menünün kalemleri onlar), müşteriye açılan
+       * ADRES kalkıyor.
+       *
+       * `permanent: true` (308): bu adresler site haritasındaydı ve
+       * dizinde. Geçici yönlendirme sıralamayı hedefe taşımaz, eski adresi
+       * dizinde tutup yavaşça düşürür — biriken değeri `/menu`ye
+       * aktarmanın tek yolu kalıcı yönlendirme.
+       */
+      { source: '/urun/:slug', destination: '/menu', permanent: true },
+
       // Kalite/hijyen ve çalıştığımız alanlar → kurumsal sayfanın bölümleri.
       { source: '/kalite-hijyen', destination: '/kurumsal#kalite', permanent: true },
       { source: '/calistigimiz-alanlar', destination: '/kurumsal#alanlar', permanent: true },
@@ -109,6 +132,21 @@ const nextConfig: NextConfig = {
        * alınmış bir 308 yolu tıkamamalı.
        */
       { source: '/kayit', destination: '/kurumsal-kayit', permanent: false },
+
+      /*
+       * CARİ HESAP MÜŞTERİ ARAYÜZÜNDEN KALDIRILDI — B-19.
+       *
+       * `/hesabim/cari` girişli müşterilere gösteriliyordu ve hesap
+       * merkezinden, footer'dan ve hesap sekmelerinden bağlantı alıyordu;
+       * tarayıcı yer imlerinde durması beklenir. Sayfayı 404'e bırakmak,
+       * borcunu görmeye gelen müşteriye kırık bir kapı göstermek olurdu —
+       * hesap merkezi en yakın karşılık.
+       *
+       * `permanent: false` (307): cari yüzeyi bir ÜRÜN kararıyla kapandı,
+       * adres ölmedi. Uçlar, admin paneli ve `lib/api/account.ts` duruyor;
+       * karar geri alınırsa önbelleğe alınmış bir 308 yolu tıkamamalı.
+       */
+      { source: '/hesabim/cari', destination: '/hesabim', permanent: false },
     ];
   },
   images: {

@@ -114,7 +114,7 @@ export function QuoteForm() {
           aria-hidden="true"
           className="mx-auto grid size-14 place-items-center rounded-full bg-success/10 text-success"
         >
-          <CheckCircle2 className="size-7" />
+          <CheckCircle2 strokeWidth={1.75} className="size-7" />
         </span>
         <h2 className="mt-5 font-display text-2xl font-semibold tracking-tight">
           Talebiniz bize ulaştı
@@ -149,7 +149,7 @@ export function QuoteForm() {
       {(state.status === 'error' || state.status === 'unconfigured') && (
         <div ref={summaryRef} tabIndex={-1} className="outline-none">
           <Alert variant="destructive">
-            <AlertTriangle aria-hidden="true" />
+            <AlertTriangle strokeWidth={1.75} aria-hidden="true" />
             <AlertTitle>
               {state.status === 'unconfigured' ? 'Talep iletilemedi' : 'Gönderilemedi'}
             </AlertTitle>
@@ -418,8 +418,14 @@ export function QuoteForm() {
           </div>
         </div>
 
-        <Button type="submit" size="lg" disabled={pending} className="w-full sm:w-auto">
-          {pending && <Loader2 aria-hidden="true" className="animate-spin" />}
+        <Button
+          type="submit"
+          size="lg"
+          disabled={pending}
+          disabledReason="Talebiniz gönderiliyor, işlem sürüyor."
+          className="w-full sm:w-auto"
+        >
+          {pending && <Loader2 strokeWidth={1.75} aria-hidden="true" className="animate-spin" />}
           {pending ? 'Gönderiliyor…' : 'Teklif talebini gönder'}
         </Button>
       </div>

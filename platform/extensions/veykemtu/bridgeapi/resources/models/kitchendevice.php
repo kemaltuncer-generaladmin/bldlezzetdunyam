@@ -303,6 +303,99 @@ $config['form']['fields'] = [
         'comment' => 'lang:veykemtu.bridgeapi::default.kds.help_printer_code_page',
         'attributes' => ['min' => 0, 'max' => 255, 'step' => 1],
     ],
+
+    /*
+     * KİLİT POLİTİKASI (K-21).
+     *
+     * Kontrol Merkezi bu alanları `PATCH /api/control/kds/devices/{id}/settings`
+     * ile yazıyor; form da aynı alanları yönetiyor ki tek yönetim yüzeyi
+     * olmasın. Alanlar burada DA duruyor çünkü `KitchenDeviceSettings`'in
+     * bildiği her ayarın bir form alanı olmak zorunda
+     * (`AdminKitchenDeviceTest::test_form_servisteki_her_ayari_kapsar`) —
+     * aksi hâlde panelden yönetilemeyen, yalnız API'den değiştirilebilen
+     * gizli bir ayar sınıfı doğardı.
+     *
+     * ÜÇ SEÇENEKLİ `select`, `switch` DEĞİL — sayfadaki diğer izin
+     * alanlarıyla aynı gerekçe: boş bırakmak "kapattım" değil
+     * "dokunmadım" demek ve bir anahtar bunu söyleyemez.
+     */
+    'lock_section@edit' => [
+        'type' => 'section',
+        'label' => 'lang:veykemtu.bridgeapi::default.kds.section_locks',
+        'comment' => 'lang:veykemtu.bridgeapi::default.kds.section_locks_comment',
+    ],
+    'allow_settings@edit' => [
+        'label' => 'lang:veykemtu.bridgeapi::default.kds.label_allow_settings',
+        'type' => 'select',
+        'span' => 'left',
+        'placeholder' => lang('veykemtu.bridgeapi::default.kds.text_untouched'),
+        'comment' => 'lang:veykemtu.bridgeapi::default.kds.help_allow_settings',
+        'options' => [
+            1 => 'lang:veykemtu.bridgeapi::default.kds.text_allowed',
+            0 => 'lang:veykemtu.bridgeapi::default.kds.text_locked',
+        ],
+    ],
+    'allow_server_change@edit' => [
+        'label' => 'lang:veykemtu.bridgeapi::default.kds.label_allow_server_change',
+        'type' => 'select',
+        'span' => 'right',
+        'placeholder' => lang('veykemtu.bridgeapi::default.kds.text_untouched'),
+        'comment' => 'lang:veykemtu.bridgeapi::default.kds.help_allow_server_change',
+        'options' => [
+            1 => 'lang:veykemtu.bridgeapi::default.kds.text_allowed',
+            0 => 'lang:veykemtu.bridgeapi::default.kds.text_locked',
+        ],
+    ],
+    'allow_window_controls@edit' => [
+        'label' => 'lang:veykemtu.bridgeapi::default.kds.label_allow_window_controls',
+        'type' => 'select',
+        'span' => 'left',
+        'placeholder' => lang('veykemtu.bridgeapi::default.kds.text_untouched'),
+        'comment' => 'lang:veykemtu.bridgeapi::default.kds.help_allow_window_controls',
+        'options' => [
+            1 => 'lang:veykemtu.bridgeapi::default.kds.text_allowed',
+            0 => 'lang:veykemtu.bridgeapi::default.kds.text_locked',
+        ],
+    ],
+    'allow_order_edit@edit' => [
+        'label' => 'lang:veykemtu.bridgeapi::default.kds.label_allow_order_edit',
+        'type' => 'select',
+        'span' => 'right',
+        'placeholder' => lang('veykemtu.bridgeapi::default.kds.text_untouched'),
+        'comment' => 'lang:veykemtu.bridgeapi::default.kds.help_allow_order_edit',
+        'options' => [
+            1 => 'lang:veykemtu.bridgeapi::default.kds.text_allowed',
+            0 => 'lang:veykemtu.bridgeapi::default.kds.text_locked',
+        ],
+    ],
+    'allow_manual_reprint@edit' => [
+        'label' => 'lang:veykemtu.bridgeapi::default.kds.label_allow_manual_reprint',
+        'type' => 'select',
+        'span' => 'left',
+        'placeholder' => lang('veykemtu.bridgeapi::default.kds.text_untouched'),
+        'comment' => 'lang:veykemtu.bridgeapi::default.kds.help_allow_manual_reprint',
+        'options' => [
+            1 => 'lang:veykemtu.bridgeapi::default.kds.text_allowed',
+            0 => 'lang:veykemtu.bridgeapi::default.kds.text_locked',
+        ],
+    ],
+    'allow_sales_control@edit' => [
+        'label' => 'lang:veykemtu.bridgeapi::default.kds.label_allow_sales_control',
+        'type' => 'select',
+        'span' => 'right',
+        'placeholder' => lang('veykemtu.bridgeapi::default.kds.text_untouched'),
+        'comment' => 'lang:veykemtu.bridgeapi::default.kds.help_allow_sales_control',
+        'options' => [
+            1 => 'lang:veykemtu.bridgeapi::default.kds.text_allowed',
+            0 => 'lang:veykemtu.bridgeapi::default.kds.text_locked',
+        ],
+    ],
+    'lock_message@edit' => [
+        'label' => 'lang:veykemtu.bridgeapi::default.kds.label_lock_message',
+        'type' => 'text',
+        'comment' => 'lang:veykemtu.bridgeapi::default.kds.help_lock_message',
+        'attributes' => ['maxlength' => 160],
+    ],
 ];
 
 /**
@@ -401,6 +494,41 @@ $config['form']['rules'] = [
         'printer_code_page',
         'lang:veykemtu.bridgeapi::default.kds.label_printer_code_page',
         'nullable|integer|min:0|max:255',
+    ],
+    [
+        'allow_settings',
+        'lang:veykemtu.bridgeapi::default.kds.label_allow_settings',
+        'nullable|boolean',
+    ],
+    [
+        'allow_server_change',
+        'lang:veykemtu.bridgeapi::default.kds.label_allow_server_change',
+        'nullable|boolean',
+    ],
+    [
+        'allow_window_controls',
+        'lang:veykemtu.bridgeapi::default.kds.label_allow_window_controls',
+        'nullable|boolean',
+    ],
+    [
+        'allow_order_edit',
+        'lang:veykemtu.bridgeapi::default.kds.label_allow_order_edit',
+        'nullable|boolean',
+    ],
+    [
+        'allow_manual_reprint',
+        'lang:veykemtu.bridgeapi::default.kds.label_allow_manual_reprint',
+        'nullable|boolean',
+    ],
+    [
+        'allow_sales_control',
+        'lang:veykemtu.bridgeapi::default.kds.label_allow_sales_control',
+        'nullable|boolean',
+    ],
+    [
+        'lock_message',
+        'lang:veykemtu.bridgeapi::default.kds.label_lock_message',
+        'nullable|string|max:160',
     ],
 ];
 

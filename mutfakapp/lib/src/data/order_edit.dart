@@ -80,13 +80,25 @@ class EditableItem {
     required this.name,
     required this.quantity,
     this.options = const <String>[],
+    this.optionValueIds = const <int>[],
     this.note,
   });
 
   final int menuId;
   final String name;
   final int quantity;
+
+  /// Seçeneklerin **adları** — personele gösterilen hâl ("Bol").
   final List<String> options;
+
+  /// Aynı seçeneklerin **kimlikleri** — sunucuya geri gönderilen hâl.
+  ///
+  /// İki ayrı alan, çünkü satırda iki ayrı yerde duruyorlar:
+  /// `order_menus.option_values` yalnız adları, `order_menu_options` ise
+  /// kimlikleri tutuyor. Adı kimliğe geri çevirmek seçenek değil — aynı
+  /// adı taşıyan iki değer ("Bol" iki ayrı grupta) yanlış eşleşirdi.
+  final List<int> optionValueIds;
+
   final String? note;
 
   factory EditableItem.fromJson(Map<String, Object?> json) => EditableItem(
@@ -96,6 +108,10 @@ class EditableItem {
     options: (json['options'] as List? ?? const [])
         .map((option) => '$option')
         .toList(growable: false),
+    optionValueIds: (json['option_value_ids'] as List? ?? const [])
+        .whereType<num>()
+        .map((id) => id.toInt())
+        .toList(growable: false),
     note: _stringOrNull(json['note']),
   );
 
@@ -104,20 +120,28 @@ class EditableItem {
     name: name,
     quantity: quantity ?? this.quantity,
     options: options,
+    // ADET DEĞİŞİNCE SEÇENEK DÜŞMEZ. Kayıp tam olarak burada
+    // oluşuyordu: satır seçeneksiz geri gidiyor, sunucu onu seçeneksiz
+    // yeniden fiyatlıyordu.
+    optionValueIds: optionValueIds,
     note: note,
   );
 
   /// Sunucuya gönderilecek biçim.
   ///
-  /// SEÇENEK KİMLİKLERİ TAŞINMIYOR: `editable` ucu seçenek **adlarını**
-  /// döndürüyor (`order_menus.option_values` böyle saklıyor). Adları
-  /// kimliğe geri çevirmek, aynı adı taşıyan iki seçenekte yanlış
-  /// eşleşme üretirdi. Sonuç: düzenlemede mevcut kalemlerin seçenekleri
-  /// **korunmuyor**, yeniden seçilmiyor da — adet ve not değişiyor.
-  /// Seçenek değişmesi gerekiyorsa kalem çıkarılıp yenisi ekleniyor.
+  /// SEÇENEK KİMLİKLERİ AYNEN GERİ GÖNDERİLİR: personel seçeneğe
+  /// dokunmadıysa sipariş seçeneğini korumalı. Sunucu kalemleri
+  /// sil-yeniden yaz ile güncelliyor (`LineResolver::writeLines`), yani
+  /// göndermediğimiz her seçenek **silinmiş** sayılıyor.
+  ///
+  /// BOŞ DİZİ İLE ALANIN HİÇ OLMAMASI AYRI ŞEYLER: alan yoksa "bu
+  /// kalemin seçeneği yok" (menüden yeni eklenen ürün), boş dizi ise
+  /// "seçenekleri boşalt" demek. Seçeneksiz kalemde alanı hiç
+  /// göndermiyoruz — gövde bugünküyle birebir aynı kalıyor.
   Map<String, Object?> toRequest() => <String, Object?>{
     'menu_id': menuId,
     'quantity': quantity,
+    if (optionValueIds.isNotEmpty) 'option_value_ids': optionValueIds,
     'note': ?note,
   };
 
@@ -126,10 +150,22 @@ class EditableItem {
       other is EditableItem &&
       other.menuId == menuId &&
       other.quantity == quantity &&
+      // Seçenek kimliği de farkın parçası: bir gün seçenek düzenlenebilir
+      // olduğunda "hiçbir şey değişmedi" kontrolü onu görmeliydi.
+      _sameIds(other.optionValueIds, optionValueIds) &&
       other.note == note;
 
   @override
-  int get hashCode => Object.hash(menuId, quantity, note);
+  int get hashCode =>
+      Object.hash(menuId, quantity, Object.hashAll(optionValueIds), note);
+
+  static bool _sameIds(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 }
 
 /// Bir düzenlemenin sonucu.

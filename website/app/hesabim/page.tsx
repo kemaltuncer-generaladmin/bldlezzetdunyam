@@ -1,40 +1,32 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowRight, MapPin, ReceiptText, Repeat, Wallet } from 'lucide-react';
+import { ArrowRight, MapPin, ReceiptText, Repeat } from 'lucide-react';
 import { AccountNav } from '@/components/account/account-nav';
 import { LogoutButton } from '@/components/auth/logout-button';
-import { fetchAccountSummary } from '@/lib/api/account';
-import { formatPrice } from '@/lib/format';
 import { requireSession } from '@/lib/require-session';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Hesabım',
-  description: 'Hesap bilgileriniz, cari bakiyeniz ve abonelikleriniz.',
+  description: 'Hesap bilgileriniz, siparişleriniz ve abonelikleriniz.',
   robots: { index: false, follow: false },
 };
 
 /**
- * Hesap merkezi — W-12 / W-13.
+ * Hesap merkezi — W-12 / W-13, B-19 ile daraltıldı.
  *
- * Eskiden yalnızca üç satır profil bilgisi vardı. Artık dört bölümün giriş
- * kapısı: profil, siparişler, cari hesap, abonelikler.
+ * Üç bölümün giriş kapısı: siparişler, adresler, abonelikler. Altında profil
+ * bilgileri.
  *
- * BAKİYE BURADA DA GÖSTERİLİYOR ve bu kasıtlı bir tekrar: borcu olan
- * müşterinin onu görmek için ayrı bir sayfaya gitmesi gerekmemeli. Kart,
- * borç varsa uyarı rengiyle çiziliyor.
- *
- * Bakiye okunamazsa sayfa ÇÖKMÜYOR: cari uç kurumsal olmayan bir hesapta
- * ya da geçici bir arızada hata verebilir ve o durumda profil bilgilerinin
- * de görünmemesi orantısız olurdu.
+ * CARİ BAKİYE KARTI KALDIRILDI (B-19). Kart yalnız bir bağlantı değildi:
+ * çizilebilmek için her açılışta `/account/summary` çağırıyordu. Cari yüzeyi
+ * müşteri arayüzünden kalkınca o istek, hiçbir yere götürmeyen bir rakam için
+ * hesap sayfasını dış bir uca bağlı tutuyordu. Uç ve admin paneli duruyor
+ * (`lib/api/account.ts`).
  */
 export default async function AccountPage() {
-  const { customer, token } = await requireSession('/hesabim');
-
-  const balance = await fetchAccountSummary(token)
-    .then((summary) => summary.balance)
-    .catch(() => null);
+  const { customer } = await requireSession('/hesabim');
 
   const rows: Array<{ label: string; value: string }> = [
     { label: 'Ad Soyad', value: `${customer.first_name} ${customer.last_name}` },
@@ -44,60 +36,44 @@ export default async function AccountPage() {
 
   return (
     <div className="mx-auto w-full max-w-content px-4 py-8 sm:px-6 sm:py-12">
-      <h1 className="font-display text-3xl font-bold">Hesabım</h1>
+      <h1 className="font-display text-h1 font-semibold text-heading">Hesabım</h1>
 
       <AccountNav active="profil" />
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <ShortcutCard
           href="/siparislerim"
-          icon={<ReceiptText aria-hidden="true" className="size-5" />}
+          icon={<ReceiptText strokeWidth={1.75} aria-hidden="true" className="size-5" />}
           title="Siparişlerim"
           detail="Geçmiş ve devam eden siparişler"
         />
 
         <ShortcutCard
-          href="/hesabim/cari"
-          icon={<Wallet aria-hidden="true" className="size-5" />}
-          title="Cari hesabım"
-          detail={
-            balance === null
-              ? 'Bakiye ve ekstre'
-              : balance > 0
-                ? `${formatPrice(balance)} borç`
-                : balance < 0
-                  ? `${formatPrice(Math.abs(balance))} alacak`
-                  : 'Borcunuz yok'
-          }
-          highlight={balance !== null && balance > 0}
-        />
-
-        <ShortcutCard
           href="/hesabim/adresler"
-          icon={<MapPin aria-hidden="true" className="size-5" />}
+          icon={<MapPin strokeWidth={1.75} aria-hidden="true" className="size-5" />}
           title="Adreslerim"
           detail="Kayıtlı teslimat adresleri"
         />
 
         <ShortcutCard
           href="/hesabim/abonelikler"
-          icon={<Repeat aria-hidden="true" className="size-5" />}
+          icon={<Repeat strokeWidth={1.75} aria-hidden="true" className="size-5" />}
           title="Aboneliklerim"
           detail="Düzenli öğün planınız"
         />
       </div>
 
-      <section className="mt-8 rounded-xl border bg-card p-5 shadow-sm sm:p-6">
-        <h2 className="text-lg font-semibold">Profil bilgileri</h2>
+      <section className="mt-8 bld-card p-5 sm:p-6">
+        <h2 className="font-display text-h3 font-semibold text-heading">Profil bilgileri</h2>
         <dl className="mt-4 divide-y">
           {rows.map((row) => (
-            <div key={row.label} className="flex flex-wrap justify-between gap-2 py-3 text-sm">
+            <div key={row.label} className="flex flex-wrap justify-between gap-2 py-3 text-body">
               <dt className="text-muted-foreground">{row.label}</dt>
               <dd className="font-medium">{row.value}</dd>
             </div>
           ))}
         </dl>
-        <p className="mt-3 text-xs text-muted-foreground">
+        <p className="mt-3 text-caption text-muted-foreground">
           Firma unvanı, vergi bilgisi veya iletişim bilgilerinizi güncellemek için bizimle iletişime
           geçin.
         </p>
@@ -115,29 +91,30 @@ function ShortcutCard({
   icon,
   title,
   detail,
-  highlight = false,
 }: {
   href: string;
   icon: React.ReactNode;
   title: string;
   detail: string;
-  highlight?: boolean;
 }) {
   return (
     <Link
       href={href}
-      className={`group flex items-start gap-3 rounded-xl border p-4 transition-colors hover:bg-muted ${
-        highlight ? 'border-danger/40 bg-danger/5' : 'bg-card'
-      }`}
+      /*
+       * Konteynerde `scale` yok: hareket dili yükseltmeyi `translateY(-2px)` +
+       * bir gölge adımı olarak tanımlıyor. Süre `base` (giriş), çıkış `fast`.
+       */
+      className="group flex items-start gap-3 bld-card p-4 transition-[box-shadow,translate] duration-(--duration-base) ease-(--ease-out-soft) hover:shadow-raised motion-safe:hover:-translate-y-0.5"
     >
-      <span className="mt-0.5 text-primary">{icon}</span>
+      <span className="mt-0.5 text-primary-text">{icon}</span>
       <span className="flex-1">
-        <span className="block font-medium">{title}</span>
-        <span className="mt-0.5 block text-sm text-muted-foreground tabular-nums">{detail}</span>
+        <span className="block text-title font-medium">{title}</span>
+        <span className="mt-0.5 block text-body-sm text-muted-foreground">{detail}</span>
       </span>
       <ArrowRight
+        strokeWidth={1.75}
         aria-hidden="true"
-        className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+        className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform duration-(--duration-base) ease-(--ease-out-soft) group-hover:translate-x-0.5"
       />
     </Link>
   );

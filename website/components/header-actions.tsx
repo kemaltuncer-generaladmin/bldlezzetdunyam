@@ -100,7 +100,7 @@ export function HeaderActions({ labels }: { labels: HeaderActionLabels }) {
         href="/sepet"
         className="relative flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-muted sm:px-3"
       >
-        <ShoppingCart aria-hidden="true" className="size-5" />
+        <ShoppingCart strokeWidth={1.75} aria-hidden="true" className="size-5" />
         <span className="hidden sm:inline">{labels.cart}</span>
         {cartCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground sm:static sm:h-5">

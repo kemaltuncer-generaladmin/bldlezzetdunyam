@@ -24,13 +24,34 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     display: 'browser',
     lang: 'tr',
     dir: 'ltr',
-    // Adres çubuğu rengi sayfa zemininin açık tema değeriyle aynı
-    // (`--background`); layout'taki `themeColor` ile tutarlı.
-    background_color: '#fafaf9',
-    theme_color: '#fafaf9',
+    // Adres çubuğu ve açılış zemini: açık temanın `--background` değeri
+    // (neutral50). `app/layout.tsx` içindeki `themeColor` ile aynı.
+    background_color: '#FAF6F0',
+    theme_color: '#FAF6F0',
+    /*
+     * `purpose` AYRIMI ZORUNLU.
+     *
+     * Android adaptive icon, verilen görseli cihaz temasının maskesiyle
+     * (daire, squircle, teardrop…) KIRPAR. Tek bir "any" ikon verirsek
+     * Android onu maskable sanmaz, kırpmaz ve simgeyi beyaz bir kutunun
+     * içine yerleştirir — yanında duran uygulamalardan farklı görünür.
+     * Maskable sürümde amblem kanvasın %60'ında kalıyor, yani en agresif
+     * maske bile amblemi kesmiyor.
+     *
+     * SVG maskable olarak verilemez (Android yalnızca raster kabul ediyor),
+     * bu yüzden PNG'ler `public/` altında duruyor.
+     */
     icons: [
-      { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml' },
-      { src: '/apple-icon', sizes: '180x180', type: 'image/png' },
+      { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+      { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      {
+        src: '/icon-512-maskable.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
+      },
+      { src: '/apple-icon', sizes: '180x180', type: 'image/png', purpose: 'any' },
     ],
   };
 }

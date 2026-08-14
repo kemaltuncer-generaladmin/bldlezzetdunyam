@@ -78,6 +78,13 @@ class KitchenManagedSettings {
     this.alarmRepeatSeconds,
     this.alarmMaxRepeats,
     this.touchMode,
+    this.allowSettings,
+    this.allowServerChange,
+    this.allowWindowControls,
+    this.allowOrderEdit,
+    this.allowManualReprint,
+    this.allowSalesControl,
+    this.lockMessage,
   });
 
   static const KitchenManagedSettings empty = KitchenManagedSettings();
@@ -106,6 +113,38 @@ class KitchenManagedSettings {
   /// Dokunmatik kip — yönetici uzaktan açabilsin diye burada (K-10).
   final bool? touchMode;
 
+  // ── Kilit politikası (K-21 §2.2) ────────────────────────────────────────
+  //
+  // Hepsi nullable ve `null` = "yönetici dokunmadı" = kasanın bugünkü
+  // davranışı, yani SERBEST. `false` gerçek bir değerdir ve kilitler.
+  // Bu ayrım olmasaydı alanın eklenmesi tüm kasaları kilitlerdi.
+
+  /// Ayarlar ekranı açılabilir mi?
+  final bool? allowSettings;
+
+  /// Sunucu adresi değişimi + cihaz eşlemesi sıfırlama serbest mi?
+  final bool? allowServerChange;
+
+  /// Tam ekrandan çıkma / küçültme serbest mi?
+  final bool? allowWindowControls;
+
+  /// Kasadan sipariş düzenleme (revizyon) serbest mi?
+  final bool? allowOrderEdit;
+
+  /// Elle fiş yeniden basma serbest mi?
+  final bool? allowManualReprint;
+
+  /// Satış şalteri + "bugün tükendi" serbest mi?
+  final bool? allowSalesControl;
+
+  /// Kilitli eyleme basınca gösterilecek metin.
+  ///
+  /// `audio_sink` ile aynı istisna: BOŞ DİZE gerçek bir değerdir ve
+  /// "özel metin yok, genel metne dön" demektir. `null` "dokunmadı"
+  /// anlamına ayrılmış olduğundan, yöneticinin yazdığı cümleyi geri
+  /// almasının başka yolu yoktur.
+  final String? lockMessage;
+
   bool get isEmpty =>
       pollSeconds == null &&
       soundEnabled == null &&
@@ -122,7 +161,14 @@ class KitchenManagedSettings {
       ttsRatePercent == null &&
       alarmRepeatSeconds == null &&
       alarmMaxRepeats == null &&
-      touchMode == null;
+      touchMode == null &&
+      allowSettings == null &&
+      allowServerChange == null &&
+      allowWindowControls == null &&
+      allowOrderEdit == null &&
+      allowManualReprint == null &&
+      allowSalesControl == null &&
+      lockMessage == null;
 
   factory KitchenManagedSettings.fromJson(Map<String, Object?> json) =>
       KitchenManagedSettings(
@@ -136,13 +182,27 @@ class KitchenManagedSettings {
         connectionAlarmSeconds: _asIntOrNull(json['connection_alarm_seconds']),
         alarmSilenceable: _asBoolOrNull(json['alarm_silenceable']),
         volumePercent: _asIntOrNull(json['volume_percent']),
-        audioSink: _asStringOrNull(json['audio_sink']),
+        // DAVRANIŞ DEĞİŞİKLİĞİ DEĞİL: sözleşme ve `managed_settings.dart`
+        // başlığı baştan beri "boş dize = varsayılan çıkışa dön" diyordu,
+        // ama burada `_asStringOrNull` boş dizeyi `null`'a çeviriyor ve
+        // `null` "yönetici dokunmadı" demek olduğu için o emir tele hiç
+        // çıkmıyordu. Vaat edilen davranış nihayet gerçekleşiyor.
+        audioSink: _asTextOrNull(json['audio_sink']),
         ttsEnabled: _asBoolOrNull(json['tts_enabled']),
         ttsRatePercent: _asIntOrNull(json['tts_rate_percent']),
         alarmRepeatSeconds: _asIntOrNull(json['alarm_repeat_seconds']),
         alarmMaxRepeats: _asIntOrNull(json['alarm_max_repeats']),
         touchMode: _asBoolOrNull(json['touch_mode']),
+        allowSettings: _asBoolOrNull(json['allow_settings']),
+        allowServerChange: _asBoolOrNull(json['allow_server_change']),
+        allowWindowControls: _asBoolOrNull(json['allow_window_controls']),
+        allowOrderEdit: _asBoolOrNull(json['allow_order_edit']),
+        allowManualReprint: _asBoolOrNull(json['allow_manual_reprint']),
+        allowSalesControl: _asBoolOrNull(json['allow_sales_control']),
+        lockMessage: _asTextOrNull(json['lock_message']),
       );
+  // Bilinmeyen anahtarlar okunmaz ve hata da vermez: sözleşme EKLEMELİ,
+  // sunucu kasadan yeni sürümde olabilir (`docs/03` §1.4).
 
   @override
   bool operator ==(Object other) =>
@@ -162,10 +222,19 @@ class KitchenManagedSettings {
       other.ttsRatePercent == ttsRatePercent &&
       other.alarmRepeatSeconds == alarmRepeatSeconds &&
       other.alarmMaxRepeats == alarmMaxRepeats &&
-      other.touchMode == touchMode;
+      other.touchMode == touchMode &&
+      other.allowSettings == allowSettings &&
+      other.allowServerChange == allowServerChange &&
+      other.allowWindowControls == allowWindowControls &&
+      other.allowOrderEdit == allowOrderEdit &&
+      other.allowManualReprint == allowManualReprint &&
+      other.allowSalesControl == allowSalesControl &&
+      other.lockMessage == lockMessage;
 
+  // `Object.hash` en fazla 20 bağımsız değişken alıyor; sözleşmedeki 23
+  // anahtar buna sığmıyor, bu yüzden `hashAll`.
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll(<Object?>[
     pollSeconds,
     soundEnabled,
     warningAfterMinutes,
@@ -182,7 +251,14 @@ class KitchenManagedSettings {
     alarmRepeatSeconds,
     alarmMaxRepeats,
     touchMode,
-  );
+    allowSettings,
+    allowServerChange,
+    allowWindowControls,
+    allowOrderEdit,
+    allowManualReprint,
+    allowSalesControl,
+    lockMessage,
+  ]);
 }
 
 /// Sunucudan gelen tek seferlik komut.
@@ -250,6 +326,19 @@ String? _asStringOrNull(Object? v) {
   final trimmed = v.trim();
   return trimmed.isEmpty ? null : trimmed;
 }
+
+/// BOŞ DİZEYİ KORUYAN dize okuyucu.
+///
+/// [_asStringOrNull] boş dizeyi `null`'a çeviriyor ve `null` bu modelde
+/// "yönetici dokunmadı" demek. Boş dizenin kendisi bir emir olduğu
+/// alanlarda — `audio_sink` ("varsayılan çıkışa dön") ve `lock_message`
+/// ("özel metni kaldır") — o çevrim emri yutar ve yönetici seçimini geri
+/// alamaz. Anahtar hiç gelmediğinde değer `null` kalır, yani "dokunulmadı"
+/// ayrımı bozulmaz.
+///
+/// `printer_device_path` bilerek [_asStringOrNull] kullanmaya devam ediyor:
+/// orada boş dize bir emir değil, bozuk bir değerdir.
+String? _asTextOrNull(Object? v) => v is String ? v.trim() : null;
 
 int _asInt(Object? v) => _asIntOrNull(v) ?? 0;
 

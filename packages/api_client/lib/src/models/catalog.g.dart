@@ -48,6 +48,8 @@ _Location _$LocationFromJson(Map<String, dynamic> json) => _Location(
   orderingResumesAt: json['ordering_resumes_at'] == null
       ? null
       : DateTime.parse(json['ordering_resumes_at'] as String),
+  dailyMenuEnabled: json['daily_menu_enabled'] as bool? ?? false,
+  maxLookaheadDays: (json['max_lookahead_days'] as num?)?.toInt() ?? 30,
   minOrderTotal: (json['min_order_total'] as num).toInt(),
   paymentMethods: (json['payment_methods'] as List<dynamic>)
       .map((e) => const PaymentMethodConverter().fromJson(e as String))
@@ -66,6 +68,8 @@ Map<String, dynamic> _$LocationToJson(_Location instance) => <String, dynamic>{
   'ordering_enabled': instance.orderingEnabled,
   'ordering_pause_reason': ?instance.orderingPauseReason,
   'ordering_resumes_at': ?instance.orderingResumesAt?.toIso8601String(),
+  'daily_menu_enabled': instance.dailyMenuEnabled,
+  'max_lookahead_days': instance.maxLookaheadDays,
   'min_order_total': instance.minOrderTotal,
   'payment_methods': instance.paymentMethods
       .map(const PaymentMethodConverter().toJson)

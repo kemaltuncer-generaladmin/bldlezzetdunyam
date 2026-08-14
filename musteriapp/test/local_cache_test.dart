@@ -114,6 +114,130 @@ void main() {
     });
   });
 
+  group('LocalCache — sepet şema sürümü', () {
+    test('yazılan sepet geri okunur', () async {
+      await cache.writeCart({'locationId': 1, 'serviceDate': '2026-08-20'});
+
+      expect(cache.readCart(), {'locationId': 1, 'serviceDate': '2026-08-20'});
+    });
+
+    test('SÜRÜMSÜZ eski sepet okunmaz ve SİLİNİR', () async {
+      // B-19 öncesi sepet doğrudan `Cart` JSON'uydu ve servis günü yoktu.
+      // Ona bugünün tarihini yazarak göç ettirmek, dünkü menüden doldurulmuş
+      // bir sepeti sessizce bugüne bağlamak olurdu.
+      await prefs.setString(
+        'bld.cart',
+        '{"lines":[],"locationId":1}',
+      );
+
+      expect(cache.readCart(), isNull);
+      // Silme beklenmiyor (`unawaited`); mikro görev kuyruğunun dönmesi için
+      // bir kere await ediliyor.
+      await Future<void>.delayed(Duration.zero);
+      expect(prefs.getString('bld.cart'), isNull);
+    });
+
+    test('BAŞKA bir sürümden kalan sepet de okunmaz', () async {
+      await prefs.setString(
+        'bld.cart',
+        '{"v":${LocalCache.cartSchemaVersion + 1},"cart":{"locationId":9}}',
+      );
+
+      expect(cache.readCart(), isNull);
+    });
+
+    test('null yazmak kaydı siler', () async {
+      await cache.writeCart({'locationId': 1});
+      await cache.writeCart(null);
+
+      expect(cache.readCart(), isNull);
+    });
+  });
+
+  group('LocalCache — günün menüsü', () {
+    DailyMenu menu(String date) => DailyMenu(
+      id: 7,
+      date: date,
+      currency: 'TRY',
+      closed: false,
+      isOrderable: true,
+      title: 'Ev Yemeği Menüsü',
+      items: const [
+        MenuItem(
+          id: 101,
+          name: 'Mercimek Çorbası',
+          price: 6000,
+          currency: 'TRY',
+          isAvailable: true,
+        ),
+      ],
+    );
+
+    test('gün başına ayrı kayıt tutulur', () async {
+      await cache.writeDailyMenu(1, menu('2999-08-20'));
+      await cache.writeDailyMenu(1, menu('2999-08-21'));
+
+      // Gün şeridinde ileri geri gezinen kullanıcı çevrimdışı kalırsa
+      // gezdiği günlerin hepsi elinde kalmalı.
+      expect(cache.readDailyMenu(1, '2999-08-20')?.title, 'Ev Yemeği Menüsü');
+      expect(cache.readDailyMenu(1, '2999-08-21')?.date, '2999-08-21');
+    });
+
+    test('başka vitrinin menüsü döndürülmez', () async {
+      await cache.writeDailyMenu(1, menu('2999-08-20'));
+
+      expect(cache.readDailyMenu(2, '2999-08-20'), isNull);
+    });
+
+    test('GEÇMİŞ günler yazma sırasında budanır', () async {
+      // Geçmişe sipariş verilemiyor; o kayıtlar bir daha okunmayacak.
+      await prefs.setString('bld.cache.gunun-menusu.1.2000-01-01', '{}');
+      await cache.writeDailyMenu(1, menu('2999-08-20'));
+
+      expect(prefs.getString('bld.cache.gunun-menusu.1.2000-01-01'), isNull);
+      expect(cache.readDailyMenu(1, '2999-08-20'), isNotNull);
+    });
+
+    test('bozuk kayıt null üretir', () async {
+      await prefs.setString('bld.cache.gunun-menusu.1.2999-08-20', 'null');
+
+      expect(cache.readDailyMenu(1, '2999-08-20'), isNull);
+    });
+  });
+
+  group('LocalCache — menü takvimi', () {
+    const days = [
+      MenuCalendarDay(
+        date: '2000-01-01',
+        hasMenu: true,
+        closed: false,
+        isOrderable: false,
+      ),
+      MenuCalendarDay(
+        date: '2999-08-20',
+        hasMenu: true,
+        closed: false,
+        isOrderable: true,
+      ),
+    ];
+
+    test('geçmiş günler OKUMA sırasında ayıklanır', () async {
+      await cache.writeMenuCalendar(1, days);
+
+      // Kayıt dün yazılmış olabilir; içindeki "dün" bugün artık
+      // seçilebilir bir gün değil.
+      final restored = cache.readMenuCalendar(1, today: '2026-08-20');
+      expect(restored, hasLength(1));
+      expect(restored!.single.date, '2999-08-20');
+    });
+
+    test('başka vitrinin takvimi döndürülmez', () async {
+      await cache.writeMenuCalendar(1, days);
+
+      expect(cache.readMenuCalendar(2, today: '2026-08-20'), isNull);
+    });
+  });
+
   group('SharedPreferencesTokenStore', () {
     test('yaz, oku, sil', () async {
       final store = SharedPreferencesTokenStore(prefs);

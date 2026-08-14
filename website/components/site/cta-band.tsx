@@ -27,7 +27,7 @@ export async function CtaBand({
   return (
     <section aria-labelledby="teklif-cagrisi" className="bg-background">
       <div className="mx-auto max-w-content px-4 pb-16 sm:px-6 sm:pb-24">
-        <div className="relative overflow-hidden rounded-3xl bg-charcoal px-6 py-14 text-cream sm:px-12">
+        <div className="relative overflow-hidden rounded-lg bg-neutral-950 px-6 py-14 text-neutral-50 sm:px-12">
           {/* Dekoratif sıcaklık lekesi — metnin okunurluğunu etkilemeyecek opaklıkta. */}
           <div
             aria-hidden="true"
@@ -37,17 +37,21 @@ export async function CtaBand({
           <div className="relative max-w-2xl">
             <h2
               id="teklif-cagrisi"
-              className="font-display text-3xl font-semibold tracking-tight sm:text-4xl"
+              className="font-display text-h2 font-semibold tracking-tight text-balance sm:text-h1"
             >
               {title}
             </h2>
-            <p className="mt-4 text-base/7 text-cream/75">{description}</p>
+            <p className="mt-4 text-body-lg text-pretty text-neutral-50/75">{description}</p>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <Button asChild size="lg" className="bg-brand-500 text-charcoal hover:bg-brand-400">
+              <Button
+                asChild
+                size="lg"
+                className="bg-brand-300 text-neutral-950 hover:bg-brand-200"
+              >
                 <Link href={PRIMARY_CTA.href}>
                   {PRIMARY_CTA.label}
-                  <ArrowRight aria-hidden="true" />
+                  <ArrowRight aria-hidden="true" strokeWidth={1.75} />
                 </Link>
               </Button>
 
@@ -56,10 +60,10 @@ export async function CtaBand({
                   asChild
                   size="lg"
                   variant="outline"
-                  className="border-cream/30 bg-transparent text-cream hover:bg-cream/10 hover:text-cream"
+                  className="border-neutral-50/40 bg-transparent text-neutral-50 hover:bg-neutral-50/10 hover:text-neutral-50"
                 >
                   <a href={contact.phone.href}>
-                    <Phone aria-hidden="true" />
+                    <Phone aria-hidden="true" strokeWidth={1.75} />
                     {contact.phone.display}
                   </a>
                 </Button>
@@ -70,10 +74,10 @@ export async function CtaBand({
                   asChild
                   size="lg"
                   variant="outline"
-                  className="border-cream/30 bg-transparent text-cream hover:bg-cream/10 hover:text-cream"
+                  className="border-neutral-50/40 bg-transparent text-neutral-50 hover:bg-neutral-50/10 hover:text-neutral-50"
                 >
                   <a href={contact.whatsapp.href}>
-                    <MessageCircle aria-hidden="true" />
+                    <MessageCircle aria-hidden="true" strokeWidth={1.75} />
                     WhatsApp
                   </a>
                 </Button>

@@ -74,6 +74,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get errorUnknown => 'Beklenmeyen bir hata oluştu.';
 
   @override
+  String get errorTitle => 'Bir şeyler ters gitti';
+
+  @override
   String get splashChecking => 'Bağlanılıyor…';
 
   @override
@@ -177,18 +180,6 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get navAccount => 'Hesabım';
-
-  @override
-  String get menuTitle => 'Menü';
-
-  @override
-  String get menuSearchHint => 'Ürün ara';
-
-  @override
-  String get menuSearchEmpty => 'Aramanıza uygun ürün yok.';
-
-  @override
-  String get menuEmpty => 'Menü şu anda boş.';
 
   @override
   String get menuItemUnavailable => 'Satışta değil';
@@ -364,9 +355,6 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get checkoutRequestedAtAsap => 'En kısa sürede';
-
-  @override
-  String get checkoutPickDateTime => 'Zaman seç';
 
   @override
   String get checkoutClearRequestedAt => 'Temizle';
@@ -670,12 +658,6 @@ class AppLocalizationsTr extends AppLocalizations {
   String get homeGreeting => 'Bugün ne yesek?';
 
   @override
-  String get homeCategories => 'Kategoriler';
-
-  @override
-  String get homeFeatured => 'Bugün öne çıkanlar';
-
-  @override
   String get homeSeeAll => 'Tümünü gör';
 
   @override
@@ -741,9 +723,6 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get accountSubscriptions => 'Aboneliklerim';
-
-  @override
-  String get accountStatementShortcut => 'Cari hesabım';
 
   @override
   String get accountCompanyLabel => 'Firma';
@@ -905,47 +884,131 @@ class AppLocalizationsTr extends AppLocalizations {
   String get daySun => 'Paz';
 
   @override
-  String get accountStatementTitle => 'Cari hesabım';
-
-  @override
-  String get accountBalanceLabel => 'Güncel bakiye';
-
-  @override
-  String get accountBalanceDebtNote => 'Ödenmemiş bakiye';
-
-  @override
-  String get accountBalanceCreditNote => 'Lehinize bakiye';
-
-  @override
-  String get accountBalanceZeroNote => 'Bakiye sıfır';
-
-  @override
-  String get accountStatementEmpty => 'Bu aralıkta hareket yok.';
-
-  @override
-  String get accountStatementEntries => 'Hareketler';
-
-  @override
-  String get accountDebit => 'Borç';
-
-  @override
-  String get accountCredit => 'Alacak';
-
-  @override
-  String get accountSourceOrder => 'Sipariş';
-
-  @override
-  String get accountSourceSubscription => 'Abonelik';
-
-  @override
-  String get accountSourcePayment => 'Tahsilat';
-
-  @override
-  String get accountSourceManual => 'Elle giriş';
-
-  @override
-  String get accountSourceAdjustment => 'Düzeltme';
-
-  @override
   String get productSoldOutToday => 'Bugünlük tükendi';
+
+  @override
+  String get commonIncrease => 'Bir artır';
+
+  @override
+  String get commonDecrease => 'Bir azalt';
+
+  @override
+  String get dayToday => 'Bugün';
+
+  @override
+  String get dayTomorrow => 'Yarın';
+
+  @override
+  String get dailyMenuTitle => 'Günün menüsü';
+
+  @override
+  String get dailyMenuCalendarOpen => 'Takvimden gün seç';
+
+  @override
+  String get dailyMenuCalendarTitle => 'Gün seçin';
+
+  @override
+  String get dailyMenuLegendHasMenu => 'Menü var';
+
+  @override
+  String get dailyMenuLegendClosed => 'Kapalı';
+
+  @override
+  String get dailyMenuClosedDays => 'Kapalı günler';
+
+  @override
+  String get dailyMenuClosedTitle => 'Bu gün kapalıyız';
+
+  @override
+  String get dailyMenuClosedBody =>
+      'Başka bir gün seçerek menüleri inceleyebilirsiniz.';
+
+  @override
+  String get dailyMenuMissingTitle => 'Bu güne menü girilmedi';
+
+  @override
+  String get dailyMenuMissingBody =>
+      'Menü hazırlandığında burada görünecek. Takvimden başka bir güne bakabilirsiniz.';
+
+  @override
+  String get dailyMenuNotOrderable => 'Bu güne şu anda sipariş verilemiyor.';
+
+  @override
+  String get dailyMenuPackageBadge => 'Günün menüsü';
+
+  @override
+  String get dailyMenuPackageIncludes => 'Menüde neler var';
+
+  @override
+  String get dailyMenuPackageAdd => 'Menüyü sepete ekle';
+
+  @override
+  String get dailyMenuPackageSoldOut => 'Bugünün menüsü tükendi.';
+
+  @override
+  String dailyMenuSaving(String amount) {
+    return '$amount avantajlı';
+  }
+
+  @override
+  String get dailyMenuItemsSection => 'Tek tek almak isterseniz';
+
+  @override
+  String get dailyMenuOffline =>
+      'Bu menü cihazınızdaki kopyadan gösteriliyor; sipariş vermek için bağlantı gerekir.';
+
+  @override
+  String dailyMenuItemMissing(String date) {
+    return 'Bu yemek $date menüsünde yer almıyor.';
+  }
+
+  @override
+  String dailyMenuOfDay(String date) {
+    return '$date menüsü';
+  }
+
+  @override
+  String cartServiceDate(String date) {
+    return '$date menüsü';
+  }
+
+  @override
+  String cartDayChanged(String date) {
+    return 'Sepetiniz $date gününe taşındı. Önceki güne eklediğiniz ürünler kaldırıldı.';
+  }
+
+  @override
+  String get cartDayInvalidTitle => 'Sepet bu haliyle gönderilemiyor';
+
+  @override
+  String get cartDayMissing =>
+      'Sepetinizin hangi güne ait olduğu belirlenemedi. Sepeti boşaltıp yeniden seçim yapın.';
+
+  @override
+  String cartDayPast(String date) {
+    return 'Sepetiniz $date gününe ait ve o gün geçti. Sepeti boşaltıp yeniden seçim yapın.';
+  }
+
+  @override
+  String get checkoutServiceDateToday =>
+      'Bugünün menüsü için sipariş veriyorsunuz.';
+
+  @override
+  String checkoutServiceDateFuture(String date) {
+    return '$date menüsü için sipariş veriyorsunuz.';
+  }
+
+  @override
+  String get checkoutPickTime => 'Saat seç';
+
+  @override
+  String ordersServiceDate(String date) {
+    return '$date menüsü';
+  }
+
+  @override
+  String get trackingServiceDate => 'Servis günü';
+
+  @override
+  String get homeTodaysMenu => 'Bugünün menüsü';
 }

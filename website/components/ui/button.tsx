@@ -4,45 +4,79 @@ import { Slot } from 'radix-ui';
 
 import { cn } from '@/lib/utils';
 
+/**
+ * Buton hiyerarşisi TAM BEŞ basamaktır ve bu liste kapalıdır:
+ *
+ * | variant       | rol     | görünüm                                   |
+ * |---------------|---------|-------------------------------------------|
+ * | `default`     | Primary | brand700 dolgu + beyaz yazı               |
+ * | `secondary`   | Tonal   | brand50 dolgu + brand800 yazı             |
+ * | `outline`     | Outline | şeffaf + İŞLEVSEL kenarlık (neutral400)   |
+ * | `ghost`       | Ghost   | şeffaf + brand700 yazı                    |
+ * | `link`        | Link    | altı çizili metin                         |
+ *
+ * `destructive` altıncı bir basamak DEĞİL, Primary'nin yıkıcı eşleniğidir:
+ * yalnızca onay diyaloğunda kullanılır. Yerinde yıkıcı eylem (satır silme
+ * gibi) `ghost` + `text-danger` ile yazılır — dolu kırmızı bir buton listede
+ * göze primary'den daha çok batıyor ve yanlışlıkla tıklanıyor.
+ *
+ * **Görünüm başına TEK primary.** İkinci eylem `secondary`ye düşer.
+ *
+ * ## Odak halkası
+ *
+ * Her iki temada 2px halka + 2px offset, offset rengi zemin. shadcn'in
+ * varsayılanı `ring-3 ring-ring/50` idi: yarı saydam ve offsetsiz olduğu için
+ * halka butonun kendi dolgusuna karışıyordu ve koyu temada neredeyse
+ * görünmüyordu. Hover ile odak birlikte çizilmez — `focus-visible` sırasında
+ * renk değişimi yok, yalnızca halka.
+ *
+ * ## Dokunma hedefi
+ *
+ * `default` 44 px (docs/06 §5 alt sınırı). `sm` ve `xs` bunun ALTINDA kalır ve
+ * yalnızca dokunma hedefi olmayan yerlerde (kart içi metin bağlantısı, rozet
+ * yanı) kullanılır.
+ */
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 cursor-pointer items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  [
+    'group/button inline-flex shrink-0 cursor-pointer items-center justify-center gap-2',
+    'rounded-sm border border-transparent bg-clip-padding font-semibold whitespace-nowrap select-none',
+    'transition-colors duration-(--duration-fast) ease-(--ease-out-soft) outline-none',
+    'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+    // Devre dışı buton tıklanamaz ama imleç ve ton bunu SÖYLER. `opacity-50`
+    // yerine gerçek sessiz yüzey: yarı saydam bir buton, altındaki zemine
+    // göre her ekranda başka bir renk oluyordu.
+    'disabled:pointer-events-none disabled:border-transparent disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none',
+    'aria-invalid:ring-2 aria-invalid:ring-danger',
+    "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-5",
+  ],
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/80',
+        default: 'bg-primary text-primary-foreground hover:bg-primary-hover',
+        secondary: 'bg-secondary text-secondary-foreground hover:bg-brand-100 dark:hover:bg-accent',
         outline:
-          'border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50',
-        secondary:
-          'bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground',
-        ghost:
-          'hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50',
-        destructive:
-          'bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40',
-        link: 'text-primary underline-offset-4 hover:underline',
+          'border-input bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground',
+        ghost: 'bg-transparent text-primary-text hover:bg-accent hover:text-accent-foreground',
+        link: 'text-link underline underline-offset-4 hover:no-underline',
+        // Koyu temada `--destructive` açık bir dolgu (danger300); hover ADIMI
+        // bu yüzden ters yönde çalışır — açık temada koyulaşır, koyu temada
+        // açılır. Palette danger200 olmadığı için koyu tema adımı karışımla
+        // üretiliyor.
+        destructive: [
+          'bg-destructive text-destructive-foreground hover:bg-danger-700',
+          'dark:hover:bg-[color-mix(in_oklch,var(--destructive),white_14%)]',
+        ].join(' '),
       },
-      /*
-       * Boyutlar üst kaynaktan büyütüldü.
-       *
-       * shadcn'in varsayılanı `h-8` (32 px) — yoğun masaüstü arayüzleri için
-       * tasarlanmış. Bizim trafiğimiz mobil ağırlıklı ve docs/06 §5 dokunma
-       * hedefini en az 44 px olarak bağlıyor; 32 px'lik bir "Teklif Al"
-       * butonu parmakla ıskalanır.
-       *
-       * `sm` ve `xs` 44 px'in altında kaldı: bunlar yalnızca dokunma hedefi
-       * olmayan yerlerde (kart içi metin bağlantısı, rozet yanı) kullanılır.
-       */
       size: {
-        default:
-          'h-11 gap-2 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3',
-        xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-9 gap-1.5 rounded-[min(var(--radius-md),12px)] px-3 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 [&_svg:not([class*='size-'])]:size-3.5",
-        lg: 'h-12 gap-2 px-6 text-base has-data-[icon=inline-end]:pr-5 has-data-[icon=inline-start]:pl-5',
+        default: 'h-11 px-4 text-label',
+        // 44 px ALTINDA — yalnız dokunmayla kullanılmayan yerlerde.
+        xs: "h-7 gap-1 rounded-xs px-2 text-caption [&_svg:not([class*='size-'])]:size-4",
+        sm: "h-9 gap-1.5 px-3 text-body-sm [&_svg:not([class*='size-'])]:size-4",
+        lg: 'h-12 px-6 text-body',
         icon: 'size-11',
-        'icon-xs':
-          "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
-        'icon-sm':
-          'size-9 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg',
-        'icon-lg': 'size-12',
+        'icon-xs': "size-7 rounded-xs [&_svg:not([class*='size-'])]:size-4",
+        'icon-sm': "size-9 [&_svg:not([class*='size-'])]:size-4",
+        'icon-lg': "size-12 [&_svg:not([class*='size-'])]:size-6",
       },
     },
     defaultVariants: {
@@ -52,16 +86,47 @@ const buttonVariants = cva(
   },
 );
 
+/**
+ * ## `disabledReason` TİP DÜZEYİNDE ZORUNLU
+ *
+ * Marka kılavuzunun kuralı: *"Devre dışı buton HER ZAMAN bir sebep metniyle
+ * birlikte."* Kapalı bir buton, sebebi söylenmediğinde kullanıcı için bozuk
+ * bir butondur — deniyor, tepki alamıyor, neden olmadığını bilmiyor. Bu, bir
+ * inceleme sırasında yakalanacak bir şey değil: gözden kaçması çok kolay ve
+ * kaçtığında kimse fark etmiyor.
+ *
+ * Bu yüzden kural yoruma değil TİPE yazıldı. Ayrık birleşim şöyle okunur:
+ *
+ * * `disabled` hiç geçilmemişse ya da statik `false` ise → sebep YASAK
+ *   (`never`); kapalı olmayan bir butonun sebebi olmaz.
+ * * `disabled` çalışma anında hesaplanan bir `boolean` ise (`disabled={pending}`
+ *   gibi) → sebep ZORUNLU. Derleyici kapalı olabilecek her butonda metni
+ *   ister.
+ *
+ * Metnin KENDİSİ hâlâ görünür olmalı: kapalı bir öğe odak almadığı için
+ * `aria-describedby` işe yaramaz — ekran okuyucu açıklamayı okuyacağı ana hiç
+ * varmıyor. Buradaki `title` yalnızca işaretçiyle gelen ikinci yol.
+ */
+type ButtonDisabledProps =
+  | { disabled?: false | undefined; disabledReason?: never }
+  | { disabled: boolean; disabledReason: string };
+
+type ButtonProps = Omit<React.ComponentProps<'button'>, 'disabled'> &
+  VariantProps<typeof buttonVariants> &
+  ButtonDisabledProps & {
+    asChild?: boolean;
+  };
+
 function Button({
   className,
   variant = 'default',
   size = 'default',
   asChild = false,
+  disabled,
+  disabledReason,
+  title,
   ...props
-}: React.ComponentProps<'button'> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean;
-  }) {
+}: ButtonProps) {
   const Comp = asChild ? Slot.Root : 'button';
 
   return (
@@ -69,7 +134,9 @@ function Button({
       data-slot="button"
       data-variant={variant}
       data-size={size}
-      className={cn(buttonVariants({ variant, size, className }))}
+      disabled={disabled}
+      title={disabled && disabledReason ? disabledReason : title}
+      className={cn(buttonVariants({ variant, size }), className)}
       {...props}
     />
   );

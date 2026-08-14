@@ -1035,4 +1035,14 @@ class AppL10nTr extends AppL10n {
 
   @override
   String get actionsTitle => 'İşlemler';
+
+  @override
+  String get lockedMessage => 'Bu işlem Kontrol Merkezi\'nden kilitlendi.';
+
+  @override
+  String get lockedBadge => 'KİLİTLİ';
+
+  @override
+  String get lockedBadgeTooltip =>
+      'Bazı işlemler Kontrol Merkezi\'nden kilitlendi.';
 }

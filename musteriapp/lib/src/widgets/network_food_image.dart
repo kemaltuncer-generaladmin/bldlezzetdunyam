@@ -1,16 +1,20 @@
-/// Yemek görseli sarmalayıcı — sabit oran, yüklenirken/hata placeholder,
-/// isteğe bağlı alt gradyan.
+/// Yemek görseli sarmalayıcı — sabit oran, yer tutucu, fotoğraf iç halkası.
 ///
 /// Ana sayfa, menü ve ürün detayındaki tekrarlı `Image.network + errorBuilder`
-/// bloklarını tek yerde toplar. Görsel gelmezse kart çökmez: sıcak nötr zemin
-/// + tabak ikonu kalır. `overlay` ile alt köşeye fiyat/rozet basılabilsin diye
-/// koyulaşan bir gradyan eklenir.
+/// bloklarını tek yerde toplar.
+///
+/// **Fotoğrafın 1 px iç halkası:** beyaz tabaklı bir yemek fotoğrafı beyaz
+/// kartın içinde eriyor ve kartın kenarı kayboluyordu. Halka sınırı geri
+/// veriyor. Fotoğrafa marka rengi overlay ATILMAZ — yemeğin kendi rengi
+/// ürünün kendisidir; `overlay` yalnız alt köşeye metin basılacaksa açılır ve
+/// o da nötr bir koyulaştırmadır.
 library;
 
 import 'package:bld_design_system/bld_design_system.dart';
 import 'package:flutter/material.dart';
 
-import '../theme/bld_theme.dart';
+import '../theme/bld_semantic_colors.dart';
+import 'wheat_arc.dart';
 
 class NetworkFoodImage extends StatelessWidget {
   const NetworkFoodImage({
@@ -36,61 +40,72 @@ class NetworkFoodImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final borderRadius = BorderRadius.circular(radius);
+
     Widget image = url == null
-        ? _placeholder()
+        ? const WheatArcPlaceholder()
         : Image.network(
             url!,
             width: width,
             height: height,
             fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => _placeholder(),
-            loadingBuilder: (context, child, progress) =>
-                progress == null ? child : _placeholder(loading: true),
+            errorBuilder: (_, _, _) => const WheatArcPlaceholder(),
+            loadingBuilder: (context, child, progress) => progress == null
+                ? child
+                : const WheatArcPlaceholder(loading: true),
           );
 
-    Widget content = ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: overlay
-          ? Stack(
-              fit: StackFit.passthrough,
-              children: [
-                image,
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.center,
-                        colors: [
-                          bldColor(BldColors.neutral900).withValues(alpha: 0.55),
-                          bldColor(BldColors.neutral900).withValues(alpha: 0),
-                        ],
+    Widget content = Stack(
+      fit: StackFit.passthrough,
+      children: [
+        ClipRRect(
+          borderRadius: borderRadius,
+          child: overlay
+              ? Stack(
+                  fit: StackFit.passthrough,
+                  children: [
+                    image,
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.center,
+                            colors: [
+                              const Color(
+                                BldColors.neutral950,
+                              ).withValues(alpha: 0.55),
+                              const Color(
+                                BldColors.neutral950,
+                              ).withValues(alpha: 0),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ],
-            )
-          : image,
+                  ],
+                )
+              : image,
+        ),
+        // Halka görselin ÜSTÜNE çiziliyor (`IgnorePointer` değil, zaten
+        // dokunulmuyor): altına çizilseydi `object-cover` fotoğraf onu
+        // tamamen örterdi.
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: borderRadius,
+                border: Border.all(color: context.bld.photoRing),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
 
     if (width == null && height == null) {
       content = AspectRatio(aspectRatio: aspectRatio, child: content);
     }
     return content;
-  }
-
-  Widget _placeholder({bool loading = false}) {
-    return Container(
-      width: width,
-      height: height,
-      color: bldColor(loading ? BldColors.neutral100 : BldColors.brand50),
-      alignment: Alignment.center,
-      child: Icon(
-        Icons.restaurant_menu,
-        color: bldColor(loading ? BldColors.neutral200 : BldColors.brand200),
-        size: 32,
-      ),
-    );
   }
 }

@@ -20,7 +20,8 @@ MenuItem _item(int id, {bool available = true}) => MenuItem(
   isAvailable: available,
 );
 
-OrderDetail _order(List<int> menuIds) => OrderDetail(
+OrderDetail _order(List<int> menuIds, {List<OrderItem> extra = const []}) =>
+    OrderDetail(
   id: 1,
   orderNumber: 'BLD-1',
   status: OrderStatus.hazirlaniyor,
@@ -33,20 +34,21 @@ OrderDetail _order(List<int> menuIds) => OrderDetail(
         unitPrice: 18500,
         lineTotal: 37000,
       ),
+    ...extra,
   ],
   subtotal: 0,
   deliveryFee: 0,
   total: 0,
   currency: 'TRY',
   deliveryType: DeliveryType.delivery,
-  payment: const Payment(method: PaymentMethod.cash, status: PaymentStatus.pending),
+  payment: const Payment(
+    method: PaymentMethod.cash,
+    status: PaymentStatus.pending,
+  ),
   statusHistory: const [],
   createdAt: DateTime.utc(2026, 8, 7),
 );
 
-List<MenuCategory> _menu(List<MenuItem> items) => [
-  MenuCategory(id: 1, name: 'Ana Yemekler', sort: 1, items: items),
-];
 
 void main() {
   test('menüdeki ürünler sepete adediyle birlikte eklenir', () {
@@ -54,7 +56,7 @@ void main() {
 
     final outcome = reorderInto(
       order: _order([10, 11]),
-      menu: _menu([_item(10), _item(11)]),
+      menuItems: [_item(10), _item(11)],
       addToCart: (item, quantity) => eklenen.add((item.id, quantity)),
     );
 
@@ -72,7 +74,7 @@ void main() {
 
     final outcome = reorderInto(
       order: _order([10, 99]),
-      menu: _menu([_item(10)]),
+      menuItems: [_item(10)],
       addToCart: (item, _) => eklenen.add(item.id),
     );
 
@@ -91,7 +93,7 @@ void main() {
 
     final outcome = reorderInto(
       order: _order([10]),
-      menu: _menu([_item(10, available: false)]),
+      menuItems: [_item(10, available: false)],
       addToCart: (item, _) => eklenen.add(item.id),
     );
 
@@ -106,7 +108,7 @@ void main() {
 
     final outcome = reorderInto(
       order: _order([98, 99]),
-      menu: _menu([_item(10)]),
+      menuItems: [_item(10)],
       addToCart: (_, _) => cagrildi = true,
     );
 
@@ -123,11 +125,51 @@ void main() {
 
     final outcome = reorderInto(
       order: _order([10, 10]),
-      menu: _menu([_item(10)]),
+      menuItems: [_item(10)],
       addToCart: (item, _) => eklenen.add(item.id),
     );
 
     expect(eklenen, [10, 10]);
     expect(outcome.added, 2);
+  });
+
+  test('paketin BİLEŞEN satırları atlanır ve eksik sayılmaz', () {
+    // Menü paketi siparişte FİYATLI bir üst satır + SIFIR FİYATLI bileşen
+    // satırları olarak duruyor. Bileşenler de eklenseydi menü hem paket
+    // olarak hem içindekiler tek tek olarak sepete girer, müşteri iki kat
+    // öderdi. `missing` olarak sayılmaları da yanlış olurdu: eksik olan bir
+    // şey yok, o yemekler zaten paketin içinde.
+    final eklenen = <int>[];
+
+    final outcome = reorderInto(
+      order: _order(
+        const [],
+        extra: const [
+          OrderItem(
+            menuId: 900,
+            name: 'Günün Menüsü',
+            quantity: 1,
+            unitPrice: 18000,
+            lineTotal: 18000,
+            role: 'package',
+          ),
+          OrderItem(
+            menuId: 101,
+            name: 'Mercimek Çorbası',
+            quantity: 1,
+            unitPrice: 0,
+            lineTotal: 0,
+            role: 'component',
+            includedIn: 0,
+          ),
+        ],
+      ),
+      menuItems: [_item(900)],
+      addToCart: (item, _) => eklenen.add(item.id),
+    );
+
+    expect(eklenen, [900], reason: 'Yalnız paketin kendisi eklenmeli.');
+    expect(outcome.added, 1);
+    expect(outcome.missing, 0);
   });
 }

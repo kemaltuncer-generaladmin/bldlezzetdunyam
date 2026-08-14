@@ -1,0 +1,117 @@
+/*
+ * ÜRETİLDİ — ELLE DÜZENLEME
+ *
+ * Bu dosya `packages/design_system/tokens/bld.tokens.json` dosyasından üretildi.
+ * Değişiklik oraya yazılır, sonra:
+ *   dart run packages/design_system/tool/gen_tokens.dart
+ * Buraya elle yazılan her şey bir sonraki üretimde silinir.
+ */
+
+/*
+ * Yönetim paneli (TastyIgniter) yalnız AÇIK temada çalışıyor; koyu rol
+ * tablosu buraya basılmaz. `admin.css` bu değişkenleri Bootstrap'in
+ * `--bs-*` değişkenlerine çevirir — panelin kendi CSS'i düzenlenmez
+ * (AGENTS.md §2.1: `platform/vendor/` dokunulmaz).
+ */
+:root {
+  /* BRAND */
+  --bld-brand-50: #fef2e8;
+  --bld-brand-100: #fde2cc;
+  --bld-brand-200: #fcc7a2;
+  --bld-brand-300: #f7a470;
+  --bld-brand-400: #e8863f;
+  --bld-brand-500: #dd5d02;
+  --bld-brand-600: #c24a02;
+  --bld-brand-700: #a8320a;
+  --bld-brand-800: #941c01;
+  --bld-brand-900: #5f1b08;
+  --bld-brand-950: #3d0e05;
+
+  /* NEUTRAL */
+  --bld-neutral-0: #ffffff;
+  --bld-neutral-50: #faf6f0;
+  --bld-neutral-100: #f2ebe3;
+  --bld-neutral-200: #e5dace;
+  --bld-neutral-300: #d2c3b4;
+  --bld-neutral-400: #a28a78;
+  --bld-neutral-500: #7a5a4a;
+  --bld-neutral-600: #6b4636;
+  --bld-neutral-700: #523527;
+  --bld-neutral-800: #3b2519;
+  --bld-neutral-900: #2a1a12;
+  --bld-neutral-950: #1b120c;
+
+  /* SUCCESS */
+  --bld-success-50: #ecf7eb;
+  --bld-success-400: #6fb268;
+  --bld-success-600: #3e8237;
+  --bld-success-700: #2f6a2a;
+
+  /* WARNING */
+  --bld-warning-50: #faf3e5;
+  --bld-warning-300: #d8b66d;
+  --bld-warning-600: #926800;
+  --bld-warning-700: #785400;
+
+  /* DANGER */
+  --bld-danger-50: #ffeaea;
+  --bld-danger-300: #f08a93;
+  --bld-danger-600: #c12440;
+  --bld-danger-700: #a51c34;
+
+  /* INFO */
+  --bld-info-50: #eaf5ff;
+  --bld-info-300: #8bbff9;
+  --bld-info-600: #2e72b9;
+  --bld-info-700: #215d99;
+
+  /* Çıplak takma adlar — metin adımına işaret eder. */
+  --bld-success: #2f6a2a;
+  --bld-warning: #785400;
+  --bld-danger: #a51c34;
+  --bld-info: #215d99;
+
+  /* Açık tema rolleri. */
+  --bld-role-background: #faf6f0;
+  --bld-role-surface-1: #ffffff;
+  --bld-role-surface-2: #ffffff;
+  --bld-role-foreground: #2a1a12;
+  --bld-role-heading: #5f1b08;
+  --bld-role-muted: #f2ebe3;
+  --bld-role-muted-foreground: #6b4636;
+  --bld-role-placeholder: #7a5a4a;
+  --bld-role-card: #ffffff;
+  --bld-role-card-foreground: #2a1a12;
+  --bld-role-popover: #ffffff;
+  --bld-role-popover-foreground: #2a1a12;
+  --bld-role-primary: #a8320a;
+  --bld-role-primary-foreground: #ffffff;
+  --bld-role-primary-hover: #941c01;
+  --bld-role-primary-text: #a8320a;
+  --bld-role-secondary: #fef2e8;
+  --bld-role-secondary-foreground: #941c01;
+  --bld-role-accent: #fef2e8;
+  --bld-role-accent-foreground: #941c01;
+  --bld-role-surface-warm: #fef2e8;
+  --bld-role-surface-warm-foreground: #2a1a12;
+  --bld-role-border: #e5dace;
+  --bld-role-input: #a28a78;
+  --bld-role-ring: #c24a02;
+  --bld-role-link: #a8320a;
+  --bld-role-destructive: #c12440;
+  --bld-role-destructive-foreground: #ffffff;
+  --bld-role-success: #2f6a2a;
+  --bld-role-success-surface: #ecf7eb;
+  --bld-role-success-foreground: #2f6a2a;
+  --bld-role-warning: #785400;
+  --bld-role-warning-surface: #faf3e5;
+  --bld-role-warning-foreground: #785400;
+  --bld-role-danger: #a51c34;
+  --bld-role-danger-surface: #ffeaea;
+  --bld-role-danger-foreground: #a51c34;
+  --bld-role-info: #215d99;
+  --bld-role-info-surface: #eaf5ff;
+  --bld-role-info-foreground: #215d99;
+  --bld-role-skeleton-base: #f2ebe3;
+  --bld-role-skeleton-sheen: #e5dace;
+}

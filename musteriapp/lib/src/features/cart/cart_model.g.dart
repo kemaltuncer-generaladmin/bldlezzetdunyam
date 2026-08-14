@@ -15,6 +15,14 @@ _CartLine _$CartLineFromJson(Map<String, dynamic> json) => _CartLine(
           .toList() ??
       const <int>[],
   note: json['note'] as String?,
+  packageComponents:
+      (json['packageComponents'] as List<dynamic>?)
+          ?.map(
+            (e) =>
+                DailyMenuPackageComponent.fromJson(e as Map<String, dynamic>),
+          )
+          .toList() ??
+      const <DailyMenuPackageComponent>[],
 );
 
 Map<String, dynamic> _$CartLineToJson(_CartLine instance) => <String, dynamic>{
@@ -22,6 +30,7 @@ Map<String, dynamic> _$CartLineToJson(_CartLine instance) => <String, dynamic>{
   'quantity': instance.quantity,
   'optionValueIds': instance.optionValueIds,
   'note': instance.note,
+  'packageComponents': instance.packageComponents,
 };
 
 _Cart _$CartFromJson(Map<String, dynamic> json) => _Cart(
@@ -31,9 +40,11 @@ _Cart _$CartFromJson(Map<String, dynamic> json) => _Cart(
           .toList() ??
       const <CartLine>[],
   locationId: (json['locationId'] as num?)?.toInt(),
+  serviceDate: json['serviceDate'] as String?,
 );
 
 Map<String, dynamic> _$CartToJson(_Cart instance) => <String, dynamic>{
   'lines': instance.lines,
   'locationId': instance.locationId,
+  'serviceDate': instance.serviceDate,
 };

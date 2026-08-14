@@ -104,6 +104,19 @@ class Subscription extends Model
         };
     }
 
+    /**
+     * Menü kaynağı seçenekleri — admin formundaki `menu_mode` alanı.
+     *
+     * @return array<string, string>
+     */
+    public static function menuModeOptions(): array
+    {
+        return [
+            self::MENU_FIXED_LIST => 'lang:veykemtu.bridgeapi::subscription.menu_mode_fixed',
+            self::MENU_DAILY => 'lang:veykemtu.bridgeapi::subscription.menu_mode_daily',
+        ];
+    }
+
     /** @return array<int, string> */
     public static function dayOptions(): array
     {

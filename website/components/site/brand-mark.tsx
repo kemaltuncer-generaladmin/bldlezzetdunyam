@@ -1,34 +1,44 @@
 import Image from 'next/image';
 import { BRAND, LOGO } from '@/content/site';
+import { BrandEmblemPlate } from '@/components/site/brand-emblem';
 import { cn } from '@/lib/utils';
 
 /**
- * Marka işareti.
+ * Marka işareti: amblem + sözcük işareti.
  *
  * Marka adı ve logo panelden gelir (`brand.name`, `brand.logo_url`); değerler
  * **prop olarak** geçirilir. Bileşen içeriği kendi çekmiyor, çünkü mobil menü
  * bir istemci bileşeni ve sunucu tarafı içerik okumasını (`server-only`)
  * istemci ağacına sokamaz. Prop verilmediğinde `content/site.ts` yedeğine
- * düşer — böylece hukuki sayfalar gibi içerikten beslenmeyen yerler
- * değişmeden çalışmaya devam eder.
+ * düşer.
  *
- * Logo yoksa harf işareti basılır: repoda BLD'nin kurumsal logo dosyası yok
- * (bkz. `content/site.ts` → `LOGO`) ve logoyu tarif üzerinden yeniden çizmek
- * marka kimliğini uydurmak olurdu. Logonun etrafındaki boşluk, harf işaretinde
- * de görselde de korunan güvenli alandır.
+ * ## HARF İŞARETİ YEDEĞİ KALDIRILDI
+ *
+ * Panelde logo yokken burada "BLD" üç harf olarak diziliyordu. Marka kılavuzu
+ * monogramı fontla dizmeyi YASAKLIYOR — logodaki harfler el çizimi ve hiçbir
+ * font onları üretmiyor; dizilmiş hâli markanın yanlış bir kopyasıydı. Artık
+ * gerçek amblem var (`brand-emblem.tsx`, `app/icon.svg` ile aynı geometri) ve
+ * yedek gerekmiyor: panelde logo yoksa AMBLEM basılır, harf değil.
+ *
+ * Panelden yüklenen bir logo hâlâ kazanır — işletme kendi dosyasını
+ * yüklediğinde onu göstermek doğru.
  */
 export function BrandMark({
   className,
   showWordmark = true,
   brandName = BRAND.name,
-  brandShortName = BRAND.shortName,
   logoSrc = LOGO.src,
+  /**
+   * Koyu zeminde (altbilgi, mobil menü perdesi) sözcük işareti `foreground`
+   * ile okunmaz. Bant kendi metin rengini veriyorsa `inherit` geçilir.
+   */
+  wordmarkClassName,
 }: {
   className?: string;
   showWordmark?: boolean;
   brandName?: string;
-  brandShortName?: string;
   logoSrc?: string | null;
+  wordmarkClassName?: string;
 }) {
   /*
    * Panelden gelen logo mutlak bir URL ve boyutları bilinmiyor. `next/image`
@@ -64,16 +74,22 @@ export function BrandMark({
           priority
         />
       ) : (
-        <span
-          aria-hidden="true"
-          className="grid size-10 shrink-0 place-items-center rounded-xl bg-linear-to-br from-brand-500 to-brand-700 text-[0.7rem] font-bold tracking-tight text-white shadow-xs"
-        >
-          {brandShortName}
-        </span>
+        // Sözcük işareti basılıyorsa amblem dekoratif; basılmıyorsa (altbilgi)
+        // adı taşıyan tek öğe o, o yüzden `title` geçiyor.
+        <BrandEmblemPlate title={showWordmark ? undefined : brandName} />
       )}
 
       {showWordmark && (
-        <span className="font-display text-[0.9rem] leading-[1.15] font-semibold text-foreground">
+        <span
+          className={cn(
+            'font-display text-body font-semibold text-foreground',
+            // Satır aralığı 1.15: iki satırlık sözcük işareti 40 px'lik
+            // amblemin yüksekliğini aşmasın diye. Gövde ölçeği kullanılsaydı
+            // (22 px satır) başlık çubuğu iki piksel uzuyordu.
+            'leading-[1.15]',
+            wordmarkClassName,
+          )}
+        >
           {wordmarkHead}
           {wordmarkTail && (
             <>

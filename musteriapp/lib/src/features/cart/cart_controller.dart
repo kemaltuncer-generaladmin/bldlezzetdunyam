@@ -10,6 +10,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/infra_providers.dart';
 import 'cart_model.dart';
 
+/// [CartNotifier.add] çağrısının sonucu.
+///
+/// Dönüş değeri VAR çünkü sepetin boşaltıldığı sessizce geçilemez: müşteri
+/// perşembe menüsünü doldurmuşken cuma menüsünden bir yemeğe dokunduğunda
+/// önceki seçimleri kayboluyor. Ekran bunu söylemek zorunda; söylemezse
+/// müşteri ödeme ekranında eksik sepetle karşılaşır ve hatayı uygulamada
+/// değil kendisinde arar.
+enum CartAddResult {
+  /// Kalem sepete girdi.
+  added,
+
+  /// Kalem girdi ama sepet BAŞKA BİR SERVİS GÜNÜNE aitti ve boşaltıldı.
+  addedAfterDayChange,
+
+  /// Kalem girmedi: satışta değil ya da adet geçersiz.
+  rejected,
+}
+
 class CartNotifier extends Notifier<Cart> {
   @override
   Cart build() {
@@ -19,34 +37,50 @@ class CartNotifier extends Notifier<Cart> {
     try {
       return Cart.fromJson(json);
     } on Object {
-      // Bozuk kayıt (eski şema, yarım yazma) kullanıcıyı kilitlememeli.
+      // Bozuk kayıt (yarım yazma) kullanıcıyı kilitlememeli. Eski ŞEMA ise
+      // buraya hiç gelmez: `LocalCache.readCart` sürümü tanımadığı kaydı
+      // okumadan siler ve `null` döner.
       return Cart.empty;
     }
   }
 
   /// Sepete ekler. Aynı ürün + aynı seçenekler + aynı not tek kalemde birleşir.
   ///
-  /// Vitrin değişmişse sepet sıfırlanır: bir sipariş tek vitrine verilir
-  /// (`OrderCreateRequest.location_id`).
-  void add({
+  /// İki durumda sepet sıfırlanır ve kalem boş sepete girer:
+  /// - **Vitrin değiştiyse:** bir sipariş tek vitrine verilir
+  ///   (`OrderCreateRequest.location_id`).
+  /// - **Servis günü değiştiyse:** bir sipariş tek güne verilir
+  ///   (`OrderCreateRequest.service_date`). Bu durum [CartAddResult] ile
+  ///   çağırana bildirilir.
+  CartAddResult add({
     required MenuItem item,
     required int locationId,
+    required String serviceDate,
     int quantity = 1,
     List<int> optionValueIds = const <int>[],
     String? note,
+    List<DailyMenuPackageComponent> packageComponents =
+        const <DailyMenuPackageComponent>[],
   }) {
     // Satışta olmayan ürün sepete girmez (`docs/openapi.yaml` `MenuItem`).
-    if (!item.isAvailable || quantity < 1) return;
+    if (!item.isAvailable || quantity < 1) return CartAddResult.rejected;
 
-    final base = (state.locationId != null && state.locationId != locationId)
-        ? Cart.empty
-        : state;
+    // `isNotEmpty` şart: boş sepetin günü değişmiş sayılmaz ve kullanıcıya
+    // kaybetmediği bir şey için uyarı gösterilmez.
+    final dayChanged =
+        state.isNotEmpty &&
+        state.serviceDate != null &&
+        state.serviceDate != serviceDate;
+    final locationChanged =
+        state.locationId != null && state.locationId != locationId;
+    final base = (dayChanged || locationChanged) ? Cart.empty : state;
 
     final incoming = CartLine(
       item: item,
       quantity: quantity,
       optionValueIds: [...optionValueIds]..sort(),
       note: (note == null || note.trim().isEmpty) ? null : note.trim(),
+      packageComponents: packageComponents,
     );
 
     final existing = base.indexOfSignature(incoming.signature);
@@ -59,7 +93,14 @@ class CartNotifier extends Notifier<Cart> {
       lines.add(incoming);
     }
 
-    _emit(base.copyWith(lines: lines, locationId: locationId));
+    _emit(
+      base.copyWith(
+        lines: lines,
+        locationId: locationId,
+        serviceDate: serviceDate,
+      ),
+    );
+    return dayChanged ? CartAddResult.addedAfterDayChange : CartAddResult.added;
   }
 
   /// Adedi ayarlar. `0` ve altı kalemi siler.
@@ -93,9 +134,7 @@ class CartNotifier extends Notifier<Cart> {
     final lines = state.lines
         .where((line) => line.signature != signature)
         .toList();
-    _emit(
-      lines.isEmpty ? Cart.empty : state.copyWith(lines: lines),
-    );
+    _emit(lines.isEmpty ? Cart.empty : state.copyWith(lines: lines));
   }
 
   void clear() => _emit(Cart.empty);

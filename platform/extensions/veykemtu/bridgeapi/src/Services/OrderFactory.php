@@ -14,6 +14,7 @@ use Veykemtu\BridgeApi\Support\BusinessTime;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
 use Veykemtu\BridgeApi\Models\AccountLedgerEntry;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
+use Veykemtu\BridgeApi\Models\DailyMenu;
 use Veykemtu\BridgeApi\Models\Subscription;
 use Veykemtu\BridgeApi\Models\SubscriptionDeliveryPoint;
 use Veykemtu\BridgeApi\Support\Money;
@@ -38,11 +39,15 @@ class OrderFactory
         private readonly AccountLedger $ledger,
         private readonly LineResolver $lines,
         private readonly CreditLimit $creditLimit,
+        private readonly DailyMenuService $dailyMenus,
     ) {}
 
     /**
      * @param  array<int, array{menu_id:int, quantity:int, option_value_ids?:list<int>, note?:string|null}>  $items
      * @param  bool  $adminContext  Panelden telefonla giriliyorsa `true` (B-13).
+     * @param  string|null  $serviceDate  Siparişin hangi gün için olduğu,
+     *   `YYYY-AA-GG` (B-19). Verilmezse `requested_at`'in işletme günü, o da
+     *   yoksa bugün.
      */
     public function create(
         ApiCustomer $customer,
@@ -55,6 +60,7 @@ class OrderFactory
         ?string $customerNote,
         bool $adminContext = false,
         ?int $subscriptionId = null,
+        ?string $serviceDate = null,
     ): Order {
         /*
          * VİTRİN KAPILARI PANELDE UYGULANMAZ (B-13).
@@ -80,7 +86,32 @@ class OrderFactory
 
         $this->gate->assertPaymentMethodAllowed($location, $paymentMethod);
 
-        $lines = $this->lines->resolve($items);
+        /*
+         * SERVİS GÜNÜ VE O GÜNÜN MENÜSÜ (B-19).
+         *
+         * Gün kapıları (yayınlanmış menü var mı, kapalı gün mü, ileri görüş
+         * penceresi aşıldı mı) vitrin kapılarıyla aynı yerde: `$adminContext`
+         * onları da atlıyor. Gerekçe yukarıdakinin aynısı — telefonu açan
+         * yönetici istisnayı insan olarak veriyor ve bunu sistemin ikinci kez
+         * sorgulaması işi yapılamaz kılardı. Menü yine de çözülüyor: paket
+         * satırının fiyatı ondan geliyor.
+         */
+        $day = null;
+
+        if ($this->gate->dailyMenuEnabled($location)) {
+            $date = $this->dailyMenus->resolveServiceDate($serviceDate, $requestedAt);
+
+            $day = $adminContext
+                ? $this->dailyMenus->publishedFor($location, $date)
+                : $this->dailyMenus->assertOrderable($location, $date);
+        }
+
+        $lines = $this->lines->resolve(
+            $items,
+            enforceAvailability: true,
+            day: $day,
+            enforceMembership: !$adminContext,
+        );
         $subtotal = array_sum(array_column($lines, 'line_total'));
 
         if (!$adminContext) {
@@ -96,17 +127,40 @@ class OrderFactory
             $this->creditLimit->assertAllows($customer, $subtotal + $deliveryFee);
         }
 
+        /*
+         * SERVİS GÜNÜ — `orders.bld_service_date`.
+         *
+         * DEĞİŞMEZ KURAL: `bld_service_date === DATE(order_date)`. İki
+         * kolonun ayrışmaması, `order_date` üzerinden filtreleyen her mevcut
+         * sorgunun (mutfak panosu, üretim listesi, abonelik planı) hiç
+         * değişmeden doğru kalmasının tek şartı.
+         */
+        $serviceDay = $day?->menu_date->copy()->startOfDay()
+            ?? $this->dailyMenus->resolveServiceDate($serviceDate, $requestedAt);
+
         return DB::transaction(function () use (
             $customer, $location, $deliveryType, $lines, $address,
             $requestedAt, $paymentMethod, $customerNote, $subtotal, $deliveryFee,
-            $subscriptionId,
+            $subscriptionId, $serviceDay,
         ): Order {
             $addressId = $deliveryType === Order::DELIVERY
                 ? $this->storeAddress($customer, $address)
                 : null;
 
-            $when = $requestedAt?->copy()->setTimezone(BusinessTime::ZONE)
-                ?? BusinessTime::now();
+            $requestedLocal = $requestedAt?->copy()->setTimezone(BusinessTime::ZONE);
+            $now = BusinessTime::now();
+
+            /*
+             * Saat: istenen zaman verildiyse o. Verilmediyse ve servis günü
+             * bugünse "şimdi" (bugünkü davranış aynen korunuyor). Verilmediyse
+             * ve gün ileriyse öğlen — ileri tarihli bir siparişte "şimdi"nin
+             * saatini yazmak, gece 23:40'ta verilen bir cuma siparişini
+             * cuma 23:40'a çekerdi. 12:00 abonelik üretiminin de varsayılanı.
+             */
+            $when = $requestedLocal
+                ?? ($serviceDay->isSameDay($now)
+                    ? $now
+                    : $serviceDay->copy()->setTime(12, 0));
 
             $order = new Order;
             $order->customer_id = $customer->customer_id;
@@ -117,9 +171,12 @@ class OrderFactory
             $order->location_id = $location->location_id;
             $order->address_id = $addressId;
             $order->order_type = $deliveryType;
-            $order->order_date = $when->toDateString();
+            $order->order_date = $serviceDay->toDateString();
             $order->order_time = $when->format('H:i:s');
-            $order->order_time_is_asap = $requestedAt === null;
+            $order->bld_service_date = $serviceDay->toDateString();
+            // İleri tarihli sipariş asla "en kısa sürede" değildir.
+            $order->order_time_is_asap = $requestedAt === null
+                && $serviceDay->isSameDay($now);
             $order->total_items = array_sum(array_column($lines, 'quantity'));
             $order->order_total = Money::toDecimal($subtotal + $deliveryFee);
             $order->payment = $paymentMethod;
@@ -174,6 +231,11 @@ class OrderFactory
      * ANLAŞMALI fiyatından gelir ve o günkü değeriyle siparişe KOPYALANIR;
      * sonraki menü zammı üretilmiş siparişi bozmaz. `account` ödeme modunda
      * cari borç aynı transaction içinde düşer.
+     *
+     * `menu_mode = daily_menu` aboneliğinde satırlar o günün yayınlanmış
+     * menüsünden gelir; menü yoksa metot PATLAR ve çağıran
+     * (`SubscriptionGenerateCommand`) hatayı sayar — böylece menü
+     * yayınlandıktan sonra komut yeniden koşturulduğunda sipariş doğar.
      */
     public function createForSubscription(
         Subscription $subscription,
@@ -220,6 +282,9 @@ class OrderFactory
             $order->order_type = $deliveryType;
             $order->order_date = $serviceDate->toDateString();
             $order->order_time = $time;
+            // `bld_service_date === DATE(order_date)` değişmezi burada da
+            // geçerli (B-19). Abonelik zaten servis gününe yazıyordu.
+            $order->bld_service_date = $serviceDate->toDateString();
             $order->order_time_is_asap = false;
             $order->total_items = array_sum(array_column($lines, 'quantity'));
             $order->order_total = Money::toDecimal($subtotal);
@@ -256,28 +321,23 @@ class OrderFactory
     /**
      * Abonelik satırlarını menüye karşı çözüp ANLAŞMALI fiyatla fiyatlandırır.
      *
-     * Tek satırlı abonelikte tek-günlük adet istisnası uygulanır (o gün 20
-     * yerine 12). Çok satırlı (varyantlı) abonelikte satır adetleri sabittir.
+     * İKİ MENÜ MODU, TEK FİYAT KURALI. `fixed_list` aboneliğin kendi ürün
+     * satırlarını, `daily_menu` o günün yayınlanmış menüsünü kaynak alır;
+     * ikisinde de para `agreed_unit_price_kurus` üzerinden, PORSİYON BAŞINA
+     * hesaplanır. Anlaşmalı fiyat bu yüzden `daily_menu`'de de ZORUNLU:
+     * sözleşme "o gün ne pişerse pişsin porsiyonu şu kadar" der
+     * (`docs/11-yol-haritasi.md` §7.5). Fiyatı günün menüsünden almak,
+     * mutfak pahalı bir gün girdiğinde faturayı sessizce büyütürdü.
      *
-     * @return list<array{menu:Menu, quantity:int, unit_price:int, line_total:int, options:list<array<string,mixed>>, note:string|null}>
+     * @return list<array<string, mixed>>
      */
     private function resolveSubscriptionLines(Subscription $subscription, Carbon $serviceDate): array
     {
-        if ($subscription->menu_mode !== Subscription::MENU_FIXED_LIST) {
-            throw ApiException::validationFailed(
-                'Bu abonelik menü modu henüz desteklenmiyor.',
-                ['menu_mode' => $subscription->menu_mode],
-            );
-        }
-
-        $subLines = $subscription->lines;
-        if ($subLines->isEmpty()) {
-            throw ApiException::validationFailed(
-                'Abonelikte ürün satırı yok.',
-                ['subscription_id' => $subscription->id],
-            );
-        }
-
+        /*
+         * FİYAT KONTROLÜ MODDAN ÖNCE: fiyatsız bir abonelik hiçbir modda
+         * sipariş üretemez ve sebebi menü kaynağından bağımsız. Aşağıya
+         * bırakılsaydı `daily_menu` dalında iki kez tekrarlanırdı.
+         */
         if ($subscription->agreed_unit_price_kurus === null) {
             throw ApiException::validationFailed(
                 'Anlaşmalı fiyat tanımlı değil.',
@@ -286,13 +346,39 @@ class OrderFactory
         }
 
         // Porsiyon = o günkü kişi sayısı (istisna override ?? default_quantity).
+        $portions = max(1, $subscription->quantityForDate($serviceDate));
+
+        return match ($subscription->menu_mode) {
+            Subscription::MENU_DAILY => $this->dailyMenuLines($subscription, $serviceDate, $portions),
+            Subscription::MENU_FIXED_LIST => $this->fixedListLines($subscription, $portions),
+            default => throw ApiException::validationFailed(
+                'Bu abonelik menü modu henüz desteklenmiyor.',
+                ['menu_mode' => $subscription->menu_mode],
+            ),
+        };
+    }
+
+    /**
+     * `menu_mode = fixed_list` — aboneliğin kendi ürün satırları.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function fixedListLines(Subscription $subscription, int $portions): array
+    {
+        $subLines = $subscription->lines;
+        if ($subLines->isEmpty()) {
+            throw ApiException::validationFailed(
+                'Abonelikte ürün satırı yok.',
+                ['subscription_id' => $subscription->id],
+            );
+        }
+
         // Menü satırları her PORSİYONUN bileşenidir; mutfağa düşen adet
         // porsiyon × satır adedidir (ör. 3 porsiyon, menüde 1 çorba → 3 çorba).
         // Fiyat porsiyon başınadır ve toplam ayrıca hesaplanır
         // (createForSubscription), bu yüzden satır fiyatı 0'dır — yemekler
         // sabit menü porsiyonunun bileşeni, ayrı ücretlendirilmez.
-        $portions = max(1, $subscription->quantityForDate($serviceDate));
-
+        //
         // ABONELİK, `LineResolver::resolve()` KULLANMAZ ve bu bilinçlidir:
         //   * fiyat anlaşmalı (`agreed_unit_price_kurus`), menü fiyatı değil;
         //   * "satışta değil" ve "bugün tükendi" (K-11) kontrolleri
@@ -333,6 +419,135 @@ class OrderFactory
     }
 
     /**
+     * `menu_mode = daily_menu` — o günün yayınlanmış menüsü (B-19).
+     *
+     * TEK SEFERLİK SİPARİŞLE AYNI ŞEKİL: fiyatlı bir paket ÜST satırı +
+     * sıfır fiyatlı bileşen satırları (`LineResolver::resolvePackageLine`).
+     * Şeklin aynı olması kozmetik değil — `ProductionListService`,
+     * `SubscriptionKitchenPlan::totals` ve `OrderPresenter::kitchenItems`
+     * hepsi `bld_line_role != 'package'` süzgecini kullanıyor. Abonelik
+     * bileşenleri üst satırsız yazsaydı süzgeç abonelikte hiçbir şey
+     * elemez, mutfak şeridi iki farklı kaynaktan iki farklı şekil görürdü.
+     *
+     * VİTRİN KAPILARI UYGULANMAZ: `DailyMenuService::assertOrderable`
+     * yerine doğrudan `findPublished`. Kesim saati, ileri görüş penceresi
+     * ve `bld_daily_menu_enabled` şalteri MÜŞTERİNİN kendi kendine sipariş
+     * vermesini düzenler; abonelik bir sözleşmedir ve gece işi zaten
+     * yöneticinin girdiği takvime göre koşar. Kapalı gün de burada
+     * denetlenmez — `SubscriptionGenerateCommand` onu daha üstte eliyor,
+     * iki yerde iki kural olmasın.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function dailyMenuLines(
+        Subscription $subscription,
+        Carbon $serviceDate,
+        int $portions,
+    ): array {
+        $locationId = (int) $subscription->location_id;
+        $day = DailyMenu::findPublished($locationId, $serviceDate);
+
+        /*
+         * MENÜ YOKSA SESSİZCE ATLANMAZ, PATLAR.
+         *
+         * Sessiz atlama `veykemtu_subscription_runs` satırı bırakmadan
+         * "üretildi" sayılmaya en yakın davranış olurdu ve mutfak sabah
+         * eksik olduğunu ancak yemek saatinde görürdü. Hata satırı
+         * bırakmak, menü yayınlanınca komutun yeniden koşturulmasıyla
+         * siparişin doğmasını sağlıyor; UNIQUE kısıtı tek sipariş
+         * garantisini koruyor.
+         */
+        if ($day === null) {
+            throw ApiException::validationFailed(
+                $serviceDate->locale('tr')->isoFormat('D MMMM YYYY')
+                    .' için yayınlanmış günün menüsü yok; abonelik siparişi üretilemedi.',
+                [
+                    'subscription_id' => $subscription->id,
+                    'service_date' => $serviceDate->toDateString(),
+                    'reason' => DailyMenuService::REASON_NOT_PUBLISHED,
+                ],
+            );
+        }
+
+        $components = [];
+
+        foreach ($day->items as $dayItem) {
+            // Seçmeli kalemler pakete girmez — tek seferlik sipariştekiyle
+            // aynı kural (`LineResolver::resolvePackageLine`).
+            if (!$dayItem->is_required) {
+                continue;
+            }
+
+            $menu = $dayItem->menu;
+
+            if ($menu === null) {
+                throw ApiException::itemUnavailable(
+                    'Günün menüsündeki bir ürün bulunamadı.',
+                    (int) $dayItem->menu_id,
+                );
+            }
+
+            $components[] = [
+                'menu' => $menu,
+                'name' => $dayItem->displayName(),
+                'quantity' => $portions * max(1, (int) $dayItem->quantity),
+                // SIFIR, BİLEREK: parayı üst satır taşıyor.
+                'unit_price' => 0,
+                'line_total' => 0,
+                'options' => [],
+                'note' => null,
+            ];
+        }
+
+        if ($components === []) {
+            throw ApiException::validationFailed(
+                $serviceDate->locale('tr')->isoFormat('D MMMM YYYY')
+                    .' menüsünde zorunlu ürün yok; abonelik siparişi üretilemedi.',
+                [
+                    'subscription_id' => $subscription->id,
+                    'service_date' => $serviceDate->toDateString(),
+                ],
+            );
+        }
+
+        $packageMenuId = $day->packageMenuId();
+        $package = $packageMenuId !== null
+            ? Menu::query()->where('menu_id', $packageMenuId)->first()
+            : null;
+
+        if ($package === null) {
+            throw ApiException::itemUnavailable(
+                '"Günün Menüsü" ürünü bu vitrinde tanımlı değil; '
+                    .'`veykemtu:setup` koşulmamış olabilir.',
+                $packageMenuId ?? 0,
+            );
+        }
+
+        $unitPrice = (int) $subscription->agreed_unit_price_kurus;
+
+        /*
+         * PAKET FİYATI DEĞİL, ANLAŞMALI FİYAT. `$day->sellsPackage()`
+         * burada hiç sorulmuyor: o gün vitrinde paket satılmıyor olabilir
+         * (yalnız kalemler tek tek satılıyordur) ama abonelinin sözleşmesi
+         * yine de bir porsiyonun tamamıdır. Vitrinin o günkü satış kararını
+         * sözleşmeye taşımak, bir günün fiyatlandırma tercihinin abonelik
+         * üretimini durdurması demek olurdu.
+         */
+        return [[
+            'menu' => $package,
+            'name' => $day->orderLineName(),
+            'quantity' => $portions,
+            'unit_price' => $unitPrice,
+            'line_total' => $unitPrice * $portions,
+            'options' => [],
+            'note' => null,
+            'role' => 'package',
+            'daily_menu_id' => (int) $day->id,
+            'components' => $components,
+        ]];
+    }
+
+    /**
      * Teslimat noktasının kayıtlı adresini siparişe KOPYALAR (anlık görüntü).
      * Abonelik/adres sonradan değişse üretilmiş siparişin adresi değişmez.
      */
@@ -356,6 +571,12 @@ class OrderFactory
             $model->bld_latitude = $saved->bld_latitude;
             $model->bld_longitude = $saved->bld_longitude;
         }
+
+        // Yapılandırılmış alanlar da kopyalanıyor (B-21). Kopyalanmasaydı
+        // abonelik siparişlerinin adresi tek seferlik siparişlerinkinden
+        // eksik olurdu ve aynı müşteriye giden iki fiş farklı görünürdü.
+        StructuredAddress::copy($model, StructuredAddress::read($saved));
+
         $model->save();
 
         return (int) $model->address_id;
@@ -373,7 +594,7 @@ class OrderFactory
      */
     private function storeAddress(ApiCustomer $customer, ?array $address): int
     {
-        if ($address === null || blank($address['line1'] ?? null)) {
+        if ($address === null) {
             throw ApiException::validationFailed('Teslimat adresi zorunludur.', [
                 'address' => 'Adrese gönderim için adres girilmeli.',
             ]);
@@ -381,7 +602,26 @@ class OrderFactory
 
         $model = new Address;
         $model->customer_id = $customer->customer_id;
-        $model->address_1 = (string) $address['line1'];
+
+        /*
+         * Yapılandırılmış alanlar (B-21) siparişe de KOPYALANIYOR. Sipariş
+         * adresi defterdeki kayda BAĞLANMIYOR; müşteri daire numarasını
+         * sonradan düzeltse bile teslim edilmiş siparişin kâğıdı değişmemeli.
+         */
+        StructuredAddress::copy($model, $address);
+
+        // `line1` müşteri yazdıysa aynen, yazmadıysa parçalardan. İkisi de
+        // yoksa adres yok demektir — cümle kurulamadan sipariş geçmemeli.
+        $line1 = trim((string) ($address['line1'] ?? ''));
+        $line1 = $line1 !== '' ? $line1 : StructuredAddress::lineFor($model);
+
+        if ($line1 === '') {
+            throw ApiException::validationFailed('Teslimat adresi zorunludur.', [
+                'address' => 'Adrese gönderim için adres girilmeli.',
+            ]);
+        }
+
+        $model->address_1 = $line1;
         $model->address_2 = $address['note'] ?? null;
         $model->city = (string) ($address['city'] ?? '');
         $model->state = (string) ($address['district'] ?? '');

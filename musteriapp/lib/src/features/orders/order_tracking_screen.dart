@@ -202,8 +202,23 @@ class _OrderDetailBody extends ConsumerWidget {
         _Section(
           title: l10n.trackingItems,
           child: Column(
+            /*
+             * Paket satırı ile İÇİNDEKİLER İÇ İÇE çiziliyor.
+             *
+             * `included_in` sözleşmede DİZİDEKİ KONUM'dur, kimlik değil
+             * (`docs/openapi.yaml` `OrderItem.included_in`) — bu yüzden
+             * `order.items` üzerindeki gerçek indeks geziliyor,
+             * `topLevelItems` üzerindeki değil. Filtrelenmiş listenin
+             * indeksini vermek, iki paketli bir siparişte ikinci paketin
+             * içindekileri birincinin altına asardı.
+             */
             children: [
-              for (final item in order.items) _OrderItemRow(item: item),
+              for (var index = 0; index < order.items.length; index++)
+                if (order.items[index].includedIn == null) ...[
+                  _OrderItemRow(item: order.items[index]),
+                  for (final component in order.componentsOf(index))
+                    _OrderItemRow(item: component, nested: true),
+                ],
             ],
           ),
         ),
@@ -240,6 +255,13 @@ class _OrderDetailBody extends ConsumerWidget {
                 label: l10n.trackingDeliveryType,
                 value: deliveryTypeLabel(order.deliveryType, l10n),
               ),
+              // Siparişin HANGİ GÜN İÇİN olduğu. `created_at` ile aynı gün
+              // olmak zorunda değil ve müşterinin asıl merak ettiği bu.
+              if (order.serviceDate != null)
+                _InfoRow(
+                  label: l10n.trackingServiceDate,
+                  value: BusinessDate.long(order.serviceDate!),
+                ),
               if (order.requestedAt != null)
                 _InfoRow(
                   label: l10n.trackingRequestedAt,
@@ -369,7 +391,7 @@ class _Step extends StatelessWidget {
                 ),
                 child: reached
                     ? Icon(
-                        Icons.check,
+                        Icons.check_outlined,
                         size: 14,
                         color: bldColor(BldColors.neutral0),
                       )
@@ -441,14 +463,26 @@ class _Section extends StatelessWidget {
 }
 
 class _OrderItemRow extends StatelessWidget {
-  const _OrderItemRow({required this.item});
+  const _OrderItemRow({required this.item, this.nested = false});
 
   final OrderItem item;
 
+  /// Bir menü paketinin İÇİNDEKİ satır mı?
+  ///
+  /// İçerdeki satırlar girintili ve FİYATSIZ çiziliyor: sözleşme gereği
+  /// tutarları sıfır (parayı paket satırı taşıyor) ve "0,00 ₺" yazan bir
+  /// liste, bedavaya çorba verdiğimiz izlenimi bırakıyor.
+  final bool nested;
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: BldSpacing.sm),
+      padding: EdgeInsets.only(
+        left: nested ? BldSpacing.lg : 0,
+        bottom: nested ? BldSpacing.xs : BldSpacing.sm,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -456,30 +490,32 @@ class _OrderItemRow extends StatelessWidget {
             width: 32,
             child: Text(
               '${item.quantity}×',
-              style: const TextStyle(fontWeight: FontWeight.w700),
+              style: nested
+                  ? theme.textTheme.bodySmall
+                  : const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.name),
+                Text(
+                  item.name,
+                  style: nested ? theme.textTheme.bodySmall : null,
+                ),
                 if (item.options.isNotEmpty)
-                  Text(
-                    item.options.join(', '),
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+                  Text(item.options.join(', '), style: theme.textTheme.bodySmall),
                 if (item.note != null && item.note!.isNotEmpty)
                   Text(
                     item.note!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    style: theme.textTheme.bodySmall?.copyWith(
                       fontStyle: FontStyle.italic,
                     ),
                   ),
               ],
             ),
           ),
-          Text(Money.format(item.lineTotal)),
+          if (!nested) Text(Money.format(item.lineTotal)),
         ],
       ),
     );

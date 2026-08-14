@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Veykemtu\BridgeApi\Console;
 
 use Igniter\Admin\Models\Status;
+use Igniter\Cart\Models\Menu;
 use Igniter\Local\Models\Location;
 use Igniter\User\Models\CustomerGroup;
 use Igniter\User\Models\UserRole;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use Veykemtu\BridgeApi\Models\DailyMenu;
 use Veykemtu\BridgeApi\Services\LocationGate;
 use Veykemtu\BridgeApi\Support\BusinessTime;
 
@@ -28,6 +31,9 @@ class SetupCommand extends Command
     protected $signature = 'veykemtu:setup';
 
     protected $description = 'BLD kurulum sonrası yapılandırması: durumlar, vitrin, müşteri grubu.';
+
+    /** Menü paketi ürününün kalıcı adı (B-19). */
+    private const string DAILY_PACKAGE_NAME = 'Günün Menüsü';
 
     /**
      * Sözleşmedeki yedi durum — docs/openapi.yaml `OrderStatus`.
@@ -52,6 +58,7 @@ class SetupCommand extends Command
         $this->syncPaymentGateways();
         $this->seedStatuses();
         $this->seedLocation();
+        $this->seedDailyMenuPackage();
         $this->seedCustomerGroup();
         $this->seedAdminRoles();
 
@@ -255,6 +262,59 @@ class SetupCommand extends Command
         );
 
         return $acik;
+    }
+
+    /**
+     * "Günün Menüsü" paket ürünü — B-19.
+     *
+     * `order_menus.menu_id` çekirdekte `int NOT NULL` ve `OrderMenu` bir
+     * `belongsTo menu` bağıntısı tanımlıyor; paket satırının da geçerli bir
+     * ürün kimliği olmalı. `0` yazmak, çekirdeğin ya da ileride bir raporun
+     * o bağıntıya dokunduğu ilk anda null-deref demek.
+     *
+     * ÜÇ ÖZELLİĞİ DE BİLİNÇLİ:
+     *
+     *   * KATEGORİSİZ. `CatalogController::menu()` yanıtı `$item->categories`
+     *     üzerinden kuruyor ve kategorisi olmayan ürünü sessizce düşürüyor —
+     *     yani bu kayıt hiçbir vitrine sızamaz, ayrı bir gizleme koduna
+     *     gerek yok.
+     *   * `menu_status = true`. Mutfak bu kaydı "bugün tükendi"
+     *     işaretleyip YALNIZ PAKETİ kapatabilsin, kalemler tek tek
+     *     satılmaya devam etsin diye.
+     *   * `menu_price = 0.00`. Gerçek fiyat o günün `package_price_kurus`
+     *     değeri. `LineResolver` bu kimliği çözülmüş bir gün olmadan
+     *     gördüğünde İSTİSNA FIRLATIR, asla ürün fiyatına düşmez.
+     */
+    private function seedDailyMenuPackage(): void
+    {
+        $this->components->info('Günün menüsü paket ürünü yazılıyor...');
+
+        $menu = Menu::firstOrNew(['menu_name' => self::DAILY_PACKAGE_NAME]);
+        $menu->menu_name = self::DAILY_PACKAGE_NAME;
+        $menu->menu_description = 'O günün menüsünün tamamı. Fiyatı takvimden gelir.';
+        $menu->menu_price = 0;
+        $menu->menu_status = true;
+        $menu->minimum_qty = 1;
+        $menu->menu_priority = 0;
+        $menu->save();
+
+        $menuId = (int) $menu->menu_id;
+
+        foreach (Location::query()->pluck('location_id') as $locationId) {
+            // Vitrine bağlanmayan ürün sipariş satırında çözülemez.
+            DB::table('locationables')->updateOrInsert([
+                'location_id' => $locationId,
+                'locationable_id' => $menuId,
+                'locationable_type' => 'menus',
+            ], ['options' => null]);
+
+            DB::table('location_options')->updateOrInsert(
+                ['location_id' => $locationId, 'item' => DailyMenu::PACKAGE_OPTION_KEY],
+                ['value' => json_encode($menuId)],
+            );
+        }
+
+        $this->components->twoColumnDetail('  '.self::DAILY_PACKAGE_NAME, "#{$menuId}");
     }
 
     private function seedCustomerGroup(): void

@@ -55,6 +55,16 @@ class SubscriptionController extends ApiController
             'default_quantity' => ['required', 'integer', 'min:1', 'max:9999'],
             'delivery_time_from' => ['sometimes', 'nullable', 'date_format:H:i'],
             'delivery_time_to' => ['sometimes', 'nullable', 'date_format:H:i'],
+            /*
+             * MENÜ MODU — sözleşmeye ADDITIVE (`docs/openapi.yaml`
+             * `SubscriptionCreate.menu_mode`). Gönderilmezse `fixed_list`:
+             * bugüne kadar istemcilerin gönderemediği bir alan, yokluğunda
+             * eski davranışı birebir korumalı.
+             */
+            'menu_mode' => [
+                'sometimes',
+                Rule::in([Subscription::MENU_FIXED_LIST, Subscription::MENU_DAILY]),
+            ],
             'lines' => ['sometimes', 'array'],
             'lines.*.menu_id' => ['required_with:lines', 'integer'],
             'lines.*.quantity' => ['required_with:lines', 'integer', 'min:1'],
@@ -69,7 +79,26 @@ class SubscriptionController extends ApiController
         /** @var ApiCustomer $customer */
         $customer = $request->user();
 
-        $subscription = DB::transaction(function () use ($data, $customer): Subscription {
+        $menuMode = (string) ($data['menu_mode'] ?? Subscription::MENU_FIXED_LIST);
+
+        /*
+         * GÜNÜN MENÜSÜ MODUNDA ÜRÜN SATIRI OLMAZ.
+         *
+         * O aboneliğin içeriği her gün `veykemtu_daily_menus`'ten geliyor.
+         * Talebe ayrıca satır yazmak, hiçbir zaman okunmayacak ikinci bir
+         * "içerik" kaynağı yaratır; yönetici panelde onu görür, gerçekte
+         * pişen başka olur. Sessizce atmak yerine söylüyoruz — sessiz
+         * atma, istemci hatasını sahaya taşır.
+         */
+        if ($menuMode === Subscription::MENU_DAILY && ($data['lines'] ?? []) !== []) {
+            throw ApiException::validationFailed(
+                'Günün menüsü aboneliğinde ürün satırı gönderilmez; '
+                    .'içerik o günün yayınlanmış menüsünden gelir.',
+                ['menu_mode' => $menuMode],
+            );
+        }
+
+        $subscription = DB::transaction(function () use ($data, $customer, $menuMode): Subscription {
             // TALEP: fiyatsız, `pending`. Admin fiyatlandırıp aktifleştirir.
             $subscription = new Subscription;
             $subscription->customer_id = $customer->customer_id;
@@ -83,7 +112,7 @@ class SubscriptionController extends ApiController
             $subscription->service_days = array_values(array_unique(
                 array_map('intval', $data['service_days']),
             ));
-            $subscription->menu_mode = Subscription::MENU_FIXED_LIST;
+            $subscription->menu_mode = $menuMode;
             $subscription->default_quantity = $data['default_quantity'];
             $subscription->agreed_unit_price_kurus = null; // admin belirler
             $subscription->payment_mode = Subscription::PAYMENT_ACCOUNT;

@@ -36,6 +36,13 @@ class KdsSettings {
     this.healthSeconds = defaultHealthSeconds,
     this.connectionAlarmSeconds = defaultConnectionAlarmSeconds,
     this.alarmSilenceable = true,
+    this.allowSettings = true,
+    this.allowServerChange = true,
+    this.allowWindowControls = true,
+    this.allowOrderEdit = true,
+    this.allowManualReprint = true,
+    this.allowSalesControl = true,
+    this.lockMessage = '',
   });
 
   // ── Sınırlar ────────────────────────────────────────────────────────────
@@ -83,6 +90,12 @@ class KdsSettings {
   static const int defaultConnectionAlarmSeconds = 45;
   static const int minConnectionAlarmSeconds = 10;
   static const int maxConnectionAlarmSeconds = 600;
+
+  /// Kilit metninin üst sınırı — sunucu sözleşmesiyle aynı (K-21 §2.2).
+  ///
+  /// Metin bir uyarı kutusunda görünüyor; daha uzunu kutuyu taşırır ve
+  /// personel asıl cümleyi göremez.
+  static const int maxLockMessageLength = 160;
 
   final bool soundEnabled;
 
@@ -149,6 +162,46 @@ class KdsSettings {
   /// alarmın hiç çalmamasıyla aynı sonuç doğar.
   final bool alarmSilenceable;
 
+  // ── Kilit politikası (K-21 §2.2) ────────────────────────────────────────
+  //
+  // Yönetim Kontrol Merkezi'ne geçiyor: kasadaki eylemlerin bir kısmı
+  // uzaktan kapatılabiliyor.
+  //
+  // HEPSİNİN VARSAYILANI `true` (SERBEST). Alanın eklenmesi bugünkü
+  // kasaları kilitlememeli; kilit ancak yönetici açıkça `false` yazınca
+  // doğar. Ters kurgu, sürüm yükselten her mutfağın sabaha kilitli
+  // uyanması demekti.
+  //
+  // Kilitliyken arayüz düğmeyi GİZLEMEZ, pasifleştirir ve [lockMessage]'ı
+  // gösterir (`docs/05` §8 / K-21 §5.4): kaybolan düğme personeli
+  // "bozuldu" sanısına iter ve destek çağrısı üretir.
+
+  /// Ayarlar ekranı açılabilir mi?
+  final bool allowSettings;
+
+  /// Sunucu adresi değiştirilebilir / cihaz eşlemesi sıfırlanabilir mi?
+  final bool allowServerChange;
+
+  /// Tam ekrandan çıkma ve küçültme serbest mi?
+  final bool allowWindowControls;
+
+  /// Kasadan sipariş düzenleme (revizyon) serbest mi?
+  final bool allowOrderEdit;
+
+  /// Elle fiş yeniden basma serbest mi?
+  final bool allowManualReprint;
+
+  /// Satış şalteri ve "bugün tükendi" işareti serbest mi?
+  final bool allowSalesControl;
+
+  /// Kilitli bir eyleme basıldığında gösterilecek metin.
+  ///
+  /// Boş dize = yöneticinin özel bir cümlesi yok; arayüz kendi genel
+  /// metnini kullanır. `null` DEĞİL boş dize: bu alan diskte ve modelde
+  /// her zaman bir değere sahiptir, "dokunulmadı" ayrımı yalnızca
+  /// sunucudan gelen `KitchenManagedSettings` tarafında anlamlıdır.
+  final String lockMessage;
+
   Duration get pollInterval => Duration(seconds: pollSeconds);
   Duration get warningAfter => Duration(minutes: warningAfterMinutes);
   Duration get lateAfter => Duration(minutes: lateAfterMinutes);
@@ -188,6 +241,13 @@ class KdsSettings {
     int? healthSeconds,
     int? connectionAlarmSeconds,
     bool? alarmSilenceable,
+    bool? allowSettings,
+    bool? allowServerChange,
+    bool? allowWindowControls,
+    bool? allowOrderEdit,
+    bool? allowManualReprint,
+    bool? allowSalesControl,
+    String? lockMessage,
   }) => KdsSettings(
     soundEnabled: soundEnabled ?? this.soundEnabled,
     pollSeconds: pollSeconds ?? this.pollSeconds,
@@ -195,7 +255,9 @@ class KdsSettings {
     warningAfterMinutes: warningAfterMinutes ?? this.warningAfterMinutes,
     lateAfterMinutes: lateAfterMinutes ?? this.lateAfterMinutes,
     volumePercent: volumePercent ?? this.volumePercent,
-    audioSinkName: clearAudioSink ? null : (audioSinkName ?? this.audioSinkName),
+    audioSinkName: clearAudioSink
+        ? null
+        : (audioSinkName ?? this.audioSinkName),
     disabledSoundEvents: disabledSoundEvents ?? this.disabledSoundEvents,
     alarmRepeatSeconds: alarmRepeatSeconds ?? this.alarmRepeatSeconds,
     alarmMaxRepeats: alarmMaxRepeats ?? this.alarmMaxRepeats,
@@ -207,6 +269,16 @@ class KdsSettings {
     connectionAlarmSeconds:
         connectionAlarmSeconds ?? this.connectionAlarmSeconds,
     alarmSilenceable: alarmSilenceable ?? this.alarmSilenceable,
+    allowSettings: allowSettings ?? this.allowSettings,
+    allowServerChange: allowServerChange ?? this.allowServerChange,
+    allowWindowControls: allowWindowControls ?? this.allowWindowControls,
+    allowOrderEdit: allowOrderEdit ?? this.allowOrderEdit,
+    allowManualReprint: allowManualReprint ?? this.allowManualReprint,
+    allowSalesControl: allowSalesControl ?? this.allowSalesControl,
+    // Boş dize GEÇERLİ bir değerdir ("özel metin yok"); yalnızca `null`
+    // "değiştirme" demektir. `lockMessage.isEmpty ? this...` yazmak,
+    // yöneticinin metni geri almasını imkânsız kılardı.
+    lockMessage: lockMessage ?? this.lockMessage,
   );
 
   /// Bir sesli uyarıyı açar/kapatır.
@@ -252,7 +324,10 @@ class KdsSettings {
       alarmRepeatSeconds: alarmRepeatSeconds.clamp(0, maxAlarmRepeatSeconds),
       alarmMaxRepeats: alarmMaxRepeats < 0 ? 0 : alarmMaxRepeats,
       ttsEnabled: ttsEnabled,
-      ttsRatePercent: ttsRatePercent.clamp(minTtsRatePercent, maxTtsRatePercent),
+      ttsRatePercent: ttsRatePercent.clamp(
+        minTtsRatePercent,
+        maxTtsRatePercent,
+      ),
       touchMode: touchMode,
       printerCodePage: printerCodePage?.clamp(0, 255),
       healthSeconds: healthSeconds.clamp(minHealthSeconds, maxHealthSeconds),
@@ -261,7 +336,28 @@ class KdsSettings {
         maxConnectionAlarmSeconds,
       ),
       alarmSilenceable: alarmSilenceable,
+      // Bayraklarda kırpılacak bir şey yok: `bool` zaten iki değerli.
+      allowSettings: allowSettings,
+      allowServerChange: allowServerChange,
+      allowWindowControls: allowWindowControls,
+      allowOrderEdit: allowOrderEdit,
+      allowManualReprint: allowManualReprint,
+      allowSalesControl: allowSalesControl,
+      lockMessage: clampLockMessage(lockMessage),
     );
+  }
+
+  /// Kilit metnini kırpar ve [maxLockMessageLength] karaktere indirir.
+  ///
+  /// Kod NOKTASINA göre kesiliyor, UTF-16 birimine göre değil: ortadan
+  /// bölünen bir vekil çift ekranda "�" olarak çıkar ve yöneticinin
+  /// yazdığı cümleyi bozar.
+  static String clampLockMessage(String value) {
+    final trimmed = value.trim();
+    final runes = trimmed.runes;
+    if (runes.length <= maxLockMessageLength) return trimmed;
+
+    return String.fromCharCodes(runes.take(maxLockMessageLength));
   }
 
   @override
@@ -283,10 +379,19 @@ class KdsSettings {
       other.printerCodePage == printerCodePage &&
       other.healthSeconds == healthSeconds &&
       other.connectionAlarmSeconds == connectionAlarmSeconds &&
-      other.alarmSilenceable == alarmSilenceable;
+      other.alarmSilenceable == alarmSilenceable &&
+      other.allowSettings == allowSettings &&
+      other.allowServerChange == allowServerChange &&
+      other.allowWindowControls == allowWindowControls &&
+      other.allowOrderEdit == allowOrderEdit &&
+      other.allowManualReprint == allowManualReprint &&
+      other.allowSalesControl == allowSalesControl &&
+      other.lockMessage == lockMessage;
 
+  // `Object.hash` en fazla 20 bağımsız değişken alıyor; kilit alanlarıyla
+  // birlikte 24 alan var, bu yüzden `hashAll`.
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll(<Object?>[
     soundEnabled,
     pollSeconds,
     printerDevicePath,
@@ -304,7 +409,23 @@ class KdsSettings {
     healthSeconds,
     connectionAlarmSeconds,
     alarmSilenceable,
-  );
+    allowSettings,
+    allowServerChange,
+    allowWindowControls,
+    allowOrderEdit,
+    allowManualReprint,
+    allowSalesControl,
+    lockMessage,
+  ]);
+
+  /// Kilitlenmiş bir eylem var mı? Arayüzün "kilit rozeti" göstermesi için.
+  bool get hasLock =>
+      !allowSettings ||
+      !allowServerChange ||
+      !allowWindowControls ||
+      !allowOrderEdit ||
+      !allowManualReprint ||
+      !allowSalesControl;
 
   @override
   String toString() =>
@@ -313,5 +434,6 @@ class KdsSettings {
       'warn: ${warningAfterMinutes}dk, late: ${lateAfterMinutes}dk, '
       'volume: $volumePercent%, sink: ${audioSinkName ?? "varsayılan"}, '
       'kapalı sesler: ${disabledSoundEvents.map((e) => e.name).join(",")}, '
-      'tts: $ttsEnabled, dokunmatik: $touchMode)';
+      'tts: $ttsEnabled, dokunmatik: $touchMode, '
+      'kilit: ${hasLock ? "var" : "yok"})';
 }

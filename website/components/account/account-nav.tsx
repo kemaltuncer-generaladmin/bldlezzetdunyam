@@ -4,10 +4,13 @@ import { cn } from '@/lib/utils';
 /**
  * Hesap bölümleri arası gezinme — W-12 / W-13.
  *
- * `/hesabim` artık tek bir profil sayfası değil, beş bölümlü bir merkez:
- * profil, siparişler, adresler, cari hesap, abonelikler. Aralarında
- * gezinmenin tek yolu footer olsaydı, cari sayfasından abonelik sayfasına
- * geçmek için sayfanın en altına inmek gerekirdi.
+ * `/hesabim` artık tek bir profil sayfası değil, dört bölümlü bir merkez:
+ * profil, siparişler, adresler, abonelikler. Aralarında gezinmenin tek yolu
+ * footer olsaydı, adres sayfasından abonelik sayfasına geçmek için sayfanın
+ * en altına inmek gerekirdi.
+ *
+ * CARİ HESAP LİSTEDEN ÇIKTI (B-19): müşteri arayüzünde cari yüzeyi yok
+ * artık. Uçlar ve admin paneli duruyor (`lib/api/account.ts`).
  *
  * SUNUCU BİLEŞENİ: aktif bölüm `usePathname` ile değil prop ile
  * belirleniyor. Her sayfa hangi bölümde olduğunu zaten biliyor; bunun için
@@ -17,7 +20,6 @@ const SECTIONS = [
   { key: 'profil', href: '/hesabim', label: 'Profil' },
   { key: 'siparisler', href: '/siparislerim', label: 'Siparişlerim' },
   { key: 'adresler', href: '/hesabim/adresler', label: 'Adreslerim' },
-  { key: 'cari', href: '/hesabim/cari', label: 'Cari hesabım' },
   { key: 'abonelikler', href: '/hesabim/abonelikler', label: 'Aboneliklerim' },
 ] as const;
 
@@ -35,9 +37,10 @@ export function AccountNav({ active }: { active: AccountSection }) {
                 href={section.href}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'flex min-h-11 items-center border-b-2 px-3 text-sm font-medium transition-colors',
+                  'flex min-h-11 items-center border-b-2 px-3 text-label',
+                  'transition-colors duration-(--duration-fast)',
                   isActive
-                    ? 'border-primary text-primary'
+                    ? 'border-primary text-primary-text'
                     : 'border-transparent text-muted-foreground hover:text-foreground',
                 )}
               >

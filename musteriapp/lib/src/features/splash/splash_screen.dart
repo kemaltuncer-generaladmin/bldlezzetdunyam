@@ -80,9 +80,9 @@ class SplashScreen extends ConsumerWidget {
                     Text(
                       l10n.splashChecking,
                       style: TextStyle(
-                        color: bldColor(BldColors.neutral0).withValues(
-                          alpha: 0.9,
-                        ),
+                        color: bldColor(
+                          BldColors.neutral0,
+                        ).withValues(alpha: 0.9),
                       ),
                     ),
                   ],
@@ -116,7 +116,7 @@ class _BrandMark extends StatelessWidget {
           shape: BoxShape.circle,
         ),
         child: Icon(
-          Icons.restaurant_menu,
+          Icons.restaurant_menu_outlined,
           size: 32,
           color: bldColor(BldColors.brand600),
         ),

@@ -105,7 +105,10 @@ void main() {
       expect(ok, isTrue);
       expect(container.read(dailyReminderProvider).enabled, isTrue);
       expect(fake.scheduleCount, 1);
-      expect(container.read(localCacheProvider).readDailyReminderEnabled(), isTrue);
+      expect(
+        container.read(localCacheProvider).readDailyReminderEnabled(),
+        isTrue,
+      );
     });
 
     test('izin reddedilirse ayar AÇILMAZ', () async {

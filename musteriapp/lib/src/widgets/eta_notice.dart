@@ -13,7 +13,7 @@ import 'package:bld_design_system/bld_design_system.dart';
 import 'package:flutter/material.dart';
 
 import '../core/eta_text.dart';
-import '../theme/bld_theme.dart';
+import '../theme/bld_semantic_colors.dart';
 
 class EtaNotice extends StatelessWidget {
   const EtaNotice({super.key, required this.eta, this.compact = false});
@@ -26,20 +26,28 @@ class EtaNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final busyNote = eta.busyNote;
+
+    // Marka tintli "accent" yüzeyi: açık temada brand50 + brand800 yazı,
+    // koyu temada #462314 + brand300. İkisi de rol tablosundan geliyor;
+    // burada ham renk yok, yoksa koyu temada krem kutu üstünde krem yazı
+    // kalırdı.
+    final surface = scheme.secondaryContainer;
+    final onSurface = scheme.onSecondaryContainer;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(BldSpacing.md),
       decoration: BoxDecoration(
-        color: bldColor(BldColors.brand50),
+        color: surface,
         borderRadius: BorderRadius.circular(BldRadius.sm),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.schedule, size: 18, color: bldColor(BldColors.brand700)),
+          Icon(Icons.schedule_outlined, size: 18, color: onSurface),
           const SizedBox(width: BldSpacing.sm),
           Expanded(
             child: Column(
@@ -47,17 +55,17 @@ class EtaNotice extends StatelessWidget {
               children: [
                 Text(
                   '${eta.title}: ${eta.value}',
-                  style: textTheme.bodyMedium?.copyWith(
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: bldColor(BldColors.brand900),
+                    color: onSurface,
                   ),
                 ),
                 if (!compact) ...[
                   const SizedBox(height: BldSpacing.xs),
                   Text(
                     eta.sourceNote,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: bldColor(BldColors.neutral600),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -65,8 +73,8 @@ class EtaNotice extends StatelessWidget {
                   const SizedBox(height: BldSpacing.xs),
                   Text(
                     busyNote,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: bldColor(BldColors.warning),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: context.bld.warningFg,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

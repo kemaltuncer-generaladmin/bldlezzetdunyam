@@ -7,6 +7,7 @@
 /// `docs/openapi.yaml` ve `docs/02-veri-modeli.md`'dir; çelişki olursa onlar kazanır.
 library;
 
+export 'src/business_date.dart';
 export 'src/delivery_type.dart';
 export 'src/money.dart';
 export 'src/order_status.dart';

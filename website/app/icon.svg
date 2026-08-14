@@ -1,31 +1,73 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Benim Lezzet Dünyam">
   <!--
-    Tarayıcı sekmesi simgesi.
+    MARKA AMBLEMİ — TEK KAYNAK ÇİZİM.
 
-    NEDEN "BLD" HARFLERİ DEĞİL: sekme simgesi 16 px çiziliyor ve üç harf o
-    boyutta okunmuyor — gri bir lekeye dönüyor. Site içindeki 40 px'lik marka
-    işareti harfleri kullanmaya devam ediyor; orada okunuyor.
+    Bu dosya sekme simgesi olmanın yanında amblemin normatif çizimidir:
+    `public/icon-192.png`, `icon-512.png`, `icon-512-maskable.png` ve
+    `favicon.ico` buradaki geometriden rasterleştirildi; `app/apple-icon.tsx`,
+    `app/opengraph-image.tsx` ve `components/site/brand-emblem.tsx` aynı
+    koordinatları kullanır. Çizim değişirse o dosyalar ve PNG'ler birlikte
+    tazelenmelidir — PNG üretimi elle yapılır (sharp), depoda üreteç yok
+    çünkü sharp doğrudan bağımlılığımız değil.
 
-    Motif, projede zaten var olan uygulama simgesinden geliyor
-    (mutfakapp/assets/icons/bld_*.png): servis kapağı. Yeni bir sembol
-    uydurmuyoruz — firmanın gerçek logosu geldiğinde bu dosya onunla
-    değiştirilecek.
+    NEDEN HARF DEĞİL: marka kılavuzu "BLD" monogramını yazı olarak dizmeyi
+    yasaklıyor — logodaki harfler el yazısı bir çizim, hiçbir font onları
+    üretmiyor. Sekme simgesi zaten 16 px çiziliyor; üç harf o boyutta gri bir
+    lekeye dönerdi.
 
-    Renkler globals.css'teki brand-500 → brand-700 ile aynı.
+    NEDEN KITA YOK: logodaki kürede kıtalar var ama ≤32 px'te iki koyu leke
+    göz-kaş gibi okunuyor (denendi, bir yüze benziyor). Ayırt edici yarı
+    zaten kürenin BUĞDAY YAYI; kıtalar düşürüldü, buğday dört sıraya çıktı.
+
+    Renkler: gradyan brand800 (#941C01) → brand500 (#DD5D02) — logonun kendi
+    gradyanı. Amblem neutral50 (#FAF6F0), buğday ve kenar çizgileri brand900
+    (#5F1B08) — logo kelime markasının kahvesi.
   -->
   <defs>
-    <linearGradient id="bld-arka" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#f97316"/>
-      <stop offset="1" stop-color="#c2410c"/>
+    <linearGradient id="bld-plate" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#941C01" />
+      <stop offset="1" stop-color="#DD5D02" />
     </linearGradient>
   </defs>
 
-  <rect width="64" height="64" rx="14" fill="url(#bld-arka)"/>
+  <rect width="64" height="64" rx="14" fill="url(#bld-plate)" />
 
-  <!-- Kapak tutamağı -->
-  <circle cx="32" cy="17" r="3.6" fill="#fff"/>
-  <!-- Kapak kubbesi: 16 px'te bile ayırt edilsin diye kalın ve sade -->
-  <path d="M13 41a19 19 0 0 1 38 0z" fill="#fff"/>
-  <!-- Tabla -->
-  <rect x="8" y="42.5" width="48" height="6" rx="3" fill="#fff"/>
+  <!--
+    Amblem kendi 64'lük kutusunda çizilir, plakaya %10 boşlukla oturur.
+    Ölçek ve öteleme burada tek satırda kalsın diye koordinatlar
+    ölçeklenmedi: aynı sayılar `brand-emblem.tsx` ve `apple-icon.tsx`
+    içinde birebir tekrar ediyor ve karşılaştırılabilir olmaları gerekiyor.
+  -->
+  <g transform="translate(6.4 6.4) scale(0.8)">
+    <!-- Küre: krem dolgu + koyu halka. Halka olmadan alt yarıdaki buğday
+         sıraları küreyi değil bir torbayı çiziyor gibi okunuyordu. -->
+    <circle cx="32" cy="42" r="20" fill="#FAF6F0" stroke="#5F1B08" stroke-width="2.4" />
+
+    <!-- Aşçı şapkası: üç kabarık + bant. Kürenin üstüne oturur, bandın alt
+         kenarı koyu bir çizgiyle ayrılır (ikisi de krem, yoksa birleşiyor). -->
+    <circle cx="32" cy="10" r="9" fill="#FAF6F0" />
+    <circle cx="20" cy="12.5" r="7.5" fill="#FAF6F0" />
+    <circle cx="44" cy="12.5" r="7.5" fill="#FAF6F0" />
+    <path d="M14 15H50L47 25H17Z" fill="#FAF6F0" />
+    <path d="M17.5 25H46.5" stroke="#5F1B08" stroke-width="2.2" stroke-linecap="round" />
+
+    <!-- Buğday yayı: dört sıra. Her sıranın genişliği kürenin o yükseklikteki
+         kirişine göre daraltıldı, yoksa satırlar halkayı deliyor. Çapraz
+         çentikler örgü/başak okumasını veriyor; çentiksiz hâli su dalgası
+         gibi görünüyordu (denendi). -->
+    <g stroke="#5F1B08" stroke-linecap="round" fill="none">
+      <g stroke-width="2.8">
+        <path d="M14 40q9-3 18 0t18 0" />
+        <path d="M15 47q8.5-2.8 17 0t17 0" />
+        <path d="M18 53.5q7-2.4 14 0t14 0" />
+        <path d="M25 59q3.5-1.5 7 0t7 0" />
+      </g>
+      <g stroke-width="1.9">
+        <path d="M17.7 40.4l3.4-3.4M24.9 40.4l3.4-3.4M35.7 43l3.4-3.4M42.9 43l3.4-3.4" />
+        <path d="M18.4 47.5l3.4-3.4M25.2 47.5l3.4-3.4M35.4 49.9l3.4-3.4M42.2 49.9l3.4-3.4" />
+        <path d="M20.5 54.2l3.4-3.4M26.1 54.2l3.4-3.4M34.5 56.2l3.4-3.4M40.1 56.2l3.4-3.4" />
+        <path d="M26.8 60l3.4-3.4M33.8 61.4l3.4-3.4" />
+      </g>
+    </g>
+  </g>
 </svg>

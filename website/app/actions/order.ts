@@ -3,14 +3,18 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { ApiError, userMessage } from '@/lib/api/client';
-import { fetchCatalog, flattenItems, isOrderingOpen } from '@/lib/api/catalog';
+import { fetchPrimaryLocation, isOrderingOpen } from '@/lib/api/catalog';
+import { canOrderDay, fetchDailyMenu } from '@/lib/api/daily-menu';
 import { cancelOrder, createOrder, fetchOrder } from '@/lib/api/orders';
-import { addLine, clearCart, readCart, resolveCart, writeCart } from '@/lib/cart';
+import { addLine, clearCart, resolveCart, writeCart, EMPTY_CART, type Cart } from '@/lib/cart';
+import { businessToday, formatDayMonth } from '@/lib/business-date';
+import { dayUnavailableCopy } from '@/lib/labels';
 import { readToken } from '@/lib/session';
 import { istanbulLocalToUtcIso } from '@/lib/timezone';
 import { checkoutSchema } from '@/lib/validation/checkout';
 import type {
   Address,
+  DailyMenuUnavailableReason,
   OrderCreateRequest,
   OrderCreatedResponse,
   OrderDetail,
@@ -41,6 +45,18 @@ function pinOf(
 function text(formData: FormData, key: string): string {
   const value = formData.get(key);
   return typeof value === 'string' ? value : '';
+}
+
+/** Sözleşmedeki beş sebepten biri mi? Bilinmeyen değer `null`'a düşer. */
+function readReason(details: Record<string, unknown> | null): DailyMenuUnavailableReason | null {
+  const raw = details?.reason;
+  return raw === 'closed_day' ||
+    raw === 'not_published' ||
+    raw === 'cutoff_passed' ||
+    raw === 'past' ||
+    raw === 'too_far'
+    ? raw
+    : null;
 }
 
 /**
@@ -81,10 +97,20 @@ export async function createOrderAction(
   const values = parsed.data;
   const cart = await resolveCart();
 
-  if (cart.lines.length === 0) redirect('/sepet');
+  if (cart.lines.length === 0 || cart.serviceDate === null) redirect('/sepet');
   if (!cart.location) return invalid('Vitrin bilgisi alınamadı, tekrar deneyin.');
   if (!isOrderingOpen(cart.location)) {
     return invalid('Şu anda sipariş alamıyoruz. Menüyü inceleyebilirsiniz.');
+  }
+  /*
+   * GÜN KAPISI. Sepet hazırlanırken açık olan gün, ödeme sayfasında
+   * beklerken kapanmış olabilir: kesim saati geçer, yönetici menüyü yayından
+   * kaldırır. Sunucu bunu `POST /orders` içinde yine denetliyor; buradaki
+   * denetim müşteriyi formu doldurup gönderdikten sonra reddedilmekten
+   * kurtarıyor.
+   */
+  if (!cart.dayOrderable) {
+    return invalid(dayUnavailableCopy(cart.dayUnavailableReason, cart.serviceDate).message);
   }
   if (cart.hasUnavailable) {
     return invalid('Sepetinizde tükenen ürün var. Sepetten çıkarıp tekrar deneyin.');
@@ -100,6 +126,18 @@ export async function createOrderAction(
 
   let requestedAt: string | null = null;
   if (values.timing === 'scheduled') {
+    /*
+     * SAAT, SERVİS GÜNÜNÜN İÇİNDE OLMAK ZORUNDA. Sözleşme `requested_at` ile
+     * `service_date`in aynı güne düşmesini şart koşuyor; farklıysa sunucu
+     * `422` döner. Burada yakalamak, müşterinin formu doldurup gönderdikten
+     * sonra anlamsız bir doğrulama hatasıyla karşılaşmasını önlüyor.
+     */
+    if (values.requested_at_local.slice(0, 10) !== cart.serviceDate) {
+      return invalid(`Seçtiğiniz saat ${formatDayMonth(cart.serviceDate)} gününe ait olmalı.`, {
+        requested_at_local: 'Sipariş gününüzün içinde bir saat seçin.',
+      });
+    }
+
     requestedAt = istanbulLocalToUtcIso(values.requested_at_local);
     if (!requestedAt) {
       return invalid('Teslim saati okunamadı.', {
@@ -134,6 +172,15 @@ export async function createOrderAction(
       ...(line.optionValueIds.length > 0 ? { option_value_ids: line.optionValueIds } : {}),
       ...(line.note ? { note: line.note } : {}),
     })),
+    /*
+     * SİPARİŞ HANGİ GÜN İÇİN? Sepetin bağlı olduğu gün (B-19).
+     *
+     * `requested_at` ile birlikte gönderildiğinde İKİSİNİN GÜNÜ AYNI OLMAK
+     * ZORUNDA (sözleşme): "cuma menüsünü perşembe 12:00'ye" mutfağın
+     * karşılayamayacağı bir sipariş. `components/checkout-form.tsx`
+     * saat seçicisini bu güne kilitliyor.
+     */
+    service_date: cart.serviceDate,
     delivery_type: values.delivery_type,
     // Gel-al siparişte adres gönderilmez, teslimat ücreti de eklenmez.
     address,
@@ -148,10 +195,24 @@ export async function createOrderAction(
   } catch (error) {
     if (error instanceof ApiError) {
       if (error.status === 401) redirect('/giris?next=%2Fodeme&durum=suresi-doldu');
+      /*
+       * GÜN KAPISININ İKİ HATASI (B-19). Sunucu sebebi iki ayrı yoldan
+       * söylüyor ve ikisi de burada Türkçeye çevriliyor — sunucunun
+       * cümlesi ekrana basılmıyor (`lib/labels.ts` başındaki gerekçe).
+       *
+       *   * `LOCATION_CLOSED` — kapalı gün ya da kesim saati. Makine okunur
+       *     bir sebep taşımıyor, o yüzden gün metnine düşülüyor.
+       *   * `VALIDATION_FAILED` + `details.reason` — geçmiş gün, çok ileri
+       *     tarih, yayınlanmamış menü.
+       */
       if (error.code === 'LOCATION_CLOSED') {
-        return invalid('Sipariş alımı kapandı. Seçtiğiniz saat kesim saatinden sonra olabilir.', {
-          requested_at_local: 'Farklı bir saat seçin.',
-        });
+        return invalid(
+          `${formatDayMonth(cart.serviceDate)} için sipariş alımı kapandı. Takvimden başka bir gün seçebilirsiniz.`,
+        );
+      }
+      if (error.code === 'VALIDATION_FAILED') {
+        const reason = readReason(error.details);
+        if (reason) return invalid(dayUnavailableCopy(reason, cart.serviceDate).message);
       }
       if (error.code === 'ITEM_UNAVAILABLE') {
         return invalid('Sepetinizdeki bir ürün tükendi. Sepeti güncelleyip tekrar deneyin.');
@@ -178,20 +239,29 @@ export async function createOrderAction(
 }
 
 /**
- * Geçmiş bir siparişi sepete geri yükler — W-10.
+ * Geçmiş bir siparişi sepete geri yükler — W-10, B-19 ile yeniden yazıldı.
  *
- * SEÇENEKLER TAŞINAMIYOR VE BU SÖZLEŞMEDEN GELİYOR. `OrderItem` seçenek
- * KİMLİKLERİNİ değil, görünen ADLARINI taşıyor (`options?: string[]`);
- * "Az acılı" metninden hangi `option_value_id` olduğunu geri çıkarmak,
- * seçenek adı değiştiğinde sessizce yanlış ürün eklemek demekti.
+ * ## Kaynak artık katalog değil, BUGÜNÜN MENÜSÜ
  *
- * Bu yüzden ZORUNLU seçeneği olan ürünler atlanıyor ve kullanıcıya kaç
- * satırın atlandığı SAYIYLA söyleniyor. Sessizce eksik bir sepet
- * hazırlamak, müşterinin ödeme adımında fark etmesine yol açardı.
+ * Tekrarlanan sipariş her zaman **bugüne** kuruluyor ve yalnızca bugünün
+ * menüsünde olan satırlar ekleniyor. Eski sürüm genel katalogda arıyordu;
+ * günün menüsü akışında o katalogdaki bir ürün bugün satılmıyor olabilir ve
+ * sepet ödeme adımında `ITEM_UNAVAILABLE` ile reddedilirdi.
  *
- * Menüden kalkmış ya da bugün tükenmiş ürünler de atlanıyor: katalog
- * `fresh` çekiliyor, yani karar ISR önbelleğine değil o anki duruma
- * dayanıyor.
+ * ## `component` satırları ATLANIYOR
+ *
+ * Paketin içindeki yemekler siparişte ayrı satır olarak duruyor
+ * (`role: component`, fiyatı sıfır) ama sepete PAKET satırı ekleniyor;
+ * sunucu içindekileri yeniden açıyor. İkisini birden eklemek, aynı yemeği
+ * iki kez sipariş etmek demekti.
+ *
+ * ## SEÇENEKLER TAŞINAMIYOR VE BU SÖZLEŞMEDEN GELİYOR
+ *
+ * `OrderItem` seçenek KİMLİKLERİNİ değil, görünen ADLARINI taşıyor
+ * (`options?: string[]`); "Az acılı" metninden hangi `option_value_id`
+ * olduğunu geri çıkarmak, seçenek adı değiştiğinde sessizce yanlış ürün
+ * eklemek demekti. Bu yüzden zorunlu seçeneği olan ürünler atlanıyor ve
+ * kullanıcıya kaç satırın atlandığı SAYIYLA söyleniyor.
  */
 export async function repeatOrderAction(
   _prev: CartActionState,
@@ -205,10 +275,15 @@ export async function repeatOrderAction(
     return { status: 'error', message: 'Sipariş bulunamadı.', at: Date.now() };
   }
 
+  const today = businessToday();
+
   let order: OrderDetail;
-  let catalog: Awaited<ReturnType<typeof fetchCatalog>>;
+  let location: Awaited<ReturnType<typeof fetchPrimaryLocation>>;
   try {
-    [order, catalog] = await Promise.all([fetchOrder(token, orderId), fetchCatalog('fresh')]);
+    [order, location] = await Promise.all([
+      fetchOrder(token, orderId),
+      fetchPrimaryLocation('fresh'),
+    ]);
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
       redirect('/giris?next=%2F&durum=suresi-doldu');
@@ -220,7 +295,10 @@ export async function repeatOrderAction(
     };
   }
 
-  if (!isOrderingOpen(catalog.location)) {
+  if (!location) {
+    return { status: 'error', message: 'Vitrin bilgisi alınamadı.', at: Date.now() };
+  }
+  if (!isOrderingOpen(location)) {
     return {
       status: 'error',
       message: 'Şu anda sipariş alamıyoruz. Menüden çalışma saatlerini görebilirsiniz.',
@@ -228,26 +306,62 @@ export async function repeatOrderAction(
     };
   }
 
-  const available = new Map(flattenItems(catalog.categories).map((item) => [item.id, item]));
+  let menu;
+  try {
+    menu = await fetchDailyMenu(location.id, today, 'fresh');
+  } catch (error) {
+    return {
+      status: 'error',
+      message: userMessage(error, 'Bugünün menüsü alınamadı, tekrar deneyin.'),
+      at: Date.now(),
+    };
+  }
 
-  let lines = await readCart();
+  if (!canOrderDay(location, menu)) {
+    return {
+      status: 'error',
+      message: dayUnavailableCopy(menu.unavailable_reason, today).message,
+      at: Date.now(),
+    };
+  }
+
+  const available = new Map(menu.items.map((item) => [item.id, item]));
+  const packageMenuId = menu.package?.menu_id ?? null;
+
+  // Tekrar HER ZAMAN yeni bir sepet kurar: eski sepet başka bir güne bağlı
+  // olabilir ve iki günü birleştirmek karşılanamaz bir sipariş üretirdi.
+  let cart: Cart = EMPTY_CART;
   let added = 0;
   let skipped = 0;
 
   for (const orderItem of order.items) {
+    // Paketin içindekiler paketle birlikte geliyor; ayrıca eklenmez.
+    if (orderItem.role === 'component') continue;
+
+    const isPackage = packageMenuId !== null && orderItem.menu_id === packageMenuId;
     const item = available.get(orderItem.menu_id);
 
-    // Menüden kalkmış, tükenmiş ya da zorunlu seçeneği olan ürün.
-    // `is_available` menüden kalkmayı, `sold_out_today` o günkü tükenmeyi
-    // ayrı ayrı gösteriyor (K-11). İkisi de eklemeyi engelliyor.
-    const unavailable = !item || !item.is_available || item.sold_out_today;
-
-    if (unavailable || (item.options ?? []).some((option) => option.required)) {
-      skipped += 1;
-      continue;
+    if (isPackage) {
+      if (!menu.package?.is_available) {
+        skipped += 1;
+        continue;
+      }
+    } else {
+      // Menüde yok, tükenmiş ya da zorunlu seçeneği var.
+      // `is_available` menüden kalkmayı, `sold_out_today` o günkü tükenmeyi
+      // ayrı ayrı gösteriyor (K-11); ikisi de eklemeyi engelliyor.
+      if (!item || !item.is_available || item.sold_out_today) {
+        skipped += 1;
+        continue;
+      }
+      if ((item.options ?? []).some((option) => option.required)) {
+        skipped += 1;
+        continue;
+      }
     }
 
-    lines = addLine(lines, {
+    cart = addLine(cart, {
+      serviceDate: today,
       menuId: orderItem.menu_id,
       quantity: orderItem.quantity,
       optionValueIds: [],
@@ -259,20 +373,21 @@ export async function repeatOrderAction(
   if (added === 0) {
     return {
       status: 'error',
-      message: 'Bu siparişteki ürünlerin hiçbiri şu anda eklenemedi. Menüden seçim yapabilirsiniz.',
+      message:
+        'Bu siparişteki ürünlerin hiçbiri bugünün menüsünde yok. Menüden seçim yapabilirsiniz.',
       at: Date.now(),
     };
   }
 
-  await writeCart(lines);
+  await writeCart(cart);
   revalidatePath('/sepet');
 
   return {
     status: 'ok',
     message:
       skipped === 0
-        ? 'Siparişiniz sepete eklendi.'
-        : `${added} ürün sepete eklendi. ${skipped} ürün seçenek gerektirdiği ya da bugün bulunmadığı için atlandı.`,
+        ? 'Siparişiniz bugünün menüsünden sepete eklendi.'
+        : `${added} ürün sepete eklendi. ${skipped} ürün bugünün menüsünde bulunmadığı ya da seçim gerektirdiği için atlandı.`,
     at: Date.now(),
   };
 }

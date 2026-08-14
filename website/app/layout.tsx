@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Playfair_Display } from 'next/font/google';
+import { Inter, Source_Serif_4 } from 'next/font/google';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
 import { QuickContact } from '@/components/site/quick-contact';
@@ -17,15 +17,22 @@ const inter = Inter({
 });
 
 /*
- * Başlıklar. Yalnızca 400–700 aralığı yükleniyor: Playfair'in tamamı ~4×
- * daha ağır ve başlıkta ara kalınlıkları kullanmıyoruz. `display: swap` ile
- * ilk boyamada Georgia'ya düşer, LCP başlığı beklemez (docs/06 §7).
+ * Başlıklar — Source Serif 4.
+ *
+ * NEDEN PLAYFAIR DEĞİL: Playfair bir Didone; kalın-ince farkı çok yüksek,
+ * tırnakları saç inceliğinde. Logo ise dirsekli tırnaklı, DÜŞÜK kontrastlı
+ * bir hümanist serif — ikisi yan yana aynı markadanmış gibi durmuyordu.
+ * Source Serif 4 aynı sınıftan, Türkçe kapsaması tam (İ/ı dahil), OFL.
+ *
+ * Üç kalınlık yükleniyor (400/600/700): 500 hiçbir yerde kullanılmıyordu ve
+ * her ek kalınlık ayrı bir dosya indiriyor. `display: swap` ile ilk boyamada
+ * Georgia'ya düşer, LCP başlığı beklemez (docs/06 §7).
  */
-const playfair = Playfair_Display({
+const sourceSerif = Source_Serif_4({
   subsets: ['latin', 'latin-ext'],
   display: 'swap',
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-playfair',
+  weight: ['400', '600', '700'],
+  variable: '--font-source-serif',
 });
 
 export const metadata: Metadata = {
@@ -53,8 +60,8 @@ export const viewport: Viewport = {
    * bozuk görünürdü.
    */
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#FAFAF9' },
-    { media: '(prefers-color-scheme: dark)', color: '#1C1917' },
+    { media: '(prefers-color-scheme: light)', color: '#FAF6F0' },
+    { media: '(prefers-color-scheme: dark)', color: '#1B120C' },
   ],
   width: 'device-width',
   initialScale: 1,
@@ -77,7 +84,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     // `suppressHydrationWarning`: next-themes sunucuda bilinemeyen temayı
     // `<html>` sınıfına istemcide yazar, aradaki fark uyarı üretir.
-    <html lang="tr" className={cn(inter.variable, playfair.variable)} suppressHydrationWarning>
+    <html lang="tr" className={cn(inter.variable, sourceSerif.variable)} suppressHydrationWarning>
       <body className="flex min-h-dvh flex-col">
         <ThemeProvider>
           <a

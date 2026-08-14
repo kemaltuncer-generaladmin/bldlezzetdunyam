@@ -188,7 +188,7 @@ class _Body extends StatelessWidget {
               ),
               if (subscription.deliveryTimeFrom != null)
                 _InfoRow(
-                  icon: Icons.schedule,
+                  icon: Icons.schedule_outlined,
                   label: l10n.subscriptionDeliveryTime,
                   value: _timeWindow(subscription),
                 ),

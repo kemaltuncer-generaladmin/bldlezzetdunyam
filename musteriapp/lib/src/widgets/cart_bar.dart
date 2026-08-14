@@ -19,6 +19,7 @@ import 'package:go_router/go_router.dart';
 import '../features/cart/cart_controller.dart';
 import '../l10n/app_localizations.dart';
 import '../router/app_router.dart';
+import '../theme/bld_theme.dart';
 
 class CartBar extends ConsumerWidget {
   const CartBar({super.key});
@@ -29,8 +30,17 @@ class CartBar extends ConsumerWidget {
     final cart = ref.watch(cartProvider);
     if (cart.isEmpty) return const SizedBox.shrink();
 
-    return Material(
-      color: Theme.of(context).scaffoldBackgroundColor,
+    // Sabit alt çubuk YÜKSELTİLMİŞ bir yüzeydir: altından kayan içeriğin
+    // üstünde durduğu görünmeli. Açık temada bunu gölge, koyu temada bir
+    // açıklık adımı anlatıyor.
+    const level = BldSurfaceLevel.raised;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: level.surfaceOf(context),
+        boxShadow: level.shadowsOf(context),
+        border: level.highlightOf(context),
+      ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
           BldSpacing.md,
@@ -51,6 +61,9 @@ class CartBar extends ConsumerWidget {
                 child: const Icon(Icons.shopping_basket_outlined, size: 20),
               ),
               const SizedBox(width: BldSpacing.md),
+              // Tutar buton etiketinin İÇİNDE geçiyor; tabular rakam butonun
+              // yazı stilinden geliyor (`kBldTabularFigures`), böylece çubuk
+              // sepete ürün eklendikçe genişleyip daralmıyor.
               Text(l10n.menuCartButton(Money.format(cart.subtotal))),
             ],
           ),

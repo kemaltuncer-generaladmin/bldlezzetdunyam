@@ -217,8 +217,9 @@ export function MapPicker({
           size="sm"
           onClick={useMyLocation}
           disabled={locating}
+          disabledReason="Konumunuz alınıyor."
         >
-          <Crosshair aria-hidden="true" />
+          <Crosshair strokeWidth={1.75} aria-hidden="true" />
           {locating ? 'Konum alınıyor…' : 'Konumumu kullan'}
         </Button>
       </div>
@@ -240,7 +241,7 @@ export function MapPicker({
 
       {value && (
         <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
-          <MapPin aria-hidden="true" className="size-4 text-primary" />
+          <MapPin strokeWidth={1.75} aria-hidden="true" className="size-4 text-primary" />
           Nokta seçildi — kurye fişine harita QR&apos;ı basılacak.
           <button
             type="button"

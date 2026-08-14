@@ -28,9 +28,8 @@ String apiErrorMessage(ApiException error, AppLocalizations l10n) {
     ApiErrorCode.serverError => l10n.errorServerError,
     // Yanıtsız kalan istek ile ayrıştırılamayan yanıt aynı kodu taşır ama
     // kullanıcı için farklı şeylerdir: ilkinde yapabileceği bir şey var.
-    ApiErrorCode.unknown => isOfflineError(error)
-        ? l10n.errorNetwork
-        : l10n.errorUnknown,
+    ApiErrorCode.unknown =>
+      isOfflineError(error) ? l10n.errorNetwork : l10n.errorUnknown,
   };
 }
 

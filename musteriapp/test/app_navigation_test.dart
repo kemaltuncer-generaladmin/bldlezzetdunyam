@@ -13,6 +13,8 @@ import 'package:musteriapp/src/providers/infra_providers.dart';
 import 'package:musteriapp/src/providers/session_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'support/daily_menu_fixtures.dart';
+
 const Location _location = Location(
   id: 1,
   name: 'Benim Lezzet Dünyam',
@@ -24,11 +26,15 @@ const Location _location = Location(
   orderCutoff: '16:00',
 );
 
-const MenuCategory _category = MenuCategory(
-  id: 10,
-  name: 'Ana Yemekler',
-  sort: 1,
-  items: [
+/// Günün menüsündeki kalemler: biri satışta, biri tükenmiş.
+///
+/// PAKET YOK: bu testin sorduğu şey menünün AÇILIP kalemleri listeleyip
+/// listelemediği. Paket kartı 16:9 görseliyle test yüzeyinin (800×600)
+/// yarısını kaplıyor ve kalemleri kaydırma gerektiren bir yere itiyor —
+/// testin cevabını değiştirmeden zorluğunu artırırdı.
+final DailyMenu _menu = sampleDailyMenu(
+  withPackage: false,
+  items: const [
     MenuItem(
       id: 101,
       name: 'Tavuk Sote',
@@ -73,12 +79,7 @@ Future<void> _pumpApp(
           (ref) async =>
               const LocationSnapshot(location: _location, fromCache: false),
         ),
-        menuProvider(_location.id).overrideWith(
-          (ref) async => const MenuSnapshot(
-            categories: [_category],
-            fromCache: false,
-          ),
-        ),
+        ...dailyMenuOverrides(today: _menu),
       ],
       child: const BldCustomerApp(),
     ),
@@ -124,7 +125,7 @@ void main() {
 
     await _openMenuTab(tester);
 
-    expect(find.text('Ana Yemekler'), findsOneWidget);
+    expect(find.text('Ev Yemeği Menüsü'), findsOneWidget);
     expect(find.text('Tavuk Sote'), findsOneWidget);
     expect(find.text('185,00 ₺'), findsOneWidget);
 

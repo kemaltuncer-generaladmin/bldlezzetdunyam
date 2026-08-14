@@ -148,10 +148,7 @@ void main() {
         isOfflineError(error(ApiErrorCode.serverError, status: 500)),
         isFalse,
       );
-      expect(
-        isOfflineError(error(ApiErrorCode.unknown, status: 502)),
-        isFalse,
-      );
+      expect(isOfflineError(error(ApiErrorCode.unknown, status: 502)), isFalse);
     });
 
     test('API dışı istisnalar çevrimdışı sayılmaz', () {

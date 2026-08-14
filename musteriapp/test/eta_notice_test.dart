@@ -7,13 +7,20 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:musteriapp/src/core/eta_text.dart';
+import 'package:musteriapp/src/theme/bld_theme.dart';
 import 'package:musteriapp/src/widgets/eta_notice.dart';
 
 void main() {
+  // Kutu marka rollerini (`BldSemanticColors`) okuyor; Material'ın varsayılan
+  // teması onları taşımıyor. Uygulamanın gerçek temasıyla pompalamak, testin
+  // ekranda çizilenle aynı ağacı kurmasını da sağlıyor.
+  Widget wrap(Widget child) => MaterialApp(
+    theme: BldTheme.light(),
+    home: Scaffold(body: child),
+  );
+
   Future<void> pump(WidgetTester tester, EtaPresentation eta) async {
-    await tester.pumpWidget(
-      MaterialApp(home: Scaffold(body: EtaNotice(eta: eta))),
-    );
+    await tester.pumpWidget(wrap(EtaNotice(eta: eta)));
   }
 
   const yogun = EtaPresentation(
@@ -39,11 +46,7 @@ void main() {
   testWidgets('dar görünümde kaynak açıklaması gizlenir, uyarı kalır', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: EtaNotice(eta: yogun, compact: true)),
-      ),
-    );
+    await tester.pumpWidget(wrap(const EtaNotice(eta: yogun, compact: true)));
 
     expect(find.text('Kaynak açıklaması'), findsNothing);
     expect(find.text('Yoğunluk uyarısı'), findsOneWidget);

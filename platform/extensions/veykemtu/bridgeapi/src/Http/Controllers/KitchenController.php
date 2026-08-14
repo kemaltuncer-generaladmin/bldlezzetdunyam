@@ -120,9 +120,37 @@ class KitchenController extends ApiController
             // saklanır. Dönüştürmeden karşılaştırmak, saat farkı kadar
             // geçmişteki her siparişi "yeni güncellenmiş" gösterir ve
             // artımlı polling'i tamamen etkisiz kılar.
-            $query->where('updated_at', '>', BusinessTime::forStorage(
+            $since = BusinessTime::forStorage(
                 Carbon::parse((string) $request->query('since')),
-            ));
+            );
+            $dayStart = BusinessTime::startOfBusinessDay();
+
+            $query->where(function ($sub) use ($since, $dayStart): void {
+                $sub->where('updated_at', '>', $since);
+
+                /*
+                 * ÖN SİPARİŞ KÖR NOKTASI (B-19) — sunucu tarafı düzeltme.
+                 *
+                 * KDS artımlı çekiyor (`since = son server_time`) ve tam
+                 * yenilemeyi yalnız açılışta / bağlantı koptuğunda yapıyor
+                 * (`polling_order_source.dart`). Pazartesi verilip cuma
+                 * teslim edilecek bir siparişin `updated_at`'i pazartesidir:
+                 * cuma günü `updated_at > since` HİÇBİR ZAMAN geçmez ve
+                 * sipariş, PİŞECEĞİ GÜN panoda hiç görünmez.
+                 *
+                 * Bugün nadir; gün seçiciyle birlikte varsayılan yol olur.
+                 * İstemcinin imleci iş gününün başlangıcından eskiyse, o gün
+                 * servis edilecek ama daha önce oluşturulmuş siparişler de
+                 * yanıta katılıyor. İmleç gün başlangıcını geçtiği anda bu
+                 * koşul kendiliğinden kapanıyor — sürekli tam liste
+                 * göndermiyoruz.
+                 *
+                 * Düzeltme tamamen burada: `mutfakapp` hiç değişmiyor.
+                 */
+                if ($dayStart->greaterThan($since)) {
+                    $sub->orWhere('created_at', '<', $dayStart);
+                }
+            });
         }
 
         $orders = $query->get();

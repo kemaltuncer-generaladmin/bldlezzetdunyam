@@ -65,7 +65,7 @@ class AccountScreen extends ConsumerWidget {
                     child: Row(
                       children: [
                         Icon(
-                          Icons.cloud_off,
+                          Icons.cloud_off_outlined,
                           color: bldColor(BldColors.warning),
                         ),
                         const SizedBox(width: BldSpacing.md),
@@ -83,12 +83,10 @@ class AccountScreen extends ConsumerWidget {
                         label: l10n.accountSubscriptions,
                         onTap: () => context.go(Routes.subscriptions),
                       ),
-                      const _RowDivider(),
-                      _AccountRow(
-                        icon: Icons.account_balance_wallet_outlined,
-                        label: l10n.accountStatementShortcut,
-                        onTap: () => context.push(Routes.accountStatement),
-                      ),
+                      // CARİ HESAP KISAYOLU KALDIRILDI (B-19). Bakiye ve
+                      // ekstre artık yalnızca admin panelinde; arka uç ve
+                      // `AccountService` yerinde duruyor, müşteri
+                      // arayüzünden çağrılmıyor.
                       const _RowDivider(),
                       _AccountRow(
                         icon: Icons.location_on_outlined,
@@ -113,7 +111,7 @@ class AccountScreen extends ConsumerWidget {
                     await ref.read(sessionProvider.notifier).logout();
                     if (context.mounted) context.go(Routes.menu);
                   },
-                  icon: const Icon(Icons.logout),
+                  icon: const Icon(Icons.logout_outlined),
                   label: Text(l10n.accountLogout),
                 ),
               ],
@@ -237,7 +235,10 @@ class _AccountRow extends StatelessWidget {
             Expanded(
               child: Text(label, style: Theme.of(context).textTheme.bodyLarge),
             ),
-            Icon(Icons.chevron_right, color: bldColor(BldColors.neutral400)),
+            Icon(
+              Icons.chevron_right_outlined,
+              color: bldColor(BldColors.neutral400),
+            ),
           ],
         ),
       ),
@@ -280,7 +281,7 @@ class _NotificationSettings extends ConsumerWidget {
             alignment: AlignmentDirectional.centerStart,
             child: TextButton.icon(
               onPressed: () => _pickTime(context, ref),
-              icon: const Icon(Icons.schedule, size: 18),
+              icon: const Icon(Icons.schedule_outlined, size: 18),
               label: Text(l10n.notificationsChangeTime),
             ),
           ),

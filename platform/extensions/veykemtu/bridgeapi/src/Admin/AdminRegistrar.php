@@ -91,8 +91,31 @@ final class AdminRegistrar
      */
     public const string PERMISSION_PHONE_ORDERS = 'Veykemtu.PhoneOrders';
 
+    /**
+     * Aylık menü takvimi ekranına erişim yetkisi — SEKİZİNCİ kutu (B-19).
+     *
+     * Bu ekran ŞİRKETİN NE SATACAĞINA VE HANGİ FİYATA SATACAĞINA karar
+     * veriyor: bir güne menü girilmemişse o gün hiçbir şey satılmaz, paket
+     * fiyatı buradan gelir ve kalemlerin gün fiyatı ürünün kendi fiyatını
+     * ezer. Yani ciro doğrudan bu ekrandan çıkıyor.
+     *
+     * SİPARİŞ GÖRÜNTÜLEME YETKİSİYLE AYNI KUTUYA KONMADI. Konsaydı,
+     * siparişlere bakabilen herkes gelecek ayı yeniden fiyatlandırabilirdi
+     * — üstelik değişikliğin belirtisi anında görünmez, ancak o gün gelip
+     * yanlış fiyattan satış yapıldığında fark edilirdi.
+     *
+     * `PERMISSION` (BLD Ayarları) ile de birleştirilmedi: o kutu şalter ve
+     * kesim saati gibi GÜNLÜK İŞLETME anahtarlarını taşıyor ve mutfak
+     * sorumlusuna verilebilmeli. Menü fiyatlaması ise satın alma/işletme
+     * sahibi kararı; ikisi farklı kişiler.
+     */
+    public const string PERMISSION_DAILY_MENU = 'Veykemtu.DailyMenu';
+
     /** Mutfak kasaları ekranının admin paneldeki adresi. */
     public const string DEVICES_URI = 'veykemtu/bridgeapi/kitchen_devices';
+
+    /** Aylık menü takvimi ekranının admin paneldeki adresi. */
+    public const string DAILY_MENUS_URI = 'veykemtu/bridgeapi/daily_menus';
 
     /** Telefon siparişi ekranının admin paneldeki adresi. */
     public const string PHONE_ORDERS_URI = 'veykemtu/bridgeapi/phone_orders';
@@ -187,6 +210,21 @@ final class AdminRegistrar
         return [
             'restaurant' => [
                 'child' => [
+                    /*
+                     * TELEFON SİPARİŞİNİN DE ÜSTÜNDE (88) — B-19.
+                     *
+                     * Yeni rejimde günün işi bu: menü girilmemiş bir güne
+                     * hiçbir kanaldan sipariş alınamıyor, telefon dahil.
+                     * Telefon siparişinin altında dursaydı, sıralama hâlâ
+                     * kataloğun satıldığı eski dünyayı anlatırdı.
+                     */
+                    'bld_daily_menus' => [
+                        'priority' => 88,
+                        'class' => 'bld_daily_menus',
+                        'href' => admin_url(self::DAILY_MENUS_URI),
+                        'title' => lang('veykemtu.bridgeapi::dailymenu.side_menu'),
+                        'permission' => self::PERMISSION_DAILY_MENU,
+                    ],
                     /*
                      * EN ÜSTTE (89) VE "Restoran" ALTINDA: telefon siparişi
                      * günün en sık yapılan işlerinden biri ve müşteri hatta
@@ -418,6 +456,10 @@ final class AdminRegistrar
             ],
             self::PERMISSION_PHONE_ORDERS => [
                 'label' => 'lang:veykemtu.bridgeapi::phoneorder.permission',
+                'group' => 'igniter::admin.permissions.name',
+            ],
+            self::PERMISSION_DAILY_MENU => [
+                'label' => 'lang:veykemtu.bridgeapi::dailymenu.permission',
                 'group' => 'igniter::admin.permissions.name',
             ],
         ];

@@ -34,18 +34,19 @@ class SectionHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
-            child: Text(
-              title,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            // `titleLarge` = h3 (21/28), serif, marka kahvesi. Bölüm başlığı
+            // bir İSİMDİR; işlevsel metin değil.
+            child: Text(title, style: Theme.of(context).textTheme.titleLarge),
           ),
           if (actionLabel != null)
+            // Dokunma hedefi kırpılmıyor: eskiden `minimumSize: Size.zero` +
+            // `shrinkWrap` ile "tümü" bağlantısı ~20 px yüksekliğinde bir
+            // hedefe iniyordu. Asgari 44×44 tema düzeyinde veriliyor, burada
+            // yalnız yatay dolgu daraltılıyor.
             TextButton(
               onPressed: onAction,
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: BldSpacing.sm),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: Text(actionLabel!),
             ),

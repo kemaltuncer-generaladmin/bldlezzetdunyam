@@ -51,7 +51,7 @@ export function EtaFactValue({ estimate }: { estimate: EtaWindow }) {
     <>
       {etaMinutesText(estimate)}
       {now !== null && (
-        <span className="font-normal text-neutral-600"> · {etaClockText(estimate, now)}</span>
+        <span className="font-normal text-muted-foreground"> · {etaClockText(estimate, now)}</span>
       )}
     </>
   );
@@ -72,12 +72,12 @@ export function EtaSummary({ eta, className }: { eta: LocationEta; className?: s
 
   return (
     <section
-      className={cn('rounded-card border border-neutral-200 bg-neutral-50 p-3', className)}
+      className={cn('rounded-card border border-border bg-background p-3', className)}
       aria-labelledby="teslim-tahmini"
     >
       <h3
         id="teslim-tahmini"
-        className="flex items-center gap-1.5 text-sm font-semibold text-neutral-900"
+        className="flex items-center gap-1.5 text-sm font-semibold text-foreground"
       >
         <IconClock className="h-4 w-4 text-brand-700" />
         Tahmini teslim süresi
@@ -89,7 +89,7 @@ export function EtaSummary({ eta, className }: { eta: LocationEta; className?: s
       </dl>
 
       {etaCaveat(cautious) && (
-        <p className="mt-2 text-xs text-neutral-600">{etaCaveat(cautious)}</p>
+        <p className="mt-2 text-xs text-muted-foreground">{etaCaveat(cautious)}</p>
       )}
     </section>
   );
@@ -106,11 +106,11 @@ function EtaSummaryRow({
 }) {
   return (
     <div className="flex items-start justify-between gap-3">
-      <dt className="text-neutral-600">{label}</dt>
+      <dt className="text-muted-foreground">{label}</dt>
       <dd className="text-right">
-        <span className="font-semibold text-neutral-900">{etaMinutesText(estimate)}</span>
+        <span className="font-semibold text-foreground">{etaMinutesText(estimate)}</span>
         {nowMs !== null && (
-          <span className="block text-xs text-neutral-600">
+          <span className="block text-xs text-muted-foreground">
             yaklaşık {etaClockText(estimate, nowMs)} arası
           </span>
         )}
@@ -136,11 +136,11 @@ export function EtaOptionNote({
 
   return (
     <>
-      <span className="mt-1 block text-neutral-800">
+      <span className="mt-1 block text-foreground">
         {etaSentence(estimate, deliveryType)}
         {now !== null && ` Şu an verirseniz yaklaşık ${etaClockText(estimate, now)} arası.`}
       </span>
-      {caveat && <span className="mt-0.5 block text-xs text-neutral-600">{caveat}</span>}
+      {caveat && <span className="mt-0.5 block text-xs text-muted-foreground">{caveat}</span>}
     </>
   );
 }
@@ -175,12 +175,12 @@ export function OrderEtaNote({
     <p className="mt-4 flex items-start gap-2 rounded-card bg-brand-50 px-3 py-2 text-sm">
       <IconClock className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" />
       <span>
-        <span className="font-semibold text-neutral-900">
+        <span className="font-semibold text-foreground">
           {deliveryType === 'pickup' ? 'Tahmini hazır olma' : 'Tahmini teslim'}: yaklaşık{' '}
           {etaClockText(estimate, createdMs)} arası
         </span>
-        <span className="block text-neutral-800">{etaTrackingDetail(estimate, deliveryType)}</span>
-        {caveat && <span className="block text-xs text-neutral-600">{caveat}</span>}
+        <span className="block text-foreground">{etaTrackingDetail(estimate, deliveryType)}</span>
+        {caveat && <span className="block text-xs text-muted-foreground">{caveat}</span>}
       </span>
     </p>
   );

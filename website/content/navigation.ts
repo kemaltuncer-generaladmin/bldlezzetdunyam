@@ -57,8 +57,10 @@ export const PRIMARY_CTA = { href: '/teklif-al', label: 'Teklif Al' } as const;
  * bir şey oluyordu.
  */
 export const ORDERING_ROUTES: readonly string[] = [
+  // `/urun` LİSTEDEN ÇIKTI (B-19): ürün detay sayfaları kaldırıldı ve adres
+  // `/menu`ye yönlendiriliyor. Yönlendirilen bir yolu burada tutmak,
+  // header'ı hiç uğranmayan bir rotaya göre ayarlamak olurdu.
   '/menu',
-  '/urun',
   '/sepet',
   '/odeme',
   '/siparis',
@@ -81,7 +83,10 @@ export const FOOTER_NAV: readonly {
       { href: '/menu', label: 'Günün menüsü' },
       { href: '/sepet', label: 'Sepetim' },
       { href: '/siparislerim', label: 'Siparişlerim' },
-      { href: '/hesabim/cari', label: 'Cari hesabım' },
+      // `/hesabim/cari` LİSTEDEN ÇIKTI (B-19): cari hesap müşteri
+      // arayüzünden kaldırıldı, sayfa artık yok. Footer'da bırakılsaydı
+      // her sayfanın altında 404'e giden bir bağlantı dururdu.
+      { href: '/hesabim/adresler', label: 'Adreslerim' },
       { href: '/hesabim/abonelikler', label: 'Aboneliklerim' },
     ],
   },

@@ -1,15 +1,18 @@
 import 'server-only';
 
 import { apiFetch, REVALIDATE_SECONDS, type RequestOptions } from './client';
-import type { Location, LocationListResponse, MenuCategory, MenuItem, MenuResponse } from './types';
+import type { Location, LocationListResponse } from './types';
 
 export const CATALOG_TAG = 'catalog';
 
 /**
- * Önbellek davranışı. Katalog sayfaları (`/`, `/menu`, `/urun/[slug]`) ISR
- * kullanır; sipariş kararının verildiği yerler (`/sepet`, `/odeme`, sipariş
+ * Önbellek davranışı. Vitrin bilgisini SEO yüzeyleri (`/`) ISR ile okur;
+ * sipariş kararının verildiği yerler (`/menu`, `/sepet`, `/odeme`, sipariş
  * oluşturma) **taze** veri ister — yönetici şalteri kapattığında 60 saniye
  * boyunca sipariş alınmaya devam etmemeli.
+ *
+ * `lib/api/daily-menu.ts` aynı ayrımı kullanıyor; tip oradan da içe
+ * aktarılıyor ki iki dosyada iki farklı tazelik kavramı doğmasın.
  */
 export type CatalogFreshness = 'isr' | 'fresh';
 
@@ -20,6 +23,14 @@ function cacheFor(freshness: CatalogFreshness): NonNullable<RequestOptions['cach
 }
 
 /**
+ * VİTRİN OKUMA — genel ürün kataloğu ARTIK BURADA DEĞİL (B-19).
+ *
+ * `fetchMenu`/`fetchCatalog`/`flattenItems` kaldırıldı: satış günün menüsü
+ * üzerinden yürüyor ve müşteri yüzeylerinde güne bağlı olmayan bir ürün
+ * listesi kalmadı. `GET /locations/{id}/menu` ucu sözleşmede DURUYOR ve
+ * yönetim paneli onu kullanmaya devam ediyor; kaldırılan yalnızca sitenin
+ * o uca giden yolu.
+ *
  * Vitrinler. Faz 1'de tek vitrin döner ama dizi biçimi korunur
  * (`docs/openapi.yaml` `/locations`).
  */
@@ -36,45 +47,6 @@ export async function fetchPrimaryLocation(
 ): Promise<Location | null> {
   const locations = await fetchLocations(freshness);
   return locations[0] ?? null;
-}
-
-/** Vitrinin menüsü. `is_available: false` ürünler listede **kalır**. */
-export async function fetchMenu(
-  locationId: number,
-  freshness: CatalogFreshness = 'isr',
-): Promise<MenuCategory[]> {
-  const body = await apiFetch<MenuResponse>(`/locations/${locationId}/menu`, {
-    cache: cacheFor(freshness),
-  });
-  return [...body.data].sort((a, b) => a.sort - b.sort);
-}
-
-export type CatalogSnapshot = {
-  location: Location | null;
-  categories: MenuCategory[];
-};
-
-/** Vitrin + menü tek çağrıda; sayfaların çoğu ikisine birden ihtiyaç duyar. */
-export async function fetchCatalog(freshness: CatalogFreshness = 'isr'): Promise<CatalogSnapshot> {
-  const location = await fetchPrimaryLocation(freshness);
-  if (!location) return { location: null, categories: [] };
-  const categories = await fetchMenu(location.id, freshness);
-  return { location, categories };
-}
-
-/** Menüdeki tüm ürünler, kategori sırasıyla düzleştirilmiş. */
-export function flattenItems(categories: MenuCategory[]): MenuItem[] {
-  return categories.flatMap((category) => category.items ?? []);
-}
-
-/** Ürünü kimliğiyle bulur — `/urun/[slug]` çözümlemesi bunu kullanır. */
-export function findItemById(categories: MenuCategory[], menuId: number): MenuItem | null {
-  return flattenItems(categories).find((item) => item.id === menuId) ?? null;
-}
-
-/** Bir ürünün ait olduğu kategori adı (ekmek kırıntısı ve JSON-LD için). */
-export function findCategoryOf(categories: MenuCategory[], menuId: number): MenuCategory | null {
-  return categories.find((c) => (c.items ?? []).some((item) => item.id === menuId)) ?? null;
 }
 
 /** Sipariş alınabilir mi? İki şalter de açık olmalı (`docs/06` §3). */

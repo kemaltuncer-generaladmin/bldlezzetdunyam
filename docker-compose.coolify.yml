@@ -82,6 +82,12 @@ services:
       # BASILI FİŞLERDEKİ QR'LAR ÖLÜR.
       BLD_LINK_SECRET: ${BLD_LINK_SECRET:-}
 
+      # Kontrol Merkezi imzası (K-21). `/api/control/kds/*` bu sır olmadan
+      # 401 döner — cihaz yönetimi, ayar itme ve sipariş revizyonu kapalı
+      # kalır. BBD_WEBHOOK_SECRET ile AYNI OLMAMALI: o sır yalnız sipariş
+      # yazdırıyor, bu sır mutfağı yönetiyor.
+      BLD_CONTROL_SECRET: ${BLD_CONTROL_SECRET:-}
+
       # Sanal POS simülasyonu (K-19 ödeme QR'ı buna bağlı).
       #
       # ÜRETİMDE VARSAYILAN OLARAK KAPALI ve öyle kalmalı: açmak, gerçek

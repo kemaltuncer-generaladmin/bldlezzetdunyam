@@ -148,7 +148,10 @@ class PushRegistration {
 
   /// Sunucuya token'ı bildirir. Hata yutulur: push kaydı başarısız diye
   /// kullanıcının siparişi engellenmemeli.
-  Future<bool> register({required String token, required String platform}) async {
+  Future<bool> register({
+    required String token,
+    required String platform,
+  }) async {
     try {
       await _api.auth.registerPushToken(
         PushTokenRequest(fcmToken: token, platform: platform),

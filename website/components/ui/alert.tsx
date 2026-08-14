@@ -3,14 +3,42 @@ import { cva, type VariantProps } from 'class-variance-authority';
 
 import { cn } from '@/lib/utils';
 
+/**
+ * Satır içi bildirim.
+ *
+ * ## `role` prop olarak geliyor, sabit değil
+ *
+ * Üst kaynak her `Alert`'e `role="alert"` basıyordu. `role="alert"` ekran
+ * okuyucuyu KESER: kullanıcı ne okuyorsa okusun, metin araya girer. Bu
+ * yalnızca hata için doğru. Bilgi kutusu bunu yaptığında sayfayı okumak
+ * imkânsız hâle geliyor, çevrimdışı uyarısı ise `role="status"` olmalı
+ * (kibar sıra: kullanıcı cümlesini bitirsin, sonra duyulsun).
+ *
+ * Varsayılan `undefined` — yani hiçbir rol. Bilinçli: rol bir karardır,
+ * varsayılan olamaz.
+ *
+ * ## Tonlar tint + METİN adımı
+ *
+ * Dolu renkli uyarı kutusu sayfadaki tek primary butondan daha güçlü
+ * okunuyordu. Zemin `*-surface`, yazı aynı ailenin metin adımı; ikisinin
+ * kontrastı `tokens.css`'te ölçüldü.
+ */
 const alertVariants = cva(
-  "group/alert relative grid w-full gap-0.5 rounded-lg border px-2.5 py-2 text-left text-sm has-data-[slot=alert-action]:relative has-data-[slot=alert-action]:pr-18 has-[>svg]:grid-cols-[auto_1fr] has-[>svg]:gap-x-2 *:[svg]:row-span-2 *:[svg]:translate-y-0.5 *:[svg]:text-current *:[svg:not([class*='size-'])]:size-4",
+  [
+    'group/alert relative grid w-full gap-1 rounded-md border px-4 py-3 text-left text-body',
+    'has-data-[slot=alert-action]:pr-16',
+    'has-[>svg]:grid-cols-[auto_1fr] has-[>svg]:gap-x-3',
+    '*:[svg]:row-span-2 *:[svg]:translate-y-0.5 *:[svg]:text-current',
+    "*:[svg:not([class*='size-'])]:size-5",
+  ],
   {
     variants: {
       variant: {
-        default: 'bg-card text-card-foreground',
-        destructive:
-          'bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 *:[svg]:text-current',
+        default: 'border-border bg-card text-card-foreground',
+        info: 'border-transparent bg-info-surface text-info-foreground',
+        success: 'border-transparent bg-success-surface text-success-foreground',
+        warning: 'border-transparent bg-warning-surface text-warning-foreground',
+        destructive: 'border-transparent bg-danger-surface text-danger-foreground',
       },
     },
     defaultVariants: {
@@ -24,14 +52,7 @@ function Alert({
   variant,
   ...props
 }: React.ComponentProps<'div'> & VariantProps<typeof alertVariants>) {
-  return (
-    <div
-      data-slot="alert"
-      role="alert"
-      className={cn(alertVariants({ variant }), className)}
-      {...props}
-    />
-  );
+  return <div data-slot="alert" className={cn(alertVariants({ variant }), className)} {...props} />;
 }
 
 function AlertTitle({ className, ...props }: React.ComponentProps<'div'>) {
@@ -39,7 +60,7 @@ function AlertTitle({ className, ...props }: React.ComponentProps<'div'>) {
     <div
       data-slot="alert-title"
       className={cn(
-        'font-medium group-has-[>svg]/alert:col-start-2 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground',
+        'text-label group-has-[>svg]/alert:col-start-2 [&_a]:underline [&_a]:underline-offset-4',
         className,
       )}
       {...props}
@@ -47,12 +68,19 @@ function AlertTitle({ className, ...props }: React.ComponentProps<'div'>) {
   );
 }
 
+/**
+ * Açıklama rengi bilinçli olarak `--muted-foreground` DEĞİL.
+ *
+ * Tint zeminlerin üzerinde nötr gri, ölçülen kontrastın dışına çıkıyordu.
+ * `currentColor`ın %90'ı hem tonu koruyor hem başlıktan bir adım geriye
+ * düşüyor.
+ */
 function AlertDescription({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="alert-description"
       className={cn(
-        'text-sm text-balance text-muted-foreground md:text-pretty [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4',
+        'text-body text-pretty text-current/90 [&_a]:underline [&_a]:underline-offset-4 [&_p:not(:last-child)]:mb-3',
         className,
       )}
       {...props}

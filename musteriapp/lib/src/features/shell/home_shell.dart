@@ -60,30 +60,30 @@ class HomeShell extends ConsumerWidget {
               // Aynı sekmeye tekrar basmak o sekmenin köküne döner.
               initialLocation: index == navigationShell.currentIndex,
             ),
+            // `selectedIcon` YOK: marka kuralı her iki durumda da OUTLINE ikon
+            // istiyor, dolayısıyla seçili ikon seçilmeyenin tıpatıp aynısı
+            // olurdu. Seçili durumu marka tintli gösterge hapı ve etiket rengi
+            // taşıyor; aynı bilgiyi üçüncü kez söylemenin karşılığı yalnız
+            // gereksiz kod.
             destinations: [
               NavigationDestination(
                 icon: const Icon(Icons.home_outlined),
-                selectedIcon: const Icon(Icons.home),
                 label: l10n.navHome,
               ),
               NavigationDestination(
                 icon: const Icon(Icons.restaurant_menu_outlined),
-                selectedIcon: const Icon(Icons.restaurant_menu),
                 label: l10n.navMenu,
               ),
               NavigationDestination(
                 icon: const Icon(Icons.event_repeat_outlined),
-                selectedIcon: const Icon(Icons.event_repeat),
                 label: l10n.navSubscriptions,
               ),
               NavigationDestination(
                 icon: const Icon(Icons.receipt_long_outlined),
-                selectedIcon: const Icon(Icons.receipt_long),
                 label: l10n.navOrders,
               ),
               NavigationDestination(
                 icon: const Icon(Icons.person_outline),
-                selectedIcon: const Icon(Icons.person),
                 label: l10n.navAccount,
               ),
             ],

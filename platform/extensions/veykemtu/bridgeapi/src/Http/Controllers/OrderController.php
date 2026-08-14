@@ -17,6 +17,7 @@ use Veykemtu\BridgeApi\Services\OrderFactory;
 use Veykemtu\BridgeApi\Services\OrderPresenter;
 use Veykemtu\BridgeApi\Services\OrderStatusTransition;
 use Veykemtu\BridgeApi\Services\ServiceArea;
+use Veykemtu\BridgeApi\Services\StructuredAddress;
 
 /**
  * Müşteri sipariş uçları — `docs/openapi.yaml` §Sipariş.
@@ -45,7 +46,33 @@ class OrderController extends ApiController
             'items.*.note' => ['sometimes', 'nullable', 'string', 'max:255'],
             'delivery_type' => ['required', Rule::in([Order::DELIVERY, Order::COLLECTION, 'pickup'])],
             'address' => ['sometimes', 'nullable', 'array'],
-            'address.line1' => ['required_if:delivery_type,delivery', 'nullable', 'string', 'max:255'],
+            /*
+             * `address.line1` ADRESE GÖNDERİMDE ZORUNLU — tek istisnası,
+             * müşterinin yapılandırılmış alanları doldurmuş olması (B-21).
+             * O durumda cümleyi `OrderFactory::storeAddress` kuruyor.
+             *
+             * Düz `required_if` YETMEZ: kuralı bilmeyen değil, tam tersine
+             * yeni formu kullanan istemciyi reddederdi — mahalle/sokak/bina
+             * dolu bir istekte `line1` göndermek zorunda kalırdı ve o cümleyi
+             * istemcinin kurması, aynı adresin web'de ve mobilde farklı
+             * yazılması demekti.
+             */
+            'address.line1' => [
+                Rule::requiredIf(static function () use ($request): bool {
+                    if ($request->input('delivery_type') !== Order::DELIVERY) {
+                        return false;
+                    }
+
+                    foreach (StructuredAddress::LINE_SOURCES as $field) {
+                        if (filled($request->input('address.'.$field))) {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                }),
+                'nullable', 'string', 'max:255',
+            ],
             // Hizmet alanı denetimi (`ServiceArea`): istemcilerdeki kilit
             // kolaylıktır, kural değildir. Eski bir uygulama sürümü ya da
             // doğrudan API'ye atılan bir istek o kilidi görmez.
@@ -65,7 +92,17 @@ class OrderController extends ApiController
             // için kimse fark etmez.
             'address.latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
             'address.longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
+
+            // Yapılandırılmış adres alanları (B-21) — kurallar defter ucuyla
+            // ORTAK. Ayrı yazılsalardı defterde kaydedilebilen bir adres
+            // siparişte reddedilirdi.
+            ...StructuredAddress::rules('address.'),
             'requested_at' => ['sometimes', 'nullable', 'date'],
+            // Servis günü (B-19). Biçim burada, ANLAM `DailyMenuService`
+            // içinde denetleniyor: geçmiş gün, ileri görüş penceresi, kapalı
+            // gün ve yayınlanmış menü tek yerde karar veriliyor ki takvimde
+            // açık görünen bir güne sipariş verip 422 alınmasın.
+            'service_date' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
             'payment_method' => ['required', Rule::in(['online', 'cash', 'account'])],
             'customer_note' => ['sometimes', 'nullable', 'string', 'max:500'],
         ]);
@@ -99,6 +136,7 @@ class OrderController extends ApiController
                 : null,
             paymentMethod: $data['payment_method'],
             customerNote: $data['customer_note'] ?? null,
+            serviceDate: $data['service_date'] ?? null,
         );
 
         return $this->json($this->presenter->created($order), 201);

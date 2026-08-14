@@ -19,6 +19,7 @@ export 'src/models/converters.dart'
         UnknownEnumValueException,
         paymentMethodLabelsTr,
         paymentStatusLabelsTr;
+export 'src/models/daily_menu.dart';
 export 'src/models/kitchen.dart';
 export 'src/models/order.dart';
 export 'src/models/subscription.dart';
