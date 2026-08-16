@@ -40,6 +40,159 @@ Map<String, dynamic> _$SubscriptionDeliveryPointToJson(
   'note': ?instance.note,
 };
 
+_SubscriptionException _$SubscriptionExceptionFromJson(
+  Map<String, dynamic> json,
+) => _SubscriptionException(
+  serviceDate: json['service_date'] as String,
+  skip: json['skip'] as bool,
+  quantityOverride: (json['quantity_override'] as num?)?.toInt(),
+  createdAt: json['created_at'] == null
+      ? null
+      : DateTime.parse(json['created_at'] as String),
+);
+
+Map<String, dynamic> _$SubscriptionExceptionToJson(
+  _SubscriptionException instance,
+) => <String, dynamic>{
+  'service_date': instance.serviceDate,
+  'skip': instance.skip,
+  'quantity_override': ?instance.quantityOverride,
+  'created_at': ?instance.createdAt?.toIso8601String(),
+};
+
+_SubscriptionPaymentSummary _$SubscriptionPaymentSummaryFromJson(
+  Map<String, dynamic> json,
+) => _SubscriptionPaymentSummary(
+  period: json['period'] as String,
+  amount: (json['amount'] as num).toInt(),
+  currency: json['currency'] as String,
+  status: const PaymentStatusConverter().fromJson(json['status'] as String),
+  paymentId: (json['payment_id'] as num?)?.toInt(),
+  dueDate: json['due_date'] as String?,
+);
+
+Map<String, dynamic> _$SubscriptionPaymentSummaryToJson(
+  _SubscriptionPaymentSummary instance,
+) => <String, dynamic>{
+  'period': instance.period,
+  'amount': instance.amount,
+  'currency': instance.currency,
+  'status': const PaymentStatusConverter().toJson(instance.status),
+  'payment_id': ?instance.paymentId,
+  'due_date': ?instance.dueDate,
+};
+
+_SubscriptionContractSummary _$SubscriptionContractSummaryFromJson(
+  Map<String, dynamic> json,
+) => _SubscriptionContractSummary(
+  status: json['status'] as String,
+  version: (json['version'] as num?)?.toInt(),
+  sentAt: json['sent_at'] == null
+      ? null
+      : DateTime.parse(json['sent_at'] as String),
+  approvedAt: json['approved_at'] == null
+      ? null
+      : DateTime.parse(json['approved_at'] as String),
+);
+
+Map<String, dynamic> _$SubscriptionContractSummaryToJson(
+  _SubscriptionContractSummary instance,
+) => <String, dynamic>{
+  'status': instance.status,
+  'version': ?instance.version,
+  'sent_at': ?instance.sentAt?.toIso8601String(),
+  'approved_at': ?instance.approvedAt?.toIso8601String(),
+};
+
+_SubscriptionContract _$SubscriptionContractFromJson(
+  Map<String, dynamic> json,
+) => _SubscriptionContract(
+  status: json['status'] as String,
+  version: (json['version'] as num).toInt(),
+  body: json['body'] as String,
+  bodyFormat: json['body_format'] as String,
+  serviceDays:
+      (json['service_days'] as List<dynamic>?)
+          ?.map((e) => (e as num).toInt())
+          .toList() ??
+      const <int>[],
+  unitPrice: (json['unit_price'] as num).toInt(),
+  currency: json['currency'] as String,
+  title: json['title'] as String?,
+  customerLabel: json['customer_label'] as String?,
+  maskedPhone: json['masked_phone'] as String?,
+  startDate: json['start_date'] as String?,
+  endDate: json['end_date'] as String?,
+  defaultQuantity: (json['default_quantity'] as num?)?.toInt(),
+  monthlyEstimate: (json['monthly_estimate'] as num?)?.toInt(),
+  expiresAt: json['expires_at'] == null
+      ? null
+      : DateTime.parse(json['expires_at'] as String),
+  approvedAt: json['approved_at'] == null
+      ? null
+      : DateTime.parse(json['approved_at'] as String),
+);
+
+Map<String, dynamic> _$SubscriptionContractToJson(
+  _SubscriptionContract instance,
+) => <String, dynamic>{
+  'status': instance.status,
+  'version': instance.version,
+  'body': instance.body,
+  'body_format': instance.bodyFormat,
+  'service_days': instance.serviceDays,
+  'unit_price': instance.unitPrice,
+  'currency': instance.currency,
+  'title': ?instance.title,
+  'customer_label': ?instance.customerLabel,
+  'masked_phone': ?instance.maskedPhone,
+  'start_date': ?instance.startDate,
+  'end_date': ?instance.endDate,
+  'default_quantity': ?instance.defaultQuantity,
+  'monthly_estimate': ?instance.monthlyEstimate,
+  'expires_at': ?instance.expiresAt?.toIso8601String(),
+  'approved_at': ?instance.approvedAt?.toIso8601String(),
+};
+
+_SubscriptionPayment _$SubscriptionPaymentFromJson(Map<String, dynamic> json) =>
+    _SubscriptionPayment(
+      paymentId: (json['payment_id'] as num).toInt(),
+      subscriptionId: (json['subscription_id'] as num).toInt(),
+      period: json['period'] as String,
+      amount: (json['amount'] as num).toInt(),
+      currency: json['currency'] as String,
+      status: const PaymentStatusConverter().fromJson(json['status'] as String),
+      nextAction: json['next_action'] == null
+          ? PaymentNextAction.none
+          : const PaymentNextActionConverter().fromJson(
+              json['next_action'] as String?,
+            ),
+      createdAt: DateTime.parse(json['created_at'] as String),
+      redirectUrl: json['redirect_url'] as String?,
+      failureReason: json['failure_reason'] as String?,
+      paidAt: json['paid_at'] == null
+          ? null
+          : DateTime.parse(json['paid_at'] as String),
+    );
+
+Map<String, dynamic> _$SubscriptionPaymentToJson(
+  _SubscriptionPayment instance,
+) => <String, dynamic>{
+  'payment_id': instance.paymentId,
+  'subscription_id': instance.subscriptionId,
+  'period': instance.period,
+  'amount': instance.amount,
+  'currency': instance.currency,
+  'status': const PaymentStatusConverter().toJson(instance.status),
+  'next_action': ?const PaymentNextActionConverter().toJson(
+    instance.nextAction,
+  ),
+  'created_at': instance.createdAt.toIso8601String(),
+  'redirect_url': ?instance.redirectUrl,
+  'failure_reason': ?instance.failureReason,
+  'paid_at': ?instance.paidAt?.toIso8601String(),
+};
+
 _Subscription _$SubscriptionFromJson(Map<String, dynamic> json) =>
     _Subscription(
       id: (json['id'] as num).toInt(),
@@ -77,6 +230,24 @@ _Subscription _$SubscriptionFromJson(Map<String, dynamic> json) =>
               )
               .toList() ??
           const <SubscriptionDeliveryPoint>[],
+      exceptions:
+          (json['exceptions'] as List<dynamic>?)
+              ?.map(
+                (e) =>
+                    SubscriptionException.fromJson(e as Map<String, dynamic>),
+              )
+              .toList() ??
+          const <SubscriptionException>[],
+      payment: json['payment'] == null
+          ? null
+          : SubscriptionPaymentSummary.fromJson(
+              json['payment'] as Map<String, dynamic>,
+            ),
+      contract: json['contract'] == null
+          ? null
+          : SubscriptionContractSummary.fromJson(
+              json['contract'] as Map<String, dynamic>,
+            ),
       createdAt: DateTime.parse(json['created_at'] as String),
     );
 
@@ -98,6 +269,9 @@ Map<String, dynamic> _$SubscriptionToJson(
   'menu_mode': instance.menuMode,
   'lines': instance.lines.map((e) => e.toJson()).toList(),
   'delivery_points': instance.deliveryPoints.map((e) => e.toJson()).toList(),
+  'exceptions': instance.exceptions.map((e) => e.toJson()).toList(),
+  'payment': ?instance.payment?.toJson(),
+  'contract': ?instance.contract?.toJson(),
   'created_at': instance.createdAt.toIso8601String(),
 };
 

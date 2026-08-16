@@ -18,7 +18,12 @@ class ReorderOutcome {
   /// Sepete giren kalem sayısı.
   final int added;
 
-  /// Menüde bulunamayan ya da satışta olmayan kalem sayısı.
+  /// Sepete GİREMEYEN kalem sayısı.
+  ///
+  /// İki sebepten olur ve ikisi de aynı kovaya düşer: kalem o gün menüde
+  /// yok/satışta değil, ya da kalan porsiyon yetmiyor. Müşteri açısından fark
+  /// yok — o ürün bu sipariş için alınamıyor; sayının işi eksik bir sepetin
+  /// sessizce gönderilmesini engellemek.
   final int missing;
 
   bool get isEmpty => added == 0;
@@ -47,10 +52,14 @@ class ReorderOutcome {
 /// hem de içindekiler tek tek olarak iki kez sepete girer, müşteri iki kat
 /// öderdi. Paketin ÜST satırı ise sıradan bir kalem gibi ele alınıyor: o da
 /// bir `menu_id` ve bugün menüde varsa yeniden alınabilir.
+/// [addToCart] **sepetin kabul edip etmediğini döndürür.** `void` olduğu
+/// sürece stok tavanına takılan bir kalem "eklendi" diye sayılıyordu: müşteri
+/// "3 ürün sepete eklendi" okuyup sepette 2 buluyordu. Karar sepetindir,
+/// sayım buranın.
 ReorderOutcome reorderInto({
   required OrderDetail order,
   required List<MenuItem> menuItems,
-  required void Function(MenuItem item, int quantity) addToCart,
+  required bool Function(MenuItem item, int quantity) addToCart,
 }) {
   final available = <int, MenuItem>{
     for (final item in menuItems)
@@ -68,8 +77,11 @@ ReorderOutcome reorderInto({
       missing++;
       continue;
     }
-    addToCart(item, line.quantity);
-    added++;
+    if (addToCart(item, line.quantity)) {
+      added++;
+    } else {
+      missing++;
+    }
   }
 
   return ReorderOutcome(added: added, missing: missing);

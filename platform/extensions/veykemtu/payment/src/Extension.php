@@ -7,9 +7,7 @@ namespace Veykemtu\Payment;
 use Igniter\System\Classes\BaseExtension;
 use Illuminate\Support\Facades\Route;
 use Override;
-use Veykemtu\Payment\Http\Controllers\AccountSimulationController;
 use Veykemtu\Payment\Http\Controllers\SimulationController;
-use Veykemtu\Payment\Payments\AccountPayment;
 use Veykemtu\Payment\Payments\CashPayment;
 use Veykemtu\Payment\Payments\SimulatedPos;
 
@@ -42,11 +40,6 @@ class Extension extends BaseExtension
                 'name' => 'Kapıda ödeme',
                 'description' => 'Tahsilat teslimatta yapılır; yazılım tahsilat yapmaz.',
             ],
-            AccountPayment::class => [
-                'code' => AccountPayment::CODE,
-                'name' => 'Cari hesap',
-                'description' => 'Kurumsal müşteri cari hesabına işlenir; yazılım tahsilat yapmaz.',
-            ],
         ];
     }
 
@@ -78,15 +71,11 @@ class Extension extends BaseExtension
                 ->name('veykemtu.payment.simulation');
             Route::post('/odeme-simulasyon/{hash}', [SimulationController::class, 'process']);
 
-            // Cari borç ödemesi (B-14 / W-12) — AYRI ROTA, ÇÜNKÜ AYRI NESNE.
-            // Yukarıdaki akış bir SİPARİŞİN bedelini tahsil eder ve siparişi
-            // "ödendi" işaretler. Bu akışta sipariş yok: ödenen şey birikmiş
-            // bakiye ve sonucu deftere bir alacak satırı olarak düşer. Aynı
-            // rotaya iki anlam yüklemek, dönüş adresinden yazıcı tetiğine
-            // kadar her adımda "bu hangisiydi" sorusunu doğururdu.
-            Route::get('/cari-odeme-simulasyon/{hash}', [AccountSimulationController::class, 'show'])
-                ->name('veykemtu.payment.account_simulation');
-            Route::post('/cari-odeme-simulasyon/{hash}', [AccountSimulationController::class, 'process']);
+            // Cari borç ödemesi rotaları (`/cari-odeme-simulasyon/{hash}`)
+            // kaldırıldı — cari hesap iş modelinden çıktı. Akışın
+            // devralınmaya değer iskeleti (niyet → hash → dönüş adresi →
+            // çift geri-arama koruması) `docs/control/_devralinan-odeme-yapisi.md`
+            // dosyasına çıkarıldı; abonelik ödemesi oradan kurulacak.
         });
     }
 }

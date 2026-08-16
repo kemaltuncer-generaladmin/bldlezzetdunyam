@@ -51,7 +51,6 @@ return [
     'help_payment_methods' => 'En az bir yöntem seçili olmalıdır. Çalışan bir ödeme geçidi yoksa "Online ödeme"yi işaretlemeyin: müşteri tıklar ve hiçbir şey olmaz.',
     'text_payment_online' => 'Online ödeme',
     'text_payment_cash' => 'Kapıda nakit',
-    'text_payment_account' => 'Cari hesaba yazdır',
 
     'label_busy' => 'Mutfak yoğun',
     'help_busy' => 'Açıkken müşteriye gecikme uyarısı gösterilir, sipariş alınmaya devam eder.',
@@ -289,6 +288,19 @@ return [
     ],
 
     'side_menu_devices' => 'Mutfak kasaları',
+
+    /*
+     * "Kurumsal" üst menü grubunun başlığı ve iade yetkisinin etiketi.
+     *
+     * İkisi de eskiden `accountledger.php` içindeydi; o dosya cari hesapla
+     * birlikte silindi. Buraya taşındılar çünkü yetki etiketlerinin evi
+     * zaten burası (`permission_settings`, `permission_devices`,
+     * `permission_content` hemen yanında) ve grup başlığı artık tek bir
+     * ekranın değil, üç ekranın ortak çatısı.
+     */
+    'side_menu_corporate' => 'Kurumsal',
+
+    'permission_refunds' => 'İade takibi (sipariş iadeleri ve durumları)',
 
     'permission_content' => 'Kurumsal site içeriğini yönetme (hizmetler, bilgi merkezi yazıları)',
 

@@ -190,12 +190,22 @@ Map<String, dynamic> _$OrderCreateRequestToJson(
 _Payment _$PaymentFromJson(Map<String, dynamic> json) => _Payment(
   method: const PaymentMethodConverter().fromJson(json['method'] as String),
   status: const PaymentStatusConverter().fromJson(json['status'] as String),
+  paymentId: (json['payment_id'] as num?)?.toInt(),
+  nextAction: json['next_action'] == null
+      ? PaymentNextAction.none
+      : const PaymentNextActionConverter().fromJson(
+          json['next_action'] as String?,
+        ),
   redirectUrl: json['redirect_url'] as String?,
 );
 
 Map<String, dynamic> _$PaymentToJson(_Payment instance) => <String, dynamic>{
   'method': const PaymentMethodConverter().toJson(instance.method),
   'status': const PaymentStatusConverter().toJson(instance.status),
+  'payment_id': ?instance.paymentId,
+  'next_action': ?const PaymentNextActionConverter().toJson(
+    instance.nextAction,
+  ),
   'redirect_url': ?instance.redirectUrl,
 };
 

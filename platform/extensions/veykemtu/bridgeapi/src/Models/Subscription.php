@@ -40,8 +40,14 @@ class Subscription extends Model
 
     public const string MENU_DAILY = 'daily_menu';
 
-    public const string PAYMENT_ACCOUNT = 'account';
-
+    /**
+     * Tek ödeme modu. `PAYMENT_ACCOUNT` (cari hesap) kaldırıldı — iş modeli
+     * cari hesaptan çıktı.
+     *
+     * Sabit tek değerli kalsa da SİLİNMEDİ: `payment_mode` kolonu duruyor ve
+     * kodun ona yazdığı değer tek bir yerden gelmeli. Kolonu da düşürmek
+     * abonelik kulvarının işi.
+     */
     public const string PAYMENT_PREPAID = 'prepaid_monthly';
 
     protected $table = 'veykemtu_subscriptions';
@@ -132,19 +138,21 @@ class Subscription extends Model
     }
 
     /**
-     * Abonelik açılabilecek müşteriler — yalnızca KURUMSAL.
+     * Abonelik açılabilecek müşteriler — HEPSİ.
      *
-     * Abonelik bir sözleşmedir ve `docs/00` B2B kararına göre sipariş
-     * kurumsal hesaplardan alınır. Bireysel bir kayda abonelik açmak,
-     * hiçbir zaman sipariş üretemeyecek bir kural yaratırdı
-     * (`OrderFactory` o siparişi de aynı kapıdan geçiriyor).
+     * `bld_account_type = 'corporate'` filtresi KALDIRILDI: kurumsal sipariş
+     * kapısı (`CustomerGate`) kalktı ve herkes sipariş verebiliyor. Filtre
+     * kalsaydı, sipariş verebilen bir müşteriye abonelik açılamazdı — kural
+     * artık bir yerde açık, öbür yerde kapalı olurdu.
+     *
+     * Kolon serbest metin etiket olarak duruyor; listeleme sırası hâlâ
+     * ticari unvana göre, çünkü abone çoğunlukla bir kurum.
      *
      * @return array<int, string>
      */
     public static function customerOptions(): array
     {
         return ApiCustomer::query()
-            ->where('bld_account_type', 'corporate')
             ->orderBy('bld_org_name')
             ->get(['customer_id', 'bld_org_name', 'first_name', 'last_name', 'email'])
             ->mapWithKeys(static fn(ApiCustomer $c): array => [

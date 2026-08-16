@@ -39,7 +39,6 @@ return [
     'help_time' => 'Saat boş bırakılırsa sipariş "en kısa sürede" olarak düşer. İleri tarih seçebilirsiniz; sipariş o günün listesinde görünür.',
     'label_payment' => 'Ödeme yöntemi',
     'payment_cash' => 'Kapıda ödeme',
-    'payment_account' => 'Cari hesaba yaz',
     'payment_online' => 'Kart (simülasyon)',
     'label_address' => 'Adres',
     'label_district' => 'İlçe',

@@ -67,11 +67,20 @@ class AddressSuggestTest extends KitchenTestCase
         $response->assertOk();
         $response->assertJsonCount(1, 'data');
 
-        // `line1` ile `label` AYNI ŞEY DEĞİL: label ilçe ve ili de içerir,
-        // line1 içermez (formda onlar ayrı kutular).
+        // `line1` ile `label` AYNI ŞEY DEĞİL ve fark İKİ KATLI:
+        //   1. label ilçe ve ili de içerir, line1 içermez (formda ayrı kutular);
+        //   2. label parçaları VİRGÜLLE ayırır, line1 boşlukla birleştirir.
+        //
+        // İkinci fark gözden kaçmıştı: bu beklenti `line1 . ', Selçuklu /
+        // Konya'` diye kurulmuş, yani mahalleden sonraki virgül düşmüştü ve
+        // test ilk günden kırmızıydı. Doğrusu sözleşmedeki örnek —
+        // `docs/03` §13.1 ve §13.2 ile `docs/openapi.yaml`
+        // §AddressSuggestion.label, üçü de virgüllü biçimi yazıyor; Dart
+        // istemcisinin sözleşme testleri ve `website/lib/api/schema.ts` de
+        // aynı satırı bekliyor. Ürün doğruydu, beklenti yanlıştı.
         $this->assertSame('Feritpaşa Mah. Kültür Sk. No:12', $response->json('data.0.line1'));
         $this->assertSame(
-            'Feritpaşa Mah. Kültür Sk. No:12, Selçuklu / Konya',
+            'Feritpaşa Mah., Kültür Sk. No:12, Selçuklu / Konya',
             $response->json('data.0.label'),
         );
         $this->assertSame('Feritpaşa Mah.', $response->json('data.0.neighbourhood'));

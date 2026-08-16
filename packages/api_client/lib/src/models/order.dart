@@ -316,6 +316,26 @@ abstract class Payment with _$Payment {
     @PaymentMethodConverter() required PaymentMethod method,
     @PaymentStatusConverter() required PaymentStatus status,
 
+    /// Tahsilat kaydının kimliği; `cash` siparişte ve ödeme geçidine hiç
+    /// uğramamış siparişte `null`.
+    ///
+    /// **Sipariş kimliğinden AYRI bir kimliktir:** başarısız bir denemeden
+    /// sonra ikinci kez ödenen sipariş aynı `id` altında iki tahsilat kaydı
+    /// taşır ve sağlayıcıya sorarken kullanılacak olan budur. `null` ile `0`
+    /// karıştırılmaz — `0` diye bir kayıt yoktur.
+    int? paymentId,
+
+    /// Ödemenin kesinleşmesi için sıradaki adım.
+    ///
+    /// **GEVŞEK enum, bu alan büyüyecek** (`converters.dart`
+    /// [PaymentNextAction]). `cash` siparişte ve ödeme akışı olmayan durumda
+    /// sunucu `null` gönderir; o da [PaymentNextAction.none]'a düşer.
+    /// Bilinmeyen bir adım [PaymentNextAction.unknown] olur ve `none`
+    /// SAYILMAZ — atlanan bir doğrulamayı "bitti" göstermemek için.
+    @PaymentNextActionConverter()
+    @Default(PaymentNextAction.none)
+    PaymentNextAction nextAction,
+
     /// Yalnızca `online` yönteminde dolu; istemci kullanıcıyı buraya yönlendirir.
     String? redirectUrl,
   }) = _Payment;
@@ -326,6 +346,11 @@ abstract class Payment with _$Payment {
       _$PaymentFromJson(json);
 
   /// Sanal POS'a yönlendirme gerekiyor mu?
+  ///
+  /// [nextAction] BİLEREK denetlenmiyor: alan sözleşmeye sonradan eklendi ve
+  /// eski sunucu yanıtında hiç gelmiyor. Şart koşsaydık, `redirect_url`
+  /// gönderen ama `next_action` göndermeyen bir sunucuda ödeme sayfası hiç
+  /// açılmazdı.
   bool get requiresRedirect =>
       method == PaymentMethod.online &&
       status == PaymentStatus.pending &&

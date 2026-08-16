@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { IDLE_CART_STATE } from '@/lib/action-state';
 import { announceCartChanged } from '@/lib/cart-events';
 import { formatDayMonth, type BusinessDate } from '@/lib/business-date';
+import { DEFAULT_LOW_THRESHOLD } from '@/lib/stock-policy';
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -16,6 +17,16 @@ type Props = {
   /** Satırın bağlanacağı servis günü. Sepetin günü bundan doğar. */
   serviceDate: BusinessDate;
   label?: string;
+  /**
+   * Sepete daha kaç tane eklenebilir (`lib/stock-policy.ts` → `maxAddable`).
+   * `0` ise bu kalem o gün için tükenmiştir.
+   *
+   * Sayı SUNUCUDA hesaplanıp geçiliyor: müşterinin sepetinde o gün için duran
+   * adet ile günün ve kalemin tavanı birlikte gerekiyor ve ikisi de burada
+   * yok. Bileşenin kendi hesabını yapması, aynı aritmetiğin dördüncü bir
+   * kopyasını doğururdu.
+   */
+  maxAddable: number;
   disabled: boolean;
   /**
    * ZORUNLU. Kapalı butonun sebebi butonun KENDİ ETİKETİ oluyor ("Tükendi",
@@ -51,6 +62,7 @@ export function AddToDayCart({
   menuId,
   serviceDate,
   label = 'Sepete ekle',
+  maxAddable,
   disabled,
   disabledReason,
   variant = 'default',
@@ -68,11 +80,25 @@ export function AddToDayCart({
   useEffect(() => {
     if (state.at === 0 || state.at === lastHandled.current) return;
     lastHandled.current = state.at;
-    if (state.status === 'ok') {
-      announceCartChanged();
-      // Sunucu bileşenleri sepet rozetini ve gün başlığını yeniden çizsin.
+
+    if (state.status === 'limit') {
+      // Rozet yalnız sepet gerçekten değiştiyse duyuruluyor: tavana takılıp
+      // hiçbir şey eklenemeyen istekte "güncellendi" demek yalan olur.
+      if (state.addedQuantity > 0) announceCartChanged();
+      /*
+       * Yenileme tavanda DA yapılıyor, hatta özellikle: ekranda yazan kalan
+       * porsiyon sayısı artık eskimiş demektir ve müşteri aynı düğmeye bir
+       * kez daha basacak.
+       */
       router.refresh();
+      return;
     }
+
+    if (state.status !== 'ok') return;
+
+    announceCartChanged();
+    // Sunucu bileşenleri sepet rozetini ve gün başlığını yeniden çizsin.
+    router.refresh();
   }, [state, router]);
 
   /** Onay: aynı form verisi + `confirm_reset`. */
@@ -86,6 +112,23 @@ export function AddToDayCart({
 
   const busy = pending || confirming;
   const conflict = state.status === 'conflict';
+  const limited = state.status === 'limit';
+
+  /*
+   * Negatif bir tavan "eksi iki eklenebilir" demek değil, "artık eklenemez"
+   * demektir: yönetici porsiyon sayısını sepet doldurulduktan sonra indirmiş
+   * olabilir (`lib/stock-policy.ts` aynı yuvarlamayı yapıyor).
+   */
+  const remaining = Math.max(0, maxAddable);
+  const soldOutForCart = remaining === 0;
+  const blocked = disabled || soldOutForCart;
+
+  /*
+   * Kapalı butonun sebebi ZORUNLU ve sıra bağlayıcı: gün kapalıysa stok
+   * mesajı yanıltıcı olur ("tükendi" diyorsak müşteri yarın bekler, oysa
+   * sorun kesim saati). Çağıranın sebebi her zaman kazanır.
+   */
+  const reason = disabled ? disabledReason : 'Bugünlük tükendi';
 
   return (
     <div className={cn('space-y-3', className)}>
@@ -99,12 +142,29 @@ export function AddToDayCart({
           variant={variant}
           size={size}
           className="w-full"
-          disabled={disabled || busy}
-          disabledReason={busy ? 'Sepete ekleniyor.' : disabledReason}
+          disabled={blocked || busy}
+          disabledReason={busy ? 'Sepete ekleniyor.' : reason}
         >
-          {busy ? 'Ekleniyor…' : disabled ? disabledReason : label}
+          {busy ? 'Ekleniyor…' : blocked ? reason : label}
         </Button>
       </form>
+
+      {/*
+        Kalan adet SAYIYLA söyleniyor ama yalnız azaldığında: her kartın
+        altında "en fazla 40 adet" yazmak bilgi değil gürültü olurdu. Eşik
+        stok bandıyla aynı (`DEFAULT_LOW_THRESHOLD`) — rozet "son 3 porsiyon"
+        derken düğmenin altında başka bir sınır yazması müşteriyi ikilemde
+        bırakırdı.
+
+        Cümle SEBEP SÖYLEMİYOR ("kontenjan" demiyor): sayı üç tavanın en
+        darından geliyor ve satır başı azami adede dayanmış bir müşteriye
+        "kontenjan doldu" demek yanlış olurdu.
+      */}
+      {!blocked && remaining <= DEFAULT_LOW_THRESHOLD && (
+        <p className="text-body-sm text-muted-foreground">
+          En fazla {remaining} adet daha ekleyebilirsiniz.
+        </p>
+      )}
 
       {/*
         Durum HER ZAMAN duyuruluyor, görsel mesaj kapalı olsa bile: menüde
@@ -149,7 +209,24 @@ export function AddToDayCart({
         </div>
       )}
 
-      {showMessage && !conflict && state.message && (
+      {/*
+        Tavan mesajı `showMessage` bayrağına BAKMIYOR, çakışma uyarısı gibi
+        her zaman görünüyor. Kalem kartlarında görsel mesaj kapalı çünkü
+        "eklendi" bilgisini başlıktaki rozet zaten veriyor; "üç istediniz,
+        iki eklendi" ise rozette görünmez ve söylenmezse müşteri farkı ancak
+        sepette görür.
+      */}
+      {limited && (
+        <p
+          role="status"
+          className="flex items-start gap-2 rounded-sm bg-warning-surface px-3 py-2 text-body-sm text-warning-foreground"
+        >
+          <TriangleAlert aria-hidden="true" strokeWidth={1.75} className="mt-0.5 size-4 shrink-0" />
+          {state.message}
+        </p>
+      )}
+
+      {showMessage && !conflict && !limited && state.message && (
         <p
           role={state.status === 'error' ? 'alert' : 'status'}
           className={cn(

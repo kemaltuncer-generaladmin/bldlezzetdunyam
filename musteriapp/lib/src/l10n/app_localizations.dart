@@ -1282,16 +1282,16 @@ abstract class AppLocalizations {
   /// **'{count} ürün sepete eklendi.'**
   String homeReorderDone(int count);
 
-  /// Tekrar siparişte bazı ürünler bulunamadığında
+  /// Tekrar siparişte bazı ürünler sepete giremediğinde. İKİ sebep tek cümlede: kalem o gün menüde yok ya da stok tavanı doldu — müşteri açısından ikisi de 'bu ürün alınamadı'.
   ///
   /// In tr, this message translates to:
-  /// **'{count} ürün sepete eklendi. {missing} ürün artık menüde yok.'**
+  /// **'{count} ürün sepete eklendi. {missing} ürün eklenemedi: menüde yok ya da kalan porsiyon yetmedi.'**
   String homeReorderPartial(int count, int missing);
 
-  /// Tekrar siparişte hiçbir ürün bulunamadığında
+  /// Tekrar siparişte hiçbir ürün sepete giremediğinde (menüde yok ya da tükendi).
   ///
   /// In tr, this message translates to:
-  /// **'Bu siparişteki ürünlerin hiçbiri şu an menüde yok.'**
+  /// **'Bu siparişteki ürünlerin hiçbiri şu anda sepete eklenemiyor.'**
   String get homeReorderEmpty;
 
   /// No description provided for @registerCompanySection.
@@ -1353,18 +1353,6 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'Yetkili kişi zorunludur.'**
   String get registerContactRequired;
-
-  /// No description provided for @orderingDisabledTitle.
-  ///
-  /// In tr, this message translates to:
-  /// **'Sipariş kapalı'**
-  String get orderingDisabledTitle;
-
-  /// No description provided for @orderingDisabledBody.
-  ///
-  /// In tr, this message translates to:
-  /// **'Hesabınız sipariş vermeye kapalı. Kurumsal onay için bizimle iletişime geçin.'**
-  String get orderingDisabledBody;
 
   /// No description provided for @navSubscriptions.
   ///
@@ -1893,6 +1881,72 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'Bugünün menüsü'**
   String get homeTodaysMenu;
+
+  /// Kalan porsiyon eşiğin altına düştüğünde çıkan rozet. Sayı HAM kalandır; müşterinin sepetindeki adet düşülmez.
+  ///
+  /// In tr, this message translates to:
+  /// **'Son {count} porsiyon'**
+  String stockLowRemaining(int count);
+
+  /// Kalan porsiyon sıfırken çıkan rozet; takvim açıklamasında ve gün şeridinin ekran okuyucu etiketinde de kullanılır.
+  ///
+  /// In tr, this message translates to:
+  /// **'Tükendi'**
+  String get stockSoldOut;
+
+  /// Kalem detayında sepete eklemeyi engelleyen sebep. Rozetten AYRI: rozet iki kelime, bu bir cümle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu yemeğin porsiyonları tükendi.'**
+  String get stockSoldOutNotice;
+
+  /// Sepete ekleme kalan porsiyonu aştığında. Ekleme HEPSİ YA DA HİÇBİRİ: sepete hiçbir şey girmedi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kalan porsiyon yetmiyor; bu üründen sepetinize daha fazla ekleyemezsiniz.'**
+  String get cartStockCapped;
+
+  /// Ürün satışta ve stokta var ama kalanın hepsi zaten sepette — 'tükendi'den AYRI bir durum.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kalan porsiyonların tamamı sepetinizde.'**
+  String get cartStockAllInCart;
+
+  /// Sepet ve ödeme ekranında gönderimi engelleyen stok uyarısı; tavan sepet doldurulduktan SONRA inmiş olabilir.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sepetinizdeki adet kalan porsiyonu aşıyor. Devam etmek için adetleri azaltın.'**
+  String get cartStockExceeded;
+
+  /// Kesim saatine bir saatten fazla ama bir günden az kaldığında.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sipariş için son {hours} saat {minutes} dakika'**
+  String dailyMenuCutoffInHours(int hours, int minutes);
+
+  /// Kesim saatine bir saatten az kaldığında.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sipariş için son {minutes} dakika'**
+  String dailyMenuCutoffInMinutes(int minutes);
+
+  /// Kesim saati bir günden uzaktayken geri sayım yerine mutlak an yazılır.
+  ///
+  /// In tr, this message translates to:
+  /// **'Son sipariş: {moment}'**
+  String dailyMenuCutoffAt(String moment);
+
+  /// Kısa pencerenin gün listesinde menüsü olmayan günün durumu. Boş durum başlığından AYRI: burası tek satır.
+  ///
+  /// In tr, this message translates to:
+  /// **'Menü yok'**
+  String get dailyMenuNoMenuShort;
+
+  /// Kısa pencerenin gün listesinde servis günü olmayan gün (`MenuCalendarDay.weekend`). 'Kapalıyız' DEĞİL: satış kanalı açık, yalnız o gün servis yok.
+  ///
+  /// In tr, this message translates to:
+  /// **'Servis yok'**
+  String get dailyMenuNoServiceShort;
 }
 
 class _AppLocalizationsDelegate

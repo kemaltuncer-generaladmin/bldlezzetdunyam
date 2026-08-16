@@ -689,7 +689,7 @@ class AdminSettingsTest extends TestCase
             SettingsRepository::FIELD_CUTOFF => '',
             SettingsRepository::FIELD_MIN_TOTAL => '0.00',
             SettingsRepository::FIELD_DELIVERY_FEE => '0.00',
-            SettingsRepository::FIELD_PAYMENTS => ['cash', 'account'],
+            SettingsRepository::FIELD_PAYMENTS => ['cash', 'online'],
             SettingsRepository::FIELD_BUSY => 0,
             SettingsRepository::FIELD_BUSY_SNAPSHOT => 0,
             SettingsRepository::FIELD_BUSY_MESSAGE => '',

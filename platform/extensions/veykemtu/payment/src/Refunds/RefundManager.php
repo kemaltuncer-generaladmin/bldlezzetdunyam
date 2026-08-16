@@ -11,9 +11,8 @@ use Illuminate\Support\Facades\DB;
  * Ödeme yöntemine göre doğru geçidi seçer ve sonucu kaydeder (K-13).
  *
  * SEÇİM ÖDEME YÖNTEMİNDEN TÜRÜYOR, yapılandırmadan değil: bir siparişin
- * parası nasıl alındıysa öyle iade edilir. Nakit alınan bir siparişi
- * sanal POS'tan iade etmek imkânsız; cari hesaplı bir siparişe para
- * göndermek de yanlış (borç azaltılmalı).
+ * parası nasıl alındıysa öyle iade edilir. Nakit alınan bir siparişi sanal
+ * POS'tan iade etmek imkânsız.
  *
  * `BLD_REFUND_DRIVER` yalnız **online** siparişler için geçerli: gerçek
  * sanal POS bağlandığında oraya yeni sürücünün adı yazılacak.
@@ -60,13 +59,14 @@ class RefundManager
     public function gatewayFor(Order $order): RefundGateway
     {
         return match ((string) $order->payment) {
-            // Cari hesap: para hareketi yok, borç azalır.
-            'account' => new AccountRefund(),
             // Online: yapılandırılmış sürücü. Gerçek sanal POS bağlanana
             // kadar simülasyon (ve o da üretimde kapalı).
             'online' => $this->onlineGateway(),
-            // Nakit ve bilinmeyen: yazılım tahsilat yapmadı, iadeyi de
-            // yapamaz.
+            // Nakit, arşivde kalan eski `account` siparişleri ve bilinmeyen:
+            // yazılım tahsilat yapmadı, iadeyi de yapamaz. `AccountRefund`
+            // geçidi cari hesapla birlikte kaldırıldı; eski bir cari sipariş
+            // bugün iade edilirse panelde ELLE kapatılacak bir satır açılır —
+            // sessizce "başarılı" demekten iyidir.
             default => new ManualRefund(),
         };
     }

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { CalendarDays } from 'lucide-react';
 import {
+  daysBetween,
   eachDay,
   formatDayNumber,
   formatLongDate,
@@ -34,6 +35,16 @@ import type { MenuCalendarDay } from '@/lib/api/types';
  * yok" demektir. Bu yüzden günler burada üretilip yanıtla eşleştiriliyor —
  * yanıtı olduğu gibi listelemek, takvimde günleri atlayan boşluklar
  * bırakırdı.
+ *
+ * ## HAFTA SONU BURADA ÖZEL DEĞİL
+ *
+ * Cumartesi ve pazar kodda hiçbir yerde geçmiyor. Satış kanalı hafta sonu da
+ * AÇIK — cumartesi günü pazartesiye sipariş verilebiliyor — kapalı olan tek
+ * şey o günün SERVİSİ. Hangi günlerde yemek çıktığını sunucu söylüyor
+ * (`Location.service_weekdays`, ISO numaraları); `6` ile `7`yi buraya gömmek,
+ * işletme cumartesi de yemek çıkarmaya başladığında siteyi yeniden
+ * yayınlamayı gerektirirdi. Alan eksik gelirse hiçbir gün servis dışı
+ * sayılmaz: eksik bilgiyle günleri sessizce kapatmak satış kaybıdır.
  */
 
 type DayState = {
@@ -42,6 +53,8 @@ type DayState = {
   selectable: boolean;
   isSelected: boolean;
   isToday: boolean;
+  /** İşletme bu hafta gününde yemek çıkarıyor mu? */
+  serviceDay: boolean;
 };
 
 function buildDays(
@@ -50,6 +63,7 @@ function buildDays(
   calendar: readonly MenuCalendarDay[],
   selected: BusinessDate,
   today: BusinessDate,
+  serviceWeekdays: readonly number[] | undefined,
 ): DayState[] {
   const byDate = new Map(calendar.map((day) => [day.date, day]));
 
@@ -61,14 +75,30 @@ function buildDays(
       selectable: entry?.is_orderable === true,
       isSelected: date === selected,
       isToday: date === today,
+      /*
+       * Takvim yanıtı seyrek: servis dışı bir günün kaydı hiç gelmeyebilir ve
+       * o zaman `entry.weekend` de okunamaz. Hafta gününü listeyle karşılamak,
+       * kaydı olmayan günün de doğru cümleyi almasını sağlıyor.
+       */
+      serviceDay: serviceWeekdays === undefined || serviceWeekdays.includes(isoWeekday(date)),
     };
   });
 }
 
 /** Günün kısa hâli: neden seçilemediği ekran okuyucuya da söylenir. */
 function dayHint(day: DayState): string {
+  // Kapalı gün kazanır: menü girilmiş olsa bile o gün sipariş alınmıyor.
   if (day.entry?.closed) return day.entry.note ? `Kapalı — ${day.entry.note}` : 'Kapalı';
+  /*
+   * "Servis günü değil" ile "menü açıklanmadı" AYRI cümleler. İkisini aynı
+   * metne düşürmek, her cumartesi müşteriye "menü henüz girilmedi" dedirtip
+   * akşama doğru tekrar bakmasını beklettirirdi — oysa o gün hiç menü
+   * çıkmayacak.
+   */
+  if (day.entry?.weekend === true || !day.serviceDay) return 'Servis günü değil';
   if (!day.entry?.has_menu) return 'Menü açıklanmadı';
+  // Menüsü var ama porsiyonu kalmadı: gün takvimde durmaya devam ediyor.
+  if (day.entry.sold_out) return 'Kontenjan doldu';
   if (!day.entry.is_orderable) return 'Sipariş alınmıyor';
   return day.entry.title ?? 'Menü var';
 }
@@ -77,13 +107,20 @@ function dayHint(day: DayState): string {
  * Durum noktası. Renk TEK BAŞINA anlam taşımıyor: her hücrede metin karşılığı
  * `title` ve `sr-only` olarak da var (kılavuz: "zorunlu alan * ile, yalnız
  * renk asla").
+ *
+ * Tükenmiş gün KENDİ TONUNU alıyor (uyarı sarısı): kırmızı "kapalıyız"
+ * demektir ve tatille karışır, gri ise "menü yok" ile karışır. Kapış kapış
+ * giden bir günü hiç hazırlanmamış gibi göstermek, mutfağın işini görünmez
+ * kılardı.
  */
 function DayDot({ day }: { day: DayState }) {
   const tone = day.entry?.closed
     ? 'bg-danger'
-    : day.entry?.is_orderable
-      ? 'bg-success'
-      : 'bg-neutral-400';
+    : day.entry?.sold_out
+      ? 'bg-warning'
+      : day.entry?.is_orderable
+        ? 'bg-success'
+        : 'bg-neutral-400';
 
   return <span aria-hidden="true" className={cn('size-1.5 rounded-full', tone)} />;
 }
@@ -203,11 +240,15 @@ function MonthGrid({ days, basePath }: { days: DayState[]; basePath: string }) {
   );
 }
 
+/** Bu kadar günlük bir pencere tek şeride sığar; ay takvimi çizilmez. */
+const STRIP_ONLY_SPAN_DAYS = 14;
+
 export function DayPicker({
   calendar,
   today,
   selectedDate,
   lastDate,
+  serviceWeekdays,
   basePath = '/menu',
 }: {
   calendar: readonly MenuCalendarDay[];
@@ -215,18 +256,32 @@ export function DayPicker({
   selectedDate: BusinessDate;
   /** Sipariş alınabilen en uzak gün (`max_lookahead_days`). */
   lastDate: BusinessDate;
+  /** `Location.service_weekdays` — yemek çıkan hafta günleri (ISO). */
+  serviceWeekdays?: readonly number[];
   basePath?: string;
 }) {
-  const days = buildDays(today, lastDate, calendar, selectedDate, today);
+  const days = buildDays(today, lastDate, calendar, selectedDate, today, serviceWeekdays);
 
-  // Şerit iki hafta gösteriyor; gerisi ay takviminde. Otuz hücrelik bir
-  // şeritte kullanıcı sonunu hiç görmüyor ve kaydırma çubuğu da yok.
-  const stripDays = days.slice(0, 14);
+  /*
+   * TEK ARAYÜZ Mİ, İKİ ARAYÜZ Mİ? Pencerenin genişliği karar veriyor.
+   *
+   * Sipariş penceresi bir aylıkken şerit iki haftayı gösteriyor, gerisi ay
+   * takviminde duruyordu: otuz hücrelik bir şeritte kullanıcı sonunu hiç
+   * görmüyor. Pencere yedi güne indiğinde (`max_lookahead_days: 7`) aynı
+   * takvim bir buçuk haftalık bir ayı çizmeye başladı — otuz hücrenin
+   * yirmi ikisi boş, açılıp kapanan bir kutunun içinde. Şeridin zaten
+   * gösterdiği günleri ikinci kez, daha kötü bir düzende sunmak
+   * kullanıcıya "başka günler de var" diye yanlış bir söz veriyordu.
+   */
+  const stripOnly = daysBetween(today, lastDate) <= STRIP_ONLY_SPAN_DAYS;
+  const stripDays = stripOnly ? days : days.slice(0, STRIP_ONLY_SPAN_DAYS);
 
   const months = new Map<string, DayState[]>();
-  for (const day of days) {
-    const key = monthKey(day.date);
-    months.set(key, [...(months.get(key) ?? []), day]);
+  if (!stripOnly) {
+    for (const day of days) {
+      const key = monthKey(day.date);
+      months.set(key, [...(months.get(key) ?? []), day]);
+    }
   }
 
   const selected = days.find((day) => day.date === selectedDate) ?? null;
@@ -258,30 +313,34 @@ export function DayPicker({
         </p>
       )}
 
-      <details className="group mt-3">
-        <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-label text-primary-text">
-          <CalendarDays aria-hidden="true" strokeWidth={1.75} className="size-4" />
-          Ay takvimi
-        </summary>
+      <p className="mt-3 text-body-sm text-muted-foreground">
+        Menüsü açıklanmış günler seçilebilir. Kapalı günler, servis günü olmayanlar ve menüsü henüz
+        girilmemiş günler pasiftir.
+      </p>
 
-        <p className="mt-2 text-body-sm text-muted-foreground">
-          Menüsü açıklanmış günler seçilebilir. Kapalı günler ve menüsü henüz girilmemiş günler
-          pasiftir.
-        </p>
+      {!stripOnly && (
+        <details className="group mt-3">
+          <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-label text-primary-text">
+            <CalendarDays aria-hidden="true" strokeWidth={1.75} className="size-4" />
+            Ay takvimi
+          </summary>
 
-        {[...months.entries()].map(([key, monthDays]) => (
-          <MonthGrid key={key} days={monthDays} basePath={basePath} />
-        ))}
+          {[...months.entries()].map(([key, monthDays]) => (
+            <MonthGrid key={key} days={monthDays} basePath={basePath} />
+          ))}
+        </details>
+      )}
 
-        {/*
-          Takvimin sonu: sipariş penceresinin son günü. Yönetici pencereyi
-          değiştirdiğinde metin de değişiyor — sabit "30 gün" yazsaydık
-          ikisi sessizce ayrışırdı.
-        */}
-        <p className="mt-4 text-caption text-muted-foreground">
-          En son {formatLongDate(lastDate)} gününe kadar sipariş alıyoruz.
-        </p>
-      </details>
+      {/*
+        Takvimin sonu: sipariş penceresinin son günü. Yönetici pencereyi
+        değiştirdiğinde metin de değişiyor — sabit "30 gün" yazsaydık ikisi
+        sessizce ayrışırdı. Ay takviminin İÇİNDEN çıkarıldı: takvim
+        katlandığında pencerenin nerede bittiğini söyleyen tek cümle de
+        onunla birlikte kaybolurdu.
+      */}
+      <p className="mt-3 text-caption text-muted-foreground">
+        En son {formatLongDate(lastDate)} gününe kadar sipariş alıyoruz.
+      </p>
     </div>
   );
 }

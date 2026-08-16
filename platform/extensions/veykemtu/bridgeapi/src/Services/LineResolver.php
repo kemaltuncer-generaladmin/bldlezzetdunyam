@@ -158,6 +158,66 @@ class LineResolver
     }
 
     /**
+     * Çözülmüş satırların STOK TALEBİ — `menu_id => porsiyon`.
+     *
+     * SAF PROJEKSİYON, DÜŞÜM DEĞİL. Burada bilerek hiçbir şey düşülmüyor:
+     * `OrderEditor` de `resolve()` çağırıyor ve düşüm burada olsaydı her
+     * revizyon, siparişin tamamını İKİNCİ KEZ stoktan düşerdi. Düşümün tek
+     * yeri `DailyStock::take()` ve onu çağıran iki yol (`OrderFactory`,
+     * `OrderEditor`) farkı kendisi biliyor.
+     *
+     * ÜÇ KURAL:
+     *   1. Her satır KENDİ `menu_id`'sinden düşer — menü paketi dahil.
+     *      Paketin kendi tavanı olabilir (`DailyMenuPackage.remaining_portions`).
+     *   2. Bileşenler kendi `menu_id`'lerinde toplanır: bir pakette iki
+     *      porsiyon çorba varsa mutfağın çorba tavanından iki düşer.
+     *   3. GÜN TOPLAMI (`DailyStock::DAY_TOTAL`) SATILAN PORSİYONU sayar:
+     *      paket satırları ve tek tek satılan kalemler girer, BİLEŞENLER
+     *      GİRMEZ. Bileşenler de sayılsaydı dört kalemlik bir menü gün
+     *      tavanından beş porsiyon yer ve 200 porsiyonluk bir gün 40
+     *      menüde kapanırdı. Tek tek satılan kalem ise gerçek bir
+     *      porsiyondur ve gün tavanı onu saymasaydı tavan bir yalan olurdu.
+     *
+     * @param  list<array<string, mixed>>  $lines  `resolve()` çıktısı
+     * @return array<int, int>
+     */
+    public function stockDemand(array $lines): array
+    {
+        $demand = [];
+
+        foreach ($lines as $line) {
+            $quantity = (int) ($line['quantity'] ?? 0);
+
+            if ($quantity < 1) {
+                continue;
+            }
+
+            $menuId = (int) (($line['menu'] ?? null)?->menu_id ?? 0);
+
+            if ($menuId > 0) {
+                $demand[$menuId] = ($demand[$menuId] ?? 0) + $quantity;
+            }
+
+            $demand[DailyStock::DAY_TOTAL] =
+                ($demand[DailyStock::DAY_TOTAL] ?? 0) + $quantity;
+
+            foreach ($line['components'] ?? [] as $component) {
+                $componentId = (int) (($component['menu'] ?? null)?->menu_id ?? 0);
+                $componentQuantity = (int) ($component['quantity'] ?? 0);
+
+                if ($componentId < 1 || $componentQuantity < 1) {
+                    continue;
+                }
+
+                $demand[$componentId] =
+                    ($demand[$componentId] ?? 0) + $componentQuantity;
+            }
+        }
+
+        return $demand;
+    }
+
+    /**
      * Paket satırı + sıfır fiyatlı bileşen satırları.
      *
      * Parayı paket satırı taşır; bileşenler mutfağa "ne pişecek" bilgisini

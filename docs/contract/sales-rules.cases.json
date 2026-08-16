@@ -1,0 +1,229 @@
+{
+  "version": 1,
+  "title": "Stok aritmetigi altin veri kumesi",
+  "purpose": [
+    "Sepete eklenebilecek azami adet ve stok bandi UC AYRI DILDE hesaplaniyor:",
+    "packages/core (Dart), website (TypeScript) ve platform (PHP). Ayni kurali",
+    "uc kez yazmak, uc farkli kenar durum davranisi demektir; sahada ortaya",
+    "cikan hali 'web sitesinde 3 eklenebiliyor, uygulamada 2' olur.",
+    "",
+    "Bu dosya o kuralin NORMATIF kaynagidir. Uc test onu okur:",
+    "packages/core, website/e2e ve platform/tests/Unit. Kural degisirse ucu",
+    "birden kirilir; tek bir dilde sessizce sapmak mumkun degildir.",
+    "",
+    "Sozlesme tarafi: docs/openapi.yaml icindeki DailyMenu.remaining_portions,",
+    "DailyMenuPackage.remaining_portions ve MenuItem.remaining_portions."
+  ],
+  "functions": {
+    "maxAddable": {
+      "signature": "maxAddable({dayRemaining, itemRemaining, alreadyInCartForDay, alreadyInCartForItem, hardMax}) -> int",
+      "rules": [
+        "gunBosluk  = dayRemaining  === null ? SONSUZ : dayRemaining  - alreadyInCartForDay",
+        "kalemBosluk = itemRemaining === null ? SONSUZ : itemRemaining - alreadyInCartForItem",
+        "satirBosluk = hardMax - alreadyInCartForItem",
+        "sonuc = min(gunBosluk, kalemBosluk, satirBosluk); sonuc < 0 ise 0"
+      ],
+      "invariants": [
+        "null SINIRSIZ demektir, asla sifir degil. null'i sifir sayan istemci, tavani hic konmamis bir gunu tukenmis gosterir.",
+        "Gun tavani ile kalem tavani min() ile birlesir. Kararin 'hangisi once dolarsa kapatir' kismi tam olarak budur.",
+        "Sepetteki mevcut adet iki tavandan da AYRI AYRI dusulur: alreadyInCartForDay yalniz gun tavanindan, alreadyInCartForItem yalniz kalem tavanindan.",
+        "hardMax SATIR BASI tavandir (website/lib/cart.ts icindeki MAX_QUANTITY = 99) ve o satirda hali hazirda duran adet (alreadyInCartForItem) ondan dusulur.",
+        "Sonuc asla negatif olmaz. Sepet bir tavani asmis durumdaysa (yonetici tavani sonradan indirmis olabilir) cevap 0'dir, eksi degil."
+      ]
+    },
+    "stockLevel": {
+      "signature": "stockLevel({remaining, lowThreshold}) -> 'unlimited' | 'plenty' | 'low' | 'soldOut'",
+      "rules": [
+        "remaining === null            -> 'unlimited'",
+        "remaining <= 0               -> 'soldOut'",
+        "remaining <= lowThreshold    -> 'low'",
+        "aksi halde                   -> 'plenty'"
+      ],
+      "invariants": [
+        "Band SEPETTEN BAGIMSIZDIR: ham kalan porsiyonu anlatir, musterinin sepetindeki adedi dusmez. 'Son 3 porsiyon' rozeti herkes icin ayni sayidir.",
+        "Esik degerinin kendisi 'low' sayilir (remaining == lowThreshold -> low).",
+        "lowThreshold = 0 ise 'low' bandi hic olusmaz; 1 kalan 'plenty', 0 kalan 'soldOut'."
+      ]
+    }
+  },
+  "case_input_binding": {
+    "note": [
+      "Her vaka tek bir girdi tasir ve iki fonksiyonu birden besler.",
+      "maxAddable girdisi dogrudan alanlardan kurulur.",
+      "stockLevel girdisi ise EFEKTIF KALAN uzerinden kurulur:",
+      "  ikisi de null            -> null",
+      "  yalniz day_remaining null -> item_remaining",
+      "  yalniz item_remaining null -> day_remaining",
+      "  ikisi de dolu            -> min(day_remaining, item_remaining)",
+      "Efektif kalan sepetten arindirilmaz; bandin sepetten bagimsiz olmasinin sebebi yukarida."
+    ]
+  },
+  "defaults": {
+    "hard_max": 99,
+    "low_threshold": 5
+  },
+  "cases": [
+    {
+      "id": "gun-tavani-kalem-tavanini-yener",
+      "note": "Gun tavani daha dar; min() gunu secer.",
+      "input": { "day_remaining": 3, "item_remaining": 10, "in_cart_day": 1, "in_cart_item": 0, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 2, "stock_level": "low" }
+    },
+    {
+      "id": "kalem-tavani-gun-tavanini-yener",
+      "note": "Ters yon: kalem daha dar. Gun bolluk icindeyken tek bir yemek bitebilir.",
+      "input": { "day_remaining": 30, "item_remaining": 2, "in_cart_day": 10, "in_cart_item": 0, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 2, "stock_level": "low" }
+    },
+    {
+      "id": "iki-tavan-da-sinirsiz",
+      "note": "Tavan konmamis gun ve kalem. Baglayan tek sey satir basi tavandir.",
+      "input": { "day_remaining": null, "item_remaining": null, "in_cart_day": 0, "in_cart_item": 0, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 99, "stock_level": "unlimited" }
+    },
+    {
+      "id": "null-sifir-degildir",
+      "note": "Sepette 40 porsiyon varken bile sinirsiz gun hala eklemeye acik. null'i sifir sayan uygulama burada 0 doner ve satisi keser.",
+      "input": { "day_remaining": null, "item_remaining": null, "in_cart_day": 40, "in_cart_item": 40, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 59, "stock_level": "unlimited" }
+    },
+    {
+      "id": "gun-tavani-sinirsiz-kalem-baglar",
+      "note": "Gun tavani yok, kalem tavani var.",
+      "input": { "day_remaining": null, "item_remaining": 4, "in_cart_day": 0, "in_cart_item": 1, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 3, "stock_level": "low" }
+    },
+    {
+      "id": "kalem-tavani-sinirsiz-gun-baglar",
+      "note": "Kalem tavani yok, gun tavani var.",
+      "input": { "day_remaining": 6, "item_remaining": null, "in_cart_day": 2, "in_cart_item": 0, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 4, "stock_level": "plenty" }
+    },
+    {
+      "id": "gun-tavani-sifir-tukendi",
+      "note": "Gun toplami bitmis; kalem stoklu olsa bile satis kapanir.",
+      "input": { "day_remaining": 0, "item_remaining": 10, "in_cart_day": 0, "in_cart_item": 0, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 0, "stock_level": "soldOut" }
+    },
+    {
+      "id": "kalem-tavani-sifir-tukendi",
+      "note": "Gun boldur ama bu yemek bitmistir.",
+      "input": { "day_remaining": 20, "item_remaining": 0, "in_cart_day": 0, "in_cart_item": 0, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 0, "stock_level": "soldOut" }
+    },
+    {
+      "id": "gun-tavani-sepetle-tam-dolmus",
+      "note": "Sepet gun tavanini tam doldurmus; bir tane daha eklenemez ama band hala 'low' cunku band sepetten bagimsizdir.",
+      "input": { "day_remaining": 4, "item_remaining": 99, "in_cart_day": 4, "in_cart_item": 0, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 0, "stock_level": "low" }
+    },
+    {
+      "id": "sepet-gun-tavanini-asmis-negatif-cikmaz",
+      "note": "Yonetici tavani sepet doldurulduktan sonra indirmis olabilir. Cevap 0, -2 degil.",
+      "input": { "day_remaining": 3, "item_remaining": 10, "in_cart_day": 5, "in_cart_item": 0, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 0, "stock_level": "low" }
+    },
+    {
+      "id": "sepet-kalem-tavanini-asmis-negatif-cikmaz",
+      "note": "Ayni durumun kalem tarafi.",
+      "input": { "day_remaining": 50, "item_remaining": 2, "in_cart_day": 0, "in_cart_item": 7, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 0, "stock_level": "low" }
+    },
+    {
+      "id": "sepet-hard-max-i-asmis-negatif-cikmaz",
+      "note": "Eski bir cerezden gelen 120 adetlik satir. Sonuc 0, -21 degil.",
+      "input": { "day_remaining": null, "item_remaining": null, "in_cart_day": 0, "in_cart_item": 120, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 0, "stock_level": "unlimited" }
+    },
+    {
+      "id": "sepetteki-adetler-ayri-tavanlardan-dusulur",
+      "note": "in_cart_day yalniz gun tavanindan, in_cart_item yalniz kalem tavanindan dusulur. Ikisini birbirine karistiran uygulama burada 8 doner.",
+      "input": { "day_remaining": 10, "item_remaining": 10, "in_cart_day": 8, "in_cart_item": 2, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 2, "stock_level": "plenty" }
+    },
+    {
+      "id": "iki-bosluk-esit",
+      "note": "min() beraberlikte de tek deger dondurur; sira onemli degildir.",
+      "input": { "day_remaining": 10, "item_remaining": 12, "in_cart_day": 3, "in_cart_item": 5, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 7, "stock_level": "plenty" }
+    },
+    {
+      "id": "hard-max-iki-tavani-da-baglar",
+      "note": "Stok bol ama satir basi tavan 99'da durur.",
+      "input": { "day_remaining": 500, "item_remaining": 500, "in_cart_day": 0, "in_cart_item": 0, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 99, "stock_level": "plenty" }
+    },
+    {
+      "id": "hard-max-sepetteki-adetten-dusulur",
+      "note": "hardMax satir basi TOPLAM tavandir; o satirda duran 95 adet ondan dusulur. Dusmeyen uygulama 99 doner ve satiri 194'e cikarir.",
+      "input": { "day_remaining": null, "item_remaining": null, "in_cart_day": 0, "in_cart_item": 95, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 4, "stock_level": "unlimited" }
+    },
+    {
+      "id": "hard-max-tam-dolmus-stok-sinirsiz",
+      "note": "Stok sinirsizken bile satir dolduysa eklenemez. Iki cevabin birbirinden bagimsiz oldugunu sabitler.",
+      "input": { "day_remaining": null, "item_remaining": null, "in_cart_day": 0, "in_cart_item": 99, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 0, "stock_level": "unlimited" }
+    },
+    {
+      "id": "hard-max-kucuk-yapilandirilmis-deger",
+      "note": "hardMax 99'a gomulu bir sabit degildir; disaridan gelir.",
+      "input": { "day_remaining": 20, "item_remaining": 20, "in_cart_day": 0, "in_cart_item": 0, "hard_max": 3, "low_threshold": 5 },
+      "expect": { "max_addable": 3, "stock_level": "plenty" }
+    },
+    {
+      "id": "hard-max-sifir",
+      "note": "Satir basi tavan sifirsa stok bol olsa bile eklenemez.",
+      "input": { "day_remaining": 10, "item_remaining": 10, "in_cart_day": 0, "in_cart_item": 0, "hard_max": 0, "low_threshold": 5 },
+      "expect": { "max_addable": 0, "stock_level": "plenty" }
+    },
+    {
+      "id": "stok-bandi-esikte-low",
+      "note": "Esigin kendisi 'low' sayilir. '<' yazan uygulama burada 'plenty' doner.",
+      "input": { "day_remaining": 5, "item_remaining": null, "in_cart_day": 0, "in_cart_item": 0, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 5, "stock_level": "low" }
+    },
+    {
+      "id": "stok-bandi-esigin-bir-ustu-plenty",
+      "note": "Esigin bir ustu bandin disindadir.",
+      "input": { "day_remaining": 6, "item_remaining": null, "in_cart_day": 0, "in_cart_item": 0, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 6, "stock_level": "plenty" }
+    },
+    {
+      "id": "stok-bandi-tek-porsiyon-low",
+      "note": "Bir kalan her zaman 'low'dur (esik >= 1 oldugu surece).",
+      "input": { "day_remaining": null, "item_remaining": 1, "in_cart_day": 0, "in_cart_item": 0, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 1, "stock_level": "low" }
+    },
+    {
+      "id": "stok-bandi-buyuk-esik",
+      "note": "Esik yapilandirilabilir; 40 kalan, 50 esikte 'low'dur.",
+      "input": { "day_remaining": null, "item_remaining": 40, "in_cart_day": 0, "in_cart_item": 0, "hard_max": 99, "low_threshold": 50 },
+      "expect": { "max_addable": 40, "stock_level": "low" }
+    },
+    {
+      "id": "stok-bandi-esik-sifir-bir-kalan-plenty",
+      "note": "Esik sifirsa 'low' bandi hic olusmaz.",
+      "input": { "day_remaining": 1, "item_remaining": null, "in_cart_day": 0, "in_cart_item": 0, "hard_max": 99, "low_threshold": 0 },
+      "expect": { "max_addable": 1, "stock_level": "plenty" }
+    },
+    {
+      "id": "stok-bandi-esik-sifir-tukendi",
+      "note": "Esik sifir olsa bile 0 kalan 'soldOut'tur; soldOut denetimi esikten ONCE gelir.",
+      "input": { "day_remaining": 0, "item_remaining": null, "in_cart_day": 0, "in_cart_item": 0, "hard_max": 99, "low_threshold": 0 },
+      "expect": { "max_addable": 0, "stock_level": "soldOut" }
+    },
+    {
+      "id": "abonelik-rezervasyonundan-sonra-tek-porsiyon",
+      "note": "Abonelikler stoku once rezerve eder; tek seferlik satisa kalan artiktir. Gun tavani 1'e dusmus olabilir.",
+      "input": { "day_remaining": 1, "item_remaining": 8, "in_cart_day": 0, "in_cart_item": 0, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 1, "stock_level": "low" }
+    },
+    {
+      "id": "negatif-kalan-savunma-amacli-sifir",
+      "note": "Sozlesme negatif kalan ureteMEZ (minimum: 0), ama fazla satis duzeltmesi gibi bir hata negatif getirirse uc dil de ayni sekilde sifira yuvarlamalidir.",
+      "input": { "day_remaining": -1, "item_remaining": null, "in_cart_day": 0, "in_cart_item": 0, "hard_max": 99, "low_threshold": 5 },
+      "expect": { "max_addable": 0, "stock_level": "soldOut" }
+    }
+  ]
+}

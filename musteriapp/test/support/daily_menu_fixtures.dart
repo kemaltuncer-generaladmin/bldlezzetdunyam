@@ -89,12 +89,18 @@ DailyMenu sampleDailyMenu({
 ///
 /// [lookaheadDays] vitrinin `max_lookahead_days` değeriyle AYNI olmalı:
 /// takvim ailesinin anahtarı ondan hesaplanıyor ve tutmazsa override hiç
-/// eşleşmez, test sessizce gerçek ağ katmanına düşerdi.
+/// eşleşmez, test sessizce gerçek ağ katmanına düşerdi. Belirti çok dolaylı
+/// oluyor: takvim boş dönüyor, hiçbir gün "gezilebilir" sayılmıyor ve gün
+/// şeridine yapılan dokunuş hiçbir şey yapmıyor.
+///
+/// Varsayılan **7**, `Location.maxLookaheadDays`'in varsayılanıyla aynı
+/// (günlük menü satış modeli). Kendi vitrinini kuran test farklı bir değer
+/// veriyorsa ikisini birlikte değiştirmeli.
 List<Override> dailyMenuOverrides({
   DailyMenu? today,
   DailyMenu? tomorrow,
   List<MenuCalendarDay>? calendar,
-  int lookaheadDays = 30,
+  int lookaheadDays = 7,
 }) {
   final todayMenu = today ?? sampleDailyMenu();
   final tomorrowMenu = tomorrow ?? sampleDailyMenu(date: fixedTomorrow);

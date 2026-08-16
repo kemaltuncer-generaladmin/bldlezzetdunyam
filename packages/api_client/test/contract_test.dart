@@ -655,63 +655,10 @@ void main() {
     });
   });
 
-  group('Cari hesap', () {
-    test('bakiye özeti — pozitif borç', () {
-      final summary = AccountSummary.fromJson({
-        'balance': 300000,
-        'currency': 'TRY',
-        'as_of': '2026-08-31T20:00:00Z',
-      });
-      expect(summary.balance, 300000);
-      expect(summary.hasDebt, isTrue);
-    });
-
-    test('negatif bakiye = fazla ödeme, borç değil', () {
-      final summary = AccountSummary.fromJson({
-        'balance': -4550,
-        'currency': 'TRY',
-        'as_of': '2026-08-31T20:00:00Z',
-      });
-      expect(summary.balance, -4550);
-      expect(summary.hasDebt, isFalse);
-    });
-
-    test('ekstre örneği ayrıştırılır', () {
-      final statement = AccountStatement.fromJson({
-        'opening_balance': 0,
-        'closing_balance': 150000,
-        'currency': 'TRY',
-        'from': '2026-08-01',
-        'to': '2026-08-31',
-        'entries': [
-          {
-            'date': '2026-08-10',
-            'entry_type': 'debit',
-            'amount': 300000,
-            'running_balance': 300000,
-            'source': 'subscription',
-            'description': 'Ağustos aboneliği',
-          },
-          {
-            'date': '2026-08-20',
-            'entry_type': 'credit',
-            'amount': 150000,
-            'running_balance': 150000,
-            'source': 'payment',
-            'description': null,
-          },
-        ],
-      });
-
-      expect(statement.openingBalance, 0);
-      expect(statement.closingBalance, 150000);
-      expect(statement.entries, hasLength(2));
-      expect(statement.entries.first.isDebit, isTrue);
-      expect(statement.entries.first.source, 'subscription');
-      expect(statement.entries.last.isDebit, isFalse);
-      expect(statement.entries.last.description, isNull);
-    });
-  });
+  // NOT: "Cari hesap" grubu Faz 0'da KALDIRILDI. Cari hesap satış modelinden
+  // çıktı (`AGENTS.md` iş kuralı 1); `AccountSummary`/`AccountStatement`
+  // modelleri ve `AccountService` bu paketten silindi. Testleri burada
+  // bırakmak, artık var olmayan bir sözleşmeyi korumak olurdu.
 
   // ─────────────────────────── Günün menüsü (B-19) ──────────────────────────
 
@@ -873,10 +820,7 @@ void main() {
       expect(menu.isEmpty, isTrue);
       expect(menu.sellsPackage, isFalse);
       expect(menu.packageSavingKurus, isNull);
-      expect(
-        menu.unavailableReason,
-        DailyMenuUnavailableReason.notPublished,
-      );
+      expect(menu.unavailableReason, DailyMenuUnavailableReason.notPublished);
     });
 
     test('sözleşmedeki bütün sebepler tanınır', () {
@@ -886,6 +830,10 @@ void main() {
         'cutoff_passed': DailyMenuUnavailableReason.cutoffPassed,
         'past': DailyMenuUnavailableReason.past,
         'too_far': DailyMenuUnavailableReason.tooFar,
+        // 16.08.2026'da eklendi. `no_service_day` ile `closed_day` AYRI:
+        // biri "hafta sonu servisimiz yok", öbürü "o gün kapalıyız".
+        'no_service_day': DailyMenuUnavailableReason.noServiceDay,
+        'sold_out': DailyMenuUnavailableReason.soldOut,
       };
 
       for (final entry in beklenen.entries) {
@@ -914,10 +862,7 @@ void main() {
 
       expect(menu.unavailableReason, DailyMenuUnavailableReason.unknown);
       expect(menu.isOrderable, isFalse);
-      expect(
-        dailyMenuUnavailableLabelsTr[menu.unavailableReason],
-        isNotEmpty,
-      );
+      expect(dailyMenuUnavailableLabelsTr[menu.unavailableReason], isNotEmpty);
     });
 
     test('HER sebebin bir Türkçe karşılığı vardır', () {
@@ -996,6 +941,157 @@ void main() {
     });
   });
 
+  // ───────────────────── Kesim anı ve stok (16.08.2026) ─────────────────────
+
+  group('DailyMenu — kesim anı ve stok', () {
+    Map<String, dynamic> base() => {
+      'id': 77,
+      'date': '2026-08-20',
+      'currency': 'TRY',
+      'closed': false,
+      'is_orderable': true,
+      'items': <dynamic>[],
+    };
+
+    test('kesim MUTLAK AN olarak ayrıştırılır (UTC)', () {
+      final menu = DailyMenu.fromJson({
+        ...base(),
+        'cutoff_at': '2026-08-20T05:00:00Z',
+      });
+
+      // 08:00 Europe/Istanbul = 05:00 UTC. İstemci saat DİLİMİ hesabı
+      // yapmaz; sunucunun gönderdiği anı olduğu gibi taşır.
+      expect(menu.cutoffAt, DateTime.utc(2026, 8, 20, 5));
+      expect(menu.cutoffAt!.isUtc, isTrue);
+    });
+
+    test('kesim tanımlı değilse null — geri sayım çizilmez', () {
+      expect(DailyMenu.fromJson(base()).cutoffAt, isNull);
+    });
+
+    test('KALAN PORSİYON: null SINIRSIZ, 0 TÜKENDİ', () {
+      // Sözleşmenin en pahalı karışıklığı bu. `null`'ı `0` sayan istemci,
+      // tavanı hiç konmamış bir günü tükenmiş gösterir ve satış durur.
+      expect(DailyMenu.fromJson(base()).remainingPortions, isNull);
+      expect(
+        DailyMenu.fromJson({
+          ...base(),
+          'remaining_portions': 0,
+        }).remainingPortions,
+        0,
+      );
+      expect(
+        DailyMenu.fromJson({
+          ...base(),
+          'remaining_portions': 12,
+        }).remainingPortions,
+        12,
+      );
+    });
+
+    test('kalem ve paket tavanları ayrı ayrı taşınır', () {
+      final menu = DailyMenu.fromJson({
+        ...base(),
+        'remaining_portions': 40,
+        'package': {
+          'menu_id': 900,
+          'name': 'Günün Menüsü',
+          'price': 22000,
+          'is_available': true,
+          'remaining_portions': 12,
+          'components': <dynamic>[],
+        },
+        'items': [
+          {
+            'id': 101,
+            'name': 'Mercimek Çorbası',
+            'price': 6500,
+            'currency': 'TRY',
+            'is_available': true,
+            'remaining_portions': 4,
+          },
+          {
+            'id': 102,
+            'name': 'Tavuk Sote',
+            'price': 20000,
+            'currency': 'TRY',
+            'is_available': true,
+          },
+        ],
+      });
+
+      expect(menu.remainingPortions, 40);
+      expect(menu.package!.remainingPortions, 12);
+      expect(menu.items.first.remainingPortions, 4);
+      // Tavanı olmayan kalem SINIRSIZDIR, sıfır değil.
+      expect(menu.items.last.remainingPortions, isNull);
+    });
+
+    test('paketin tavanı ÜRÜN karşılığına da geçer', () {
+      // Sepetin adet sayacı kalem tavanını `MenuItem.remainingPortions`
+      // üzerinden okuyor; tavan burada düşerse paket sınırsızmış gibi
+      // eklenir ve sunucu siparişi reddeder.
+      final menu = DailyMenu.fromJson({
+        ...base(),
+        'package': {
+          'menu_id': 900,
+          'name': 'Günün Menüsü',
+          'price': 22000,
+          'is_available': true,
+          'remaining_portions': 3,
+          'components': <dynamic>[],
+        },
+      });
+
+      expect(menu.packageAsMenuItem!.remainingPortions, 3);
+    });
+
+    test('görsel ızgarası ayrıştırılır ve gidiş-dönüş yapar', () {
+      final menu = DailyMenu.fromJson({
+        ...base(),
+        'image_urls': [
+          'https://ornek.test/1.jpg',
+          'https://ornek.test/2.jpg',
+          'https://ornek.test/3.jpg',
+        ],
+      });
+
+      expect(menu.imageUrls, hasLength(3));
+      expect(DailyMenu.fromJson(menu.toJson()), menu);
+    });
+
+    test('KAPAK varsa ızgaraya tercih edilir', () {
+      final kapakli = DailyMenu.fromJson({
+        ...base(),
+        'image_url': 'https://ornek.test/kapak.jpg',
+        'image_urls': ['https://ornek.test/1.jpg', 'https://ornek.test/2.jpg'],
+      });
+
+      expect(kapakli.cardImageUrls, ['https://ornek.test/kapak.jpg']);
+    });
+
+    test('kapak yoksa ızgara çizilir, dörtten fazlası kesilir', () {
+      final menu = DailyMenu.fromJson({
+        ...base(),
+        'image_urls': [
+          'https://ornek.test/1.jpg',
+          'https://ornek.test/2.jpg',
+          'https://ornek.test/3.jpg',
+          'https://ornek.test/4.jpg',
+          'https://ornek.test/5.jpg',
+        ],
+      });
+
+      expect(menu.cardImageUrls, hasLength(4));
+      expect(menu.cardImageUrls.last, 'https://ornek.test/4.jpg');
+    });
+
+    test('görseli hiç olmayan gün boş liste verir', () {
+      expect(DailyMenu.fromJson(base()).cardImageUrls, isEmpty);
+      expect(DailyMenu.fromJson(base()).imageUrls, isEmpty);
+    });
+  });
+
   group('MenuCalendarDay', () {
     test('sözleşme örneği ayrıştırılır ve gidiş-dönüş yapar', () {
       final gun = MenuCalendarDay.fromJson({
@@ -1044,6 +1140,64 @@ void main() {
       expect(gun.isBrowsable, isTrue);
       expect(gun.isOrderable, isFalse);
     });
+
+    test('kesim anı takvimde de gelir', () {
+      // Gün seçici her günü ayrı ayrı sorgulamadan bandı çizebilsin diye.
+      final gun = MenuCalendarDay.fromJson({
+        'date': '2026-08-20',
+        'has_menu': true,
+        'closed': false,
+        'is_orderable': true,
+        'cutoff_at': '2026-08-20T05:00:00Z',
+      });
+
+      expect(gun.cutoffAt, DateTime.utc(2026, 8, 20, 5));
+      expect(MenuCalendarDay.fromJson(gun.toJson()), gun);
+    });
+
+    test('TÜKENMİŞ gün takvimde KALIR ve görüntülenebilir', () {
+      // Günü listeden düşürseydik "menü girilmemiş" ile "kapış kapış gitti"
+      // aynı boşluğa düşerdi.
+      final gun = MenuCalendarDay.fromJson({
+        'date': '2026-08-20',
+        'has_menu': true,
+        'closed': false,
+        'is_orderable': false,
+        'sold_out': true,
+      });
+
+      expect(gun.soldOut, isTrue);
+      expect(gun.isBrowsable, isTrue, reason: 'Menü yine okunabilmeli.');
+      expect(gun.isOrderable, isFalse);
+    });
+
+    test('servis dışı gün işaretlenir; SATIŞ KANALI kapanmaz', () {
+      // Cumartesi hücresi servis dışıdır ama o gün pazartesiye sipariş
+      // verilebilir — bu alan yalnız HÜCRENİN kendi gününü anlatır.
+      final cumartesi = MenuCalendarDay.fromJson({
+        'date': '2026-08-22',
+        'has_menu': false,
+        'closed': false,
+        'is_orderable': false,
+        'weekend': true,
+      });
+
+      expect(cumartesi.weekend, isTrue);
+      expect(cumartesi.closed, isFalse, reason: 'Servis yok ≠ kapalıyız.');
+    });
+
+    test('yeni alanlar gelmezse eski yanıt çökertmez', () {
+      final gun = MenuCalendarDay.fromJson({
+        'date': '2026-08-20',
+        'has_menu': true,
+        'closed': false,
+        'is_orderable': true,
+      });
+
+      expect(gun.cutoffAt, isNull);
+      expect(gun.soldOut, isFalse);
+      expect(gun.weekend, isFalse);
+    });
   });
 
   group('Location — günün menüsü şalteri', () {
@@ -1062,20 +1216,32 @@ void main() {
         ...base(),
         'daily_menu_enabled': true,
         'max_lookahead_days': 14,
+        'service_weekdays': [1, 2, 3, 4, 5, 6],
       });
 
       expect(location.dailyMenuEnabled, isTrue);
       expect(location.maxLookaheadDays, 14);
+      expect(location.serviceWeekdays, [1, 2, 3, 4, 5, 6]);
     });
 
-    test('eski sunucu yanıtında şalter KAPALI, pencere 30 gündür', () {
+    test('eski sunucu yanıtında şalter KAPALI, pencere 7 GÜNDÜR', () {
       // Alanlar sözleşmeye sonradan eklendi; gelmediğinde eski katalog
       // akışı çalışmalı — kendiliğinden açılan bir şalter, menüsü girilmemiş
       // bir vitrini satılamaz hâle getirirdi.
+      //
+      // Pencerenin varsayılanı 30 DEĞİL 7'dir (16.08.2026): şemadaki
+      // `default: 30` katalog dönemine ait tarihsel bir annotasyondur.
+      // 30 varsaysaydık eski önbellekten okuyan istemci bir ay ileriye
+      // tıklanabilir takvim çizer ve sunucudan `too_far` yerdi.
       final location = Location.fromJson(base());
 
       expect(location.dailyMenuEnabled, isFalse);
-      expect(location.maxLookaheadDays, 30);
+      expect(location.maxLookaheadDays, 7);
+    });
+
+    test('servis günleri gelmezse HAFTA İÇİ varsayılır', () {
+      // Boş liste varsaymak takvimin HER gününü soluk çizmek olurdu.
+      expect(Location.fromJson(base()).serviceWeekdays, [1, 2, 3, 4, 5]);
     });
   });
 
@@ -1402,30 +1568,33 @@ void main() {
       expect(saved.line1, 'Atatürk Caddesi No:12');
     });
 
-    test('defterden siparişe kopyalanırken yapılandırılmış alanlar taşınır', () {
-      // Taşınmazsa kurye fişinde daire numarası kaybolur ve müşteri, adres
-      // defterinde doğru yazdığı kapıyı bulamayan bir kuryeyle karşılaşır.
-      const saved = SavedAddress(
-        id: 1,
-        line1: 'Feritpaşa Mah. Kültür Sk. No:12/A',
-        district: 'Selçuklu',
-        city: 'Konya',
-        isDefault: true,
-        neighbourhood: 'Feritpaşa Mah.',
-        street: 'Kültür Sk.',
-        buildingNo: '12/A',
-        floor: 'Zemin',
-        doorNo: '2',
-      );
+    test(
+      'defterden siparişe kopyalanırken yapılandırılmış alanlar taşınır',
+      () {
+        // Taşınmazsa kurye fişinde daire numarası kaybolur ve müşteri, adres
+        // defterinde doğru yazdığı kapıyı bulamayan bir kuryeyle karşılaşır.
+        const saved = SavedAddress(
+          id: 1,
+          line1: 'Feritpaşa Mah. Kültür Sk. No:12/A',
+          district: 'Selçuklu',
+          city: 'Konya',
+          isDefault: true,
+          neighbourhood: 'Feritpaşa Mah.',
+          street: 'Kültür Sk.',
+          buildingNo: '12/A',
+          floor: 'Zemin',
+          doorNo: '2',
+        );
 
-      final order = saved.toOrderAddress();
+        final order = saved.toOrderAddress();
 
-      expect(order.neighbourhood, 'Feritpaşa Mah.');
-      expect(order.street, 'Kültür Sk.');
-      expect(order.buildingNo, '12/A');
-      expect(order.floor, 'Zemin');
-      expect(order.doorNo, '2');
-    });
+        expect(order.neighbourhood, 'Feritpaşa Mah.');
+        expect(order.street, 'Kültür Sk.');
+        expect(order.buildingNo, '12/A');
+        expect(order.floor, 'Zemin');
+        expect(order.doorNo, '2');
+      },
+    );
 
     test('girdide beş alan da AÇIKÇA null gönderilir', () {
       // Koordinatlarla aynı kural: alan yok = koru, alan null = sil. Onsuz
@@ -1475,6 +1644,570 @@ void main() {
       expect(json['building_no'], '12/A');
       expect(json['floor'], 'Zemin');
       expect(json['door_no'], '2');
+    });
+  });
+
+  // ─────────────────── Ödeme akışı — sıradaki adım (Faz 3) ──────────────────
+
+  group('Payment — sıradaki adım', () {
+    test('tahsilat kimliği sipariş kimliğinden AYRIDIR', () {
+      final payment = Payment.fromJson({
+        'method': 'online',
+        'status': 'pending',
+        'payment_id': 4412,
+        'next_action': 'three_ds',
+        'redirect_url': 'https://sanalpos.example/3ds/abc',
+      });
+
+      expect(payment.paymentId, 4412);
+      expect(payment.nextAction, PaymentNextAction.threeDs);
+      expect(payment.requiresRedirect, isTrue);
+    });
+
+    test('kapıda ödemede kimlik ve adım YOKTUR', () {
+      final payment = Payment.fromJson({'method': 'cash', 'status': 'pending'});
+
+      expect(payment.paymentId, isNull);
+      expect(payment.nextAction, PaymentNextAction.none);
+      expect(payment.nextAction.requiresCustomerStep, isFalse);
+    });
+
+    test('null adım "adım yok" demektir', () {
+      final payment = Payment.fromJson({
+        'method': 'cash',
+        'status': 'paid',
+        'next_action': null,
+      });
+
+      expect(payment.nextAction, PaymentNextAction.none);
+    });
+
+    test('BİLİNMEYEN adım none SAYILMAZ', () {
+      // Sözleşmenin en tehlikeli kenar durumu: bilinmeyen adımı `none`
+      // saymak, atlanmış bir doğrulamayı "ödeme bitti" diye göstermektir.
+      final payment = Payment.fromJson({
+        'method': 'online',
+        'status': 'pending',
+        'next_action': 'biometric',
+      });
+
+      expect(payment.nextAction, PaymentNextAction.unknown);
+      expect(payment.nextAction, isNot(PaymentNextAction.none));
+      expect(payment.nextAction.requiresCustomerStep, isTrue);
+      expect(payment.nextAction.isSupported, isFalse);
+      expect(paymentNextActionLabelsTr[payment.nextAction], isNotEmpty);
+    });
+
+    test('bilinmeyen adım sunucuya GERİ GÖNDERİLMEZ', () {
+      final payment = Payment.fromJson({
+        'method': 'online',
+        'status': 'pending',
+        'next_action': 'biometric',
+      });
+
+      expect(payment.toJson().containsKey('next_action'), isFalse);
+    });
+
+    test('HER adımın bir Türkçe karşılığı vardır', () {
+      for (final action in PaymentNextAction.values) {
+        expect(
+          paymentNextActionLabelsTr.containsKey(action),
+          isTrue,
+          reason: '$action için metin tablosunda karşılık yok.',
+        );
+      }
+      // `none` bilerek boştur: adım yokken cümle de yoktur.
+      expect(paymentNextActionLabelsTr[PaymentNextAction.none], '');
+    });
+  });
+
+  // ──────────── Abonelik: istisna, ödeme, sözleşme (16.08.2026) ─────────────
+
+  group('SubscriptionException', () {
+    test('atlanan gün ayrıştırılır ve gidiş-dönüş yapar', () {
+      final exception = SubscriptionException.fromJson({
+        'service_date': '2026-09-03',
+        'skip': true,
+        'quantity_override': null,
+        'created_at': '2026-08-28T11:15:00Z',
+      });
+
+      expect(exception.serviceDate, '2026-09-03');
+      expect(exception.skip, isTrue);
+      expect(exception.effectiveQuantity(20), 0);
+      expect(SubscriptionException.fromJson(exception.toJson()), exception);
+    });
+
+    test('adet değiştirilen gün varsayılanı EZER', () {
+      final exception = SubscriptionException.fromJson({
+        'service_date': '2026-09-04',
+        'skip': false,
+        'quantity_override': 8,
+      });
+
+      expect(exception.effectiveQuantity(20), 8);
+    });
+
+    test('override yoksa aboneliğin varsayılanı geçerlidir', () {
+      final exception = SubscriptionException.fromJson({
+        'service_date': '2026-09-05',
+        'skip': false,
+      });
+
+      expect(exception.quantityOverride, isNull);
+      expect(exception.effectiveQuantity(20), 20);
+    });
+  });
+
+  group('Subscription — ara durumlar ve gömülü özetler', () {
+    Map<String, dynamic> base() => {
+      'id': 12,
+      'status': 'awaiting_contract',
+      'location_id': 1,
+      'delivery_type': 'delivery',
+      'start_date': '2026-09-01',
+      'service_days': [1, 2, 3, 4, 5],
+      'default_quantity': 20,
+      'agreed_unit_price': 15000,
+      'payment_mode': 'prepaid_monthly',
+      'menu_mode': 'daily_menu',
+      'lines': <dynamic>[],
+      'delivery_points': <dynamic>[],
+      'created_at': '2026-08-20T06:00:00Z',
+    };
+
+    test('sözleşme onayı bekleyen abonelik', () {
+      final subscription = Subscription.fromJson({
+        ...base(),
+        'contract': {
+          'status': 'sent',
+          'version': 2,
+          'sent_at': '2026-08-25T08:00:00Z',
+          'approved_at': null,
+        },
+      });
+
+      expect(subscription.isAwaitingContract, isTrue);
+      expect(subscription.isPending, isFalse);
+      expect(subscription.isActive, isFalse);
+      expect(subscription.contract!.isAwaitingApproval, isTrue);
+      expect(subscription.contract!.version, 2);
+      expect(subscription.contract!.approvedAt, isNull);
+    });
+
+    test('ödeme bekleyen abonelik dönem özetini taşır', () {
+      final subscription = Subscription.fromJson({
+        ...base(),
+        'status': 'awaiting_payment',
+        'payment': {
+          'payment_id': null,
+          'period': '2026-09',
+          'amount': 660000,
+          'currency': 'TRY',
+          'status': 'pending',
+          'due_date': '2026-09-05',
+        },
+      });
+
+      expect(subscription.isAwaitingPayment, isTrue);
+      expect(subscription.payment!.period, '2026-09');
+      expect(subscription.payment!.amount, 660000);
+      // Ödeme henüz BAŞLATILMADI: `null` ile `0` karıştırılmaz.
+      expect(subscription.payment!.paymentId, isNull);
+      expect(subscription.payment!.isStarted, isFalse);
+      expect(subscription.payment!.isPaid, isFalse);
+      expect(subscription.payment!.dueDate, '2026-09-05');
+    });
+
+    test('fiyatlanmamış talepte ödeme ve sözleşme YOKTUR', () {
+      final subscription = Subscription.fromJson({
+        ...base(),
+        'status': 'pending',
+        'agreed_unit_price': null,
+      });
+
+      expect(subscription.isPending, isTrue);
+      expect(subscription.payment, isNull);
+      expect(subscription.contract, isNull);
+      expect(subscription.exceptions, isEmpty);
+    });
+
+    test('istisnalar geri OKUNUR — atlanan gün ekranda görünebilir', () {
+      // Faz 0 öncesi açık: istisna yazılıyordu ama hiçbir uç geri
+      // okumuyordu; abone atladığını göremediği için aynı günü tekrar
+      // tekrar atlıyordu.
+      final subscription = Subscription.fromJson({
+        ...base(),
+        'status': 'active',
+        'exceptions': [
+          {'service_date': '2026-09-03', 'skip': true},
+          {'service_date': '2026-09-04', 'skip': false, 'quantity_override': 8},
+        ],
+      });
+
+      expect(subscription.exceptions, hasLength(2));
+      expect(subscription.exceptionFor('2026-09-03')!.skip, isTrue);
+      expect(subscription.quantityFor('2026-09-03'), 0);
+      expect(subscription.quantityFor('2026-09-04'), 8);
+      // İstisnası olmayan gün varsayılan adedi alır.
+      expect(subscription.exceptionFor('2026-09-07'), isNull);
+      expect(subscription.quantityFor('2026-09-07'), 20);
+    });
+
+    test('bilinmeyen durum hâlâ çökertmez', () {
+      final subscription = Subscription.fromJson({
+        ...base(),
+        'status': 'suspended_for_debt',
+      });
+
+      expect(subscription.status, 'suspended_for_debt');
+      expect(subscription.isActive, isFalse);
+      expect(subscription.isAwaitingContract, isFalse);
+      expect(subscription.isAwaitingPayment, isFalse);
+    });
+  });
+
+  group('SubscriptionPayment', () {
+    Map<String, dynamic> base() => {
+      'payment_id': 501,
+      'subscription_id': 12,
+      'period': '2026-09',
+      'amount': 660000,
+      'currency': 'TRY',
+      'status': 'pending',
+      'next_action': 'none',
+      'created_at': '2026-08-28T09:00:00Z',
+    };
+
+    test('sözleşme örneği ayrıştırılır ve gidiş-dönüş yapar', () {
+      final payment = SubscriptionPayment.fromJson(base());
+
+      expect(payment.paymentId, 501);
+      expect(payment.subscriptionId, 12);
+      expect(payment.period, '2026-09');
+      expect(payment.amount, 660000);
+      expect(payment.nextAction, PaymentNextAction.none);
+      expect(payment.isPaid, isFalse);
+      expect(payment.shouldPoll, isTrue);
+      expect(SubscriptionPayment.fromJson(payment.toJson()), payment);
+    });
+
+    test('OTP adımı SMS kodu ister', () {
+      final payment = SubscriptionPayment.fromJson({
+        ...base(),
+        'next_action': 'otp',
+      });
+
+      expect(payment.needsOtp, isTrue);
+      expect(payment.needsRedirect, isFalse);
+    });
+
+    test('3-D Secure ADRESSİZ yönlendirme sayılmaz', () {
+      // Adres olmadan "yönlendirileceksiniz" demek, açılacak sayfası
+      // olmayan bir düğme çizmektir.
+      expect(
+        SubscriptionPayment.fromJson({
+          ...base(),
+          'next_action': 'three_ds',
+        }).needsRedirect,
+        isFalse,
+      );
+      expect(
+        SubscriptionPayment.fromJson({
+          ...base(),
+          'next_action': 'three_ds',
+          'redirect_url': 'https://sanalpos.example/3ds/xyz',
+        }).needsRedirect,
+        isTrue,
+      );
+    });
+
+    test('ödendikten sonra yoklama biter', () {
+      final payment = SubscriptionPayment.fromJson({
+        ...base(),
+        'status': 'paid',
+        'redirect_url': null,
+        'paid_at': '2026-08-28T09:04:00Z',
+      });
+
+      expect(payment.isPaid, isTrue);
+      expect(payment.shouldPoll, isFalse);
+      expect(payment.paidAt, DateTime.utc(2026, 8, 28, 9, 4));
+    });
+
+    test('başarısızlık sebebi Türkçe ve gösterilebilir', () {
+      final payment = SubscriptionPayment.fromJson({
+        ...base(),
+        'failure_reason': 'Kart limiti yetersiz.',
+      });
+
+      expect(payment.failureReason, 'Kart limiti yetersiz.');
+    });
+  });
+
+  group('SubscriptionContract', () {
+    Map<String, dynamic> base() => {
+      'status': 'sent',
+      'version': 1,
+      'body': '# Abonelik Sözleşmesi\n\nTaraflar ...',
+      'body_format': 'markdown',
+      'service_days': [1, 2, 3, 4, 5],
+      'unit_price': 15000,
+      'currency': 'TRY',
+      'customer_label': 'Örnek Mühendislik A.Ş.',
+      'masked_phone': '0555 *** ** 33',
+      'start_date': '2026-09-01',
+      'end_date': null,
+      'default_quantity': 20,
+      'monthly_estimate': 660000,
+      'expires_at': '2026-09-01T20:59:59Z',
+      'approved_at': null,
+    };
+
+    test('sözleşme örneği ayrıştırılır ve gidiş-dönüş yapar', () {
+      final contract = SubscriptionContract.fromJson(base());
+
+      expect(contract.version, 1);
+      expect(contract.isMarkdown, isTrue);
+      expect(contract.unitPrice, 15000);
+      expect(contract.monthlyEstimate, 660000);
+      expect(contract.canApprove, isTrue);
+      expect(contract.isApproved, isFalse);
+      expect(SubscriptionContract.fromJson(contract.toJson()), contract);
+    });
+
+    test('yanıt DAR: kimlik, adres ve e-posta alanı YOK', () {
+      // Uç kimlik gerektirmiyor; bağlantıyı ele geçiren biri yalnız
+      // sözleşmeyi ve MASKELİ telefonu görmeli.
+      final json = SubscriptionContract.fromJson(base()).toJson();
+
+      for (final yasak in [
+        'customer_id',
+        'email',
+        'address',
+        'telephone',
+        'phone',
+      ]) {
+        expect(
+          json.containsKey(yasak),
+          isFalse,
+          reason: '$yasak sözleşme görünümünde BULUNMAMALI.',
+        );
+      }
+      expect(json['masked_phone'], '0555 *** ** 33');
+    });
+
+    test('süresi dolmuş bağlantı 200 + expired döner, hata DEĞİL', () {
+      final contract = SubscriptionContract.fromJson({
+        ...base(),
+        'status': 'expired',
+      });
+
+      expect(contract.isExpired, isTrue);
+      expect(contract.canApprove, isFalse);
+      expect(contract.isCancelled, isFalse, reason: 'İkisi AYRI durumdur.');
+    });
+
+    test('iptal ile süre dolumu ayrı — yapılacak iş farklı', () {
+      final iptal = SubscriptionContract.fromJson({
+        ...base(),
+        'status': 'cancelled',
+      });
+
+      expect(iptal.isCancelled, isTrue);
+      expect(iptal.isExpired, isFalse);
+      expect(iptal.canApprove, isFalse);
+    });
+
+    test('onaylanan sözleşme terminaldir', () {
+      final contract = SubscriptionContract.fromJson({
+        ...base(),
+        'status': 'approved',
+        'approved_at': '2026-08-26T12:30:00Z',
+      });
+
+      expect(contract.isApproved, isTrue);
+      expect(contract.canApprove, isFalse);
+      expect(contract.approvedAt, DateTime.utc(2026, 8, 26, 12, 30));
+    });
+
+    test('bilinmeyen biçim DÜZ METİN sayılır', () {
+      // Biçimlendirmeyi yanlış tahmin etmek, hiç biçimlendirmemekten kötü.
+      final contract = SubscriptionContract.fromJson({
+        ...base(),
+        'body_format': 'html',
+      });
+
+      expect(contract.isMarkdown, isFalse);
+    });
+  });
+
+  // ────────────────────────────── Duyuru (Faz 4) ────────────────────────────
+
+  group('Announcement', () {
+    Map<String, dynamic> base() => {
+      'id': 31,
+      'placement': 'home',
+      'body': 'Yarın servisimiz yoktur.',
+      'dismissible': true,
+      'seen': false,
+      'dismissed': false,
+    };
+
+    test('sözleşme örneği ayrıştırılır ve gidiş-dönüş yapar', () {
+      final duyuru = Announcement.fromJson({
+        ...base(),
+        'severity': 'critical',
+        'title': 'Servis duyurusu',
+        'action_label': 'Menüye git',
+        'action_url': '/menu',
+        'starts_at': '2026-08-17T06:00:00Z',
+        'ends_at': '2026-08-18T21:00:00Z',
+        'created_at': '2026-08-16T18:00:00Z',
+      });
+
+      expect(duyuru.id, 31);
+      expect(duyuru.severity, AnnouncementSeverity.critical);
+      expect(duyuru.isFor(AnnouncementPlacement.home), isTrue);
+      expect(duyuru.hasAction, isTrue);
+      expect(Announcement.fromJson(duyuru.toJson()), duyuru);
+    });
+
+    test('ton gelmezse info varsayılır', () {
+      expect(Announcement.fromJson(base()).severity, AnnouncementSeverity.info);
+    });
+
+    test('bilinmeyen ton çökertmez, en sakin tona düşer', () {
+      // Bilinmeyen ton yüzünden duyuruyu hiç göstermemek, yanlış renkle
+      // göstermekten çok daha pahalıdır.
+      final duyuru = Announcement.fromJson({...base(), 'severity': 'panic'});
+
+      expect(duyuru.severity, AnnouncementSeverity.info);
+      expect(duyuru.body, 'Yarın servisimiz yoktur.');
+    });
+
+    test('kritik duyuru KAPANMAZ demek değildir', () {
+      final duyuru = Announcement.fromJson({
+        ...base(),
+        'severity': 'critical',
+        'dismissible': true,
+      });
+
+      expect(duyuru.severity, AnnouncementSeverity.critical);
+      expect(duyuru.dismissible, isTrue);
+    });
+
+    test('etiketsiz adres ve adressiz etiket düğme ÇİZDİRMEZ', () {
+      expect(
+        Announcement.fromJson({...base(), 'action_url': '/menu'}).hasAction,
+        isFalse,
+      );
+      expect(
+        Announcement.fromJson({...base(), 'action_label': 'Git'}).hasAction,
+        isFalse,
+      );
+      expect(Announcement.fromJson(base()).hasAction, isFalse);
+    });
+
+    test('bilinmeyen yerleşim çökertmez — kapalı enum DEĞİL', () {
+      final duyuru = Announcement.fromJson({
+        ...base(),
+        'placement': 'yeni_ekran',
+      });
+
+      expect(duyuru.placement, 'yeni_ekran');
+      expect(duyuru.isFor(AnnouncementPlacement.home), isFalse);
+    });
+  });
+
+  // ────────────────────────────── Teşhis (Faz 4) ────────────────────────────
+
+  group('ClientErrorReport', () {
+    test('gövde sözleşmedeki adlarla üretilir', () {
+      final report = ClientErrorReport(
+        message: 'Menü çizilemedi',
+        kind: ClientErrorKind.render,
+        route: '/menu/2026-08-20',
+        occurredAt: DateTime.utc(2026, 8, 20, 9, 15),
+        appBuild: '1042',
+        device: 'Android 15 / Pixel 8',
+        context: const {'attempt': 2},
+      );
+
+      final json = report.toJson();
+
+      expect(json['message'], 'Menü çizilemedi');
+      expect(json['kind'], 'render');
+      expect(json['route'], '/menu/2026-08-20');
+      expect(json['occurred_at'], '2026-08-20T09:15:00.000Z');
+      expect(json['app_build'], '1042');
+      expect(json['device'], 'Android 15 / Pixel 8');
+      expect(json['context'], {'attempt': 2});
+    });
+
+    test('SOURCE alanı gövdede BULUNMAZ', () {
+      // Sunucu bunu `X-App-Id` başlığından türetiyor. Gövdede taşınsaydı
+      // web sitesi `mutfakapp` yazan bir rapor üretip mutfağın güvendiği
+      // hata monitörüne sahte KDS alarmı düşürebilirdi.
+      final json = const ClientErrorReport(message: 'Hata').toJson();
+
+      expect(json.containsKey('source'), isFalse);
+    });
+
+    test('sınırı aşan alanlar KESİLİR, rapor atılmaz', () {
+      final report = ClientErrorReport(
+        message: 'a' * 900,
+        stack: 'b' * 9000,
+        route: 'c' * 400,
+        appBuild: 'd' * 80,
+        device: 'e' * 300,
+      ).truncated();
+
+      expect(report.message.length, 500);
+      expect(report.stack!.length, 8000);
+      expect(report.route!.length, 200);
+      expect(report.appBuild!.length, 40);
+      expect(report.device!.length, 120);
+    });
+
+    test('sınır altındaki değerler dokunulmadan geçer', () {
+      const report = ClientErrorReport(message: 'Kısa', route: '/sepet');
+
+      expect(report.truncated().message, 'Kısa');
+      expect(report.truncated().route, '/sepet');
+      expect(report.truncated().stack, isNull);
+    });
+  });
+
+  // ──────────────────── Cari hesap kaldırıldı — kalıntılar ──────────────────
+
+  group('Customer — can_order alanı korunur ama okunmaz', () {
+    test('alan sözleşmede duruyor ve ayrıştırılıyor', () {
+      // Cari hesap kalktı, `CustomerGate` kalktı; alan EKLEYİCİ sözleşme
+      // gereği duruyor (`AGENTS.md` §2.3). Yeni kod ona BAKMAZ.
+      final customer = Customer.fromJson({
+        'id': 4,
+        'first_name': 'Veysel',
+        'last_name': 'Tuncer',
+        'email': 'veysel@ornek.test',
+        'telephone': '05551112233',
+        'can_order': false,
+      });
+
+      expect(customer.canOrder, isFalse);
+      expect(customer.toJson()['can_order'], isFalse);
+    });
+
+    test('alan gelmezse true — sipariş yolu kapanmaz', () {
+      final customer = Customer.fromJson({
+        'id': 4,
+        'first_name': 'Veysel',
+        'last_name': 'Tuncer',
+        'email': 'veysel@ornek.test',
+        'telephone': '05551112233',
+      });
+
+      expect(customer.canOrder, isTrue);
     });
   });
 }

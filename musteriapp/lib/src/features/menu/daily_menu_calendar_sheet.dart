@@ -1,10 +1,16 @@
 /// Takvim sayfası — gün şeridinin göremediği uzağı gösterir.
 ///
-/// NEDEN ŞERİDİN YANINDA BİR DE TAKVİM: ileri görüş penceresi 30 gün ve şerit
-/// yatay. Müşteri "önümüzdeki salı" ya da "ayın 20'si" diye düşünüyor, "on
-/// yedi gün sonra" diye değil; şeritte on yedi kutu kaydırmak o soruya cevap
-/// vermiyor. Takvim ayrıca KAPALI GÜNLERİ ve nedenlerini bir arada gösteriyor —
-/// şeritte bunlar tek tek kaydırılarak keşfediliyordu.
+/// NEDEN ŞERİDİN YANINDA BİR DE TAKVİM: ileri görüş penceresi uzunken şerit
+/// yatay kalıyor. Müşteri "önümüzdeki salı" ya da "ayın 20'si" diye düşünüyor,
+/// "on yedi gün sonra" diye değil; şeritte on yedi kutu kaydırmak o soruya
+/// cevap vermiyor. Takvim ayrıca KAPALI GÜNLERİ ve nedenlerini bir arada
+/// gösteriyor — şeritte bunlar tek tek kaydırılarak keşfediliyordu.
+///
+/// **Pencere kısaldığında ay ızgarası bırakılır** ([_compactSpanDays]). İleri
+/// görüş 7 güne indi (`Location.max_lookahead_days`) ve otuz hücrelik bir ay
+/// tabakasının yirmi üçü boş kalıyor: müşteri seçebileceği yedi günü, hiçbiri
+/// seçilemeyen bir yığının içinde arıyor. Aynı yedi gün düz bir listede,
+/// durumu ve fiyatı yazılı olarak tek bakışta okunuyor.
 library;
 
 import 'package:bld_api_client/bld_api_client.dart';
@@ -17,7 +23,15 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/catalog_providers.dart';
 import '../../theme/bld_semantic_colors.dart';
 import '../../theme/bld_theme.dart';
+import '../../widgets/money_text.dart';
 import '../../widgets/skeletons.dart';
+
+/// Ay ızgarasının düz listeye bırakıldığı pencere genişliği (gün).
+///
+/// İki hafta: bir ay ızgarasının bilgi kazandırdığı en dar aralık. Bunun
+/// altında ızgara boş hücre saymaktan başka bir iş yapmıyor, üstünde ise
+/// "ayın 20'si" sorusuna liste değil ızgara cevap veriyor.
+const int _compactSpanDays = 14;
 
 /// Takvimi alttan açar. Seçim yapılırsa sayfa kendini kapatır.
 Future<void> showDailyMenuCalendarSheet(BuildContext context) {
@@ -121,33 +135,50 @@ class _Legend extends StatelessWidget {
         BldSpacing.lg,
         BldSpacing.md,
       ),
-      child: Row(
+      // `Wrap`: üçüncü açıklama eklendi ve dar telefonda üçü tek satıra
+      // sığmıyor; `Row` taşma hatası atardı.
+      child: Wrap(
+        spacing: BldSpacing.md,
+        runSpacing: BldSpacing.xs,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          _LegendDot(color: theme.colorScheme.primary),
-          const SizedBox(width: BldSpacing.xs),
-          Text(l10n.dailyMenuLegendHasMenu, style: theme.textTheme.bodySmall),
-          const SizedBox(width: BldSpacing.md),
-          _LegendDot(color: bld.warningFg),
-          const SizedBox(width: BldSpacing.xs),
-          Text(l10n.dailyMenuLegendClosed, style: theme.textTheme.bodySmall),
+          _LegendEntry(
+            color: theme.colorScheme.primary,
+            label: l10n.dailyMenuLegendHasMenu,
+          ),
+          _LegendEntry(
+            color: bld.warningFg,
+            label: l10n.dailyMenuLegendClosed,
+          ),
+          // Tükenmiş gün AÇIKLAMADA da var: hücrenin altındaki nokta yalnız
+          // renkle konuşuyor ve renk tek başına bilgi taşımaz.
+          _LegendEntry(color: bld.placeholder, label: l10n.stockSoldOut),
         ],
       ),
     );
   }
 }
 
-class _LegendDot extends StatelessWidget {
-  const _LegendDot({required this.color});
+class _LegendEntry extends StatelessWidget {
+  const _LegendEntry({required this.color, required this.label});
 
   final Color color;
+  final String label;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 8,
-    height: 8,
-    child: DecoratedBox(
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-    ),
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      SizedBox(
+        width: 8,
+        height: 8,
+        child: DecoratedBox(
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+      ),
+      const SizedBox(width: BldSpacing.xs),
+      Text(label, style: Theme.of(context).textTheme.bodySmall),
+    ],
   );
 }
 
@@ -174,6 +205,7 @@ class _CalendarList extends StatelessWidget {
     };
     final months = _monthsIn(range.from, range.to);
     final closed = days.where((day) => day.closed).toList(growable: false);
+    final span = BusinessDate.daysBetween(range.from, range.to) ?? 0;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -183,15 +215,27 @@ class _CalendarList extends StatelessWidget {
         BldSpacing.xl,
       ),
       children: [
-        for (final month in months)
-          _MonthGrid(
-            month: month,
+        if (span <= _compactSpanDays)
+          _CompactDayList(
             range: range,
+            span: span,
             byDate: byDate,
             selected: selected,
             onSelect: onSelect,
-          ),
-        if (closed.isNotEmpty) ...[
+          )
+        else
+          for (final month in months)
+            _MonthGrid(
+              month: month,
+              range: range,
+              byDate: byDate,
+              selected: selected,
+              onSelect: onSelect,
+            ),
+        // Düz listede kapalı günün nedeni SATIRIN KENDİSİNDE yazılı; aynı
+        // cümleyi bir de altta tekrarlamak, yedi satırlık bir listeyi iki kez
+        // okutmak olurdu.
+        if (span > _compactSpanDays && closed.isNotEmpty) ...[
           const SizedBox(height: BldSpacing.lg),
           Text(l10n.dailyMenuClosedDays, style: theme.textTheme.titleMedium),
           const SizedBox(height: BldSpacing.sm),
@@ -210,6 +254,155 @@ class _CalendarList extends StatelessWidget {
             ),
         ],
       ],
+    );
+  }
+}
+
+/// Kısa pencerenin düz gün listesi — ay ızgarasının yerini alır.
+///
+/// Aralıktaki HER gün bir satır: takvim ucu yalnız menüsü olan ya da kapalı
+/// olan günleri döndürüyor ve listede olmayan gün de bir cevaptır ("o güne
+/// menü girilmedi"). Yalnız dönen günleri listeleseydik yedi günlük pencerede
+/// üç satır çıkar, müşteri kalan dört günü hiç sormadığımızı sanırdı.
+class _CompactDayList extends StatelessWidget {
+  const _CompactDayList({
+    required this.range,
+    required this.span,
+    required this.byDate,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  final MenuCalendarRange range;
+
+  /// Aralığın gün farkı; satır sayısı bunun bir fazlası (iki uç dahil).
+  final int span;
+
+  final Map<String, MenuCalendarDay> byDate;
+  final String selected;
+  final ValueChanged<String> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var offset = 0; offset <= span; offset++)
+          _CompactDayRow(
+            date: BusinessDate.addDays(range.from, offset),
+            day: byDate[BusinessDate.addDays(range.from, offset)],
+            selected: BusinessDate.addDays(range.from, offset) == selected,
+            onSelect: onSelect,
+          ),
+      ],
+    );
+  }
+}
+
+class _CompactDayRow extends StatelessWidget {
+  const _CompactDayRow({
+    required this.date,
+    required this.day,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  final String date;
+  final MenuCalendarDay? day;
+  final bool selected;
+  final ValueChanged<String> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final bld = context.bld;
+
+    final closed = day?.closed ?? false;
+    // Izgarayla AYNI kural: menüsü olan ya da kapalı güne dokunulabilir,
+    // sipariş kapısı ayrı.
+    final browsable = (day?.isBrowsable ?? false) || closed;
+    final soldOut = day?.soldOut ?? false;
+
+    // Durum TEK BİR cümleyle ve öncelik sırasıyla: kapalı gün tükenmişi,
+    // tükenmiş de servis gününü yener — en dıştaki sebep önce söylenir.
+    final (String status, Color statusColor) = closed
+        ? (day?.note ?? l10n.dailyMenuLegendClosed, bld.warningFg)
+        : soldOut
+        ? (l10n.stockSoldOut, bld.placeholder)
+        : (day?.hasMenu ?? false)
+        ? (day?.title ?? l10n.dailyMenuLegendHasMenu, theme.colorScheme.primary)
+        : (day?.weekend ?? false)
+        ? (l10n.dailyMenuNoServiceShort, bld.placeholder)
+        : (l10n.dailyMenuNoMenuShort, bld.placeholder);
+
+    final price = day?.packagePrice;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: BldSpacing.xs),
+      child: Material(
+        color: selected
+            ? theme.colorScheme.primary
+            : theme.colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(BldRadius.md),
+        child: InkWell(
+          onTap: browsable ? () => onSelect(date) : null,
+          borderRadius: BorderRadius.circular(BldRadius.md),
+          child: Semantics(
+            button: browsable,
+            selected: selected,
+            label: '${BusinessDate.long(date)} '
+                '${BusinessDate.weekday(date)} $status',
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: BldSpacing.md,
+                vertical: BldSpacing.sm + 2,
+              ),
+              child: ExcludeSemantics(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${BusinessDate.short(date)} · '
+                            '${BusinessDate.weekday(date)}',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: selected
+                                  ? theme.colorScheme.onPrimary
+                                  : theme.colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            status,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: selected
+                                  ? theme.colorScheme.onPrimary
+                                  : statusColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (price != null) ...[
+                      const SizedBox(width: BldSpacing.sm),
+                      MoneyText(
+                        price,
+                        scale: MoneyScale.sm,
+                        tone: selected ? MoneyTone.onPrimary : MoneyTone.plain,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -404,8 +597,13 @@ class _CalendarCell extends StatelessWidget {
     final theme = Theme.of(context);
     final bld = context.bld;
 
+    // Gün şeridiyle AYNI öncelik ve AYNI tonlar: kapalı > tükendi > menü var.
+    // İki yüzey aynı günü iki farklı renkle işaretlerse müşteri hangisine
+    // inanacağını bilemez.
     final Color? color = closed
         ? bld.warningFg
+        : (day?.soldOut ?? false)
+        ? bld.placeholder
         : (day?.hasMenu ?? false)
         ? (selected ? theme.colorScheme.onPrimary : theme.colorScheme.primary)
         : null;

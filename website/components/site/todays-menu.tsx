@@ -5,9 +5,10 @@ import { Money } from '@/components/money';
 import { ProductImage } from '@/components/product-image';
 import { Section, SectionHeading } from '@/components/site/section';
 import { Button } from '@/components/ui/button';
-import { canOrderDay, fetchDailyMenu, packageAdvantageKurus } from '@/lib/api/daily-menu';
+import { canOrderDay, dayStock, fetchDailyMenu, packageAdvantageKurus } from '@/lib/api/daily-menu';
 import { fetchPrimaryLocation } from '@/lib/api/catalog';
 import { businessToday, formatLongDate } from '@/lib/business-date';
+import { maxAddable } from '@/lib/stock-policy';
 import type { DailyMenu, Location } from '@/lib/api/types';
 
 /**
@@ -130,6 +131,20 @@ export async function TodaysMenu() {
                   menuId={daily.menu_id}
                   serviceDate={today}
                   label="Menüyü sepete ekle"
+                  /*
+                   * TAVAN SEPETSİZ hesaplanıyor: sepeti okumak çerez okumak
+                   * demek ve ana sayfa ISR'de kalmak zorunda (SEO). Sonuç
+                   * "günde kaç porsiyon kaldı" sorusunun cevabı; müşterinin
+                   * sepetindeki adet burada düşülmüyor. Fark güvenli yönde
+                   * değil ama zararsız: sunucu eylemi menüyü ve sepeti taze
+                   * okuyup adedi yine kırpıyor (`app/actions/cart.ts`).
+                   */
+                  maxAddable={maxAddable({
+                    dayRemaining: dayStock(menu),
+                    itemRemaining: daily.remaining_portions ?? null,
+                    alreadyInCartForDay: 0,
+                    alreadyInCartForItem: 0,
+                  })}
                   disabled={!canOrder || !daily.is_available}
                   disabledReason={
                     !daily.is_available

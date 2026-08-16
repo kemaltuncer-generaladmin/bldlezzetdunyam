@@ -205,7 +205,14 @@ void main() {
     await tester.tap(find.text('Yarın'));
     await tester.pumpAndSettle();
     expect(find.text('21 Ağustos 2026 · Cuma'), findsOneWidget);
+
+    // `ensureVisible`'dan SONRA bir kare gerekiyor: kaydırma anında oluyor ama
+    // düğmenin ekrandaki konumu ancak yeni karede güncelleniyor. Kare
+    // atlanırsa `tap` eski koordinata dokunur ve o koordinat, ilk eklemeden
+    // sonra beliren sepet çubuğunun üstüne düşer — dokunuş sessizce yutulur
+    // ve test "sepet güne taşınmadı" diye kırılır.
     await tester.ensureVisible(_addPackageButton);
+    await tester.pumpAndSettle();
     await tester.tap(_addPackageButton);
     await tester.pumpAndSettle();
 

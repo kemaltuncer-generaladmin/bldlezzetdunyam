@@ -9,9 +9,10 @@ library;
 import 'package:dio/dio.dart';
 
 import 'api_exception.dart';
-import 'models/account.dart';
+import 'models/announcement.dart';
 import 'models/auth.dart';
 import 'models/catalog.dart';
+import 'models/client_error.dart';
 import 'models/converters.dart';
 import 'models/daily_menu.dart';
 import 'models/kitchen.dart';
@@ -105,7 +106,9 @@ class BldApi {
     kitchen = _KitchenService(this);
     appVersion = _AppVersionService(this);
     subscriptions = _SubscriptionService(this);
-    account = _AccountService(this);
+    contracts = _ContractService(this);
+    announcements = _AnnouncementService(this);
+    diagnostics = _DiagnosticsService(this);
   }
 
   final Dio _dio;
@@ -118,7 +121,9 @@ class BldApi {
   late final KitchenService kitchen;
   late final AppVersionService appVersion;
   late final SubscriptionService subscriptions;
-  late final AccountService account;
+  late final ContractService contracts;
+  late final AnnouncementService announcements;
+  late final DiagnosticsService diagnostics;
 
   TokenStore get tokenStore => _tokenStore;
 
@@ -605,25 +610,112 @@ class _SubscriptionService implements SubscriptionService {
     body: request.toJson(),
     parse: (data) => Subscription.fromJson(BldApi._asMap(data)),
   );
+
+  @override
+  Future<SubscriptionPayment> startPayment(int id, {String? period}) =>
+      _api._send(
+        'POST',
+        '/subscriptions/$id/payments',
+        // Dönem verilmediğinde gövde BOŞ gider: `{"period": null}` göndermek,
+        // sunucuya "dönemi bilmiyorum" değil "dönem yok" demektir.
+        body: period == null ? null : {'period': period},
+        parse: (data) => SubscriptionPayment.fromJson(BldApi._asMap(data)),
+      );
+
+  @override
+  Future<SubscriptionPayment> confirmPayment(
+    int id,
+    int paymentId, {
+    String? otp,
+  }) => _api._send(
+    'POST',
+    '/subscriptions/$id/payments/$paymentId/confirm',
+    // Sözleşmedeki alan adı `code`; istemci tarafında `otp` deniyor çünkü
+    // ekranın sorduğu şey "SMS kodu". Çeviri tek yerde.
+    body: otp == null ? null : {'code': otp},
+    parse: (data) => SubscriptionPayment.fromJson(BldApi._asMap(data)),
+  );
+
+  @override
+  Future<SubscriptionPayment> payment(int id, int paymentId) => _api._send(
+    'GET',
+    '/subscriptions/$id/payments/$paymentId',
+    parse: (data) => SubscriptionPayment.fromJson(BldApi._asMap(data)),
+  );
 }
 
-class _AccountService implements AccountService {
-  _AccountService(this._api);
+class _ContractService implements ContractService {
+  _ContractService(this._api);
 
   final BldApi _api;
 
   @override
-  Future<AccountSummary> summary() => _api._send(
+  Future<SubscriptionContract> get(String token) => _api._send(
     'GET',
-    '/account/summary',
-    parse: (data) => AccountSummary.fromJson(BldApi._asMap(data)),
+    '/contracts/${Uri.encodeComponent(token)}',
+    parse: (data) => SubscriptionContract.fromJson(BldApi._asDataMap(data)),
   );
 
   @override
-  Future<AccountStatement> statement({String? from, String? to}) => _api._send(
-    'GET',
-    '/account/statement',
-    query: {'from': ?from, 'to': ?to},
-    parse: (data) => AccountStatement.fromJson(BldApi._asMap(data)),
+  // 202 döner; gövdesi ("kod X saniye geçerli") ekranda kullanılmıyor —
+  // geri sayımı sunucudan almak yerine sabit tutmak, kodun ömrü değişince
+  // ekranın yalan söylemesi demekti. Gerekirse ayrı bir tip eklenir.
+  Future<void> requestOtp(String token) => _api._send<void>(
+    'POST',
+    '/contracts/${Uri.encodeComponent(token)}/otp',
+    parse: (_) {},
   );
+
+  @override
+  Future<SubscriptionContract> approve(String token, String code) => _api._send(
+    'POST',
+    '/contracts/${Uri.encodeComponent(token)}/approve',
+    body: {'code': code},
+    parse: (data) => SubscriptionContract.fromJson(BldApi._asDataMap(data)),
+  );
+}
+
+class _AnnouncementService implements AnnouncementService {
+  _AnnouncementService(this._api);
+
+  final BldApi _api;
+
+  @override
+  Future<List<Announcement>> list({String? placement}) => _api._send(
+    'GET',
+    '/announcements',
+    query: {'placement': ?placement},
+    parse: (data) => BldApi._asDataList(data, Announcement.fromJson),
+  );
+}
+
+class _DiagnosticsService implements DiagnosticsService {
+  _DiagnosticsService(this._api);
+
+  final BldApi _api;
+
+  @override
+  Future<void> reportError(ClientErrorReport report) async {
+    // HER ŞEYİ YUTAR. Hata bildirme yolunda atılan bir istisna, çağıranı
+    // catch bloğunun içinde ikinci bir hataya sokar ve kendini besleyen bir
+    // döngü doğar. Sunucu zaten `204` dışında bir şey döndürmemeye söz
+    // veriyor; buradaki tek gerçek risk ağın hiç olmamasıdır ve o durumda
+    // kaybedilecek şey bir teşhis satırıdır.
+    //
+    // TEKRAR DENEME DE YOK: döngüye girmiş bir ekran saniyede onlarca rapor
+    // üretiyor; üstüne tekrar denemek oran sınırını doldurur ve asıl teşhisi
+    // kaybettirir.
+    try {
+      await _api._send<void>(
+        'POST',
+        '/client-errors',
+        body: report.truncated().toJson(),
+        parse: (_) {},
+      );
+    } on ApiException {
+      // Sessiz.
+    } on Object {
+      // Serileştirme dahil her şey. Rapor kaybı kabul edilmiş bir kayıptır.
+    }
+  }
 }

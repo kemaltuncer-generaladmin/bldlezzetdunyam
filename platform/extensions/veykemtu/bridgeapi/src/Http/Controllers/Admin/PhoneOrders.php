@@ -30,17 +30,17 @@ use Veykemtu\BridgeApi\Support\BusinessTime;
  *
  * Müşterilerin çoğu hâlâ telefonla arıyor. Bugüne kadar o siparişlerin
  * sisteme girmesinin hiçbir yolu yoktu: mutfak kâğıda yazıyor, sipariş
- * KDS'de görünmüyor, cirosu raporlara düşmüyor, cari hesaba işlenmiyordu.
+ * KDS'de görünmüyor, cirosu raporlara düşmüyordu.
  *
  * ÇEKİRDEK `FormController` KULLANILMIYOR. Sebep: burada kaydedilen şey tek
- * bir model değil — müşteri (belki yeni), sipariş başlığı, satırlar, cari
- * hareketi ve durum geçişi birlikte doğuyor. Çekirdeğin form denetleyicisi
+ * bir model değil — müşteri (belki yeni), sipariş başlığı, satırlar ve durum
+ * geçişi birlikte doğuyor. Çekirdeğin form denetleyicisi
  * "bir model bir kayıt" varsayımıyla çalışıyor ve bunu zorlamak, her adımda
  * ona rağmen kod yazmak olurdu.
  *
  * FİYAT VE KURALLAR YENİDEN YAZILMADI: `Services\OrderFactory::create()`
  * çağrılıyor. Aynı satır çözümleme, aynı sunucu tarafı fiyatlama, aynı adres
- * kopyalama, aynı cari kaydı. Panelin kendi hesabını yapması, web ile
+ * kopyalama. Panelin kendi hesabını yapması, web ile
  * panelin zamanla ayrışan iki fiyatı olması demekti.
  *
  * SİPARİŞ `onaylandi` DOĞAR: telefonda teyit zaten alınmış. `yeni` bırakmak,
@@ -186,10 +186,13 @@ class PhoneOrders extends AdminController
         $this->vars['initialLines'] = self::INITIAL_LINES;
         $this->vars['today'] = BusinessTime::now()->toDateString();
 
+        // TÜM müşteriler listeleniyor: kurumsal sipariş kapısı kalktı ve
+        // `bld_account_type` artık serbest metin bir etiket. Filtre kalsaydı,
+        // telefonla arayan ama panelde 'individual' işaretlenmiş bir müşteri
+        // listede hiç görünmez, operatör de sebebini anlayamazdı.
         $this->vars['customers'] = ApiCustomer::query()
-            ->where('bld_account_type', 'corporate')
             ->orderBy('bld_org_name')
-            ->get(['customer_id', 'bld_org_name', 'first_name', 'last_name', 'telephone', 'bld_credit_limit_kurus']);
+            ->get(['customer_id', 'bld_org_name', 'first_name', 'last_name', 'telephone']);
 
         // Satılabilir ürünler. `menu_status` kapalı olanlar hiç listelenmiyor:
         // yönetici telefonda okuduğu menüden seçiyor, satışta olmayan bir
@@ -217,14 +220,11 @@ class PhoneOrders extends AdminController
     /**
      * Var olan müşteriyi bulur ya da yenisini oluşturur.
      *
-     * Yeni müşteri HER ZAMAN kurumsal doğar: sipariş kapısı `can_order`
-     * kurumsal hesapta açık (`docs/00` B2B kararı) ve panelden girilen bir
-     * siparişin müşterisi tanım gereği bizimle çalışan bir kurum.
-     *
-     * Cari limiti YAZILMIYOR — kolonun varsayılanı NULL değil, migration'da
-     * bilerek NULL bırakılmış olsa da yeni kayıtta 0 veriyoruz: veresiye
-     * ayrı bir güven kararı ve telefonda alınan bir siparişle birlikte
-     * verilmemeli (`2026_08_13_000001` gerekçesi).
+     * Yeni müşteri `corporate` etiketiyle doğar: panelden girilen bir
+     * siparişin müşterisi çoğunlukla bizimle çalışan bir kurum ve etiket
+     * artık bir yetki değil, yalnız bir sınıflandırma. Kurumsal sipariş
+     * kapısı kalktığı için bu değer kimseyi engellemiyor, yönetici gerekirse
+     * müşteri kartından değiştirir.
      */
     private function resolveCustomer(array $post): ApiCustomer
     {
@@ -263,7 +263,6 @@ class PhoneOrders extends AdminController
         $customer->bld_org_name = $orgName;
         $customer->bld_contact_person = $contact;
         $customer->bld_org_phone = $phone;
-        $customer->bld_credit_limit_kurus = 0;
         $customer->save();
 
         return $customer;

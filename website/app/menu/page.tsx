@@ -15,16 +15,20 @@ import { DailyMenuItemCard, DailyMenuPackageCard } from '@/components/menu/daily
 import { SITE_URL } from '@/lib/api/client';
 import {
   canOrderDay,
+  dayStock,
   fetchDailyMenuSnapshot,
+  itemStock,
   lastOrderableDate,
   packageAdvantageKurus,
   type DailyMenuSnapshot,
 } from '@/lib/api/daily-menu';
 import { isOrderingOpen } from '@/lib/api/catalog';
 import { formatLongDate, parseBusinessDate, relativeDayLabel } from '@/lib/business-date';
+import { readCart } from '@/lib/cart';
 import { schemaOrgPrice } from '@/lib/format';
 import { dayUnavailableCopy } from '@/lib/labels';
 import { PHOTO } from '@/lib/site-images';
+import { maxAddable, stockLevel } from '@/lib/stock-policy';
 
 /**
  * GÜNÜN MENÜSÜ — sitenin tek satış ekranı (B-19).
@@ -105,9 +109,18 @@ function menuJsonLd(snapshot: DailyMenuSnapshot): Record<string, unknown> {
             '@type': 'Offer',
             price: schemaOrgPrice(item.price),
             priceCurrency: item.currency,
-            availability: item.is_available
-              ? 'https://schema.org/InStock'
-              : 'https://schema.org/OutOfStock',
+            /*
+             * STOK DA İZLENİYOR, yalnız `is_available` değil. `is_available`
+             * ürünün menüde durup durmadığını söylüyor; porsiyonu bitmiş bir
+             * kalem yanıtta hâlâ "mevcut" görünebiliyor ve gün tavanı da ayrı
+             * bir kapı. Arama sonucunda "stokta" yazan bir yemeği tıklayıp
+             * tükenmiş bulmak, arama motorunun da müşterinin de güvenini
+             * kıran türden bir yanlış.
+             */
+            availability:
+              item.is_available && stockLevel({ remaining: itemStock(menu, item) }) !== 'soldOut'
+                ? 'https://schema.org/InStock'
+                : 'https://schema.org/OutOfStock',
             // Menü o güne ait: teklifin geçerlilik günü de o gün.
             availabilityStarts: selectedDate,
             availabilityEnds: selectedDate,
@@ -155,6 +168,40 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   const calendarDay = findCalendarDay(calendar, selectedDate);
   const advantage = packageAdvantageKurus(menu);
   const nextDay = nextOrderableDay(calendar, selectedDate);
+
+  /*
+   * GERİ SAYIMIN SAAT REFERANSI. Cihaz saatleri yalan söyler; sayaç kendi
+   * saatiyle sunucununki arasındaki farkı ölçüp sapma büyükse hiç
+   * görünmüyor (`components/menu/order-cutoff-countdown.tsx`). Sayfa zaten
+   * istek başına çiziliyor, yani bu değer her yanıtta tazedir.
+   */
+  const serverNow = Date.now();
+
+  /*
+   * SEPETTEKİ ADET, TAVANIN İKİNCİ YARISI.
+   *
+   * "Kaç tane daha eklenebilir" sorusu yalnız kalan porsiyonla cevaplanamaz:
+   * müşterinin o gün için sepetine koyduğu adet de tavandan düşer. Sepet
+   * BAŞKA bir güne bağlıysa hiçbir şey düşmüyor — salı için dolu bir sepet
+   * çarşambanın kontenjanını yemez.
+   */
+  const cart = await readCart();
+  const cartLines = cart.serviceDate === selectedDate ? cart.lines : [];
+  const inCartForDay = cartLines.reduce((total, line) => total + line.quantity, 0);
+
+  /** Aynı ürünün farklı seçenekli satırları tek stok yiyor; toplanıyorlar. */
+  const inCartForMenuId = (menuId: number) =>
+    cartLines.reduce((total, line) => (line.menuId === menuId ? total + line.quantity : total), 0);
+
+  const dayRemaining = dayStock(menu);
+
+  const addableFor = (menuId: number, itemRemaining: number | null) =>
+    maxAddable({
+      dayRemaining,
+      itemRemaining,
+      alreadyInCartForDay: inCartForDay,
+      alreadyInCartForItem: inCartForMenuId(menuId),
+    });
 
   /*
    * DÜĞMENİN KAPALI OLMA SEBEBİ. Marka kılavuzu: "Devre dışı buton HER ZAMAN
@@ -227,6 +274,12 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
               today={today}
               selectedDate={selectedDate}
               lastDate={lastOrderableDate(location, today)}
+              /*
+               * Hafta sonu Cmt/Paz olarak KODA GÖMÜLMÜYOR. Servis günleri
+               * sunucudan geliyor; işletme cumartesi de yemek çıkarmaya
+               * başladığında değişecek tek şey bu yanıt.
+               */
+              serviceWeekdays={location.service_weekdays}
             />
 
             {!menu.is_orderable && (
@@ -255,6 +308,12 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
                 daily={menu.package}
                 serviceDate={selectedDate}
                 advantageKurus={advantage}
+                remainingPortions={itemStock(menu, menu.package)}
+                maxAddable={addableFor(
+                  menu.package.menu_id,
+                  menu.package.remaining_portions ?? null,
+                )}
+                serverNow={serverNow}
                 canOrder={canOrder}
                 disabledReason={disabledReason}
               />
@@ -277,6 +336,8 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
                       key={item.id}
                       item={item}
                       serviceDate={selectedDate}
+                      remainingPortions={itemStock(menu, item)}
+                      maxAddable={addableFor(item.id, item.remaining_portions ?? null)}
                       canOrder={canOrder}
                       disabledReason={disabledReason}
                     />

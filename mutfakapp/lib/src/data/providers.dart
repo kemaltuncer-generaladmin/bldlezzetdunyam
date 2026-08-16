@@ -1043,6 +1043,11 @@ class KitchenHealthController extends Notifier<KitchenHealthState> {
   }
 
   /// Bir sonraki bildirimde gönderilecek komut sonuçları.
+  ///
+  /// SUNUCU ONAYLAYANA KADAR BURADA DURUR. Eskiden [_collect] listeyi
+  /// isteği göndermeden önce boşaltıyordu; düşen tek bir sağlık atımı
+  /// sonucu sonsuza kaybettiriyor, sunucu `executed_at` yazamadığı için
+  /// komutu on dakika sonra yeniden gönderiyordu (`K-23` §3).
   List<KitchenCommandResult> _pendingResults = const [];
 
   /// Bir bildirim gönderir. Hata yutulur; gösterge kendisi haber verir.
@@ -1051,25 +1056,58 @@ class KitchenHealthController extends Notifier<KitchenHealthState> {
   /// gönderilmez, BİR SONRAKİ bildirime bırakılır: komutu çalıştırmak
   /// (fiş basmak, yeniden başlatmak) saniyeler sürebilir ve bunun için
   /// ikinci bir HTTP isteği açmak, ağ kopukken sonucun tamamen
-  /// kaybolması demek olurdu. Sunucu zaten teslim edilmiş komutu
-  /// sonucu gelmezse 10 dakika sonra yeniden gönderiyor.
+  /// kaybolması demek olurdu. Sunucu teslim edilmiş bir komutu sonucu
+  /// gelmezse 10 dakika sonra yeniden gönderiyor — ama artık en fazla
+  /// üç kez (`KitchenCommand::MAX_ATTEMPTS`).
   Future<void> poll() async {
     final monitor = _monitor;
     if (monitor == null) return;
 
-    final next = await monitor.poll();
+    final outcome = await monitor.poll();
     if (!ref.mounted) return;
+
+    final next = outcome.state;
     state = next;
 
+    // TESLİM EDİLENLER UNUTULUR, ÖTEKİLER KALIR — ve unutma kimliğe göre.
+    // `const []` atamak, [_collect] ile yanıt arasında biten bir komutun
+    // sonucunu da düşürürdü: o sonuç hiç gönderilmemişken gönderilmiş
+    // sayılırdı.
+    final delivered = outcome.delivered;
+    if (delivered != null) _forgetDelivered(delivered.commandResults);
+
     final status = next.status;
-    if (status == null) return;
+
+    // EMNİYET KEMERİ: durum düzeltmesi (`KitchenHealthStatus.stale`) zaten
+    // başarısız turda komut yüzeye çıkarmıyor. Bu koşul ucuz ve ikisi
+    // birbirinin yedeği: biri bir gün yeniden kırılırsa mutfak bunu
+    // fişlerden öğrenmesin.
+    if (status == null || !next.reachable) return;
 
     _applySettings(status.settings);
 
     if (status.commands.isEmpty) return;
 
     final results = await ref.read(commandRunnerProvider).run(status.commands);
-    if (ref.mounted) _pendingResults = results;
+    if (!ref.mounted) return;
+
+    // ÜSTÜNE YAZMIYORUZ, EKLİYORUZ: henüz teslim edilmemiş bir sonuç
+    // bekliyorsa (ağ kopuktu) yeni sonuçlar onu düşürmemeli.
+    _pendingResults = [..._pendingResults, ...results];
+  }
+
+  /// Sunucunun aldığı sonuçları kuyruktan düşürür.
+  ///
+  /// Kimliğe göre: uçuş sırasında biten bir komutun sonucu kuyruğa
+  /// eklenmiş olabilir ve o sonuç henüz kimseye gitmedi.
+  void _forgetDelivered(List<KitchenCommandResult> delivered) {
+    if (delivered.isEmpty || _pendingResults.isEmpty) return;
+
+    final gonderilen = delivered.map((result) => result.id).toSet();
+
+    _pendingResults = _pendingResults
+        .where((result) => !gonderilen.contains(result.id))
+        .toList(growable: false);
   }
 
   /// Sunucudan gelen ayarları yerele uygular.
@@ -1102,8 +1140,11 @@ class KitchenHealthController extends Notifier<KitchenHealthState> {
     final service = ref.read(printServiceProvider);
     final player = ref.read(alarmPlayerProvider);
 
+    // OKUNUR AMA BOŞALTILMAZ. Boşaltma, sunucunun raporu gerçekten
+    // aldığını gördükten sonra [poll] içinde yapılıyor: burada boşaltmak,
+    // isteği HTTP çağrısından önce sonuçsuz bırakıyordu ve düşen tek bir
+    // atım sonucu sonsuza kaybettiriyordu (`K-23` §3).
     final results = _pendingResults;
-    _pendingResults = const [];
 
     return KitchenHealthReport(
       printerOk: await probe.check() == PrinterAvailability.ready,

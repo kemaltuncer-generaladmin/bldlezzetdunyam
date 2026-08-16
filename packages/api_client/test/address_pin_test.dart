@@ -101,7 +101,11 @@ void main() {
       );
 
       expect(tam.hasPin, isTrue);
-      expect(yarim.hasPin, isFalse, reason: 'Yarım çift haritada gösterilemez.');
+      expect(
+        yarim.hasPin,
+        isFalse,
+        reason: 'Yarım çift haritada gösterilemez.',
+      );
       expect(yok.hasPin, isFalse);
     });
 

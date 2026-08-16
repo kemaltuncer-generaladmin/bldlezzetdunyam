@@ -35,6 +35,7 @@ _DailyMenuPackage _$DailyMenuPackageFromJson(Map<String, dynamic> json) =>
       price: (json['price'] as num).toInt(),
       isAvailable: json['is_available'] as bool,
       soldOutReason: json['sold_out_reason'] as String?,
+      remainingPortions: (json['remaining_portions'] as num?)?.toInt(),
       components:
           (json['components'] as List<dynamic>?)
               ?.map(
@@ -53,6 +54,7 @@ Map<String, dynamic> _$DailyMenuPackageToJson(_DailyMenuPackage instance) =>
       'price': instance.price,
       'is_available': instance.isAvailable,
       'sold_out_reason': ?instance.soldOutReason,
+      'remaining_portions': ?instance.remainingPortions,
       'components': instance.components.map((e) => e.toJson()).toList(),
     };
 
@@ -65,10 +67,19 @@ _DailyMenu _$DailyMenuFromJson(Map<String, dynamic> json) => _DailyMenu(
   title: json['title'] as String?,
   description: json['description'] as String?,
   imageUrl: json['image_url'] as String?,
+  imageUrls:
+      (json['image_urls'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ??
+      const <String>[],
   package: json['package'] == null
       ? null
       : DailyMenuPackage.fromJson(json['package'] as Map<String, dynamic>),
   itemsTotal: (json['items_total'] as num?)?.toInt(),
+  cutoffAt: json['cutoff_at'] == null
+      ? null
+      : DateTime.parse(json['cutoff_at'] as String),
+  remainingPortions: (json['remaining_portions'] as num?)?.toInt(),
   unavailableReason: json['unavailable_reason'] == null
       ? DailyMenuUnavailableReason.none
       : const DailyMenuUnavailableReasonConverter().fromJson(
@@ -91,8 +102,11 @@ Map<String, dynamic> _$DailyMenuToJson(_DailyMenu instance) =>
       'title': ?instance.title,
       'description': ?instance.description,
       'image_url': ?instance.imageUrl,
+      'image_urls': instance.imageUrls,
       'package': ?instance.package?.toJson(),
       'items_total': ?instance.itemsTotal,
+      'cutoff_at': ?instance.cutoffAt?.toIso8601String(),
+      'remaining_portions': ?instance.remainingPortions,
       'unavailable_reason': ?const DailyMenuUnavailableReasonConverter().toJson(
         instance.unavailableReason,
       ),
@@ -105,6 +119,11 @@ _MenuCalendarDay _$MenuCalendarDayFromJson(Map<String, dynamic> json) =>
       hasMenu: json['has_menu'] as bool,
       closed: json['closed'] as bool,
       isOrderable: json['is_orderable'] as bool,
+      cutoffAt: json['cutoff_at'] == null
+          ? null
+          : DateTime.parse(json['cutoff_at'] as String),
+      soldOut: json['sold_out'] as bool? ?? false,
+      weekend: json['weekend'] as bool? ?? false,
       title: json['title'] as String?,
       packagePrice: (json['package_price'] as num?)?.toInt(),
       note: json['note'] as String?,
@@ -116,6 +135,9 @@ Map<String, dynamic> _$MenuCalendarDayToJson(_MenuCalendarDay instance) =>
       'has_menu': instance.hasMenu,
       'closed': instance.closed,
       'is_orderable': instance.isOrderable,
+      'cutoff_at': ?instance.cutoffAt?.toIso8601String(),
+      'sold_out': instance.soldOut,
+      'weekend': instance.weekend,
       'title': ?instance.title,
       'package_price': ?instance.packagePrice,
       'note': ?instance.note,

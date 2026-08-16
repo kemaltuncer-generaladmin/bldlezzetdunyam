@@ -6,11 +6,14 @@ namespace Veykemtu\BridgeApi\Http\Controllers;
 
 use Igniter\Cart\Models\Menu;
 use Igniter\Local\Models\Location;
+use Igniter\Main\Classes\MediaLibrary;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Throwable;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
 use Veykemtu\BridgeApi\Models\DailyMenu;
 use Veykemtu\BridgeApi\Services\DailyMenuService;
+use Veykemtu\BridgeApi\Services\DailyStock;
 use Veykemtu\BridgeApi\Services\EtaService;
 use Veykemtu\BridgeApi\Services\LocationGate;
 use Veykemtu\BridgeApi\Services\MenuAvailability;
@@ -30,6 +33,7 @@ class CatalogController extends ApiController
         private readonly EtaService $eta,
         private readonly MenuAvailability $availability,
         private readonly DailyMenuService $dailyMenus,
+        private readonly DailyStock $stock,
     ) {}
 
     /**
@@ -128,8 +132,16 @@ class CatalogController extends ApiController
                     'title' => null,
                     'description' => null,
                     'image_url' => null,
+                    // Menüsü olmayan günde dizilecek görsel de yok; boş dizi
+                    // dönüyor ki istemci alanın varlığına bakmak zorunda
+                    // kalmasın (`docs/openapi.yaml` → `DailyMenu.image_urls`).
+                    'image_urls' => [],
                     'package' => null,
                     'items_total' => null,
+                    // Menü yoksa tavan da yok: `null` SINIRSIZ demek ve
+                    // burada "bilinmiyor" anlamına geliyor. `0` yazmak
+                    // "tükendi" derdi ve sebep o değil.
+                    'remaining_portions' => null,
                     'currency' => 'TRY',
                     'closed' => $verdict['closed'],
                     'is_orderable' => false,
@@ -145,7 +157,21 @@ class CatalogController extends ApiController
             ? $this->availability->soldOutReasons()
             : [];
 
+        /*
+         * STOK TAVANI, TÜKENME İŞARETİNDEN FARKLI OLARAK HER GÜN İÇİN OKUNUR.
+         *
+         * "Bugün tükendi" mutfağın o güne dair kararı ve yalnız bugün
+         * anlamlı; tavan ise bir PLAN — yönetici gelecek salı için 40
+         * porsiyon girer ve müşteri o günü de dolmuş görebilmeli.
+         *
+         * Tek sorguda okunuyor: bir menüde onlarca kalem var ve her biri
+         * için ayrı `remaining()` çağırmak onlarca sorgu demekti
+         * (`soldOutReasons` aynı dersi bir kez verdi).
+         */
+        $remaining = $this->stock->remainingMap((int) $model->location_id, $date);
+
         $items = [];
+        $imageUrls = [];
 
         foreach ($menu->items as $dayItem) {
             $product = $dayItem->menu;
@@ -154,13 +180,34 @@ class CatalogController extends ApiController
                 continue;
             }
 
-            $payload = $this->menuItemPayload($product, $soldOutReasons);
+            $payload = $this->menuItemPayload(
+                $product,
+                $soldOutReasons,
+                $remaining[(int) $product->menu_id] ?? null,
+            );
             // O güne fiyat istisnası girilmişse geçerli olan odur; müşteri
             // gördüğü fiyatla ödeyeceği fiyatı ayrı hesaplamaz.
             $payload['price'] = $dayItem->effectiveUnitPriceKurus();
             $payload['name'] = $dayItem->displayName();
 
             $items[] = $payload;
+
+            /*
+             * 2×2 IZGARANIN GÖRSELLERİ — İLK DÖRT KALEM, YÖNETİCİNİN SIRASI.
+             *
+             * Dizilim İSTEMCİDE yapılıyor (iş kuralı 6); sunucunun işi
+             * yalnız adresleri sırayla vermek. Görseli olmayan kalem diziye
+             * GİRMEZ ve boş yer de tutulmaz: `null` bir hücreyi üç
+             * uygulamanın üçü de kendi yer tutucusuyla doldurur ve aynı gün
+             * üç ayrı görünürdü (`docs/openapi.yaml` → `image_urls`).
+             */
+            if (count($imageUrls) < 4) {
+                $itemImage = $this->imageUrl($product);
+
+                if ($itemImage !== null) {
+                    $imageUrls[] = $itemImage;
+                }
+            }
         }
 
         return $this->json([
@@ -169,9 +216,22 @@ class CatalogController extends ApiController
                 'date' => $menu->menu_date->toDateString(),
                 'title' => $menu->title,
                 'description' => $menu->description,
-                'image_url' => null,
-                'package' => $this->packagePayload($model, $menu, $soldOutReasons),
+                // Yöneticinin o güne elle yüklediği kapak. Buraya kadar
+                // sabit `null` dönüyordu ve `veykemtu_daily_menus.image_path`
+                // hiç okunmuyordu: yüklenen kapak hiçbir istemcide
+                // görünmüyordu.
+                'image_url' => $this->mediaUrl($menu->image_path),
+                'image_urls' => $imageUrls,
+                'package' => $this->packagePayload(
+                    $model,
+                    $menu,
+                    $soldOutReasons,
+                    $remaining,
+                ),
                 'items_total' => $menu->itemsTotalKurus(),
+                // Günün TOPLAM tavanı (`menu_id = 0` satırı). `null`
+                // sınırsız, `0` tükendi — ikisi asla karıştırılmamalı.
+                'remaining_portions' => $remaining[DailyStock::DAY_TOTAL] ?? null,
                 'currency' => 'TRY',
                 'closed' => $verdict['closed'],
                 'is_orderable' => $verdict['orderable'],
@@ -205,12 +265,14 @@ class CatalogController extends ApiController
      * Paket bölümü — `null` ise o gün paket satılmıyor.
      *
      * @param  array<int, string|null>  $soldOutReasons
+     * @param  array<int, int>  $remaining  `menu_id => kalan porsiyon`
      * @return array<string, mixed>|null
      */
     private function packagePayload(
         Location $location,
         DailyMenu $menu,
         array $soldOutReasons,
+        array $remaining = [],
     ): ?array {
         if (!$menu->sellsPackage()) {
             return null;
@@ -275,6 +337,17 @@ class CatalogController extends ApiController
             'currency' => 'TRY',
             'is_available' => $soldOutReason === null,
             'sold_out_reason' => $soldOutReason,
+            /*
+             * PAKETİN KENDİ TAVANI — gün toplamıyla birlikte değerlendirilir
+             * ve sepete eklenebilecek azami adet ikisinin `min()`'idir
+             * (`docs/contract/sales-rules.cases.json`). Burada bilerek
+             * `min()` alınmıyor: iki tavanı tek sayıya ezmek, istemcinin
+             * "hangisi doldu" cümlesini kuramaması demek olurdu.
+             *
+             * Aboneliklerin rezervasyonu bu sayıdan zaten düşülmüştür —
+             * `reserved` kolonu kalanın içinde.
+             */
+            'remaining_portions' => $remaining[$packageMenuId] ?? null,
             'components' => $components,
         ];
     }
@@ -373,10 +446,62 @@ class CatalogController extends ApiController
     }
 
     /**
-     * @param  array<int, string|null>  $soldOutReasons  menu_id => sebep
+     * Menü/gün görselinin mutlak adresi — `veykemtu_daily_menus.image_path`.
+     *
+     * `Menu::getThumb()` gibi bir bağıntı yok: bu yol yöneticinin medya
+     * kitaplığından seçtiği bir dosyadır ve kitaplığın kendi küçültücüsünden
+     * geçiriliyor (aynı 800×600, `imageUrl()` ile aynı gerekçe).
+     *
+     * HATA YUTULUYOR VE `null` DÖNÜYOR: geçersiz ya da silinmiş bir yol
+     * `MediaLibrary` içinden `ApplicationException` fırlatıyor. Kapak
+     * görselinin bozuk olması, o günün menüsünün hiç açılamaması demek
+     * olmamalı — kapak eksik görünsün, menü satılsın.
      */
-    private function menuItemPayload(Menu $menu, array $soldOutReasons = []): array
+    private function mediaUrl(?string $path): ?string
     {
+        $path = trim((string) $path);
+
+        if ($path === '') {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        try {
+            // Çekirdek `MediaLibrary`'yi konteynerde tekil tutuyor ve
+            // `initialize()`'ı orada çağırıyor (`Main\ServiceProvider`);
+            // `new` ile kurulan bir örnek yapılandırmasız kalırdı.
+            $thumb = resolve(MediaLibrary::class)->getMediaThumb($path, [
+                'width' => 800,
+                'height' => 600,
+            ]);
+        } catch (Throwable) {
+            return null;
+        }
+
+        if ($thumb === '') {
+            return null;
+        }
+
+        return str_starts_with($thumb, 'http://') || str_starts_with($thumb, 'https://')
+            ? $thumb
+            : url($thumb);
+    }
+
+    /**
+     * @param  array<int, string|null>  $soldOutReasons  menu_id => sebep
+     * @param  int|null  $remainingPortions  Bu kalemden o servis günü için
+     *   kalan porsiyon. `null` SINIRSIZ — `0` ile karıştırılmamalı.
+     *   Katalog ucunda (`/locations/{id}/menu`) her zaman `null`: stok
+     *   **güne** bağlıdır, ürüne değil (`docs/openapi.yaml` → `MenuItem`).
+     */
+    private function menuItemPayload(
+        Menu $menu,
+        array $soldOutReasons = [],
+        ?int $remainingPortions = null,
+    ): array {
         $soldOut = array_key_exists((int) $menu->menu_id, $soldOutReasons);
         $soldOutReason = $soldOut ? $soldOutReasons[(int) $menu->menu_id] : null;
 
@@ -425,6 +550,7 @@ class CatalogController extends ApiController
             'is_available' => (bool) $menu->menu_status && !$soldOut,
             'sold_out_today' => $soldOut,
             'sold_out_reason' => $soldOutReason,
+            'remaining_portions' => $remainingPortions,
             'allergens' => $menu->allergens
                 ->map(static fn($ingredient): string => (string) $ingredient->name)
                 ->values()

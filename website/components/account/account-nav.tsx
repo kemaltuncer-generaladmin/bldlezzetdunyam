@@ -10,7 +10,8 @@ import { cn } from '@/lib/utils';
  * en altına inmek gerekirdi.
  *
  * CARİ HESAP LİSTEDEN ÇIKTI (B-19): müşteri arayüzünde cari yüzeyi yok
- * artık. Uçlar ve admin paneli duruyor (`lib/api/account.ts`).
+ * artık. Uçlar (`/account/*`) ve admin paneli duruyor; sitedeki istemci
+ * sarmalayıcısı silindi.
  *
  * SUNUCU BİLEŞENİ: aktif bölüm `usePathname` ile değil prop ile
  * belirleniyor. Her sayfa hangi bölümde olduğunu zaten biliyor; bunun için

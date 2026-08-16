@@ -37,8 +37,14 @@ class DailyMenuService
 
     public const string REASON_TOO_FAR = 'too_far';
 
+    /**
+     * `LocationGate` ARTIK BAĞIMLILIK DEĞİL (S1): buradan okunan tek ayar
+     * ileri görüş penceresiydi ve o da kesimle birlikte `OrderingWindow`'a
+     * taşındı. Kullanılmayan bir bağımlılığı tutmak, "gün kararı vitrin
+     * ayarlarına da bakıyor" diye okunurdu.
+     */
     public function __construct(
-        private readonly LocationGate $gate,
+        private readonly OrderingWindow $window,
     ) {}
 
     /**
@@ -125,7 +131,7 @@ class DailyMenuService
             $date->lessThan($today) => self::REASON_PAST,
 
             $date->greaterThan(
-                $today->copy()->addDays($this->gate->maxLookaheadDays($location)),
+                $this->window->lastOrderableDate($location),
             ) => self::REASON_TOO_FAR,
 
             /*
@@ -139,10 +145,14 @@ class DailyMenuService
 
             $menu === null => self::REASON_NOT_PUBLISHED,
 
-            // Kesim saati YALNIZ gün bugünse geçerli — yarına verilen sipariş
-            // bugünün kesim saatinden etkilenmez (`LocationGate` de böyle
-            // davranıyor, iki yerde aynı kural).
-            $date->isSameDay($today) && $this->cutoffPassed($location) => self::REASON_CUTOFF,
+            /*
+             * Kesim artık GÜNÜN KENDİ kapanış anı (S1). Eski koddaki
+             * `$date->isSameDay($today) &&` koruması KAYBOLDU ve kaybolması
+             * gerekiyordu: gelecek bir günün kesimi tanımı gereği
+             * gelecektedir, dolayısıyla yalnız bugün kendi kesimini geçmiş
+             * olabilir. Özel durumu tutmak, kuralı iki kez anlatmak olurdu.
+             */
+            $this->window->isPastCutoff($location, $date) => self::REASON_CUTOFF,
 
             default => null,
         };
@@ -240,8 +250,7 @@ class DailyMenuService
             ->keyBy(fn(ClosedDay $day): string => $day->closed_on->toDateString());
 
         $today = BusinessTime::now()->startOfDay();
-        $lastOrderable = $today->copy()->addDays($this->gate->maxLookaheadDays($location));
-        $cutoffPassed = $this->cutoffPassed($location);
+        $lastOrderable = $this->window->lastOrderableDate($location);
 
         $days = [];
 
@@ -254,17 +263,35 @@ class DailyMenuService
                 continue;
             }
 
+            /*
+             * Kesim GÜN BAŞINA soruluyor (S1) ama ÜÇÜNCÜ SORGU AÇMADAN:
+             * güne özel saat menü satırının kendi kolonunda ve o satırlar
+             * yukarıda tek sorguyla çekildi. `cutoffFor()` çağırsaydık
+             * doksan günlük bir aralık doksan sorgu ederdi — tam da bu
+             * metodun baştan kaçındığı şey.
+             */
+            $cutoffPassed = $this->window->hasPassed(
+                $this->window->cutoffFromTime($location, $cursor, $menu?->cutoff_time),
+            );
+
             $orderable = $menu !== null
                 && $closedRow === null
                 && $cursor->greaterThanOrEqualTo($today)
                 && $cursor->lessThanOrEqualTo($lastOrderable)
-                && !($cursor->isSameDay($today) && $cutoffPassed);
+                && !$cutoffPassed;
 
             $days[] = [
                 'date' => $key,
                 'has_menu' => $menu !== null,
                 'closed' => $closedRow !== null,
                 'is_orderable' => $orderable,
+                // Adı "weekend" ama anlamı "o gün servis yok". Sipariş
+                // kanalını KAPATMAZ: cumartesi pazartesiye sipariş
+                // verilebilir (iş kararı 3). Alan, gün seçicinin ve Kontrol
+                // Merkezi ay ızgarasının hücreyi soluk çizmesi için var;
+                // istemci haftanın gününü kendi hesaplamasın diye sunucudan
+                // geliyor.
+                'weekend' => !$this->window->isServiceDay($cursor),
                 'title' => $menu?->title,
                 'package_price' => $menu?->sellsPackage() === true
                     ? (int) $menu->package_price_kurus
@@ -274,20 +301,5 @@ class DailyMenuService
         }
 
         return $days;
-    }
-
-    /** Bugünün kesim saati geçti mi? */
-    private function cutoffPassed(Location $location): bool
-    {
-        $cutoff = $this->gate->orderCutoff($location);
-
-        if ($cutoff === null) {
-            return false;
-        }
-
-        [$hour, $minute] = array_map(intval(...), explode(':', $cutoff));
-        $now = BusinessTime::now();
-
-        return $now->greaterThan($now->copy()->setTime($hour, $minute));
     }
 }

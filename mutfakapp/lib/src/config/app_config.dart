@@ -41,7 +41,7 @@ class AppConfig {
   static const String appId = 'mutfakapp';
 
   /// `X-App-Version` başlığı. `pubspec.yaml`'daki sürümle aynı tutulmalıdır.
-  static const String appVersion = '1.0.1';
+  static const String appVersion = '1.0.2';
 
   /// udev kuralının kurduğu sembolik bağ (`infra/kasa/99-thermal-printer.rules`).
   static const String defaultPrinterDevicePath = '/dev/thermal0';

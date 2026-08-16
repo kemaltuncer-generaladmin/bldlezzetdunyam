@@ -5,6 +5,10 @@
 ///    engelleyici ekrana döner (`docs/07-musteriapp.md` §2).
 /// 2. **Oturum:** sipariş ve hesap yolları giriş ister; menü istemez
 ///    (katalog uçları kimlik gerektirmez, `docs/openapi.yaml` §Katalog).
+///
+/// ÜÇÜNCÜ BİR KAPI YOK: `can_order` sipariş kapısı Faz 0'da kaldırıldı. Cari
+/// hesapla birlikte "yalnız onaylı kurumsal hesap sipariş verir" kuralı da
+/// düştü; ödeme yöntemleri `online` ve `cash` ve ikisi de herkese açık.
 library;
 
 import 'package:flutter/foundation.dart';
@@ -14,7 +18,6 @@ import 'package:go_router/go_router.dart';
 
 import '../features/account/account_screen.dart';
 import '../features/account/address_book_screen.dart';
-import '../features/account/ordering_disabled_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
 import '../features/cart/cart_screen.dart';
@@ -47,7 +50,6 @@ abstract final class Routes {
   static const String orders = '/orders';
   static const String account = '/account';
   static const String addresses = '/account/addresses';
-  static const String orderingDisabled = '/ordering-disabled';
 
   /// Günün menüsündeki bir kalemin detayı.
   ///
@@ -77,11 +79,6 @@ bool _requiresAuth(String path) =>
     // Abonelik LİSTESİ (sekme) serbest — giriş yoksa boş görünür. Detay ve
     // yeni-talep uçları token ister.
     path.startsWith('${Routes.subscriptions}/');
-
-/// Sipariş yüzeyleri: yalnız `can_order` müşteri girer. Menü/keşif serbesttir;
-/// engel sepet ve ödemeye konur (`docs/07-musteriapp.md` §B2B).
-bool _requiresOrdering(String path) =>
-    path == Routes.cart || path.startsWith(Routes.checkout);
 
 /// Riverpod durum değişimlerini `go_router`'a bağlayan köprü.
 class _RouterRefresh extends ChangeNotifier {
@@ -121,13 +118,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '${Routes.login}?next=$next';
       }
 
-      // Sipariş kapısı: giriş yapmış ama sipariş veremeyen kullanıcı sepet/ödeme
-      // yüzeylerine giremez; bilgi ekranına düşer. Sunucu bayrağı esastır.
-      if (session.requireValue.isSignedIn &&
-          !session.requireValue.canOrder &&
-          _requiresOrdering(path)) {
-        return Routes.orderingDisabled;
-      }
+      // SİPARİŞ KAPISI KALDIRILDI (Faz 0). Cari hesap kalkınca "yalnız
+      // kurumsal onaylı hesap sipariş verir" kuralının dayanağı da kalktı:
+      // ödeme artık online ya da nakit ve ikisi de herkese açık. Sepet/ödeme
+      // yolları bu yüzden yalnızca OTURUM istiyor.
       return null;
     },
     routes: [
@@ -152,10 +146,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.addresses,
         builder: (context, state) => const AddressBookScreen(),
-      ),
-      GoRoute(
-        path: Routes.orderingDisabled,
-        builder: (context, state) => const OrderingDisabledScreen(),
       ),
       GoRoute(
         path: Routes.cart,

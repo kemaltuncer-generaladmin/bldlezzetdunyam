@@ -275,6 +275,13 @@ class DeviceController extends ControlController
     {
         $model = $this->findDevice($device);
 
+        // LİSTELEMEDEN ÖNCE SÜPÜR. Hiç dönmeyen bir kasanın komutları
+        // yalnız sağlık atımında süpürülseydi, o kasa için satır sonsuza
+        // kadar "uçuşta" görünürdü — yani tam da kapanmayan bir cevabı
+        // beklemek. Yazma bir GET içinde ama karar sunucunun: zaman
+        // geçtiği için verilmiş, istek geldiği için değil.
+        KitchenCommand::sweepStale((int) $model->id);
+
         $rows = KitchenCommand::query()
             ->where('device_id', $model->id)
             ->orderByDesc('id')
@@ -292,6 +299,12 @@ class DeviceController extends ControlController
                 'executed_at' => self::ts($command->executed_at),
                 'succeeded' => $command->succeeded,
                 'result' => $command->result,
+                // Kaç kez denendi ve ne zaman vazgeçilecek (`K-23`).
+                // Damgalar "ulaştı mı" der, bu ikisi "daha kaç şansı var"
+                // der; yönetici sahaya gitme kararını buna bakarak verir.
+                'attempts' => (int) $command->attempts,
+                'max_attempts' => KitchenCommand::MAX_ATTEMPTS,
+                'expires_at' => self::ts($command->expires_at),
             ])
             ->all();
 
@@ -352,17 +365,12 @@ class DeviceController extends ControlController
             function () use ($model, $command, $payload): array {
                 $this->assertNotRevoked($model);
 
-                $row = KitchenCommand::create([
-                    'device_id' => (int) $model->id,
-                    'command' => $command,
-                    'payload' => $payload,
-                    // DAMGA ELLE VURULUYOR: `Igniter\Flame\Database\Model`
-                    // zaman damgalarını varsayılan olarak kapalı tutuyor.
-                    // Admin ekranı da aynısını yapıyor; yazılmazsa komut
-                    // geçmişindeki "Gönderildi" sütunu boş kalır.
-                    'created_at' => Carbon::now(),
-                    'updated_at' => Carbon::now(),
-                ]);
+                // Süresi geçmiş bir satır, yeni basılan düğmeyi
+                // yinelenmiş saymamalı: önce kapananları kapat.
+                KitchenCommand::sweepStale((int) $model->id);
+
+                $queued = KitchenCommand::queueFor((int) $model->id, $command, $payload);
+                $row = $queued['command'];
 
                 return [
                     'command' => [
@@ -370,7 +378,23 @@ class DeviceController extends ControlController
                         'command' => $command,
                         'payload' => $payload ?? [],
                         'created_at' => self::ts($row->created_at),
+                        'expires_at' => self::ts($row->expires_at),
                     ],
+                    /*
+                     * YİNELENDİ Mİ? — `K-23` §4.
+                     *
+                     * Aynı düğmeye iki kez basmak iki bağımsız komut
+                     * açıyordu ve her biri kendi on dakikalık yeniden
+                     * teslim döngüsünü kuruyordu: mutfak iki, üç, dört
+                     * test fişi görüyordu.
+                     *
+                     * Alan YANITTA DÖNÜYOR, sessizce yutulmuyor: ikinci
+                     * basışta hiçbir şey olmadığını gizleyen bir ekran
+                     * yöneticiyi üçüncü kez bastırır. `reprint` bu
+                     * korumanın dışında — aynı fişi yeniden basmak o
+                     * düğmenin tek varlık sebebi.
+                     */
+                    'deduped' => $queued['deduped'],
                     'arrives_within_seconds' => KitchenDevicePanel::commandArrivalSeconds($model),
                 ];
             },

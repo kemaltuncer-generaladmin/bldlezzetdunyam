@@ -32,7 +32,6 @@ return [
     'help_time' => 'Leaving the time empty marks the order as "as soon as possible". A future date may be chosen; the order appears in that day\'s list.',
     'label_payment' => 'Payment method',
     'payment_cash' => 'Pay on delivery',
-    'payment_account' => 'Charge to current account',
     'payment_online' => 'Card (simulated)',
     'label_address' => 'Address',
     'label_district' => 'District',

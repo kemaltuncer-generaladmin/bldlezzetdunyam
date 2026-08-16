@@ -48,6 +48,16 @@ enum DailyMenuUnavailableReason {
   /// Azami ileri görüş penceresinin ötesi (`Location.max_lookahead_days`).
   tooFar('too_far'),
 
+  /// O gün servis yok — `Location.service_weekdays` listesinde değil.
+  ///
+  /// [closedDay]'den AYRI tutuldu çünkü müşteriye kurulacak cümle ayrı: biri
+  /// "hafta sonu servisimiz yok", öbürü "o gün kapalıyız". Aynı değere
+  /// sıkıştırılsalardı istemci her hafta sonunu tatil gibi anlatırdı.
+  noServiceDay('no_service_day'),
+
+  /// Stok tükendi — gün tavanı doldu ya da bütün kalemler bitti.
+  soldOut('sold_out'),
+
   /// Sözleşmeye sonradan eklenmiş, bu istemcinin bilmediği bir sebep.
   ///
   /// [wireName] `null`: bu alan **yalnızca okunur**, istemci hiçbir uca geri
@@ -83,6 +93,8 @@ const Map<DailyMenuUnavailableReason, String> dailyMenuUnavailableLabelsTr = {
   DailyMenuUnavailableReason.cutoffPassed: 'Bugünün sipariş saati doldu.',
   DailyMenuUnavailableReason.past: 'Geçmiş bir güne sipariş verilemez.',
   DailyMenuUnavailableReason.tooFar: 'Bu tarihe henüz sipariş alınmıyor.',
+  DailyMenuUnavailableReason.noServiceDay: 'Bu gün servisimiz yok.',
+  DailyMenuUnavailableReason.soldOut: 'Bu günün porsiyonları tükendi.',
   DailyMenuUnavailableReason.unknown: 'Bu güne şu anda sipariş verilemiyor.',
 };
 
@@ -144,6 +156,20 @@ abstract class DailyMenuPackage with _$DailyMenuPackage {
     /// olmayan bir menüyü satmak, bir telefon özrünü kırka çevirir.
     required bool isAvailable,
     String? soldOutReason,
+
+    /// Paketten kalan porsiyon. **`null` SINIRSIZ, `0` tükendi** — ikisi asla
+    /// karıştırılmaz; `null`'ı `0` sayan istemci, tavanı hiç konmamış bir
+    /// paketi satıştan düşürür.
+    ///
+    /// Günün toplam tavanı (`DailyMenu.remainingPortions`) ile birlikte
+    /// değerlendirilir: sepete eklenebilecek azami adet ikisinin `min()`'idir.
+    /// Aritmetiğin normatif vaka tablosu
+    /// `docs/contract/sales-rules.cases.json`; uygulaması `bld_core`'da,
+    /// **burada değil** — aynı çarpımı iki pakette tutmak iki farklı sonucun
+    /// en kısa yoludur.
+    ///
+    /// Aboneliklerin rezervasyonu bu sayıdan **önceden düşülmüştür**.
+    int? remainingPortions,
     @Default(<DailyMenuPackageComponent>[])
     List<DailyMenuPackageComponent> components,
   }) = _DailyMenuPackage;
@@ -184,7 +210,23 @@ abstract class DailyMenu with _$DailyMenu {
     /// Günün adı, örn. "Ev Yemeği Menüsü".
     String? title,
     String? description,
+
+    /// Yöneticinin o güne elle yüklediği **kapak** görseli.
+    ///
+    /// Varsa [imageUrls] ızgarasına tercih edilir — kararı tek yerde tutmak
+    /// için [cardImageUrls] getter'ına bakın.
     String? imageUrl,
+
+    /// Menünün **ilk dört kaleminin** görselleri, yöneticinin verdiği sırada.
+    ///
+    /// İstemci bunları 2×2 bir ızgarada dizer (`AGENTS.md` iş kuralı 6);
+    /// dörtten az görsel varsa ızgara o kadar hücreyle çizilir. Görseli
+    /// olmayan kalem diziye **girmez** — boş yer tutulmaz, çünkü `null`
+    /// hücreyi üç uygulama üç farklı yer tutucuyla doldururdu.
+    ///
+    /// Dizilim istemcide yapılır, sunucuda değil: ızgara bir görüntüleme
+    /// kararıdır ve mobilde 2×2, dar kartta 1×2 olabilir.
+    @Default(<String>[]) List<String> imageUrls,
 
     /// Menünün paket hâli; o gün paket satılmıyorsa `null` — kalemler yine
     /// tek tek satılabilir.
@@ -195,6 +237,30 @@ abstract class DailyMenu with _$DailyMenu {
     /// Sunucu hesaplar; para hesabı tek yerde kalsın diye alan olarak
     /// veriliyor.
     int? itemsTotal,
+
+    /// Bu güne sipariş kabulünün **bittiği mutlak an** (UTC); gün kapandıysa
+    /// ya da kesim tanımlı değilse `null`.
+    ///
+    /// **Neden saat değil de an:** kesim kuralını üç dilde yeniden hesaplamak
+    /// (TS `Intl`, Dart'ta sabit UTC+3, PHP'de `Europe/Istanbul`) sapmanın
+    /// kaynağıdır; üstüne cihaz saatleri yalan söyler. Sunucu tek bir an
+    /// gönderir, istemci onunla **yalnız geri sayım gösterir**.
+    ///
+    /// Geri sayım sıfırlandığında ekran KİLİTLENMEZ: menü yeniden çekilir ve
+    /// [isOrderable]'a bakılır. Karar kapısı her zaman odur — cihaz saati beş
+    /// dakika ileriyken açık bir günü kapalı göstermek satış kaybıdır, tersi
+    /// ise sunucunun zaten reddedeceği bir istektir.
+    DateTime? cutoffAt,
+
+    /// O gün için **toplam** kalan porsiyon (gün tavanı).
+    ///
+    /// **`null` SINIRSIZ, `0` tükendi.** İkisi asla karıştırılmaz. Kalem bazlı
+    /// tavan ayrıca `items[].remainingPortions` ve
+    /// `package.remainingPortions` alanlarındadır; hangisi önce dolarsa
+    /// satışı o kapatır. Bu alan da [cutoffAt] gibi yalnız **bant ve geri
+    /// sayım** içindir — "bu gün kapanmıştır" sonucunu istemci kendi
+    /// çıkarmaz, [isOrderable]'a bakar.
+    int? remainingPortions,
 
     /// [isOrderable] yanlışken sebebin makine okunur hâli.
     @DailyMenuUnavailableReasonConverter()
@@ -247,6 +313,23 @@ abstract class DailyMenu with _$DailyMenu {
   /// Satılacak hiçbir şeyi olmayan bir gün mü?
   bool get isEmpty => !exists || (items.isEmpty && package == null);
 
+  /// Gün kartında çizilecek görseller, sözleşmedeki öncelikle.
+  ///
+  /// NEDEN BURADA: sözleşme "[imageUrl] varsa ızgaraya tercih edilir" diyor
+  /// (`docs/openapi.yaml` `DailyMenu.image_urls`). Bu tek cümleyi üç istemci
+  /// ayrı ayrı uygularsa biri kapağı, öbürü ızgarayı öne alır ve aynı gün iki
+  /// uygulamada iki farklı kartla çıkar. Seçim burada, dizilim ekranda.
+  ///
+  /// Tek elemanlı liste "kapak var" demektir; birden fazlası ızgaradır. Boş
+  /// liste görseli hiç olmayan gündür — kart yer tutucuyla çizilir.
+  List<String> get cardImageUrls {
+    final cover = imageUrl;
+    if (cover != null && cover.isNotEmpty) return <String>[cover];
+    // Sunucu zaten dörtle sınırlıyor; kısıt burada da var ki bozuk bir yanıt
+    // ızgarayı taşırmasın.
+    return imageUrls.take(4).toList(growable: false);
+  }
+
   /// Kimliğe göre günün kalemi; o gün o kalem yoksa `null`.
   ///
   /// Derin bağlantı ve "tekrar sipariş ver" dünkü bir kimliği taşıyabiliyor;
@@ -271,6 +354,10 @@ abstract class DailyMenu with _$DailyMenu {
   /// [MenuItem.options] bilerek BOŞ: paketin seçeneği yok, kalemleri o günün
   /// menüsünde sabit. [MenuItem.imageUrl] menünün kendi görselidir — paketin
   /// ayrı bir fotoğrafı yok, günün fotoğrafı paketin fotoğrafıdır.
+  ///
+  /// [DailyMenuPackage.remainingPortions] de taşınır: sepetin adet sayacı
+  /// kalem tavanını [MenuItem.remainingPortions] üzerinden okuyor ve tavan
+  /// burada düşerse paket sınırsızmış gibi eklenirdi.
   MenuItem? get packageAsMenuItem {
     final package = this.package;
     if (package == null) return null;
@@ -282,6 +369,7 @@ abstract class DailyMenu with _$DailyMenu {
       currency: currency,
       isAvailable: package.isAvailable,
       soldOutReason: package.soldOutReason,
+      remainingPortions: package.remainingPortions,
       description: description,
       imageUrl: imageUrl,
     );
@@ -301,6 +389,37 @@ abstract class MenuCalendarDay with _$MenuCalendarDay {
     required bool hasMenu,
     required bool closed,
     required bool isOrderable,
+
+    /// O günün sipariş kabulünün bittiği **mutlak an** (UTC); kesim yoksa ya
+    /// da gün kapandıysa `null`. `DailyMenu.cutoffAt` ile aynı değer, aynı
+    /// gerekçe (bkz. orası).
+    ///
+    /// Takvimde veriliyor ki gün seçici, her günü ayrı ayrı sorgulamadan
+    /// "bugün 08:00'e kadar" bandını çizebilsin.
+    DateTime? cutoffAt,
+
+    /// O günün stoku tükendi mi?
+    ///
+    /// Tükenmiş gün takvimde **görünmeye devam eder** ([isBrowsable] hâlâ
+    /// doğrudur): müşteri menüyü okuyabilmeli, yalnız sipariş verememelidir.
+    /// Günü listeden düşürseydik "menü girilmemiş" ile "kapış kapış gitti"
+    /// aynı boşluğa düşerdi.
+    ///
+    /// Kalan porsiyonun **sayısı** takvimde YOKTUR — takvim doksan güne kadar
+    /// çizilir ve her gün için stok okumak listenin maliyetini büyütürdü.
+    /// Sayı gün açıldığında `DailyMenu.remainingPortions` ile gelir.
+    @Default(false) bool soldOut,
+
+    /// Bu gün servis günü **dışında** mı? (`Location.serviceWeekdays`
+    /// listesinde yok.)
+    ///
+    /// Adı "hafta sonu" ama anlamı "servis yok". Ayrı bir alan olması,
+    /// istemcinin haftanın gününü kendi hesaplayıp yorumlamasını gereksiz
+    /// kılar — takvimdeki her hücre kendi durumunu taşır.
+    ///
+    /// **Satış kanalı kapalı DEĞİLDİR:** cumartesi günü pazartesiye sipariş
+    /// verilebilir. Bu alan yalnız o hücrenin kendi servis gününü anlatır.
+    @Default(false) bool weekend,
     String? title,
 
     /// Paket fiyatı (kuruş); o gün paket satılmıyorsa `null`.

@@ -9,7 +9,9 @@ library;
 
 export 'src/business_date.dart';
 export 'src/delivery_type.dart';
+export 'src/error_fingerprint.dart';
 export 'src/money.dart';
 export 'src/order_status.dart';
 export 'src/service_area.dart';
+export 'src/stock_policy.dart';
 export 'src/turkish_time.dart';

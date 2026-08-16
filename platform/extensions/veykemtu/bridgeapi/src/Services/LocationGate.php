@@ -17,14 +17,18 @@ use Veykemtu\BridgeApi\Exceptions\ApiException;
  *
  * | Alan | Kim yönetir | Ne demek |
  * |---|---|---|
- * | `is_open` | çalışma saatleri (türetilir) | Şu an sipariş saati içinde miyiz |
- * | `ordering_enabled` | yönetici, elle | Ana şalter — kapalıysa saat uygun olsa bile alınmaz |
- * | `order_cutoff` | yönetici | Günlük son sipariş saati |
+ * | `is_open` | çalışma saatleri (türetilir) | **Yalnız görüntüleme** — sipariş kapısı değil |
+ * | `ordering_enabled` | yönetici, elle | Ana şalter — kapalıysa sipariş alınmaz |
+ * | `order_cutoff` | yönetici | Kesim saatinin VARSAYILANI; kapıyı `OrderingWindow` tutar |
  * | `busy` | **mutfak**, tek tuşla | Sipariş ALINIR, sadece gecikme uyarısı çıkar |
  *
  * Üçünü ayrı tutmak, "bugün yoğunuz, sipariş almayı durdur" ile "çalışma
  * saatimiz bitti"yi karıştırmamak içindir; ikincisi yarın kendiliğinden
  * geri açılır, birincisi açılmaz.
+ *
+ * ZAMAN KAPISI BURADA DEĞİL (S1, 17.08.2026). "Hangi güne, ne zamana kadar
+ * sipariş verilebilir" sorusunun tek sahibi `OrderingWindow`. `LocationGate`
+ * VİTRİNİ anlatır ve bir servis gününü hiç tanımaz.
  *
  * `busy` bunlardan **ayrıdır ve siparişi ENGELLEMEZ**. Mutfak yoğunken
  * kapıyı kapatmak yerine müşteriyi uyarmak istiyoruz: sipariş girer, ekranda
@@ -86,8 +90,16 @@ class LocationGate
     /** "Günün Menüsü" paket ürününün kimliği (göç yazar). */
     private const string KEY_PACKAGE_MENU = 'bld_daily_package_menu_id';
 
-    /** Yönetici bir değer girmediyse geçerli ileri görüş penceresi. */
-    public const int DEFAULT_LOOKAHEAD_DAYS = 30;
+    /**
+     * Yönetici bir değer girmediyse geçerli ileri görüş penceresi.
+     *
+     * 30 → **7** (S1, 17.08.2026, iş kararı 2). Günlük menü satış modelinde
+     * mutfak bir aylık taahhüde giremiyor; `docs/control/settings.md` tavanı
+     * 7 olarak donduruyor ve o uç daha büyük bir değeri `422` ile reddediyor.
+     * Sunucu varsayılanının 30 kalması, ayara hiç dokunulmamış bir kurulumda
+     * kararın sessizce delinmesi olurdu.
+     */
+    public const int DEFAULT_LOOKAHEAD_DAYS = 7;
 
     // ── Teslimat süresi tahmini ────────────────────────────────────────────
     private const string KEY_PREP_MINUTES = 'bld_prep_minutes';
@@ -101,8 +113,20 @@ class LocationGate
         'Mutfağımız şu anda yoğun. Siparişiniz alınır ancak hazırlanması '
         .'normalden uzun sürebilir.';
 
-    /** Sözleşmedeki ödeme yöntemleri — `docs/openapi.yaml` `PaymentMethod`. */
-    public const array ALL_PAYMENT_METHODS = ['online', 'cash', 'account'];
+    /**
+     * Sözleşmedeki ödeme yöntemleri — `docs/openapi.yaml` `PaymentMethod`.
+     *
+     * `account` kaldırıldı (cari hesap iş modelinden çıktı).
+     *
+     * VERİ GÖÇÜ GEREKMEZ ve sebebi aşağıdaki iki metottadır: hem
+     * `paymentMethods()` hem `setPaymentMethods()` okuduğu listeyi bu
+     * sabitle `array_intersect` ediyor. Kayıtlı `['cash','account']` değeri
+     * ilk okumada `['cash']`'e düşer, ilk kaydetmede de öyle yazılır —
+     * ayar kendini onarır. Kolonları elle temizleyen bir göç yazmak,
+     * çalışan bir eleme mekanizmasının üstüne ikinci bir doğruluk kaynağı
+     * koymak olurdu.
+     */
+    public const array ALL_PAYMENT_METHODS = ['online', 'cash'];
 
     /**
      * Güvenli varsayılan: yalnızca sistem dışı tahsilat.
@@ -111,9 +135,22 @@ class LocationGate
      * çalışan bir ödeme geçidi varsa ekler. Çalışmayan bir yöntemi listeye
      * koymak, müşteriye tıklayınca hiçbir şey olmayan bir düğme göstermektir.
      */
-    public const array DEFAULT_PAYMENT_METHODS = ['cash', 'account'];
+    public const array DEFAULT_PAYMENT_METHODS = ['cash'];
 
-    /** Çalışma saatlerinden türetilir. */
+    /**
+     * Çalışma saatlerinden türetilir — **YALNIZ GÖRÜNTÜLEME ALANI**.
+     *
+     * `Location.is_open` sözleşmede duruyor ve vitrinde "şu an açığız"
+     * rozetini çizdiriyor. SİPARİŞ KAPISI DEĞİL (S1, 17.08.2026): kapı
+     * `assertAcceptsOrder()`'dan çıkarıldı.
+     *
+     * NEDEN ÇIKTI — sessizce kırılan iş kuralı: TastyIgniter'ın `opening`
+     * çalışma takvimi hafta sonunu kapalı gösteriyorsa bu metot cumartesi
+     * `false` döner ve "Çalışma saatlerimiz dışındasınız" hatası, cumartesi
+     * günü PAZARTESİYE sipariş vermeyi de engellerdi. Oysa iş kararı 3:
+     * hafta sonu menü yok ama **satış kanalı açık**. Gerçek kapı artık "D
+     * gününün yayınlanmış menüsü var ve D kendi kesiminden önce".
+     */
     public function isOpen(Location $location): bool
     {
         // TastyIgniter'ın çalışma takvimi tanımlı değilse vitrin "açık"
@@ -228,7 +265,17 @@ class LocationGate
         $this->setOption($location, self::KEY_PAUSE_REASON, null);
     }
 
-    /** `HH:mm` veya `null`. */
+    /**
+     * Vitrinin VARSAYILAN kesim saati, `HH:mm` veya `null`.
+     *
+     * ANAHTAR AYNI KALDI, ANLAMI DEĞİŞTİ (S1). `bld_order_cutoff` eskiden
+     * "bugüne sipariş verme saati"ydi; artık her servis gününün kendi
+     * kapanış saatinin varsayılanı. Anahtarı değiştirmemek, göç yazmadan ve
+     * sahadaki ayarı kaybetmeden geçmeyi sağlıyor.
+     *
+     * Bu değeri okuyup kapıya çeviren tek yer `OrderingWindow`; güne özel
+     * saat (`veykemtu_daily_menus.cutoff_time`) burayı ezer.
+     */
     public function orderCutoff(Location $location): ?string
     {
         $value = $this->option($location, self::KEY_CUTOFF, null);
@@ -462,11 +509,25 @@ class LocationGate
     }
 
     /**
-     * Sipariş kabul edilebilir mi? Edilemiyorsa gerekçesiyle patlar.
+     * Vitrin sipariş alıyor mu? Almıyorsa gerekçesiyle patlar.
+     *
+     * GERİYE TEK ŞALTER KALDI (S1, 17.08.2026). Bu metot eskiden üç şey
+     * denetliyordu; ikisi buradan çıktı:
+     *
+     *   * **kesim saati** → `OrderingWindow::assertWithinWindow()`. Kesim
+     *     artık servis gününe bağlı ve bu metot servis gününü hiç bilmiyor;
+     *     `requested_at`'ten türetmek, iki yerde iki farklı gün tanımı
+     *     üretiyordu.
+     *   * **çalışma saati (`isOpen`)** → hiç. Hafta sonu kapalı bir çalışma
+     *     takvimi, cumartesi günü pazartesiye sipariş vermeyi engelliyordu
+     *     (iş kararı 3'ün sessiz ihlali).
+     *
+     * `$requestedAt` parametresi de bu yüzden gitti: okunmayan bir parametre,
+     * çağıranı "istenen zaman burada denetleniyor" sanısına iterdi.
      *
      * @throws ApiException
      */
-    public function assertAcceptsOrder(Location $location, ?Carbon $requestedAt): void
+    public function assertAcceptsOrder(Location $location): void
     {
         if (!$this->orderingEnabled($location)) {
             // Sebep varsa MÜŞTERİYE SÖYLENİR. "Şu anda sipariş alınmıyor"
@@ -485,34 +546,6 @@ class LocationGate
             }
 
             throw ApiException::locationClosed($message);
-        }
-
-        if (!$this->isOpen($location)) {
-            throw ApiException::locationClosed(
-                'Çalışma saatlerimiz dışındasınız.',
-            );
-        }
-
-        $cutoff = $this->orderCutoff($location);
-        if ($cutoff === null) {
-            return;
-        }
-
-        // Kesim saati **istenen teslim gününe** göre değerlendirilir.
-        // İstemci saat vermediyse "şimdi" varsayılır.
-        $reference = $requestedAt?->copy()->setTimezone(BusinessTime::ZONE)
-            ?? BusinessTime::now();
-
-        [$hour, $minute] = array_map(intval(...), explode(':', $cutoff));
-        $deadline = $reference->copy()->setTime($hour, $minute);
-
-        // Aynı gün için verilen sipariş, kesim saatini geçtiyse reddedilir.
-        // Yarına verilen sipariş bugünün kesim saatinden etkilenmez.
-        $now = BusinessTime::now();
-        if ($reference->isSameDay($now) && $now->greaterThan($deadline)) {
-            throw ApiException::locationClosed(
-                "Bugünün sipariş kabul saati ({$cutoff}) doldu. Yarın için sipariş verebilirsiniz.",
-            );
         }
     }
 

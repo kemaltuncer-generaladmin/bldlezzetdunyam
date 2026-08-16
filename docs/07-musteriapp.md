@@ -114,17 +114,25 @@ Sipariş vermek internet gerektirir. İnternet yoksa:
 - API hata durumlarının kullanıcı mesajına çevrilmesi unit test
 - Zorunlu güncelleme mantığı (`version < min_supported`) unit test
 - Giriş → sipariş akışı widget test (API mock)
-- **Sipariş kapısı** (`Session.canOrder`) unit test (`session_gating_test.dart`)
+- **Stok tavanı** (`bld_core` `maxAddable` → sepet) unit test (`cart_stock_cap_test.dart`)
 - **Abonelik/cari sözleşme örnekleri** `packages/api_client` contract test'te ayrıştırılır
+
+> **Sipariş kapısı testi kaldırıldı (Faz 0).** `Session.canOrder` ve
+> `session_gating_test.dart` yok; cari hesapla birlikte "yalnız onaylı hesap
+> sipariş verir" kuralı düştü ve test adıyla zorunlu kıldığı kod artık
+> bulunmuyor. Yerine sepetin stok tavanı denetimi geldi.
 
 ## 8. B2B: abonelik ve cari hesap self-servisi (Faz 2 — UYGULANDI)
 
 Sistem tamamen kurumsal. İş kuralı istemcide değil sunucuda; uygulama yalnız
 sunucu bayraklarını uygular.
 
-- **Sipariş kapısı:** `customer.can_order` yanlışsa sepet/ödeme yolları kapanır
-  ("Sipariş kapalı" bilgi ekranı); menü/keşif serbest. Kaynak `session_provider`,
-  uygulama `router/app_router.dart` `_requiresOrdering` kapısıyla yönlendirir.
+- ~~**Sipariş kapısı:**~~ **KALDIRILDI (Faz 0).** Cari hesapla birlikte
+  "yalnız onaylı kurumsal hesap sipariş verir" kuralı da düştü; ödeme
+  yöntemleri `online` ve `cash` ve ikisi de herkese açık. `Session.canOrder`,
+  `_requiresOrdering` kapısı ve "Sipariş kapalı" bilgi ekranı yok. Sepet/ödeme
+  yolları yalnızca OTURUM istiyor; bir hesap yine de kapatılırsa bunu
+  `POST /orders` söyler ve ekran hata metnini gösterir.
 - **Kurumsal kayıt:** form iki bölüm — "Firma bilgileri" (ticari unvan + yetkili
   **zorunlu**, vergi opsiyonel) ve "Giriş bilgileri". `account_type` gönderilmez;
   sunucu `corporate` yazar.

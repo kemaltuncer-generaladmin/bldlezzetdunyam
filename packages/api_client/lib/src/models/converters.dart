@@ -136,6 +136,80 @@ class PaymentStatusConverter implements JsonConverter<PaymentStatus, String> {
   String toJson(PaymentStatus object) => object.wireName;
 }
 
+/// Ödemenin kesinleşmesi için sıradaki adım — `docs/openapi.yaml`
+/// `PaymentNextAction`.
+///
+/// **Gevşek enum, bilerek.** Sözleşme buraya ileride yeni adım tipleri
+/// ekleneceğini (`app2app`, `biometric`) ve ek değerin kırıcı sayılmadığını
+/// yazıyor.
+///
+/// Bilinmeyen değer [unknown]'a düşer ve **[none] SAYILMAZ**. Ayrım burada
+/// hayati: `none` saymak, atlanmış bir doğrulama adımını "ödeme bitti" diye
+/// göstermek olurdu. Bilinmeyen adımı gören istemcinin doğru davranışı
+/// kullanıcıya güncelleme gerektiğini söylemek ve sonucu
+/// `GET /subscriptions/{id}/payments/{paymentId}` ile yoklamaktır.
+enum PaymentNextAction {
+  /// Ek adım yok; sonuç `status` alanındadır. Kesim: `cash` siparişte ve
+  /// ödeme akışı hiç doğmamışken sunucu `null` gönderir, o da buraya düşer.
+  none('none'),
+
+  /// Kullanıcıdan SMS kodu alınır ve `.../confirm` ucuna gönderilir.
+  otp('otp'),
+
+  /// `redirect_url` açılır; dönüşte ödeme yoklanır.
+  threeDs('three_ds'),
+
+  /// Sözleşmeye sonradan eklenmiş, bu istemcinin bilmediği bir adım.
+  ///
+  /// [wireName] `null`: bu alan **yalnızca okunur**, istemci hiçbir uca geri
+  /// göndermez.
+  unknown(null);
+
+  const PaymentNextAction(this.wireName);
+
+  /// Sözleşmedeki karşılığı; [unknown] için `null`.
+  final String? wireName;
+
+  /// `null` gövde değeri [none] demektir — "adım yok".
+  static PaymentNextAction parse(String? value) {
+    if (value == null || value.isEmpty) return none;
+    for (final action in PaymentNextAction.values) {
+      if (action.wireName == value) return action;
+    }
+    return unknown;
+  }
+
+  /// Ödemenin ilerlemesi için kullanıcıdan bir şey isteniyor mu?
+  ///
+  /// [unknown] burada `true`'dur: ne istendiğini bilmesek de bir şey
+  /// istendiğini biliyoruz ve ekranı "bitti" diye kapatmamalıyız.
+  bool get requiresCustomerStep => this != none;
+
+  /// Adımı bu istemci uygulayabiliyor mu? [unknown] için `false` — ekran
+  /// kullanıcıya uygulamayı güncellemesini söyler.
+  bool get isSupported => this != unknown;
+}
+
+const Map<PaymentNextAction, String> paymentNextActionLabelsTr = {
+  PaymentNextAction.none: '',
+  PaymentNextAction.otp: 'SMS kodunu girin.',
+  PaymentNextAction.threeDs:
+      'Bankanızın doğrulama sayfasına yönlendirileceksiniz.',
+  PaymentNextAction.unknown:
+      'Bu ödeme adımı için uygulamayı güncellemeniz gerekiyor.',
+};
+
+class PaymentNextActionConverter
+    implements JsonConverter<PaymentNextAction, String?> {
+  const PaymentNextActionConverter();
+
+  @override
+  PaymentNextAction fromJson(String? json) => PaymentNextAction.parse(json);
+
+  @override
+  String? toJson(PaymentNextAction object) => object.wireName;
+}
+
 /// Teslim süresi tahmininin nereden geldiği — `Location.eta`.
 ///
 /// **Neden gevşek (bilinmeyen değer çökertmez):** bu alan yalnızca kullanıcıya

@@ -10,7 +10,14 @@
 
 import express from 'express';
 
-import { PAIRING_CODE } from './seed.js';
+import {
+  addDays,
+  businessDateOf,
+  businessToday,
+  daysBetween,
+  isBusinessDate,
+} from './business-date.js';
+import { buildDailyMenu, CONTRACT_TOKEN, PAIRING_CODE } from './seed.js';
 import * as out from './serializers.js';
 import { MockState } from './state.js';
 
@@ -35,6 +42,9 @@ const ERROR_STATUS = {
   RATE_LIMITED: 429,
   SERVER_ERROR: 500,
 };
+
+/** Takvim ucunun kabul ettiği azami aralık (`DailyMenuService::MAX_CALENDAR_DAYS`). */
+const MAX_CALENDAR_DAYS = 92;
 
 function fail(res, code, message, details) {
   return res.status(ERROR_STATUS[code] ?? 500).json({
@@ -149,6 +159,10 @@ app.post('/api/auth/register', (req, res) => {
     telephone: b.telephone,
     password: b.password,
     default_location_id: state.location.id,
+    // Kurum alanları serbest metin: fatura başlığına yazılıyor, hiçbir
+    // kapıyı açıp kapamıyor (sipariş kapısı kalktı).
+    company_name: b.company_name ?? null,
+    contact_person: b.contact_person ?? null,
   };
   state.customers.push(customer);
 
@@ -184,16 +198,11 @@ app.get('/api/auth/me', requireCustomer, (req, res) =>
   res.json(out.customerOut(state.customerById(req.customerId))),
 );
 
-app.post('/api/me/push-token', requireCustomer, (req, res) => {
-  const { fcm_token: fcmToken } = req.body ?? {};
-  if (!fcmToken) {
-    return fail(res, 'VALIDATION_FAILED', 'fcm_token zorunludur.', {
-      fcm_token: 'Boş olamaz.',
-    });
-  }
-  state.pushTokens.set(req.customerId, fcmToken);
-  return res.status(204).end();
-});
+/*
+ * `POST /me/push-token` KALDIRILDI. Push (FCM) kurulmuyor; bildirim kanalı
+ * uygulama içi duyuru (`GET /announcements`) ve SMS. Ucun mock'ta durması,
+ * istemci hatlarını kurulmayacak bir altyapıya kod yazmaya davet ediyordu.
+ */
 
 // ─────────────────────── Kurumsal site içeriği ─────────────────────────────
 //
@@ -237,6 +246,11 @@ function normalizePhone(input) {
   return digits;
 }
 
+/** Altı haneli SMS kodu. Sabit değil: test kodu okusun, tahmin etmesin. */
+function newOtpCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
 app.post('/api/auth/otp/request', (req, res) => {
   const phone = normalizePhone(req.body?.phone);
 
@@ -248,9 +262,7 @@ app.post('/api/auth/otp/request', (req, res) => {
 
   const customer = state.customers.find((c) => normalizePhone(c.telephone) === phone);
   if (customer) {
-    // Sabit kod DEĞİL: rastgele üretiliyor ki test "kodu tahmin etme"
-    // yoluna sapmasın ve gerçek akışı (kodu oku, gir) izlesin.
-    state.otpCodes.set(phone, String(Math.floor(100000 + Math.random() * 900000)));
+    state.otpCodes.set(phone, newOtpCode());
   }
 
   return res.status(202).json({
@@ -314,69 +326,39 @@ app.delete('/api/addresses/:id', requireCustomer, (req, res) => {
   return res.status(204).end();
 });
 
-// ──────────────────────────── Cari hesap (W-12) ────────────────────────────
+// ──────────────────────────── Duyurular ────────────────────────────────────
+//
+// FCM KALKTI. Push yerine uygulama içi duyuru var: müşteri uygulamayı
+// açtığında görüyor. Uç girişsiz, çünkü duyuru herkese aynı — girişli
+// kullanıcıya özel bildirim yok.
 
-app.get('/api/account/summary', requireCustomer, (req, res) =>
+app.get('/api/announcements', (_req, res) =>
   res.json({
-    balance: state.balanceOf(req.customerId),
-    currency: 'TRY',
-    as_of: nowIso(),
+    data: state.activeAnnouncements().map(out.announcementOut),
+    server_time: nowIso(),
   }),
 );
 
-app.get('/api/account/statement', requireCustomer, (req, res) => {
-  const rows = state.ledger.get(req.customerId) ?? [];
+// ──────────────────────── İstemci hata raporları ───────────────────────────
+//
+// GİRİŞSİZ ve 204. Rapor gönderen istemci çoğu zaman zaten bozuk bir
+// durumda; oturum arayıp 401 döndürmek, en çok ihtiyaç duyulan raporu
+// kaybetmek olurdu. Gövde de doğrulanmıyor: yarım bir rapor, hiç rapor
+// olmamasından iyidir.
 
-  let running = 0;
-  const entries = rows.map((row) => {
-    running += row.entry_type === 'debit' ? row.amount : -row.amount;
-    return { ...row, running_balance: running };
+app.post('/api/client-errors', (req, res) => {
+  const b = req.body ?? {};
+
+  state.recordClientError({
+    app_id: req.get('X-App-Id') ?? null,
+    app_version: req.get('X-App-Version') ?? null,
+    message: typeof b.message === 'string' ? b.message : '(mesajsız)',
+    stack: typeof b.stack === 'string' ? b.stack : null,
+    context: b.context ?? null,
+    occurred_at: typeof b.occurred_at === 'string' ? b.occurred_at : nowIso(),
   });
 
-  return res.json({
-    opening_balance: 0,
-    closing_balance: running,
-    currency: 'TRY',
-    from: rows[0]?.date ?? nowIso().slice(0, 10),
-    to: nowIso().slice(0, 10),
-    entries,
-  });
-});
-
-app.post('/api/account/payments', requireCustomer, (req, res) => {
-  const balance = state.balanceOf(req.customerId);
-
-  if (balance <= 0) {
-    return fail(res, 'VALIDATION_FAILED', 'Ödenecek borç bulunmuyor.', { balance });
-  }
-
-  const full = req.body?.full === true;
-  const amount = full ? balance : Number(req.body?.amount ?? 0);
-
-  if (!Number.isInteger(amount) || amount <= 0) {
-    return fail(res, 'VALIDATION_FAILED', 'Ödenecek tutar belirtilmeli.', {
-      amount: 'Tutar girin veya borcun tamamını seçin.',
-    });
-  }
-  if (amount > balance) {
-    return fail(res, 'VALIDATION_FAILED', 'Tutar borcunuzdan büyük olamaz.', {
-      amount,
-      balance,
-    });
-  }
-
-  const id = state.nextAccountPaymentId++;
-  const hash = `mockpay${id}`;
-  state.accountPayments.set(hash, { id, customerId: req.customerId, amount, status: 'pending' });
-
-  return res.status(201).json({
-    payment_id: id,
-    amount,
-    balance,
-    currency: 'TRY',
-    status: 'pending',
-    redirect_url: `${req.protocol}://${req.get('host')}/__mock/cari-odeme/${hash}`,
-  });
+  return res.status(204).end();
 });
 
 // ──────────────────────────── Abonelik (W-13) ──────────────────────────────
@@ -432,7 +414,7 @@ app.post('/api/subscriptions/:id/exceptions', requireCustomer, (req, res) => {
   if (!found) return fail(res, 'NOT_FOUND', 'Abonelik bulunamadı.');
 
   const date = String(req.body?.service_date ?? '');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  if (!isBusinessDate(date)) {
     return fail(res, 'VALIDATION_FAILED', 'Tarih geçersiz.', { service_date: 'YYYY-AA-GG' });
   }
 
@@ -444,6 +426,145 @@ app.post('/api/subscriptions/:id/exceptions', requireCustomer, (req, res) => {
   });
 
   return res.json(found);
+});
+
+// ───────────────────── Abonelik ödemesi (peşin dönem) ──────────────────────
+//
+// Cari hesap kalktığı için abonelik artık DÖNEM BAŞINDA ödeniyor. `online`
+// dalı 3D Secure'a düşüp `next_action: 'otp'` döndürüyor; mobilin OTP
+// ekranı ancak bu dal varsa denenebiliyor.
+
+/** Aylık varsayılan tutar: porsiyon fiyatı × günlük adet × 20 iş günü. */
+function monthlyAmountOf(subscription) {
+  return (subscription.agreed_unit_price ?? 0) * subscription.default_quantity * 20;
+}
+
+function ownSubscription(req) {
+  return (
+    state.subscriptions.find(
+      (s) => s.id === Number(req.params.id) && s.customer_id === req.customerId,
+    ) ?? null
+  );
+}
+
+app.post('/api/subscriptions/:id/payments', requireCustomer, (req, res) => {
+  const subscription = ownSubscription(req);
+  if (!subscription) return fail(res, 'NOT_FOUND', 'Abonelik bulunamadı.');
+
+  const method = req.body?.payment_method ?? 'online';
+  if (!state.location.payment_methods.includes(method)) {
+    return fail(res, 'VALIDATION_FAILED', 'Bu ödeme yöntemi şu anda kullanılamıyor.', {
+      payment_method: state.location.payment_methods,
+    });
+  }
+
+  const period = String(req.body?.period ?? nowIso().slice(0, 7));
+  if (!/^\d{4}-\d{2}$/.test(period)) {
+    return fail(res, 'VALIDATION_FAILED', 'Dönem YYYY-AA biçiminde olmalı.', { period });
+  }
+
+  const amount = req.body?.amount === undefined
+    ? monthlyAmountOf(subscription)
+    : Number(req.body.amount);
+
+  if (!Number.isInteger(amount) || amount <= 0) {
+    return fail(res, 'VALIDATION_FAILED', 'Ödenecek tutar belirtilmeli.', {
+      amount: 'Kuruş cinsinden pozitif tam sayı olmalı.',
+    });
+  }
+
+  const payment = state.openSubscriptionPayment(subscription, { amount, period, method });
+
+  return res.status(201).json(out.subscriptionPaymentOut(payment));
+});
+
+app.post('/api/subscriptions/:id/payments/confirm', requireCustomer, (req, res) => {
+  const subscription = ownSubscription(req);
+  if (!subscription) return fail(res, 'NOT_FOUND', 'Abonelik bulunamadı.');
+
+  const payment = state.subscriptionPayments.get(Number(req.body?.payment_id));
+  if (!payment || payment.subscription_id !== subscription.id) {
+    return fail(res, 'NOT_FOUND', 'Ödeme bulunamadı.');
+  }
+
+  // İDEMPOTENT: ağ koptuğu için ikinci kez onaylayan istemci hata değil,
+  // aynı sonucu görmeli.
+  if (payment.status === 'paid') {
+    return res.json(out.subscriptionPaymentOut(payment));
+  }
+
+  if (payment.otp_code !== String(req.body?.code ?? '')) {
+    return fail(res, 'VALIDATION_FAILED', 'Kod hatalı.', { code: 'Doğrulanamadı.' });
+  }
+
+  payment.status = 'paid';
+  payment.next_action = 'none';
+  payment.paid_at = nowIso();
+  payment.otp_code = null;
+
+  return res.json(out.subscriptionPaymentOut(payment));
+});
+
+// ───────────────────── Abonelik sözleşmesi (imzalı link) ───────────────────
+//
+// GİRİŞSİZ: sözleşmeyi imzalayan kişi, aboneliği kuran kişiden başkası
+// olabiliyor (muhasebe, yetkili imza). Yetki bağlantının içindeki
+// anahtarda; onay SMS koduyla veriliyor.
+
+app.get('/api/contracts/:token', (req, res) => {
+  const contract = state.contractByToken(req.params.token);
+  if (!contract) return fail(res, 'NOT_FOUND', 'Sözleşme bulunamadı ya da bağlantı geçersiz.');
+
+  return res.json(out.contractOut(state, contract));
+});
+
+app.post('/api/contracts/:token/otp', (req, res) => {
+  const contract = state.contractByToken(req.params.token);
+  if (!contract) return fail(res, 'NOT_FOUND', 'Sözleşme bulunamadı ya da bağlantı geçersiz.');
+
+  if (contract.status === 'signed') {
+    return fail(res, 'VALIDATION_FAILED', 'Sözleşme zaten imzalanmış.', {
+      signed_at: contract.signed_at,
+    });
+  }
+
+  /*
+   * Kod GİRİŞ KODLARIYLA AYNI HAVUZDA duruyor (`/__mock/otp/:phone` onu da
+   * okuyor). Gerçekte de öyle: bir telefona aynı anda tek SMS gidiyor ve
+   * testin ayrı bir kanca öğrenmesine gerek kalmıyor.
+   */
+  state.otpCodes.set(normalizePhone(contract.signer_phone), newOtpCode());
+
+  return res.status(202).json({
+    message: 'Onay kodu gönderildi.',
+    expires_in: 300,
+    resend_after: 60,
+  });
+});
+
+app.post('/api/contracts/:token', (req, res) => {
+  const contract = state.contractByToken(req.params.token);
+  if (!contract) return fail(res, 'NOT_FOUND', 'Sözleşme bulunamadı ya da bağlantı geçersiz.');
+
+  if (contract.status === 'signed') {
+    return fail(res, 'VALIDATION_FAILED', 'Sözleşme zaten imzalanmış.', {
+      signed_at: contract.signed_at,
+    });
+  }
+
+  const phone = normalizePhone(contract.signer_phone);
+  const expected = state.otpCodes.get(phone);
+  const code = String(req.body?.code ?? '');
+
+  if (!expected || expected !== code) {
+    return fail(res, 'VALIDATION_FAILED', 'Kod hatalı.', { code: 'Doğrulanamadı.' });
+  }
+
+  // Tek kullanımlık.
+  state.otpCodes.delete(phone);
+  state.signContract(contract, req.ip ?? null);
+
+  return res.json(out.contractOut(state, contract));
 });
 
 // ─────────────────────────────── Katalog ───────────────────────────────────
@@ -459,7 +580,157 @@ app.get('/api/locations/:id/menu', (req, res) => {
   return res.json({ data: state.menu });
 });
 
+// ───────────────────────────── Günün menüsü ────────────────────────────────
+//
+// SATILABİLİR OLAN YALNIZ BUDUR. `/locations/{id}/menu` katalogu döndürmeye
+// devam ediyor (SEO ve ürün sayfaları) ama sipariş yalnız o günün
+// menüsünden verilebiliyor; `POST /orders` bunu yeniden denetliyor.
+
+/** Sorgudaki günü çözer; geçersiz biçim `422`, boş ise bugün. */
+function resolveQueryDate(res, raw, field, fallback) {
+  if (raw === undefined || raw === null || String(raw).trim() === '') return fallback;
+
+  const date = String(raw).trim();
+  if (!isBusinessDate(date)) {
+    fail(res, 'VALIDATION_FAILED', 'Tarih YYYY-AA-GG biçiminde ve geçerli olmalı.', {
+      [field]: date,
+    });
+    return null;
+  }
+
+  return date;
+}
+
+app.get('/api/locations/:id/daily-menu', (req, res) => {
+  if (Number(req.params.id) !== state.location.id) {
+    return fail(res, 'NOT_FOUND', 'Vitrin bulunamadı.');
+  }
+
+  const date = resolveQueryDate(res, req.query.date, 'date', businessToday());
+  if (date === null) return undefined;
+
+  return res.json({ data: out.dailyMenuOut(state, state.verdict(date)) });
+});
+
+app.get('/api/locations/:id/menu-calendar', (req, res) => {
+  if (Number(req.params.id) !== state.location.id) {
+    return fail(res, 'NOT_FOUND', 'Vitrin bulunamadı.');
+  }
+
+  const from = resolveQueryDate(res, req.query.from, 'from', businessToday());
+  if (from === null) return undefined;
+
+  const to = resolveQueryDate(res, req.query.to, 'to', addDays(from, 30));
+  if (to === null) return undefined;
+
+  if (daysBetween(from, to) < 0) {
+    return fail(res, 'VALIDATION_FAILED', 'Bitiş günü başlangıçtan önce olamaz.', { from, to });
+  }
+  if (daysBetween(from, to) + 1 > MAX_CALENDAR_DAYS) {
+    return fail(
+      res,
+      'VALIDATION_FAILED',
+      `Takvim aralığı en fazla ${MAX_CALENDAR_DAYS} gün olabilir.`,
+      { from, to },
+    );
+  }
+
+  return res.json({
+    data: state.calendar(from, to).map((verdict) => out.menuCalendarDayOut(state, verdict)),
+  });
+});
+
 // ─────────────────────────────── Sipariş ───────────────────────────────────
+
+/** Günün satılamama sebebini sözleşmedeki hata koduna çevirir. */
+function failForDay(res, verdict) {
+  const details = { service_date: verdict.date, reason: verdict.reason };
+
+  switch (verdict.reason) {
+    case 'closed_day':
+      return fail(
+        res,
+        'LOCATION_CLOSED',
+        verdict.closed_note !== null
+          ? `O gün kapalıyız: ${verdict.closed_note}`
+          : 'O gün kapalıyız.',
+        details,
+      );
+    case 'no_service_day':
+      return fail(
+        res,
+        'LOCATION_CLOSED',
+        'Hafta sonu menü çıkmıyor. Hafta içi bir gün seçin.',
+        details,
+      );
+    case 'cutoff_passed':
+      return fail(
+        res,
+        'LOCATION_CLOSED',
+        'Bu günün sipariş kabul saati doldu. Sonraki güne sipariş verebilirsiniz.',
+        details,
+      );
+    case 'sold_out':
+      return fail(res, 'ITEM_UNAVAILABLE', 'Bu günün porsiyonları tükendi.', details);
+    case 'past':
+      return fail(res, 'VALIDATION_FAILED', 'Geçmiş bir güne sipariş verilemez.', details);
+    case 'too_far':
+      return fail(res, 'VALIDATION_FAILED', 'Bu tarih için henüz sipariş alınmıyor.', details);
+    default:
+      return fail(res, 'VALIDATION_FAILED', 'O gün için menü yayınlanmadı.', details);
+  }
+}
+
+/**
+ * Bir sipariş kalemini günün menüsüne karşı denetler.
+ *
+ * `LineResolver::assertInDailyMenu` ile aynı sıra: menüde mi, gün tek tek
+ * satışa açık mı, kalem tek başına satılıyor mu, stok var mı.
+ */
+function failForLine(res, day, line) {
+  if (line.menu_id === state.packageProduct.id) {
+    if (day.package_price === null || day.package_price === undefined) {
+      return fail(res, 'ITEM_UNAVAILABLE', 'O gün paket satılmıyor.', {
+        menu_id: line.menu_id,
+      });
+    }
+    if (state.packageRemaining(day) === 0) {
+      return fail(res, 'ITEM_UNAVAILABLE', 'Günün menüsü tükendi.', {
+        menu_id: line.menu_id,
+      });
+    }
+    return null;
+  }
+
+  const product = state.findMenuItem(line.menu_id);
+  const dayItem = day.items.find((item) => item.menu_id === line.menu_id) ?? null;
+
+  if (product === null || dayItem === null) {
+    return fail(res, 'ITEM_UNAVAILABLE', 'Ürün o günün menüsünde yok.', {
+      menu_id: line.menu_id,
+    });
+  }
+  if (!day.components_sellable) {
+    return fail(res, 'ITEM_UNAVAILABLE', 'O günün menüsü yalnız bütün olarak satılıyor.', {
+      menu_id: line.menu_id,
+    });
+  }
+  if (!dayItem.sellable_alone) {
+    return fail(
+      res,
+      'ITEM_UNAVAILABLE',
+      `${product.name} yalnız menünün içinde veriliyor, tek başına satılmıyor.`,
+      { menu_id: line.menu_id },
+    );
+  }
+  if (!product.is_available || state.itemRemaining(day, dayItem) === 0) {
+    return fail(res, 'ITEM_UNAVAILABLE', `${product.name} şu anda tükendi.`, {
+      menu_id: line.menu_id,
+    });
+  }
+
+  return null;
+}
 
 app.post('/api/orders', requireCustomer, (req, res) => {
   const b = req.body ?? {};
@@ -495,22 +766,80 @@ app.post('/api/orders', requireCustomer, (req, res) => {
   }
 
   for (const line of b.items) {
-    const item = state.findMenuItem(line.menu_id);
-    if (!item) {
-      return fail(res, 'ITEM_UNAVAILABLE', 'Ürün menüde bulunamadı.', {
-        menu_id: line.menu_id,
-      });
-    }
-    if (!item.is_available) {
-      return fail(res, 'ITEM_UNAVAILABLE', `${item.name} şu anda tükendi.`, {
-        menu_id: line.menu_id,
-      });
-    }
     if (!Number.isInteger(line.quantity) || line.quantity < 1) {
       return fail(res, 'VALIDATION_FAILED', 'Adet en az 1 olmalı.', {
         menu_id: line.menu_id,
       });
     }
+  }
+
+  // ── Servis günü ────────────────────────────────────────────────────────
+  const serviceDate = resolveQueryDate(res, b.service_date, 'service_date', businessToday());
+  if (serviceDate === null) return undefined;
+
+  /*
+   * İSTENEN TESLİM ZAMANI SERVİS GÜNÜNE AİT OLMALI. "Cuma menüsünü perşembe
+   * 12:00'ye" gibi bir sipariş mutfağın karşılayamayacağı bir şey; sessizce
+   * birini seçmek ya yanlış gün pişirir ya yanlış saatte gönderir.
+   */
+  if (b.requested_at) {
+    const requestedDay = businessDateOf(new Date(b.requested_at));
+    if (requestedDay !== serviceDate) {
+      return fail(res, 'VALIDATION_FAILED', 'İstenen teslim zamanı, seçilen servis gününe ait değil.', {
+        service_date: serviceDate,
+        requested_at: requestedDay,
+      });
+    }
+  }
+
+  if (state.location.daily_menu_enabled) {
+    const verdict = state.verdict(serviceDate);
+    if (!verdict.orderable) return failForDay(res, verdict);
+
+    for (const line of b.items) {
+      const failure = failForLine(res, verdict.day, line);
+      if (failure) return failure;
+    }
+  } else {
+    // Günlük menü şalteri kapalıyken eski katalog akışı aynen çalışır.
+    for (const line of b.items) {
+      const item = state.findMenuItem(line.menu_id);
+      if (!item) {
+        return fail(res, 'ITEM_UNAVAILABLE', 'Ürün menüde bulunamadı.', {
+          menu_id: line.menu_id,
+        });
+      }
+      if (!item.is_available) {
+        return fail(res, 'ITEM_UNAVAILABLE', `${item.name} şu anda tükendi.`, {
+          menu_id: line.menu_id,
+        });
+      }
+    }
+  }
+
+  /*
+   * ASGARİ TUTAR SİPARİŞ AÇILMADAN ÖNCE denetleniyor. Önce oluşturup sonra
+   * geri almak, stoktan düşülen porsiyonları geri koymayı da gerektiriyordu
+   * ve bir gün biri o satırı unutup stoğu sızdıracaktı.
+   */
+  const preview = {
+    service_date: serviceDate,
+    delivery_type: b.delivery_type,
+    items: b.items.map((line) => ({
+      menu_id: line.menu_id,
+      quantity: line.quantity,
+      option_value_ids: line.option_value_ids ?? [],
+    })),
+  };
+  const { total } = state.totals(preview);
+
+  if (total < state.location.min_order_total) {
+    return fail(
+      res,
+      'VALIDATION_FAILED',
+      'Asgari sipariş tutarının altındasınız.',
+      { min_order_total: state.location.min_order_total, total },
+    );
   }
 
   const order = state.createOrder({
@@ -521,19 +850,8 @@ app.post('/api/orders', requireCustomer, (req, res) => {
     requestedAt: b.requested_at ?? null,
     paymentMethod: b.payment_method,
     customerNote: b.customer_note ?? null,
+    serviceDate,
   });
-
-  const { total } = state.totals(order);
-  if (total < state.location.min_order_total) {
-    // Sipariş oluşturulmuş olsaydı sözleşme ihlali olurdu; geri al.
-    state.orders.pop();
-    return fail(
-      res,
-      'VALIDATION_FAILED',
-      'Asgari sipariş tutarının altındasınız.',
-      { min_order_total: state.location.min_order_total, total },
-    );
-  }
 
   return res.status(201).json(out.orderCreatedOut(state, order));
 });
@@ -752,15 +1070,9 @@ app.get('/api/app-version', (req, res) => {
 //
 // Bu uçlar gerçek sunucuda YOKTUR. İstemci hatlarının kabul senaryolarını
 // (docs/10) elle koşabilmesi için var: yeni sipariş düşürmek, şalteri
-// kapatmak, cihaz iptal etmek.
+// kapatmak, cihaz iptal etmek, belirlenimci bir menü günü kurmak.
 
-/*
- * ── v2.0 test kancaları ────────────────────────────────────────────────
- * `/__mock/*` uçları sözleşmenin parçası DEĞİL; yalnızca Playwright'ın
- * gerçek akışı izleyebilmesi için var (kodu oku, borç kur, ödemeyi bitir).
- */
-
-/** Son üretilen giriş kodunu okur — SMS'in test karşılığı. */
+/** Son üretilen SMS kodunu okur — giriş ve sözleşme onayı aynı havuzda. */
 app.get('/__mock/otp/:phone', (req, res) => {
   const phone = normalizePhone(req.params.phone);
   const code = state.otpCodes.get(phone);
@@ -768,38 +1080,35 @@ app.get('/__mock/otp/:phone', (req, res) => {
   return code ? res.json({ code }) : res.status(404).json({ code: null });
 });
 
-/** Bir müşteriye borç yazar; cari ekranını test etmenin tek yolu. */
-app.post('/__mock/ledger/:customerId', (req, res) => {
-  const customerId = Number(req.params.customerId);
-  state.addLedgerEntry(customerId, {
-    date: nowIso().slice(0, 10),
-    entry_type: req.body?.entry_type ?? 'debit',
-    amount: Number(req.body?.amount ?? 0),
-    source: 'order',
-    description: req.body?.description ?? 'Test siparişi',
-  });
+/** Abonelik ödemesinin banka kodunu okur (3D Secure SMS'inin karşılığı). */
+app.get('/__mock/payment-otp/:id', (req, res) => {
+  const payment = state.subscriptionPayments.get(Number(req.params.id));
+  const code = payment?.otp_code ?? null;
 
-  return res.json({ balance: state.balanceOf(customerId) });
+  return code ? res.json({ code }) : res.status(404).json({ code: null });
 });
 
 /** Abonelik ekler. */
 app.post('/__mock/subscriptions', (req, res) => {
+  const today = businessToday();
   const subscription = {
     id: state.nextSubscriptionId++,
-    customer_id: Number(req.body?.customer_id ?? 1),
+    customer_id: Number(req.body?.customer_id ?? 12),
     status: req.body?.status ?? 'active',
     location_id: state.location.id,
     delivery_type: 'delivery',
-    start_date: nowIso().slice(0, 10),
+    start_date: today,
     end_date: null,
-    service_days: [1, 2, 3, 4, 5],
+    service_days: [...state.location.service_weekdays],
     delivery_time_from: '12:00',
     delivery_time_to: '13:00',
     default_quantity: Number(req.body?.default_quantity ?? 25),
-    agreed_unit_price: 9500,
-    payment_mode: 'account',
-    menu_mode: 'fixed_list',
-    lines: [{ menu_id: 1, quantity: 1, label: 'Günün menüsü' }],
+    agreed_unit_price: 29000,
+    // Cari kalktı: abonelik dönem başında peşin ödeniyor.
+    payment_mode: 'prepaid_monthly',
+    // Abonelik günün menüsünü otomatik alır; abone gün atlayabilir.
+    menu_mode: 'daily_menu',
+    lines: [],
     delivery_points: [],
     exceptions: [],
     created_at: nowIso(),
@@ -809,31 +1118,95 @@ app.post('/__mock/subscriptions', (req, res) => {
   return res.status(201).json(subscription);
 });
 
-/**
- * Cari ödemeyi tamamlar — gerçek sanal POS sayfasının yerini tutar.
- *
- * Deftere ALACAK yazıp siteye geri yönlendiriyor; böylece Playwright
- * "ödedim, bakiye düştü" zincirini uçtan uca izleyebiliyor.
- */
-app.get('/__mock/cari-odeme/:hash', (req, res) => {
-  const intent = state.accountPayments.get(req.params.hash);
-  if (!intent) return res.status(404).send('Ödeme bulunamadı.');
+/** Sözleşme açar — imzalı bağlantı akışını kurmanın tek yolu. */
+app.post('/__mock/contracts', (req, res) => {
+  const subscriptionId = Number(req.body?.subscription_id ?? 0);
+  const subscription = state.subscriptionById(subscriptionId);
+  if (!subscription) return res.status(404).json({ error: 'Abonelik bulunamadı.' });
 
-  if (intent.status === 'pending') {
-    intent.status = 'succeeded';
-    state.addLedgerEntry(intent.customerId, {
-      date: nowIso().slice(0, 10),
-      entry_type: 'credit',
-      amount: intent.amount,
-      source: 'payment',
-      description: `Online cari ödeme #${intent.id}`,
-    });
+  const customer = state.customerById(subscription.customer_id);
+  const token = String(req.body?.token ?? `SOZLESME-${subscriptionId}`);
+
+  const contract = {
+    token,
+    subscription_id: subscriptionId,
+    customer_id: subscription.customer_id,
+    status: 'pending',
+    title: 'Abonelik Sözleşmesi',
+    body: 'Mock sözleşme metni.',
+    signer_name: customer ? `${customer.first_name} ${customer.last_name}` : 'Bilinmiyor',
+    signer_phone: customer?.telephone ?? '5550000000',
+    signed_at: null,
+    signed_ip: null,
+    created_at: nowIso(),
+  };
+  state.contracts.set(token, contract);
+
+  return res.status(201).json(out.contractOut(state, contract));
+});
+
+/**
+ * Bir günün menüsünü kurar ya da düzenler.
+ *
+ * TOHUM HAFTANIN GÜNÜNE GÖRE DEĞİŞİYOR: cuma koşan bir test ile pazartesi
+ * koşan aynı testin gördüğü gün aynı değil. Belirlenimci bir "sipariş
+ * verilebilir gün" ya da "tükenmiş gün" isteyen test bu kanca ile kendi
+ * zeminini kuruyor.
+ */
+app.post('/__mock/daily-menu/:date', (req, res) => {
+  const date = String(req.params.date);
+  if (!isBusinessDate(date)) {
+    return res.status(422).json({ error: 'Tarih YYYY-AA-GG olmalı.' });
   }
 
-  const target = req.query.return ?? '/';
+  let day = state.dailyMenus.find((entry) => entry.date === date) ?? null;
 
-  return res.redirect(`${target}?durum=odendi`);
+  if (day === null) {
+    day = buildDailyMenu(date, {
+      id: 9900 + state.dailyMenus.length,
+      template: Number(req.body?.template ?? 0),
+    });
+    state.dailyMenus.push(day);
+  }
+
+  const b = req.body ?? {};
+  if (typeof b.published === 'boolean') day.published = b.published;
+  if (typeof b.components_sellable === 'boolean') day.components_sellable = b.components_sellable;
+  if ('package_price' in b) day.package_price = b.package_price;
+  if ('day_capacity' in b) day.day_capacity = b.day_capacity;
+  if (Number.isInteger(b.day_sold)) day.day_sold = b.day_sold;
+  if (Array.isArray(b.image_urls)) day.image_urls = b.image_urls.slice(0, 4);
+
+  for (const patch of b.items ?? []) {
+    const item = day.items.find((entry) => entry.menu_id === Number(patch.menu_id));
+    if (!item) continue;
+    if ('capacity' in patch) item.capacity = patch.capacity;
+    if (Number.isInteger(patch.sold)) item.sold = patch.sold;
+    if (typeof patch.sellable_alone === 'boolean') item.sellable_alone = patch.sellable_alone;
+  }
+
+  return res.json(out.dailyMenuOut(state, state.verdict(date)));
 });
+
+/** Kapalı gün ekler/kaldırır — bayram dalını denemenin tek yolu. */
+app.post('/__mock/closed-days/:date', (req, res) => {
+  const date = String(req.params.date);
+  if (!isBusinessDate(date)) {
+    return res.status(422).json({ error: 'Tarih YYYY-AA-GG olmalı.' });
+  }
+
+  state.closedDays = state.closedDays.filter((day) => day.date !== date);
+  if (req.body?.closed !== false) {
+    state.closedDays.push({ date, note: req.body?.note ?? 'Kapalı gün' });
+  }
+
+  return res.json({ data: state.closedDays });
+});
+
+/** Toplanan istemci hata raporlarını okur. */
+app.get('/__mock/client-errors', (_req, res) =>
+  res.json({ data: state.clientErrors }),
+);
 
 app.post('/__mock/reset', (_req, res) => {
   state.reset();
@@ -861,11 +1234,12 @@ app.post('/__mock/orders', (req, res) => {
     requestedAt: null,
     paymentMethod: req.body?.payment_method ?? 'cash',
     customerNote: req.body?.customer_note ?? null,
+    serviceDate: req.body?.service_date ?? businessToday(),
   });
   res.status(201).json(out.kitchenOrderOut(state, order));
 });
 
-/** Sipariş alım şalteri — docs/10 S3. */
+/** Sipariş alım şalteri ve vitrin ayarları — docs/10 S3. */
 app.post('/__mock/location', (req, res) => {
   if (typeof req.body?.ordering_enabled === 'boolean') {
     state.location.ordering_enabled = req.body.ordering_enabled;
@@ -875,6 +1249,19 @@ app.post('/__mock/location', (req, res) => {
   }
   if (Array.isArray(req.body?.payment_methods)) {
     state.location.payment_methods = req.body.payment_methods;
+  }
+  if (typeof req.body?.daily_menu_enabled === 'boolean') {
+    state.location.daily_menu_enabled = req.body.daily_menu_enabled;
+  }
+  // `null` geçerli bir değer: kesim saati olmayan vitrinde gün hiç kapanmaz.
+  if ('order_cutoff' in (req.body ?? {})) {
+    state.location.order_cutoff = req.body.order_cutoff;
+  }
+  if (Array.isArray(req.body?.service_weekdays)) {
+    state.location.service_weekdays = req.body.service_weekdays;
+  }
+  if (Number.isInteger(req.body?.max_lookahead_days)) {
+    state.location.max_lookahead_days = req.body.max_lookahead_days;
   }
   res.json(out.locationOut(state.location));
 });
@@ -898,4 +1285,5 @@ app.use((err, _req, res, _next) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[mock] BLD mock API http://localhost:${PORT}/api`);
   console.log(`[mock] ${state.orders.length} örnek sipariş, eşleme kodu: ${PAIRING_CODE}`);
+  console.log(`[mock] ${state.dailyMenus.length} günlük menü, sözleşme anahtarı: ${CONTRACT_TOKEN}`);
 });

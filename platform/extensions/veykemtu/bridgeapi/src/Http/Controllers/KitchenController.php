@@ -486,10 +486,17 @@ class KitchenController extends ApiController
     /**
      * Bekleyen komutları döndürür ve teslim edilmiş işaretler.
      *
+     * SÜPÜRME ÖNCE KOŞUYOR ve sırası önemli: `recordCommandResults()` bu
+     * metottan önce çalışıyor (bkz. `health()`), yani aynı atımda gelen
+     * bir sonuç süpürmeye yakalanmaz. Tersi sırada, kasanın tam
+     * zamanında bildirdiği bir sonuç "ulaşmadı" diye kapatılırdı.
+     *
      * @return list<array<string, mixed>>
      */
     private function takeCommands(KitchenDevice $device): array
     {
+        KitchenCommand::sweepStale((int) $device->id);
+
         $commands = KitchenCommand::pendingFor($device->id)->limit(20)->get();
 
         if ($commands->isEmpty()) {
@@ -498,7 +505,15 @@ class KitchenController extends ApiController
 
         KitchenCommand::query()
             ->whereIn('id', $commands->pluck('id'))
-            ->update(['delivered_at' => Carbon::now()]);
+            // SAYAÇ TESLİMLE AYNI İFADEDE ARTIYOR. İki ayrı sorgu, arada
+            // düşen bir istekte komutu teslim edilmiş ama denenmemiş
+            // bırakırdı — yani `MAX_ATTEMPTS` hiç dolmazdı ve `K-23`'ün
+            // kapattığı on dakikalık döngü olduğu gibi geri gelirdi.
+            ->update([
+                'delivered_at' => Carbon::now(),
+                'attempts' => DB::raw('attempts + 1'),
+                'updated_at' => Carbon::now(),
+            ]);
 
         return $commands
             ->map(static fn(KitchenCommand $c): array => [

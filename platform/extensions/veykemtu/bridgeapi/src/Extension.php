@@ -10,6 +10,7 @@ use Igniter\Admin\Facades\Template;
 use Igniter\Flame\Support\Facades\Igniter;
 use Igniter\System\Classes\BaseExtension;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Cache\RateLimiting\Unlimited;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -22,8 +23,7 @@ use Override;
 use Throwable;
 use Veykemtu\BridgeApi\Admin\AdminRegistrar;
 use Veykemtu\BridgeApi\Admin\NavigationTrimmer;
-use Veykemtu\BridgeApi\Console\AccountEntryCommand;
-use Veykemtu\BridgeApi\Console\AccountPeriodCommand;
+use Veykemtu\BridgeApi\Console\AccountArchiveCommand;
 use Veykemtu\BridgeApi\Console\AdminUserCommand;
 use Veykemtu\BridgeApi\Console\AppReleaseCommand;
 use Veykemtu\BridgeApi\Console\DemoMenuCommand;
@@ -100,8 +100,10 @@ class Extension extends BaseExtension
         $this->registerConsoleCommand('veykemtu.siparisTemizle', PurgeOrdersCommand::class);
         $this->registerConsoleCommand('veykemtu.ceviriDenetle', TranslationAuditCommand::class);
         $this->registerConsoleCommand('veykemtu.siteIceriginiAktar', SiteContentImportCommand::class);
-        $this->registerConsoleCommand('veykemtu.cariHareket', AccountEntryCommand::class);
-        $this->registerConsoleCommand('veykemtu.cariDonemOzeti', AccountPeriodCommand::class);
+        // Cari hesap kaldırıldı; komut yalnızca ARŞİV içindir ve kaldırma
+        // göçünden önce elle koşulur (`docs/RUNBOOK.md` §9). Kayıtlı
+        // kalıyor ki arşiv, göçten bağımsız olarak tekrar alınabilsin.
+        $this->registerConsoleCommand('veykemtu.cariArsivle', AccountArchiveCommand::class);
         $this->registerConsoleCommand('veykemtu.abonelikUret', SubscriptionGenerateCommand::class);
         $this->registerConsoleCommand('veykemtu.surum', AppReleaseCommand::class);
     }
@@ -166,9 +168,11 @@ class Extension extends BaseExtension
      * Zamanlanmış işler — sunucudaki `schedule:run` cron'u tetikler.
      *
      * Gece üretim işi kesim saatinden ÖNCE (22:00) koşar; müşteriye sabaha
-     * kadar adet değiştirme payı kalır. İkisi de `withoutOverlapping` —
-     * uzun süren bir koşum bir sonrakiyle üst üste binmez. Saat dilimi
-     * `BusinessTime::ZONE` (Istanbul); sunucu UTC olsa da işler yerel saatle.
+     * kadar adet değiştirme payı kalır. `withoutOverlapping` — uzun süren
+     * bir koşum bir sonrakiyle üst üste binmez. Saat dilimi
+     * `BusinessTime::ZONE` (Istanbul); sunucu UTC olsa da iş yerel saatle.
+     *
+     * Ay-sonu cari özeti işi kaldırıldı: cari hesap iş modelinden çıktı.
      */
     #[Override]
     public function registerSchedule(Schedule $schedule): void
@@ -179,15 +183,6 @@ class Extension extends BaseExtension
             ->timezone(BusinessTime::ZONE)
             ->withoutOverlapping()
             ->runInBackground();
-
-        // 04:00 Istanbul = 01:00 UTC — ayın 1'inde kalır. `01:00` seçilseydi
-        // UTC'ye çevrilince önceki ayın son gününe kayar ve 31 çekmeyen
-        // aylarda hiç tetiklenmezdi (timezone + monthlyOn tuzağı).
-        $schedule->command('veykemtu:cari-donem-ozeti')
-            ->name('BLD cari ay-sonu özeti')
-            ->monthlyOn(1, '04:00')
-            ->timezone(BusinessTime::ZONE)
-            ->withoutOverlapping();
     }
 
     #[Override]
@@ -389,6 +384,66 @@ class Extension extends BaseExtension
     }
 
     /**
+     * Kendi kovasını ilan etmiş rotalarda STOK `api` KOVASINI ÇEKER.
+     *
+     * SORUN: `registerRoutes()` bütün API'yi Laravel'in hazır `api` ara
+     * katman kümesine sarıyor ve o kümenin ilk üyesi `throttle:api`, yani
+     * **60/dakika/IP**. Aşağıdaki bütçelerin hepsi onun İÇİNDE kalıyordu;
+     * gerçek tavan her zaman `min(60/dk, kendi kovası)` idi. Yani:
+     *
+     *   - `bld-kitchen` 2000/saat diye hesaplandı — kasa saniyede bir
+     *     yokluyor, tam 60/dk; tek bir fazladan istek `429` demek ve
+     *     mutfak sipariş göremiyor.
+     *   - `bld-control` 1200/saat ve `bld-control-panel` 3000/saat
+     *     (`docs/control/00-genel.md` §2) kâğıt üstünde ayrı iki kovaydı;
+     *     uygulamada ikisi de aynı 60/dk kovasında buluşuyordu, yani
+     *     ayrılığın koruduğu şey — paneldeki patlamanın mutfağı
+     *     kilitlememesi — hiç sağlanmıyordu.
+     *
+     * İKİNCİ BELİRTİ, HATAYI GÖRÜNÜR KILAN: `X-RateLimit-*` başlıklarını
+     * EN DIŞTAKİ `throttle` yazar (her katman dönüşte kendi başlığını
+     * üstüne basar). Dışarıdan bakan herkes — panel, KDS, testler —
+     * bütçesini `60` görüyordu.
+     *
+     * ÇÖZÜM KOVAYI KALDIRMAK DEĞİL, GERİ ÇEKMEK: `throttle:api`'yi rota
+     * kümesinden atsaydık `health`, `locations`, `site-content`, adres ve
+     * sipariş listesi gibi KENDİ KOVASI OLMAYAN uçlar tamamen sınırsız
+     * kalırdı. Bu yüzden stok kova yalnızca rota kendi adlandırılmış
+     * kovasını ilan etmişse `Unlimited` döner; ilan etmemiş her uç 60/dk
+     * korumasını aynen sürdürür. `Unlimited` durumunda Laravel sayaç da
+     * tutmaz, başlık da yazmaz — içteki kovanın başlıkları sağ kalır.
+     *
+     * TANIM BURADA EZİLİYOR, `RouteServiceProvider`'da DEĞİL: `app/`
+     * TastyIgniter'ın kendi iskeleti; kuralı uçların yaşadığı yere yazmak
+     * doğru yer.
+     *
+     * `booted()` KUYRUĞUNA ALINIYOR, DOĞRUDAN ÇAĞRILMIYOR: eklentiler
+     * TastyIgniter'ın paket sağlayıcısıyla, yani UYGULAMA sağlayıcılarından
+     * ÖNCE açılıyor. Doğrudan çağırsaydık `App\Providers\RouteServiceProvider`
+     * ve `ti-ext-api` kendi `boot()`'larında `for('api')`'yi ARDIMIZDAN
+     * yeniden tanımlar ve 60/dk geri gelirdi — nitekim geldi, tanım
+     * sessizce üzerine yazıldı. `booted` geri çağrıları bütün sağlayıcılar
+     * açıldıktan sonra koşar, yani son söz bizde.
+     */
+    private function yieldStockApiLimiter(): void
+    {
+        $this->app->booted(static function (): void {
+            RateLimiter::for('api', static function (Request $request): Limit|Unlimited {
+                foreach ($request->route()?->gatherMiddleware() ?? [] as $middleware) {
+                    // Küme adı (`api`) çözülmemiş hâlde durur; `throttle:`
+                    // ile başlayan her giriş rotanın KENDİ ilan ettiği kova.
+                    if (is_string($middleware) && str_starts_with($middleware, 'throttle:')) {
+                        return Limit::none();
+                    }
+                }
+
+                return Limit::perMinute(60)
+                    ->by((string) ($request->user()?->getKey() ?? $request->ip() ?? 'bilinmeyen'));
+            });
+        });
+    }
+
+    /**
      * Oran sınırları — `docs/03-api-sozlesmesi.md` §10.
      *
      * Mutfak sınırı cihaz başınadır, IP başına değil: kasa ve yönetici
@@ -396,6 +451,8 @@ class Extension extends BaseExtension
      */
     private function registerRateLimiters(): void
     {
+        $this->yieldStockApiLimiter();
+
         RateLimiter::for('bld-auth', static fn(Request $request): Limit => Limit::perMinute(60)
             ->by($request->ip() ?? 'bilinmeyen'));
 
@@ -503,6 +560,41 @@ class Extension extends BaseExtension
          * değil (`bld-partner` ile aynı gerekçe).
          */
         RateLimiter::for('bld-control', static fn(Request $request): Limit => Limit::perHour(1200)
+            ->by($request->ip() ?? 'bilinmeyen'));
+
+        /*
+         * KONTROL PANELİ — 3000/saat/IP (`docs/control/00-genel.md` §2).
+         *
+         * AYRI KOVA, ŞİŞİRİLMİŞ `bld-control` DEĞİL. Yukarıdaki 1200'lük
+         * bütçe YALNIZ KDS EKRANLARI için akıl yürütülmüştü: tek panel,
+         * cihaz + sipariş + özet yoklaması. Kontrol Merkezi'ne on dört
+         * yönetim alanı eklendi ve bunların beşi yokluyor; o bütçeyi
+         * vardiya ortasında tüketirler.
+         *
+         * Aynı kovaya koymanın bedeli SOMUT: panel `429` aldığı an mutfak
+         * kasası yönetimi de kilitlenir — cihaz iptal edilemez, ayar
+         * itilemez, sipariş revize edilemez. Yani paneldeki bir liste
+         * patlaması mutfağı vurur. Kovaları ayırmak cömertlik değil,
+         * bu bağı koparmak içindir.
+         *
+         * Sürekli yoklama bütçesi (tek yönetici, panel açık):
+         *
+         *   dashboard/overview   30 sn → 120
+         *   orders listesi       15 sn → 240
+         *   monitor/summary      60 sn →  60
+         *   menu/calendar       120 sn →  30
+         *   notifications rozeti 120 sn →  30
+         *                              ────
+         *                                480
+         *
+         * Kalan ~2520 kullanıcı kaynaklı: sayfalama, arama, düzenleme
+         * ekranları ve ikinci bir yöneticinin paneli.
+         *
+         * SINIR YİNE IP BAŞINA — Kontrol Merkezi tek sunucudan çıkıyor ve
+         * kimliği imza taşıyor, istek gövdesinde ayrı bir anahtar yok
+         * (`bld-control` ile aynı gerekçe).
+         */
+        RateLimiter::for('bld-control-panel', static fn(Request $request): Limit => Limit::perHour(3000)
             ->by($request->ip() ?? 'bilinmeyen'));
 
         /*

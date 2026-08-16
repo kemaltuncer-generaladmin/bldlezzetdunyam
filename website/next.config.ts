@@ -143,8 +143,12 @@ const nextConfig: NextConfig = {
        * hesap merkezi en yakın karşılık.
        *
        * `permanent: false` (307): cari yüzeyi bir ÜRÜN kararıyla kapandı,
-       * adres ölmedi. Uçlar, admin paneli ve `lib/api/account.ts` duruyor;
-       * karar geri alınırsa önbelleğe alınmış bir 308 yolu tıkamamalı.
+       * adres ölmedi. Uçlar (`/account/*`) ve admin paneli duruyor; sitedeki
+       * istemci sarmalayıcısı ise silindi, çünkü hiçbir yerden çağrılmayan
+       * bir modül ilk yanlış içe aktarmada cari yüzeyini sessizce geri
+       * getirirdi. Karar geri alınırsa önbelleğe alınmış bir 308 bu yolu
+       * tıkamamalı — 308'i tarayıcı kalıcı önbelleğe alır ve kullanıcının
+       * geçmişinden temizlenmesi mümkün değildir.
        */
       { source: '/hesabim/cari', destination: '/hesabim', permanent: false },
     ];

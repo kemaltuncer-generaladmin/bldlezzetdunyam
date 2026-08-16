@@ -12,6 +12,12 @@
 /// (`MenuItem.is_available`). İstemci kesim saati ya da geçmiş gün hesabı
 /// YAPMAZ — cihaz saati yanlış olabilir ve bağlayıcı denetim `POST /orders`
 /// anındadır.
+///
+/// Ekrandaki geri sayım bu cümleyi bozmuyor, doğruluyor: sunucunun gönderdiği
+/// mutlak anı (`DailyMenu.cutoffAt`) okunur hâle getiren bir SUNUMDUR, kapı
+/// değil. Sıfırlandığında ekran kilitlenmez, menü yeniden çekilir ve karar
+/// yine `is_orderable`'a bırakılır. Stok da aynı biçimde: rozet ve tavan
+/// sunucunun bildirdiği kalan porsiyonu yansıtır, rezervasyonu sunucu yapar.
 library;
 
 import 'package:bld_api_client/bld_api_client.dart';
@@ -28,13 +34,17 @@ import '../../theme/bld_semantic_colors.dart';
 import '../../theme/bld_theme.dart';
 import '../../widgets/bld_card.dart';
 import '../../widgets/empty_view.dart';
+import '../../widgets/menu_photo_grid.dart';
 import '../../widgets/money_text.dart';
 import '../../widgets/network_food_image.dart';
+import '../../widgets/order_cutoff_countdown.dart';
 import '../../widgets/pill.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/skeletons.dart';
 import '../../widgets/status_views.dart';
+import '../../widgets/stock_pill.dart';
 import '../cart/cart_controller.dart';
+import '../cart/cart_model.dart';
 import 'daily_menu_calendar_sheet.dart';
 import 'daily_menu_cart.dart';
 
@@ -329,11 +339,24 @@ class _DayChip extends StatelessWidget {
       _ => parsed == null ? '' : _weekdayShort(parsed.weekday, l10n),
     };
 
+    // Durum ekran okuyucuya YAZIYLA da gidiyor: kutunun altındaki 6 px işaret
+    // yalnız renkle konuşuyor ve renk tek başına bilgi taşımaz.
+    final soldOut = day?.soldOut ?? false;
+    final state = closed
+        ? l10n.dailyMenuLegendClosed
+        : soldOut
+        ? l10n.stockSoldOut
+        : null;
+
     return Semantics(
       button: true,
       selected: selected,
       enabled: browsable,
-      label: '${BusinessDate.long(date)} ${BusinessDate.weekday(date)}',
+      label: [
+        BusinessDate.long(date),
+        BusinessDate.weekday(date),
+        ?state,
+      ].join(' '),
       child: SizedBox(
         width: DayStrip._chipWidth,
         child: Material(
@@ -371,6 +394,7 @@ class _DayChip extends StatelessWidget {
                   const SizedBox(height: 4),
                   _DayMark(
                     closed: closed,
+                    soldOut: soldOut,
                     hasMenu: day?.hasMenu ?? false,
                     selected: selected,
                   ),
@@ -387,15 +411,23 @@ class _DayChip extends StatelessWidget {
 /// Gün kutusunun altındaki 6 px işaret.
 ///
 /// Renk TEK BAŞINA bilgi taşımıyor: kapalı gün ayrıca takvim sayfasında adıyla
-/// ve nedeniyle yazılı, menüsüz gün ise soluk çiziliyor ve dokunulamıyor.
+/// ve nedeniyle yazılı, menüsüz gün ise soluk çiziliyor ve dokunulamıyor,
+/// tükenmiş gün ise hem ekran okuyucuya yazıyla bildiriliyor
+/// ([_DayChip]) hem de açıldığında sebebiyle birlikte anlatılıyor.
 class _DayMark extends StatelessWidget {
   const _DayMark({
     required this.closed,
+    required this.soldOut,
     required this.hasMenu,
     required this.selected,
   });
 
   final bool closed;
+
+  /// O günün stoku bitti (`MenuCalendarDay.soldOut`). Gün yine GEZİLEBİLİR;
+  /// müşteri menüyü okuyabilmeli, yalnız sipariş verememeli.
+  final bool soldOut;
+
   final bool hasMenu;
   final bool selected;
 
@@ -404,8 +436,15 @@ class _DayMark extends StatelessWidget {
     final theme = Theme.of(context);
     final bld = context.bld;
 
+    // Sıra ÖNEMLİ: kapalı gün tükenmişi yener — kapalıysa zaten pişmiyor ve
+    // "tükendi" demek yarın gelmeyi vaat ederdi.
     final Color? color = closed
         ? bld.warningFg
+        : soldOut
+        // Menü var ama satış kapandı: marka rengi "buradan alınır" diyor,
+        // tükenmiş günde ise alınmıyor. Nötr yer tutucu tonu, hem "menü yok"
+        // boşluğundan hem de açık günün marka renginden ayrılıyor.
+        ? bld.placeholder
         : hasMenu
         ? (selected ? theme.colorScheme.onPrimary : theme.colorScheme.primary)
         : null;
@@ -474,13 +513,44 @@ class _DayContent extends ConsumerWidget {
             BldSpacing.md,
             0,
           ),
-          child: Text(
-            '${BusinessDate.long(menu.date)} · ${BusinessDate.weekday(menu.date)}',
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${BusinessDate.long(menu.date)} · ${BusinessDate.weekday(menu.date)}',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              // GÜN toplamının kalanı; kalem rozetleri ayrıca her satırda.
+              // Tavan konmamışsa rozet hiç çizilmiyor.
+              StockPill(remaining: menu.remainingPortions),
+            ],
           ),
         ),
+        // Geri sayım YALNIZ hâlâ sipariş alınan günde: kapanmış bir günün
+        // altında "son 0 dakika" yazmak, kapanmayı bir kez daha ve yanlış
+        // sözcüklerle anlatmak olurdu — sebep zaten aşağıdaki kutuda.
+        if (menu.isOrderable && menu.cutoffAt != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              BldSpacing.md,
+              BldSpacing.xs,
+              BldSpacing.md,
+              0,
+            ),
+            child: OrderCutoffCountdown(
+              cutoffAt: menu.cutoffAt!,
+              // Süre dolduğunda KARAR istemcide verilmiyor: menü ve takvim
+              // yeniden çekiliyor, `is_orderable` ne derse o oluyor.
+              onExpired: () {
+                ref.invalidate(dailyMenuProvider(menu.date));
+                final range = ref.read(menuCalendarRangeProvider);
+                if (range != null) ref.invalidate(menuCalendarProvider(range));
+              },
+            ),
+          ),
         if (menu.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: BldSpacing.xl),
@@ -544,6 +614,7 @@ class _DayContent extends ConsumerWidget {
                   item: item,
                   date: menu.date,
                   enabled: menu.isOrderable,
+                  dayRemaining: menu.remainingPortions,
                 ),
               ),
           ],
@@ -624,11 +695,41 @@ class _PackageCard extends ConsumerWidget {
     final saving = menu.packageSavingKurus;
     final itemsTotal = menu.itemsTotal;
 
+    // Paketin bağlı olduğu kalan: gün toplamı ile paketin kendi tavanından
+    // hangisi darsa o. Rozet bunu gösteriyor, sepete kaç tane girebileceği
+    // ise ayrı bir soru ([room]) — biri stok, öbürü sepet durumu.
+    final remaining = effectiveRemaining(
+      dayRemaining: menu.remainingPortions,
+      itemRemaining: package.remainingPortions,
+    );
+    final soldOut =
+        stockLevel(remaining: remaining, lowThreshold: 0) == StockLevel.soldOut;
+
+    final cart = ref.watch(cartProvider);
+    final room = maxAddable(
+      dayRemaining: menu.remainingPortions,
+      itemRemaining: package.remainingPortions,
+      alreadyInCartForDay: cart.quantityOn(menu.date),
+      alreadyInCartForItem: cart.quantityOfItemOn(menu.date, package.menuId),
+      hardMax: kMaxCartLineQuantity,
+    );
+
     // Devre dışı düğme HER ZAMAN bir sebep metniyle birlikte (marka kılavuzu).
+    //
+    // Sıra ÖNEMLİ ve en dıştaki engel önce söyleniyor: o güne hiç sipariş
+    // alınmıyorken "tükendi" demek, müşteriyi yarın tekrar denemeye
+    // gönderirdi. Stok iki ayrı cümleyle anlatılıyor — yemek gerçekten bitti
+    // mi, yoksa kalanın tamamı zaten müşterinin sepetinde mi? İkisini aynı
+    // metne sıkıştırmak, sepetini boşaltıp yeniden deneyen bir müşteri
+    // üretirdi.
     final String? blocker = !menu.isOrderable
         ? _unavailableMessage(menu, l10n)
         : !package.isAvailable
         ? (package.soldOutReason ?? l10n.dailyMenuPackageSoldOut)
+        : soldOut
+        ? l10n.dailyMenuPackageSoldOut
+        : room <= 0
+        ? l10n.cartStockAllInCart
         : !location.acceptsOrders
         ? (location.orderingPauseReason ?? l10n.menuOrderingClosed)
         : null;
@@ -642,8 +743,10 @@ class _PackageCard extends ConsumerWidget {
             borderRadius: const BorderRadius.vertical(
               top: Radius.circular(BldRadius.md),
             ),
-            child: NetworkFoodImage(
-              url: menu.imageUrl,
+            // Kapak varsa tek hücre, yoksa ilk dört kalemin 2×2 ızgarası —
+            // seçimi `cardImageUrls` yapıyor (sözleşmenin cümlesi orada).
+            child: MenuPhotoGrid(
+              imageUrls: menu.cardImageUrls,
               aspectRatio: 16 / 9,
               radius: 0,
             ),
@@ -653,10 +756,19 @@ class _PackageCard extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                BldPill(
-                  label: l10n.dailyMenuPackageBadge,
-                  variant: BldPillVariant.brand,
-                  icon: Icons.restaurant_outlined,
+                Wrap(
+                  spacing: BldSpacing.sm,
+                  runSpacing: BldSpacing.xs,
+                  children: [
+                    BldPill(
+                      label: l10n.dailyMenuPackageBadge,
+                      variant: BldPillVariant.brand,
+                      icon: Icons.restaurant_outlined,
+                    ),
+                    // `Wrap` şart: dar telefonda iki rozet yan yana sığmıyor
+                    // ve `Row` taşma hatası atardı.
+                    StockPill(remaining: remaining),
+                  ],
                 ),
                 const SizedBox(height: BldSpacing.sm),
                 Text(package.name, style: theme.textTheme.titleLarge),
@@ -732,6 +844,9 @@ class _PackageCard extends ConsumerWidget {
           item: item,
           locationId: location.id,
           serviceDate: menu.date,
+          // Gün toplamı ayrıca veriliyor: `packageAsMenuItem` yalnız paketin
+          // kendi tavanını taşıyor ve gün dolmuşken paket sınırsız görünürdü.
+          dayRemaining: menu.remainingPortions,
           packageComponents: menu.package!.components,
         );
 
@@ -793,6 +908,7 @@ class DailyMenuItemTile extends StatelessWidget {
     required this.item,
     required this.date,
     required this.enabled,
+    this.dayRemaining,
   });
 
   final MenuItem item;
@@ -801,6 +917,13 @@ class DailyMenuItemTile extends StatelessWidget {
   /// Günün kendisi sipariş edilebilir mi? Kalemin durumundan AYRI: kesim
   /// saati geçmiş bir günün kalemleri satışta görünse de sepete girmemeli.
   final bool enabled;
+
+  /// O günün TOPLAM kalan porsiyonu (`DailyMenu.remainingPortions`).
+  ///
+  /// Rozette kalemin kendi tavanıyla birlikte değerlendiriliyor: gün
+  /// toplamından 2 kalmışken bu yemekten 40 olduğunu duyurmak, müşteriye
+  /// alamayacağı bir adedi vaat etmek olurdu. **`null` sınırsız.**
+  final int? dayRemaining;
 
   @override
   Widget build(BuildContext context) {
@@ -842,17 +965,28 @@ class DailyMenuItemTile extends StatelessWidget {
                     ),
                   ],
                   const SizedBox(height: BldSpacing.sm),
-                  Row(
+                  Wrap(
+                    spacing: BldSpacing.sm,
+                    runSpacing: BldSpacing.xs,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       MoneyText(item.price, scale: MoneyScale.sm),
-                      if (!item.isAvailable) ...[
-                        const SizedBox(width: BldSpacing.sm),
+                      // Satışta olmayan kalemde stok rozeti YOK: "satışta
+                      // değil" ile "son 2 porsiyon" aynı satırda birbirini
+                      // yalanlar. Satıştaysa kalan konuşur.
+                      if (!item.isAvailable)
                         BldPill(
                           label: item.soldOutToday
                               ? l10n.productSoldOutToday
                               : l10n.menuItemUnavailable,
+                        )
+                      else
+                        StockPill(
+                          remaining: effectiveRemaining(
+                            dayRemaining: dayRemaining,
+                            itemRemaining: item.remainingPortions,
+                          ),
                         ),
-                      ],
                     ],
                   ),
                 ],

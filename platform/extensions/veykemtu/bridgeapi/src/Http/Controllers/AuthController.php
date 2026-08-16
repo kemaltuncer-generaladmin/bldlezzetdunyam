@@ -12,7 +12,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
-use Veykemtu\BridgeApi\Services\CustomerGate;
 use Veykemtu\BridgeApi\Services\OtpService;
 
 /**
@@ -33,11 +32,10 @@ class AuthController extends ApiController
             'password' => ['required', 'string', 'min:8', 'max:128'],
             'kvkk_accepted' => ['required', 'accepted'],
 
-            // Kurumsal (B2B) alanları — ŞİMDİLİK OPSİYONEL. Web ve mobil kayıt
-            // formları bu alanları göndermeye başlayana kadar zorunlu kılmak
-            // mevcut web kaydını 422 ile kırardı (ADR-09 kademeli geçiş).
-            // Sunucu her yeni kaydı yine de 'corporate' işaretler; alanlar
-            // dolunca (Aşama B) zorunluya çevrilecek.
+            // Kurum alanları — KALICI OLARAK OPSİYONEL. Kurumsal sipariş
+            // kapısı kalktı; bu alanlar artık bir yetki değil, faturaya ve
+            // fişe basılan serbest metin etikettir. Zorunlu kılmak, kurumu
+            // olmayan bir müşteriyi kayıt olamaz hâle getirirdi.
             'company_name' => ['sometimes', 'nullable', 'string', 'max:160'],
             'tax_office' => ['sometimes', 'nullable', 'string', 'max:120'],
             'tax_number' => ['sometimes', 'nullable', 'string', 'max:32'],
@@ -56,10 +54,14 @@ class AuthController extends ApiController
         $customer->telephone = $data['telephone'];
         $customer->password = $data['password'];
         $customer->customer_group_id = $this->defaultGroupId();
-        // B2B: her yeni kayıt kurumsaldır; bireysel self-servis kayıt yok.
+        // `bld_account_type` artık bir KAPI DEĞİL, SERBEST METİN ETİKET:
+        // kurumsal sipariş kapısı (`CustomerGate`) kaldırıldı ve herkes
+        // sipariş verebiliyor. Varsayılan yine 'corporate' — kolonun
+        // veritabanı varsayılanıyla ve bugüne kadarki her kayıtla aynı
+        // değer; değiştirmek geçmişi ikiye bölerdi.
         // Alanlar tek tek atanır (toplu fill değil) — çekirdek Customer'ın
         // fillable'ı bld_* kolonlarını içermez, AuthController kalıbı budur.
-        $customer->bld_account_type = CustomerGate::TYPE_CORPORATE;
+        $customer->bld_account_type = 'corporate';
         $customer->bld_org_name = $data['company_name'] ?? null;
         $customer->bld_tax_office = $data['tax_office'] ?? null;
         $customer->bld_tax_no = $data['tax_number'] ?? null;
@@ -166,7 +168,8 @@ class AuthController extends ApiController
         /** @var ApiCustomer $customer */
         $customer = $request->user();
 
-        $accountType = (string) ($customer->bld_account_type ?? CustomerGate::TYPE_CORPORATE);
+        // Kolon boşsa 'corporate' — grandfather davranışı korunuyor.
+        $accountType = (string) ($customer->bld_account_type ?: 'corporate');
 
         return $this->json([
             'id' => (int) $customer->customer_id,
@@ -175,10 +178,19 @@ class AuthController extends ApiController
             'email' => (string) $customer->email,
             'telephone' => (string) ($customer->telephone ?? ''),
             'default_location_id' => $this->defaultLocationId(),
-            // Kurumsal (B2B) alanları — additive. can_order istemci gating'i
-            // için: bireysel işaretli hesap sipariş veremez (sunucu da engeller).
+            /*
+             * `account_type` ve `can_order` YAYINLANMIŞ ALANLARDIR ve
+             * kurumsal sipariş kapısı kalksa da SİLİNMEZLER (`docs/03` §1.4:
+             * alan silinmez, sadece eklenir). Flutter modellerinde ikisi de
+             * nullable değil — silmek, konuşlanmış uygulamada ayrıştırma
+             * hatası demekti.
+             *
+             * `can_order` artık SABİT `true`: herkes sipariş verebiliyor.
+             * `account_type` saklanan dizeyi döndürmeye devam ediyor, çünkü
+             * kolon serbest metin etiket olarak duruyor.
+             */
             'account_type' => $accountType,
-            'can_order' => $accountType === CustomerGate::TYPE_CORPORATE,
+            'can_order' => true,
             'company_name' => $customer->bld_org_name,
             'contact_person' => $customer->bld_contact_person,
         ]);

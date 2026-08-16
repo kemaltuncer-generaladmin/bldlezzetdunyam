@@ -44,6 +44,78 @@ class ControlAudit extends Model
 
     public const string TARGET_ORDER = 'order';
 
+    /*
+     * ── Kontrol paneli alanlarının hedefleri (`docs/control/00-genel.md` §8.1)
+     *
+     * SABİT ADLARI VE DEĞERLERİ SÖZLEŞMEDEN BİREBİR GELİR. Faz planındaki
+     * kısa adlar (`TARGET_PRODUCT`, `TARGET_CONTRACT`, `TARGET_CMS`,
+     * `TARGET_QUOTE`, `TARGET_ERROR_EVENT`) burada karşılıklarıyla
+     * duruyor: ürün → `TARGET_MENU`, sözleşme →
+     * `TARGET_SUBSCRIPTION_CONTRACT`, içerik → üç ayrı tablo olduğu için
+     * `TARGET_SITE_CONTENT` / `TARGET_SITE_SERVICE` / `TARGET_SITE_POST`,
+     * talep → `TARGET_QUOTE_REQUEST`, hata olayı → `TARGET_MONITOR_EVENT`.
+     * İkinci bir ad seti tanımlanmadı: aynı `target_type` değerini iki
+     * sabitle yazmak, denetim ekranında filtrelenen değerin hangi sabitten
+     * geldiğini araştırmayı gerektirirdi.
+     *
+     * `target_type` sütunu `string(32)`; en uzunu (`subscription_contract`,
+     * 21 karakter) rahat sığıyor.
+     */
+
+    /** `veykemtu_daily_menus.id` — gün, kalem değil (`menu.md`). */
+    public const string TARGET_DAILY_MENU = 'daily_menu';
+
+    /** `menus.menu_id` — katalog ürünü (`products.md`). */
+    public const string TARGET_MENU = 'menu';
+
+    /** `categories.category_id`. */
+    public const string TARGET_CATEGORY = 'category';
+
+    /** `target_id` = `location_id` (`settings.md`). */
+    public const string TARGET_SETTINGS = 'settings';
+
+    /** `veykemtu_closed_days.id`. */
+    public const string TARGET_CLOSED_DAY = 'closed_day';
+
+    /** `veykemtu_subscriptions.id`. */
+    public const string TARGET_SUBSCRIPTION = 'subscription';
+
+    /** `veykemtu_quote_requests.id` — abonelik talebi. */
+    public const string TARGET_QUOTE_REQUEST = 'quote_request';
+
+    /** `veykemtu_subscription_contracts.id`. */
+    public const string TARGET_SUBSCRIPTION_CONTRACT = 'subscription_contract';
+
+    /** `veykemtu_subscription_payments.id`. */
+    public const string TARGET_SUBSCRIPTION_PAYMENT = 'subscription_payment';
+
+    /** `customers.customer_id` — KVKK gereği OKUMALARI da yazılır. */
+    public const string TARGET_CUSTOMER = 'customer';
+
+    /** `veykemtu_invoices.id`. */
+    public const string TARGET_INVOICE = 'invoice';
+
+    /** `target_id` YOK: birincil anahtar metin, `payload_json.key`'de. */
+    public const string TARGET_SITE_CONTENT = 'site_content';
+
+    /** `veykemtu_site_services.id`. */
+    public const string TARGET_SITE_SERVICE = 'site_service';
+
+    /** `veykemtu_site_posts.id`. */
+    public const string TARGET_SITE_POST = 'site_post';
+
+    /** `target_id` YOK: şablon anahtarı `payload_json.key`'de. */
+    public const string TARGET_SMS_TEMPLATE = 'sms_template';
+
+    /** `target_id` YOK: duyuru taslağı tekil bir ayardır. */
+    public const string TARGET_ANNOUNCEMENT = 'announcement';
+
+    /** `veykemtu_notifications.id` — uygulama içi duyuru. */
+    public const string TARGET_NOTIFICATION = 'notification';
+
+    /** `veykemtu_monitor_events.id` — toplanan hata olayı. */
+    public const string TARGET_MONITOR_EVENT = 'monitor_event';
+
     protected $table = 'veykemtu_control_audit';
 
     protected $guarded = [];

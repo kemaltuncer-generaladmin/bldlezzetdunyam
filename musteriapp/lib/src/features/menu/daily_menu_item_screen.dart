@@ -25,7 +25,9 @@ import '../../widgets/money_text.dart';
 import '../../widgets/network_food_image.dart';
 import '../../widgets/pill.dart';
 import '../../widgets/status_views.dart';
+import '../../widgets/stock_pill.dart';
 import '../cart/cart_controller.dart';
+import '../cart/cart_model.dart';
 import 'daily_menu_cart.dart';
 
 class DailyMenuItemScreen extends ConsumerWidget {
@@ -138,12 +140,32 @@ class _ItemFormState extends ConsumerState<_ItemForm> {
 
   int get _unitPrice => widget.item.unitPriceWith(_selectedValueIds);
 
+  /// Bu kalemin bağlı olduğu kalan porsiyon: gün toplamı ile kalem tavanından
+  /// hangisi darsa o. **`null` sınırsız.**
+  int? get _remaining => effectiveRemaining(
+    dayRemaining: widget.menu.remainingPortions,
+    itemRemaining: widget.item.remainingPortions,
+  );
+
+  /// Sepete daha kaç tane girebilir? (`bld_core` `maxAddable`)
+  int _room(Cart cart) => maxAddable(
+    dayRemaining: widget.menu.remainingPortions,
+    itemRemaining: widget.item.remainingPortions,
+    alreadyInCartForDay: cart.quantityOn(widget.menu.date),
+    alreadyInCartForItem: cart.quantityOfItemOn(
+      widget.menu.date,
+      widget.item.id,
+    ),
+    hardMax: kMaxCartLineQuantity,
+  );
+
   /// Sepete eklemeyi engelleyen sebep; yoksa `null`.
   ///
   /// Sıra ÖNEMLİ: en dıştaki engel önce söyleniyor. "Tükendi" demek, aslında
   /// o güne hiç sipariş alınmıyorken müşteriyi yarın tekrar denemeye
-  /// gönderirdi.
-  String? get _blocker {
+  /// gönderirdi. Aynı gerekçeyle stok en sonda ve İKİ cümleye ayrılmış:
+  /// yemek gerçekten bitti mi, yoksa kalanın tamamı zaten sepette mi?
+  String? _blocker(int room) {
     final l10n = AppLocalizations.of(context);
     if (!widget.location.acceptsOrders) {
       return widget.location.orderingPauseReason ?? l10n.menuOrderingClosed;
@@ -157,6 +179,11 @@ class _ItemFormState extends ConsumerState<_ItemForm> {
           ? (widget.item.soldOutReason ?? l10n.productSoldOutToday)
           : l10n.productUnavailableNotice;
     }
+    if (stockLevel(remaining: _remaining, lowThreshold: 0) ==
+        StockLevel.soldOut) {
+      return l10n.stockSoldOutNotice;
+    }
+    if (room <= 0) return l10n.cartStockAllInCart;
     return null;
   }
 
@@ -191,6 +218,9 @@ class _ItemFormState extends ConsumerState<_ItemForm> {
           locationId: widget.location.id,
           serviceDate: widget.menu.date,
           quantity: _quantity,
+          // Gün toplamı kalemin kendi alanında YOK; verilmezse gün dolmuşken
+          // bu kalem sınırsız görünür.
+          dayRemaining: widget.menu.remainingPortions,
           optionValueIds: _selectedValueIds.toList(),
           note: _note.text,
         );
@@ -209,7 +239,14 @@ class _ItemFormState extends ConsumerState<_ItemForm> {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final item = widget.item;
-    final blocker = _blocker;
+    final room = _room(ref.watch(cartProvider));
+    final blocker = _blocker(room);
+
+    // Tavan sepetteki adede göre daralabiliyor (başka bir sekmeden eklendi,
+    // yönetici tavanı indirdi). Seçili adet o zaman kendiliğinden iniyor:
+    // ekranda 5 yazarken sunucunun 2 kabul etmesi, hatayı en son adımda ve
+    // en pahalı yerde gösterirdi.
+    if (room > 0 && _quantity > room) _quantity = room;
 
     return Column(
       children: [
@@ -235,7 +272,15 @@ class _ItemFormState extends ConsumerState<_ItemForm> {
               const SizedBox(height: BldSpacing.sm),
               Text(item.name, style: theme.textTheme.headlineSmall),
               const SizedBox(height: BldSpacing.sm),
-              MoneyText(item.price, scale: MoneyScale.md),
+              Wrap(
+                spacing: BldSpacing.sm,
+                runSpacing: BldSpacing.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  MoneyText(item.price, scale: MoneyScale.md),
+                  StockPill(remaining: _remaining),
+                ],
+              ),
               if (item.description != null && item.description!.isNotEmpty) ...[
                 const SizedBox(height: BldSpacing.md),
                 Text(item.description!, style: theme.textTheme.bodyMedium),
@@ -261,6 +306,7 @@ class _ItemFormState extends ConsumerState<_ItemForm> {
               const SizedBox(height: BldSpacing.sm),
               _QuantityStepper(
                 quantity: _quantity,
+                max: room,
                 onChanged: (value) => setState(() => _quantity = value),
               ),
               const SizedBox(height: BldSpacing.lg),
@@ -491,9 +537,21 @@ class _OptionRow extends StatelessWidget {
 }
 
 class _QuantityStepper extends StatelessWidget {
-  const _QuantityStepper({required this.quantity, required this.onChanged});
+  const _QuantityStepper({
+    required this.quantity,
+    required this.max,
+    required this.onChanged,
+  });
 
   final int quantity;
+
+  /// Sepete daha kaç tane girebileceği (`bld_core` `maxAddable`).
+  ///
+  /// Artı düğmesi bu sayıda KAPANIR. Kapatmasaydık müşteri 8'e çıkarır,
+  /// "sepete ekle"ye basar ve tek bir uyarıyla 8'in de reddedildiğini
+  /// görürdü; sayacı kapatmak reddi hiç doğurmuyor.
+  final int max;
+
   final ValueChanged<int> onChanged;
 
   @override
@@ -526,7 +584,7 @@ class _QuantityStepper extends StatelessWidget {
           _StepButton(
             icon: Icons.add_outlined,
             semanticLabel: AppLocalizations.of(context).commonIncrease,
-            onPressed: () => onChanged(quantity + 1),
+            onPressed: quantity < max ? () => onChanged(quantity + 1) : null,
           ),
         ],
       ),

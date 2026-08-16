@@ -118,9 +118,11 @@ Faz 1'de tek vitrin döner. Dizi biçimi korunur (ileride vitrin eklenirse kır�
 { "data": [
   { "id":1, "name":"Benim Lezzet Dünyam", "slug":"catering",
     "is_open":true, "ordering_enabled":true,
-    "order_cutoff":"16:00", "min_order_total":25000,
+    "order_cutoff":"08:00", "min_order_total":25000,
+    "service_weekdays":[1,2,3,4,5],
+    "max_lookahead_days":7,
     "delivery_fee":4000,
-    "payment_methods":["cash","account","online"],
+    "payment_methods":["online","cash"],
     "busy": false,
     "busy_message":"Mutfağımız şu anda yoğun. Siparişiniz alınır ancak hazırlanması normalden uzun sürebilir.",
     "eta": {
@@ -134,7 +136,9 @@ Faz 1'de tek vitrin döner. Dizi biçimi korunur (ileride vitrin eklenirse kır�
 |---|---|
 | `is_open` | Çalışma saatlerinden **türetilir**. Şu an sipariş saati içinde miyiz? |
 | `ordering_enabled` | Yöneticinin admin panelden çevirdiği **elle ana şalter**. `false` ise saat uygun olsa bile sipariş alınmaz. |
-| `order_cutoff` | Günlük son sipariş saati (`HH:mm`, Europe/Istanbul) veya `null`. Admin panelden yönetilir. |
+| `order_cutoff` | Vitrinin **varsayılan** kesim saati (`HH:mm`, Europe/Istanbul) veya `null`. **ARTIK BAĞLAYICI DEĞİL (16.08.2026):** her servis günü kendi sabah kesim saatinde kapanır ve o saat Kontrol Merkezi'nden gün gün ayarlanır. Bağlayıcı olan `DailyMenu.cutoff_at` / `MenuCalendarDay.cutoff_at` alanlarındaki mutlak andır; bu alan yalnız "genelde saat kaçta kapanıyor" cümlesini kurar. |
+| `service_weekdays` | Menü çıkan haftanın günleri, ISO numaralarıyla (1 Pazartesi .. 7 Pazar). Bugün `[1,2,3,4,5]`. **Yalnız görüntüleme içindir** — gün seçici menüsüz günleri baştan soluk çizsin diye. Kararı `is_orderable` verir. Hafta sonu menü yok ama **satış kanalı açıktır**: cumartesi pazartesiye sipariş verilebilir. |
+| `max_lookahead_days` | Bugünden kaç gün sonrasına sipariş alınabileceği. **Sunucunun bugün döndürdüğü değer `7`.** Şemadaki `default: 30` katalog dönemine ait tarihsel bir annotasyondur ve korunuyor; istemci varsayılana değil yanıttaki gerçek değere bakar. |
 | `min_order_total` | Kuruş. Altında sipariş `422 VALIDATION_FAILED`. |
 | `delivery_fee` | Kuruş. `delivery` siparişe eklenir, `pickup`'ta uygulanmaz. İstemci toplamı **onaydan önce** gösterebilsin diye ilan edilir; bağlayıcı olan sunucunun sipariş anındaki hesabıdır. |
 | `payment_methods` | Bu vitrinde **açık** olan ödeme yöntemleri. İstemci ödeme ekranında yalnızca bunları gösterir. Listede olmayan bir yöntemle sipariş → `422 VALIDATION_FAILED`. |
@@ -225,11 +229,18 @@ Bir günün menüsü. `date` verilmezse **bugün** (Europe/Istanbul).
 { "data": {
   "id": 12, "date": "2026-08-20",
   "title": "Ev Yemeği Menüsü", "description": null, "image_url": null,
+  "image_urls": [
+    "https://cdn.../mercimek.jpg", "https://cdn.../tavuk-sote.jpg",
+    "https://cdn.../pilav.jpg", "https://cdn.../ayran.jpg"
+  ],
   "items_total": 20500, "currency": "TRY",
   "closed": false, "is_orderable": true, "unavailable_reason": null,
+  "cutoff_at": "2026-08-20T05:00:00Z",
+  "remaining_portions": 24,
   "package": {
     "menu_id": 7, "name": "Günün Menüsü", "price": 18000,
     "is_available": true, "sold_out_reason": null,
+    "remaining_portions": 12,
     "components": [
       { "menu_id":101, "name":"Mercimek Çorbası", "quantity":1,
         "image_url":null, "allergens":[] },
@@ -239,9 +250,11 @@ Bir günün menüsü. `date` verilmezse **bugün** (Europe/Istanbul).
   },
   "items": [
     { "id":101, "name":"Mercimek Çorbası", "price":4000, "currency":"TRY",
-      "is_available":true, "allergens":[], "options":[] },
+      "is_available":true, "remaining_portions":null,
+      "allergens":[], "options":[] },
     { "id":102, "name":"Tavuk Sote", "price":9000, "currency":"TRY",
-      "is_available":true, "allergens":["gluten"], "options":[] }
+      "is_available":true, "remaining_portions":4,
+      "allergens":["gluten"], "options":[] }
   ]
 }}
 ```
@@ -270,6 +283,79 @@ bugün değilse tükenme işaretleri hiç okunmaz. Bugünse, tükenen bir kalem
 kendi listesinde `is_available:false` olur; o kalem **paketin zorunlu bir
 parçasıysa paket de düşer**.
 
+#### `cutoff_at` — kesim anı (16.08.2026)
+
+`cutoff_at`, o güne sipariş kabulünün **bittiği mutlak andır** (UTC).
+Örnekteki `2026-08-20T05:00:00Z`, Europe/Istanbul'da 20 Ağustos 08:00'dir.
+
+**Neden saat değil de an.** Kesim kuralını üç dilde yeniden hesaplamak —
+TypeScript'te `Intl`, Dart'ta sabit `UTC+3`, PHP'de `Europe/Istanbul` —
+sapmanın kaynağıdır: yaz saati uygulaması, telefonun yanlış saat dilimi ve
+sunucunun UTC'si üç ayrı cevap üretir. Üstüne cihaz saatleri yalan söyler.
+Sunucu tek bir an gönderir, istemci onunla **yalnız geri sayım gösterir**.
+
+**Karar kapısı her zaman `is_orderable`'dır.** Geri sayım sıfırlandığında
+istemci ekranı kendi kararıyla kilitlemez; menüyü yeniden çeker ve
+`is_orderable`'a bakar. Cihaz saati beş dakika ileriyse hâlâ açık bir günü
+kapalı göstermek, saati geri olan cihazda kapalı günü açık göstermekten
+pahalıdır: biri satış kaybı, öbürü sunucunun zaten reddedeceği bir istek.
+
+#### `remaining_portions` — stok (16.08.2026)
+
+İki ayrı tavan var ve **hangisi önce dolarsa satışı o kapatır**:
+
+| Alan | Ne sayar |
+|---|---|
+| `remaining_portions` (kök) | O günün **toplam** kalan porsiyonu (gün tavanı). |
+| `package.remaining_portions` | Paketten kalan. |
+| `items[].remaining_portions` | O kalemden kalan (kalem tavanı). |
+
+**`null` sınırsız demektir, sıfır değil.** `null`'ı `0` sayan istemci,
+tavanı hiç konmamış bir günü tükenmiş gösterir. Sepete eklenebilecek azami
+adet iki tavanın `min()`'idir ve sepetteki mevcut adet **ikisinden ayrı
+ayrı** düşülür.
+
+Aritmetiğin normatif kaynağı **`docs/contract/sales-rules.cases.json`**'dır.
+Üç dilde üç ayrı uygulama var (`packages/core`, `website`, `platform`) ve üç
+test o dosyayı okur; kural değişirse üçü birden kırılır. Aynı hesabı üç kez
+elle yazmanın sahadaki hâli "web sitesinde 3 eklenebiliyor, uygulamada 2"
+olurdu.
+
+**Abonelikler stoku önce rezerve eder:** bu sayılar rezervasyon düşülmüş
+hâldedir. Abone sabah porsiyonunu garantiler, tek seferlik satış artandan
+yürür. Tersi olsaydı bir günü aboneler için ayırmak elle iş olurdu.
+
+#### `unavailable_reason` — iki yeni değer
+
+`no_service_day` ve `sold_out` 16.08.2026'da eklendi.
+
+| Değer | Anlamı |
+|---|---|
+| `closed_day` | İşletme o gün kapalı (tatil, özel gün). |
+| `not_published` | Menü henüz yayınlanmamış (taslak). |
+| `cutoff_passed` | O günün kesim saati geçti. |
+| `past` | Gün geçmişte. |
+| `too_far` | `max_lookahead_days` penceresinin dışında. |
+| `no_service_day` | O gün servis yok (hafta sonu). |
+| `sold_out` | Stok tükendi. |
+
+`no_service_day` ile `closed_day` ayrı tutuldu çünkü müşteriye kurulacak
+cümle ayrı: biri "hafta sonu servisimiz yok", öbürü "o gün kapalıyız". Aynı
+değere sıkıştırılsalardı istemci her hafta sonunu tatil gibi anlatırdı.
+**Bilinmeyen bir sebep istemciyi çökertmemeli**, genel bir "bu güne sipariş
+verilemiyor" metniyle karşılanmalıdır.
+
+#### `image_urls` — 2x2 ızgara
+
+Menünün **ilk dört kaleminin** görselleri, yöneticinin verdiği sırada;
+istemci 2x2 bir ızgarada dizer. Görseli olmayan kalem listeye girmez —
+dizide boş yer tutulmaz, yoksa üç uygulamada üç farklı yer tutucu çıkardı.
+
+Tekil `image_url` **kalıyor** ve varsa ızgaraya tercih edilir: o, yöneticinin
+o güne elle yüklediği kapaktır. Izgara, kapak yüklenmemiş günlerin boş kart
+görünmesini engellemek için var; menü listesinde günlerin çoğunun kapağı yok
+ve boş kart tıklanmıyor.
+
 ### GET /api/locations/{id}/menu-calendar?from=&to=
 
 Gün seçiciyi çizmek için aralık özeti. `from` verilmezse bugün, `to`
@@ -278,8 +364,16 @@ verilmezse `from`+30 gün; aralık **en fazla 92 gün** (aşılırsa `422`).
 ```json
 { "data": [
   { "date":"2026-08-20", "has_menu":true, "closed":false, "is_orderable":true,
+    "cutoff_at":"2026-08-20T05:00:00Z", "sold_out":false, "weekend":false,
     "title":"Ev Yemeği Menüsü", "package_price":18000, "note":null },
+  { "date":"2026-08-21", "has_menu":true, "closed":false, "is_orderable":false,
+    "cutoff_at":null, "sold_out":true, "weekend":false,
+    "title":"Kebap Menüsü", "package_price":19000, "note":null },
+  { "date":"2026-08-22", "has_menu":false, "closed":false, "is_orderable":false,
+    "cutoff_at":null, "sold_out":false, "weekend":true,
+    "title":null, "package_price":null, "note":null },
   { "date":"2026-08-23", "has_menu":false, "closed":true, "is_orderable":false,
+    "cutoff_at":null, "sold_out":false, "weekend":true,
     "title":null, "package_price":null, "note":"Kurban Bayramı" }
 ]}
 ```
@@ -287,6 +381,14 @@ verilmezse `from`+30 gün; aralık **en fazla 92 gün** (aşılırsa `422`).
 Yalnız **menüsü olan ya da kapalı olan** günler döner. Doksan günlük boş bir
 dizi, istemciye "her gün bir şey var" izlenimi verip her günü ayrı
 sorgulatırdı.
+
+**Üç additive alan (16.08.2026):**
+
+| Alan | Anlamı |
+|---|---|
+| `cutoff_at` | O günün kesim anı (UTC, mutlak). `DailyMenu.cutoff_at` ile aynı değerdir ve aynı gerekçeyle mutlak andır. Takvimde veriliyor ki gün seçici, her günü ayrı ayrı sorgulamadan "bugün 08:00'e kadar" bandını çizebilsin. |
+| `sold_out` | O günün stoku tükendi mi? **Tükenen gün takvimde görünmeye devam eder** — müşteri menüyü yine okuyabilmeli, yalnız sipariş verememelidir. Günü listeden düşürseydik "menü girilmemiş" ile "kapış kapış gitti" aynı boşluğa düşerdi. Kalan porsiyonun sayısı takvimde **verilmez**: takvim doksan güne kadar çizilir ve her gün için stok okumak listeyi gereksiz pahalı yapardı; sayı gün açıldığında `daily-menu` ile gelir. |
+| `weekend` | O gün servis günü dışında mı (`Location.service_weekdays`'te yok)? Adı "weekend" ama anlamı "servis yok". Ayrı alan olması istemcinin haftanın gününü kendi hesaplamasını gereksiz kılar. **Sipariş kanalı kapalı değildir** — cumartesi pazartesiye sipariş verilebilir; alan yalnız o hücrenin kendi servis gününü anlatır ve `is_orderable` zaten `false` olur (`unavailable_reason: no_service_day`). |
 
 ---
 
@@ -322,7 +424,7 @@ sorgulatırdı.
 | `delivery_type` | `delivery` \| `pickup`. |
 | `address` | `delivery` ise zorunlu, `pickup` ise yok sayılır. |
 | `requested_at` | Opsiyonel; vitrinin `order_cutoff` kuralına takılırsa `LOCATION_CLOSED`. |
-| `payment_method` | `online` \| `cash` (kapıda) \| `account` (cari hesap). Vitrinin `payment_methods` listesinde olmayan değer → `VALIDATION_FAILED`. |
+| `payment_method` | `online` \| `cash` (kapıda). Vitrinin `payment_methods` listesinde olmayan değer → `VALIDATION_FAILED`. `account` (cari hesap) **kaldırıldı** (§12.2); gönderilirse `VALIDATION_FAILED`, enum'da yalnız tarihsel siparişleri ayrıştırmak için duruyor. |
 
 #### Servis günü kapıları (B-19)
 
@@ -434,11 +536,19 @@ Kendi siparişleri, en yeni önce.
 Yalnızca `yeni` ve `onaylandi` durumlarında. Sonrasında `422 INVALID_TRANSITION`.
 **Yanıt 200** — güncel sipariş nesnesi.
 
-### POST /api/me/push-token
+### POST /api/me/push-token — **KULLANIMDAN KALDIRILDI (16.08.2026)**
 ```json
 { "fcm_token": "cXY...", "platform": "android" }
 ```
 **Yanıt 204.**
+
+Push bildirimi (FCM) kapsam dışına alındı; müşteriye ulaşmanın yolu
+**uygulama-içi duyuru** (`GET /api/announcements`, §15.5) ve SMS'tir.
+
+Uç sözleşmede duruyor (§1.4) ve token'ı kabul etmeye devam ediyor ama
+**hiçbir bildirim gönderilmiyor**. Sahadaki eski mobil sürümler açılışta bu
+ucu çağırıyor; kaldırılsaydı her açılışta `404` alıp hata ekranı
+gösterirlerdi. Yeni istemciler bu ucu **çağırmaz**.
 
 ---
 
@@ -817,6 +927,8 @@ Laravel Reverb. Bağlantı: `wss://api.benimlezzetdunyam.com.tr/app/<key>`
 | `/api/quote-requests` (POST) | 10 istek / saat / IP |
 | `/api/addresses/suggest`, `/api/addresses/reverse` | 30 istek / dakika / **hesap** (§13.5) |
 | `POST /api/partner/bbd/orders` | 300 istek / saat / IP (`bld-partner`) |
+| `POST /api/contracts/{token}/otp` | 5 istek / saat / **belirteç** (§15.4) |
+| `POST /api/client-errors` | 60 istek / dakika / IP (§15.6) |
 | Diğer | 120 istek / dakika / IP |
 
 **Mutfak sınırı neden 600 değil:** ilk gerekçe "5 sn polling'e yeter" idi —
@@ -855,6 +967,19 @@ yavaşlarsa kimse aç kalmaz. **IP başına**, çünkü o yüzeyin kimliğini is
 başına hesaplanan bir imza taşıyor — sayacı bağlayacak bir hesap kimliği yok
 ve Kontrol Merkezi zaten tek sunucudan çıkıyor.
 
+**Sözleşme OTP sınırı neden belirteç başına:** `/api/contracts/{token}/otp`
+kimlik istemez, imzalı bağlantıyı elinde tutan herkes çağırabilir. IP başına
+sayılsaydı aynı ofisten bakan iki abone birbirini kilitlerdi; hesap başına
+sayamıyoruz çünkü henüz oturum yok. Sayacın bağlanabileceği tek kimlik
+bağlantının kendisidir ve zaten korunması gereken de odur — bir sözleşme
+bağlantısına sınırsız SMS ısmarlanabilmesi doğrudan para kaybıdır.
+
+**`client-errors` sınırı neden bu kadar yüksek:** uç bir hata boşaltma
+yeridir ve asıl işi kaybedilen teşhis bilgisini yakalamaktır. Döngüye giren
+bir istemci sınırı doldurur ama sınıra takılan istek **sessizce düşer** —
+istemci `429` yüzünden ikinci bir hata üretmemelidir, yoksa hata bildirimi
+kendi kendini besleyen bir döngüye girer.
+
 ## 11. OpenAPI
 
 Makine tarafından okunabilir sözleşme: **`docs/openapi.yaml`** (OpenAPI 3.1). Bu markdown insan için açıklama, `openapi.yaml` ise **normatif** biçimdir; ikisi çelişirse `openapi.yaml` kazanır.
@@ -864,6 +989,12 @@ Makine tarafından okunabilir sözleşme: **`docs/openapi.yaml`** (OpenAPI 3.1).
 `platform/` aynı sözleşmeyi `openapi.json` olarak üretir (`php artisan veykemtu:openapi`). CI, üretilen `platform/openapi.json` ile `docs/openapi.yaml` arasında **anlamsal fark** olup olmadığını kontrol eder; fark varsa build kırmızıdır. Sunucu sözleşmeden sapamaz.
 
 ## 12. Kurumsal kayıt, cari hesap ve abonelik (Faz 2 — UYGULANDI)
+
+> **16.08.2026 — bu bölümün iki kararı değişti.** Kurumsal sipariş kapısı
+> kaldırıldı (§12.1) ve cari hesap tamamen kalktı (§12.2). Bölüm numaraları
+> **korunuyor**: `docs/` altındaki diğer dosyalar ve görev planı bu
+> numaralara atıf yapıyor ve yeniden numaralandırmak o atıfları sessizce
+> yanlış yere gönderirdi. Günlük menü satış modelinin tamamı §15'tedir.
 
 Tümü additive: mevcut alanlar değişmedi. Para her yerde kuruş `int`; **tutar/bakiye/anlaşmalı fiyat sunucuda hesaplanır**, istemci yalnız gösterir.
 
@@ -883,22 +1014,37 @@ Sistem tamamen B2B'ye geçti. Yeni her kayıt sunucuda `corporate` işaretlenir 
 
 `GET /api/auth/me` ve `updateMe` additive döner: `account_type`, `can_order`, `company_name`, `contact_person`. `tax_no`/`tax_office` yanıt profilinde salt-okunur. Eski istemci bu alanları yok sayar (uyum kuralı §1.4).
 
-**Sipariş kapısı:** `POST /api/orders` öncesi `CustomerGate::assertCorporate` çalışır; `bld_account_type !== 'corporate'` ise `403 FORBIDDEN`. Legacy müşteriler grandfather ile `corporate` olduğundan kırılmaz.
+**Sipariş kapısı KALDIRILDI (16.08.2026).** `CustomerGate` artık yok; `account_type` sipariş hakkını belirlemiyor ve **herkes sipariş verebiliyor**. Kurum alanları (`company_name`, `contact_person`, `tax_office`, `tax_number`, `company_phone`) serbest metin **etiket** olarak duruyor: panelde müşteriyi ayırmaya ve faturayı yazmaya yarıyor, bir yetki taşımıyor.
 
-### 12.2 Cari hesap — müşteri kendi verisi
+`can_order` alanı **silinmedi** ve artık her zaman `true` döner. Kaldırılsaydı sahadaki istemciler `undefined` görüp sipariş düğmesini hiç çizmezdi. Yeni istemciler bu alanı **okumamalı**; siparişin verilebilirliği vitrinin (`is_open`, `ordering_enabled`) ve günün (`DailyMenu.is_orderable`) durumundan okunur, bağlayıcı olan `POST /api/orders`'ın kendisidir.
 
-- **`GET /api/account/summary`** → `AccountSummary`: `{ balance, currency, as_of }`. `balance` işaretli kuruş; pozitif = müşterinin borcu.
-- **`GET /api/account/statement?from=&to=`** → `AccountStatement`: `{ opening_balance, closing_balance, currency, from, to, entries[] }`. `from`/`to` verilmezse sunucu son 3 ayı döner. Her `AccountEntry`: `date`, `entry_type` (`debit`\|`credit`), `amount` (pozitif kuruş), `running_balance` (yürüyen bakiye, işaretli), `source`, `description`. İstek yalnız **istek sahibinin** verisini döndürür (OrderController deseni).
+### 12.2 Cari hesap — **KALDIRILDI (16.08.2026)**
 
-- **`POST /api/account/payments`** (v2.0) → `{ payment_id, amount, balance, currency, status, redirect_url }`. İki mod: `{"amount": 250000}` istenen tutar, `{"full": true}` borcun tamamı.
+Günlük menü satış modeline geçişle birlikte cari hesap tamamen kalktı. Ödeme yöntemleri `online` ve `cash` ile sınırlı.
 
-  **Tutar sunucuda doğrulanır.** `full` modunda istemcinin gönderdiği hiçbir rakam okunmaz; bakiye yeniden hesaplanır. Aksi hâlde istemcinin ekranındaki eski bakiye ile gerçek borç ayrıştığında (arada bir sipariş geçmişse) müşteri eksik ödeyip "kapattım" sanırdı.
+**Silinen yollar:**
 
-  Borcu aşan tutar `422` ile reddedilir: fazla ödeme defterde negatif bakiye yaratır ve iadesi elle iş demektir.
+| Yol | Yerine |
+|---|---|
+| `GET /api/account/summary` | — (karşılığı yok) |
+| `GET /api/account/statement` | — (karşılığı yok) |
+| `POST /api/account/payments` | Abonelik dönem ödemesi: `POST /api/subscriptions/{id}/payments` (§15.3) |
 
-  Ödeme **bu uçta tamamlanmaz**. Niyet `veykemtu_account_payments` tablosuna `pending` yazılır, yanıttaki `redirect_url` sağlayıcının sayfasıdır (bugün simülasyon) ve defter ancak ödeme kesinleşince alacak satırı alır. İdempotency iki katmanda: niyetin `status` alanı ve defterdeki `(payment, account_payment, id, credit)` tekil indeksi.
+Silinen şemalar: `AccountSummary`, `AccountEntry`, `AccountStatement` ve `/account/payments` yanıtının gövdesi. `Cari hesap` etiketi de kaldırıldı.
 
-Fatura kesilmez (bkz. `docs/10` §4); tahsilat deftere ayrı `credit` hareketi olarak girer, `AccountPayment` geçidi bugünkü gibi `pending` kalır.
+**Neden gerçekten silindi, `deprecated` bırakılmadı.** Cari hesap bir ekran değil bir **defterdi**: bakiye, ekstre, ters kayıt, tahsilat mutabakatı. Yolları ayakta bırakmak, arkasındaki defteri de ayakta tutmak demekti; boş dönen bir bakiye ucu ise "borcum yok" diye okunacak ve ilk yanlış anlamada telefonla düzeltilecekti.
+
+> **BU, UYUM KURALININ (§1.4) TEK İSTİSNASIDIR VE BİLİNÇLİDİR.**
+>
+> **İstemciler sunucudan ÖNCE yayınlanmalıdır.** Sıra ters olursa sahadaki web ve mobil sürümler hâlâ çizdikleri cari hesap ekranını doldurmak için bu üç yolu çağırır ve `404` alır — kullanıcı, sebebini anlayamayacağı boş bir hata ekranı görür. Doğru sıra:
+>
+> 1. Cari hesap ekranlarını çıkaran istemci sürümleri yayınlanır (web, mobil).
+> 2. Zorunlu güncelleme eşiği (`GET /api/app-version` → `min_supported`) yükseltilir; eski mobil sürümler kapıda durdurulur.
+> 3. Ancak ondan sonra sunucudaki yollar kapatılır.
+
+**`PaymentMethod` enum'undaki `account` değeri KORUNDU.** Yeni siparişte asla dönmez ve istekte gönderilirse `422 VALIDATION_FAILED` alır; yalnızca cutover öncesi tarihsel siparişlerde görülür. Enum'dan çıkarılsaydı geçmiş sipariş listesini çözen istemci, kendi ürettiği kapalı birleşim tipine uymayan bir değerle karşılaşıp ayrıştırmayı kırardı — kırk sipariş geçmişi olan bir müşterinin listesi tek eski satır yüzünden hiç açılmazdı. Aynı gerekçeyle `Subscription.payment_mode` içindeki `account` da duruyor.
+
+`Location.payment_methods` listesi **hiçbir zaman `account` içermez**.
 
 ### 12.4 Telefonla giriş (OTP) — v2.0
 
@@ -944,7 +1090,17 @@ Anlaşmalı fiyat müşteri tarafından **set edilmez**; `POST` bir **talep** a�
 | `POST /api/subscriptions/{id}/cancel` | İptal (append-only; geçmiş silinmez) |
 | `POST /api/subscriptions/{id}/exceptions` | Tek-gün istisna (`skip` veya `quantity_override`) |
 
-`Subscription` şeması: `id, status, location_id, delivery_type, start_date, end_date, service_days[] (ISO 1..7), delivery_time_from/to, default_quantity, agreed_unit_price (null=fiyat bekliyor), payment_mode, menu_mode, lines[], delivery_points[], created_at`.
+`Subscription` şeması: `id, status, location_id, delivery_type, start_date, end_date, service_days[] (ISO 1..7), delivery_time_from/to, default_quantity, agreed_unit_price (null=fiyat bekliyor), payment_mode, menu_mode, lines[], delivery_points[], exceptions[], payment, contract, created_at`.
+
+**Additive alanlar (16.08.2026):**
+
+- **`exceptions[]`** — abonenin girdiği tek-günlük istisnalar (`service_date`, `skip`, `quantity_override`, `created_at`). Yalnız **bugün ve sonrası** döner; geçmiş istisnalar tabloda durur (append-only) ama listeye girmez. **Bir açığı kapatıyor:** `POST .../exceptions` istisnayı yazıyordu ama hiçbir uç geri okumuyordu — abone bir günü atladıktan sonra atladığını ekranda göremiyor, emin olmak için aynı günü tekrar tekrar atlıyordu.
+- **`payment`** — yürürlükteki dönemin ödeme özeti (`payment_id`, `period` (`YYYY-AA`), `amount`, `currency`, `status`, `due_date`) ya da `null`. Ödemenin **geçmişi burada değildir**; alan "şu an ne bekleniyor" sorusunu yanıtlar. Liste gömseydik abonelik listesi ekranı her satır için aylarca geriye giden bir dizi taşırdı.
+- **`contract`** — sözleşme özeti (`status`, `version`, `sent_at`, `approved_at`) ya da `null`. **Metin burada yoktur**, imzalı bağlantının arkasındadır (`GET /api/contracts/{token}`, §15.4) — sayfalarca sürüyor ve abonelik listesinde taşınacak bir şey değil.
+
+**`status` enum'una iki ara durum eklendi:** `awaiting_contract` (fiyat girildi, sözleşme onayı bekleniyor) ve `awaiting_payment` (sözleşme onaylandı, ilk dönem ödemesi bekleniyor). Ayrı tutulmalarının sebebi ekranın kuracağı cümlenin ayrı olması: birinde abonenin yapacağı iş sözleşmeyi onaylamak, öbüründe ödemek. Tek bir `pending` altında toplansalardı istemci "ne bekleniyor" sorusunu yanıtlayamaz, abone de hiçbir şey yapmadan beklerdi. **Eski istemci bu iki değeri tanımaz**; tanımadığı durumu "işleniyor" gibi nötr bir metinle göstermeli ve eylem düğmelerini kapatmalıdır.
+
+**Abonelik = günün menüsü + gün atlama.** Abonelik siparişleri gece üretilir ve KDS'e 07:00'de düşer. Abonelikler stoku **önce rezerve eder**: `remaining_portions` alanları rezervasyon düşülmüş hâldedir.
 
 **`menu_mode` (B-19'dan sonra):** `SubscriptionCreate` içinde **additive** bir alan; gönderilmezse `fixed_list` ve eski davranış birebir korunur.
 
@@ -1348,8 +1504,8 @@ tablo kendi kendini doğrulardı.
 **Bu uçlar iş mantığı taşımıyor.** Revizyon `OrderEditor`'da, durum geçişi
 `OrderStatusTransition`'da, ayarlar `KitchenDeviceSettings`'te, eşleme ve
 iptal `KitchenDevice`'ta. Hepsi mutfak kasasının kullandığı sınıfların ta
-kendisi — ayrı bir kopya yazılsaydı, sipariş merkezden düzenlendiğinde cari
-hesap ya da iade kaydı sessizce oluşmayabilirdi. Buradaki tek katman
+kendisi — ayrı bir kopya yazılsaydı, sipariş merkezden düzenlendiğinde iade
+kaydı sessizce oluşmayabilirdi. Buradaki tek katman
 "gerekçe iste, denetime yaz, kuru provada yazma" kabuğu.
 
 **ADR-08 burada geçerli değil.** Fiyat gizliliği **mutfak kapsamına** ait bir
@@ -1613,3 +1769,220 @@ Sınır **IP başına**, çünkü Kontrol Merkezi'nin kimliğini istek başına
 hesaplanan bir **imza** taşıyor, sabit bir anahtar değil; sayacı bağlayacak
 bir hesap kimliği yok ve panel tek sunucudan çıkıyor. Aşılırsa
 `429 RATE_LIMITED`.
+
+---
+
+## 15. Günlük menü satış modeli — sözleşme değişiklikleri (16.08.2026)
+
+İş modeli değişti: satış artık **günün menüsü** üzerinden yürüyor, her servis
+günü kendi sabah kesim saatinde kapanıyor, stok iki tavanla yönetiliyor ve
+abonelik imzalı sözleşme + peşin dönem ödemesiyle başlıyor. Bu bölüm o
+değişikliğin sözleşmeye yansıyan tamamını tek yerde topluyor.
+
+**Biri hariç hepsi additive'dir.** Tek istisna cari hesabın kaldırılmasıdır
+(§12.2) ve orada yazan **yayın sırası bağlayıcıdır: istemciler sunucudan
+önce**.
+
+### 15.1 Eklenen alanlar
+
+| Şema | Alan | Not |
+|---|---|---|
+| `Location` | `service_weekdays: int[]` | Menü çıkan haftanın günleri (ISO 1..7). Yalnız görüntüleme. |
+| `Location` | `max_lookahead_days` | Şema aynı; **sunucu değeri 7 oldu**. |
+| `DailyMenu` | `cutoff_at: string\|null` | Kesimin bittiği **mutlak an** (UTC). |
+| `DailyMenu` | `remaining_portions: int\|null` | Gün tavanı. `null` = sınırsız. |
+| `DailyMenu` | `image_urls: string[]` | İlk 4 kalemin görseli; 2x2 ızgara. |
+| `DailyMenu` | `unavailable_reason` += `no_service_day`, `sold_out` | |
+| `DailyMenuPackage` | `remaining_portions: int\|null` | |
+| `MenuItem` | `remaining_portions: int\|null` | Kalem tavanı; yalnız günün menüsünde dolu. |
+| `MenuCalendarDay` | `cutoff_at`, `sold_out`, `weekend` | |
+| `Subscription` | `exceptions[]`, `payment`, `contract` | |
+| `Subscription` | `status` += `awaiting_contract`, `awaiting_payment` | |
+| `Payment` | `payment_id: int\|null`, `next_action` | |
+
+Ayrıntılar ve gerekçeler: `Location`/`DailyMenu`/`MenuCalendarDay` için §3,
+`Subscription` için §12.3.
+
+### 15.2 `next_action` — gevşek enum
+
+`Payment.next_action` ve `SubscriptionPayment.next_action` ödemenin
+kesinleşmesi için **sıradaki adımı** söyler. Kararı sunucu verir; istemci
+ödeme tipine, tutara ya da bankaya bakarak bunu kendi çıkarmaz — o kural
+sağlayıcı tarafında ve bizim dışımızda değişir.
+
+| Değer | İstemci ne yapar |
+|---|---|
+| `none` | Ek adım yok. Sonuç `status` alanındadır. |
+| `otp` | Kullanıcıdan SMS kodu alır, `.../confirm` ucuna gönderir. |
+| `three_ds` | `redirect_url` adresine yönlendirir, dönüşte yoklar. |
+
+**Enum gevşektir.** İleride yeni adım tipleri eklenecektir (`app2app`,
+`biometric` gibi) ve ek değer kırıcı değişiklik sayılmaz. İstemci bilmediği
+değeri gördüğünde **çökmemeli** ve kendiliğinden `none` **varsaymamalıdır**:
+`none` saymak, atlanan bir doğrulama adımını "ödeme bitti" diye göstermek
+olurdu. Doğru davranış, kullanıcıya güncelleme gerektiğini söyleyip
+`GET /api/subscriptions/{id}/payments/{paymentId}` ile yoklamaya düşmektir.
+
+### 15.3 Abonelik dönem ödemesi
+
+| Uç | Ne yapar |
+|---|---|
+| `POST /api/subscriptions/{id}/payments` | Yürürlükteki dönem için ödeme başlatır → `SubscriptionPayment` |
+| `POST /api/subscriptions/{id}/payments/{paymentId}/confirm` | `{ code }` ile OTP onayı |
+| `GET /api/subscriptions/{id}/payments/{paymentId}` | Yoklama |
+
+**Tutar istekte gönderilmez.** Dönem tutarı sunucuda hesaplanır (servis günü
+sayısı × porsiyon × anlaşmalı fiyat, atlanan günler düşülmüş). İstemciden
+alınsaydı, ekranındaki tutar ile gerçek tutar ayrıştığı anda (arada bir gün
+atlanmışsa) abone eksik ödeyip "kapattım" sanırdı.
+
+**Aynı dönem için ikinci ödeme kaydı açılmaz.** Açık bir ödeme varken
+`POST` yenisini yaratmaz; `201` yerine `200` ve mevcut kaydı döndürür.
+İkinci bir kayıt açsaydık geri dönüp tekrar deneyen abone iki kayıt bırakır,
+ikisi de sağlayıcıda ayrı ayrı yaşar ve biri gecikmeli başarıya dönerse aynı
+dönem iki kez tahsil edilirdi.
+
+**Ödeme bu uçlarda tamamlanmaz.** `status` yalnız ödeme kesinleşince `paid`
+olur; istemci onu yoklamayla öğrenir. **Yoklama aralığı en az 2 saniye**
+olmalıdır — daha sık yoklamak yalnız oran sınırını doldurur ve sınıra takılan
+istemci, ödemesi başarılı olmuş aboneye başarısız ekranı gösterir.
+
+Yanlış OTP kodu `422` döner ve **denemeyi tüketir**; hak bittiğinde ödeme
+başarısız kapanır ve abone yeni bir ödeme başlatır. Sınırsız deneme, çalınan
+bir kartın kodunu aramanın önünü açardı.
+
+### 15.4 Abonelik sözleşmesi — imzalı bağlantı + SMS OTP
+
+| Uç | Kimlik | Ne yapar |
+|---|---|---|
+| `GET /api/contracts/{token}` | **yok** | Sözleşme metni + fiyat → `SubscriptionContract` |
+| `POST /api/contracts/{token}/otp` | **yok** | Sözleşmedeki telefona SMS kodu → `202 { message, expires_in, resend_after }` |
+| `POST /api/contracts/{token}/approve` | **yok** | `{ code, full_name? }` ile onaylar |
+
+**Neden kimlik gerektirmiyor.** Sözleşme bağlantısı aboneye SMS ile gidiyor
+ve onaylayan kişi çoğu zaman uygulamada oturum açmış kişi değil, satın almayı
+onaylayan yetkilidir. Oturum istemek onayı imkânsız hâle getirirdi. Koruma
+bağlantının kendisindedir: imzalı, süreli ve **kayıt kimliği taşımaz** —
+sıralı bir kimlik olsaydı bir bağlantıyı eline geçiren, komşu numaraları
+deneyerek başkalarının sözleşmelerini okuyabilirdi.
+
+**Numara istekte alınmaz**; kod sözleşmenin kayıtlı numarasına gider.
+İstemciden alınsaydı, bağlantıyı eline geçiren biri kodu kendi telefonuna
+ısmarlayıp sözleşmeyi onaylayabilirdi. İmzalı bağlantı tek başına kimlik
+değildir; SMS kodu ikinci etkendir. Oran sınırı **belirteç başına 5/saat**
+(§10): bir sözleşme bağlantısına sınırsız SMS ısmarlanabilmesi doğrudan para
+kaybıdır.
+
+**Yanıt bilinçli olarak dardır.** Kimlik gerektirmeyen bir uçtan döndüğü
+için abonenin adresleri, e-postası, sipariş geçmişi ve müşteri kimliği
+dönmez; telefon **maskeli** verilir (`0555 *** ** 33`). Tam numarayı basmak,
+bağlantıyı ele geçirene doğrulanmış bir telefon numarası hediye etmek olurdu.
+
+Metin `body` + `body_format` (`markdown` \| `plain`) olarak gelir. **HTML
+gönderilmez**: metin panelde yazılıyor ve doğrudan HTML gömmek, sözleşme
+sayfasına script sokabilecek bir kapı açardı.
+
+Süresi dolmuş bağlantı `410` **değil**, `200` + `status: expired` döner —
+istemci "bu bağlantının süresi doldu, yenisini isteyin" cümlesini kurabilmeli,
+boş bir hata sayfası görmemelidir. `404` yalnız belirteç hiç tanınmadığında.
+
+**Onay geri alınamaz** ve **idempotenttir**: aynı kodla ikinci çağrı `200` ve
+aynı gövdeyi döndürür. SMS'in gecikip kullanıcının iki kez dokunması sık
+yaşanıyor; ikincisinin hata vermesi, onaylanmış bir sözleşmede "onaylanamadı"
+yazan bir ekran demek olurdu. Vazgeçme, sözleşmenin iptali değil aboneliğin
+iptalidir (`POST /api/subscriptions/{id}/cancel`) — onay kaydı hukuki bir
+izdir ve silinmez.
+
+### 15.5 Uygulama-içi duyurular
+
+| Uç | Ne yapar |
+|---|---|
+| `GET /api/announcements?placement=` | Müşterinin şu anda görmesi gereken duyurular |
+| `POST /api/announcements/{id}/seen` | Görüldü işaretle (listeden düşürmez) |
+| `POST /api/announcements/{id}/dismiss` | Kapat (listeden düşürür) |
+
+**Push (FCM) yoktur.** Duyuru yalnız istemci açıkken çekilir. Bu, "duyuru
+okundu mu" sorusunun cevabını da değiştirir: görüldü işareti bildirimin
+tesliminden değil, duyurunun ekranda çizilmesinden doğar.
+
+Pencere ve kapatma filtresi **sunucuda** uygulanır ki üç istemci aynı kuralı
+üç kez yazmasın — cihaz saatine bakan bir istemci, saati kaymış telefonda
+süresi dolmuş duyuruyu göstermeye devam ederdi.
+
+`placement` **kapalı enum değildir**. Bilinen değerler: `home`, `menu`,
+`cart`, `checkout`, `orders`, `subscription`. Yerleşimler panelde tanımlanıyor
+ve yeni bir ekran açıldığında sözleşmeyi beklemek, duyurunun haftalarca
+yayınlanamaması demek olurdu. **İstemci tanımadığı yerleşimi hiç çizmez** —
+bilmediği bir yeri "ana sayfa" sayıp duyuruyu yanlış ekrana koymak, sessizce
+atlamaktan kötüdür. Bilinmeyen `placement` sorgusu `422` değil **boş liste**
+döndürür.
+
+`severity` (`info` \| `warning` \| `critical`) tonu, `dismissible`
+kapatılabilirliği söyler ve **ikisi ayrıdır**: kritik ama bir kez okunması
+yeten duyurular var ("yarın servis yok"). `dismissible: false` duyuruyu
+kapatma isteği `422` alır — hizmet kesintisi duyurusunu ilk dokunuşta yok
+etmek olurdu.
+
+İki işaret ucu da **idempotenttir**: tekrar çağrılmaları hata değildir.
+
+### 15.6 `POST /api/client-errors` — istemci hata bildirimi
+
+İstemcinin yakalayamadığı hataları sunucuya boşaltır. Kimlik
+**opsiyoneldir**: token varsa rapor müşteriye bağlanır, yoksa da kabul edilir.
+Hataların önemli bir kısmı tam da oturum açılamadığı için doğuyor ve orada
+token istemek, en çok ihtiyaç duyulan kaydı kaybettirirdi.
+
+Gövde (`ClientErrorReport`): `message` (zorunlu), `kind`, `stack`, `route`,
+`occurred_at`, `app_build`, `device`, `context`.
+
+> **`source` alanı gövdede BULUNMAZ.** Raporun hangi uygulamadan geldiğini
+> sunucu **`X-App-Id` başlığından türetir**. Gövdeye bırakılsaydı web sitesi
+> `mutfakapp` yazan bir rapor üretebilir ve mutfağın güvendiği hata
+> monitörüne **sahte KDS alarmı** düşürebilirdi — o monitör sahada "kasada
+> bir sorun var mı" sorusunun tek cevabı; zehirlendiğinde mutfak kör kalır.
+> Gövdede `source` gönderilirse **sessizce yok sayılır**, istek reddedilmez.
+
+**Yanıt her zaman `204`'tür** — doğrulama hatası bile dönmez. Bu ucun bir
+hata döndürmesi, hata bildirmeye çalışan istemcinin ikinci bir hata üretmesi
+demek olur ve kendini besleyen bir döngü doğar. Ayrıştırılamayan alanlar boş
+bırakılır, sınırı aşan metin kesilir, rapor yine kaydedilir. Oran sınırına
+takılan istek de **sessizce düşer**; istemci `429` yüzünden yeni bir hata
+raporu üretmemelidir.
+
+`context` içine **kişisel veri ve sır konmaz** — token, parola, kart bilgisi
+ya da tam adres gönderen istemci hata raporunu bir sızıntı kanalına çevirir.
+`route` sorgu dizesi olmadan gönderilir: adres çubuğundaki parametreler zaman
+zaman kişisel veri taşır ve hata kaydı onları saklamak için yanlış yerdir.
+
+### 15.7 Stok aritmetiği — `docs/contract/sales-rules.cases.json`
+
+Sepete eklenebilecek azami adet ve stok bandı **üç ayrı dilde** hesaplanıyor:
+`packages/core` (Dart), `website` (TypeScript), `platform` (PHP). Aynı kuralı
+üç kez yazmak, üç farklı kenar durum davranışı demektir; sahada ortaya çıkan
+hâli "web sitesinde 3 eklenebiliyor, uygulamada 2" olur.
+
+`docs/contract/sales-rules.cases.json` o kuralın **normatif kaynağıdır** ve
+üç test onu okur (`packages/core`, `website/e2e`, `platform/tests/Unit`).
+Kural değişirse üçü birden kırılır; tek bir dilde sessizce sapmak mümkün
+değildir.
+
+Kapsadığı iki saf fonksiyon:
+
+```
+maxAddable({dayRemaining, itemRemaining, alreadyInCartForDay,
+            alreadyInCartForItem, hardMax}) -> int
+stockLevel({remaining, lowThreshold}) -> 'unlimited'|'plenty'|'low'|'soldOut'
+```
+
+Sabitlenen anlamlar:
+
+- **`null` sınırsız demektir, asla sıfır değil.**
+- Gün tavanı ile kalem tavanı **`min()` ile birleşir** — kararın "hangisi
+  önce dolarsa kapatır" kısmı budur.
+- Sepetteki mevcut adet iki tavandan da **ayrı ayrı** düşülür.
+- `hardMax` satır başı tavandır (`website/lib/cart.ts` içindeki
+  `MAX_QUANTITY = 99`) ve o satırda duran adet ondan da düşülür.
+- Sonuç **asla negatif olmaz**: yönetici tavanı sepet doldurulduktan sonra
+  indirmiş olabilir; cevap `0`'dır.
+- Stok bandı **sepetten bağımsızdır**; ham kalanı anlatır. Eşiğin kendisi
+  `low` sayılır.

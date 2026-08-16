@@ -29,6 +29,7 @@ import '../../router/app_router.dart';
 import '../../widgets/empty_view.dart';
 import '../../widgets/eta_notice.dart';
 import '../../widgets/status_views.dart';
+import '../../widgets/stock_pill.dart';
 import '../cart/cart_controller.dart';
 import '../cart/cart_model.dart';
 import '../location/pin_field.dart';
@@ -382,8 +383,18 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
     final offline = ref.watch(connectivityProvider);
     final methods = _methods;
 
+    // Stok bu ekranda da denetleniyor: sepet ekranından geçen bir sepet
+    // burada dakikalarca form doldururken tükenebilir. Menü henüz gelmediyse
+    // engel konmuyor — bilinmeyeni "tükendi" saymak satışı kapatırdı.
+    final menu = ref
+        .watch(dailyMenuProvider(widget.serviceDate))
+        .valueOrNull
+        ?.menu;
+    final overStock = menu != null && cartExceedsStock(cart, menu);
+
     final blockers = <String>[
       if (!widget.location.acceptsOrders) l10n.checkoutOrderingClosed,
+      if (overStock) l10n.cartStockExceeded,
       if (offline) l10n.offlineOrderBlocked,
       if (methods.isEmpty) l10n.checkoutPaymentMethodsEmpty,
     ];
@@ -409,6 +420,7 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
                 _ServiceDateBanner(
                   serviceDate: widget.serviceDate,
                   isToday: widget.isToday,
+                  remaining: menu?.remainingPortions,
                 ),
                 _SectionTitle(l10n.checkoutDeliveryType),
                 SegmentedButton<DeliveryType>(
@@ -572,10 +584,20 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
 /// üründe kural, istisna değil. Müşteri cuma menüsünü perşembe ödüyor ve
 /// "bugün mü geliyor" sorusunun cevabı formu doldurmadan ÖNCE görünmeli.
 class _ServiceDateBanner extends StatelessWidget {
-  const _ServiceDateBanner({required this.serviceDate, required this.isToday});
+  const _ServiceDateBanner({
+    required this.serviceDate,
+    required this.isToday,
+    this.remaining,
+  });
 
   final String serviceDate;
   final bool isToday;
+
+  /// O günün kalan porsiyonu; **`null` sınırsız ya da henüz bilinmiyor**.
+  ///
+  /// Rozet yalnız azaldığında çıkıyor: ödeme ekranında "42 porsiyon var"
+  /// demek, formu dolduran müşteriye hiçbir şey söylemez.
+  final int? remaining;
 
   @override
   Widget build(BuildContext context) {
@@ -610,6 +632,7 @@ class _ServiceDateBanner extends StatelessWidget {
               ),
             ),
           ),
+          StockPill(remaining: remaining),
         ],
       ),
     );

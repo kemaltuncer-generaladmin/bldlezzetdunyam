@@ -12,7 +12,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Veykemtu\BridgeApi\Support\BusinessTime;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
-use Veykemtu\BridgeApi\Models\AccountLedgerEntry;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
 use Veykemtu\BridgeApi\Models\DailyMenu;
 use Veykemtu\BridgeApi\Models\Subscription;
@@ -36,10 +35,10 @@ class OrderFactory
     public function __construct(
         private readonly LocationGate $gate,
         private readonly OrderStatusTransition $transitions,
-        private readonly AccountLedger $ledger,
         private readonly LineResolver $lines,
-        private readonly CreditLimit $creditLimit,
         private readonly DailyMenuService $dailyMenus,
+        private readonly OrderingWindow $window,
+        private readonly DailyStock $stock,
     ) {}
 
     /**
@@ -63,10 +62,21 @@ class OrderFactory
         ?string $serviceDate = null,
     ): Order {
         /*
+         * SERVİS GÜNÜ EN BAŞTA ÇÖZÜLÜYOR (S1).
+         *
+         * Eskiden yalnız `bld_daily_menu_enabled` açıkken çözülüyordu; artık
+         * sipariş penceresi menü rejiminden bağımsız uygulandığı için gün her
+         * yolda gerekli. Tek yerde çözülmesi, aşağıdaki üç kullanımın
+         * (pencere, menü, `bld_service_date`) aynı günü görmesinin garantisi.
+         */
+        $date = $this->dailyMenus->resolveServiceDate($serviceDate, $requestedAt);
+
+        /*
          * VİTRİN KAPILARI PANELDE UYGULANMAZ (B-13).
          *
-         * `assertAcceptsOrder` üç şeye bakıyor: sipariş alım şalteri, kesim
-         * saati ve vitrinin açık olması. Üçü de MÜŞTERİNİN kendi kendine
+         * İki kapı var: sipariş alım şalteri (`assertAcceptsOrder`) ve
+         * sipariş penceresi (`assertWithinWindow` — geçmiş gün, ileri görüş
+         * penceresi, o günün kesim saati). İkisi de MÜŞTERİNİN kendi kendine
          * sipariş vermesini düzenler. Telefonla arayan müşteriye "sipariş
          * alımı kapalı" demek, siparişi zaten kabul etmiş olan yöneticiye
          * kendi sistemini kullandırmamak olurdu — o kararı insan verdi.
@@ -74,33 +84,41 @@ class OrderFactory
          * Asgari sepet tutarı da aynı sebeple atlanıyor: yönetici 200 TL'lik
          * asgariyi bilerek esnetebilir, sistem onu engellemez.
          *
-         * ATLANMAYANLAR — ve neden:
-         *   ödeme yöntemi : vitrinde tanımlı olmayan bir yöntemle sipariş,
-         *                   tahsilat tarafında karşılıksız kalır;
-         *   cari limiti   : limitin amacı zaten insanı korumak, insanın
-         *                   telefonda unutmasına karşı duruyor.
+         * ATLANMAYAN — ve neden: ödeme yöntemi. Vitrinde tanımlı olmayan bir
+         * yöntemle sipariş, tahsilat tarafında karşılıksız kalır.
          */
         if (!$adminContext) {
-            $this->gate->assertAcceptsOrder($location, $requestedAt);
+            $this->gate->assertAcceptsOrder($location);
+
+            /*
+             * PENCERE KOŞULSUZ UYGULANIR — `bld_daily_menu_enabled`
+             * KAPALIYKEN DE (S1).
+             *
+             * DOĞRULANMIŞ AÇIK: şalter kapalıyken aşağıdaki blok hiç
+             * koşmuyor, yani `assertOrderable()` da hiç çağrılmıyordu. Kesim
+             * denetimi `LocationGate`'ten çıkınca, şalter kapalı bir
+             * kurulumda HİÇ KESİM KALMAZDI: gece 03:00'te bugüne sipariş
+             * girer, mutfak sabah pişiremeyeceği bir siparişle uyanırdı.
+             * Pencere bu yüzden menü rejiminin dışında, siparişin kendi
+             * kapısı olarak duruyor.
+             */
+            $this->window->assertWithinWindow($location, $date);
         }
 
         $this->gate->assertPaymentMethodAllowed($location, $paymentMethod);
 
         /*
-         * SERVİS GÜNÜ VE O GÜNÜN MENÜSÜ (B-19).
+         * O GÜNÜN MENÜSÜ (B-19).
          *
-         * Gün kapıları (yayınlanmış menü var mı, kapalı gün mü, ileri görüş
-         * penceresi aşıldı mı) vitrin kapılarıyla aynı yerde: `$adminContext`
-         * onları da atlıyor. Gerekçe yukarıdakinin aynısı — telefonu açan
-         * yönetici istisnayı insan olarak veriyor ve bunu sistemin ikinci kez
-         * sorgulaması işi yapılamaz kılardı. Menü yine de çözülüyor: paket
-         * satırının fiyatı ondan geliyor.
+         * Menü kapıları (yayınlanmış menü var mı, kapalı gün mü) vitrin
+         * kapılarıyla aynı yerde: `$adminContext` onları da atlıyor. Gerekçe
+         * yukarıdakinin aynısı — telefonu açan yönetici istisnayı insan
+         * olarak veriyor. Menü yine de çözülüyor: paket satırının fiyatı
+         * ondan geliyor.
          */
         $day = null;
 
         if ($this->gate->dailyMenuEnabled($location)) {
-            $date = $this->dailyMenus->resolveServiceDate($serviceDate, $requestedAt);
-
             $day = $adminContext
                 ? $this->dailyMenus->publishedFor($location, $date)
                 : $this->dailyMenus->assertOrderable($location, $date);
@@ -122,11 +140,6 @@ class OrderFactory
             ? $this->gate->deliveryFee($location)
             : 0;
 
-        // Cari hesapla ödemede limit kontrolü — borç deftere düşmeden ÖNCE.
-        if ($paymentMethod === 'account') {
-            $this->creditLimit->assertAllows($customer, $subtotal + $deliveryFee);
-        }
-
         /*
          * SERVİS GÜNÜ — `orders.bld_service_date`.
          *
@@ -135,13 +148,12 @@ class OrderFactory
          * sorgunun (mutfak panosu, üretim listesi, abonelik planı) hiç
          * değişmeden doğru kalmasının tek şartı.
          */
-        $serviceDay = $day?->menu_date->copy()->startOfDay()
-            ?? $this->dailyMenus->resolveServiceDate($serviceDate, $requestedAt);
+        $serviceDay = $day?->menu_date->copy()->startOfDay() ?? $date;
 
         return DB::transaction(function () use (
             $customer, $location, $deliveryType, $lines, $address,
             $requestedAt, $paymentMethod, $customerNote, $subtotal, $deliveryFee,
-            $subscriptionId, $serviceDay,
+            $subscriptionId, $serviceDay, $adminContext,
         ): Order {
             $addressId = $deliveryType === Order::DELIVERY
                 ? $this->storeAddress($customer, $address)
@@ -197,26 +209,37 @@ class OrderFactory
             $this->lines->writeLines($order, $lines);
             $this->lines->rewriteTotals($order, $subtotal, $deliveryFee);
 
+            /*
+             * STOK DÜŞÜMÜ — İŞLEMİN İÇİNDE, SATIRLAR YAZILDIKTAN SONRA (S2).
+             *
+             * İŞLEMİN İÇİNDE OLMASI TAM İSTENEN: tavan yetmezse
+             * `DailyStock::take()` `ITEM_UNAVAILABLE` fırlatır ve
+             * `DB::transaction` siparişin TAMAMINI geri alır. Dışarıda
+             * yapılsaydı, stoku olmayan bir sipariş kaydı doğar ve mutfağa
+             * düşerdi; telafisi elle olurdu.
+             *
+             * SON ADIM OLMASI DA ÖNEMLİ: düşüm satırı InnoDB'de işlem
+             * sonuna kadar kilitli kalıyor. Ne kadar geç kilitlenirse yoğun
+             * saatte o kadar az bekleyen olur.
+             *
+             * `allowOvershoot: $adminContext` — panelden telefonla girilen
+             * siparişte tavan denetlenmiyor. Bu metotta zaten kesim saati,
+             * asgari tutar ve menü üyeliği aynı gerekçeyle atlanıyor:
+             * telefonu açan yönetici "bir porsiyon daha çıkarırız" kararını
+             * insan olarak verdi ve sistemin onu ikinci kez sorgulaması işi
+             * yapılamaz kılardı. Aşım kayda geçiyor (`sold > capacity`) ve
+             * Kontrol Merkezi'nde görünür.
+             */
+            $this->stock->take(
+                (int) $location->location_id,
+                $serviceDay,
+                $this->lines->stockDemand($lines),
+                allowOvershoot: $adminContext,
+            );
+
             // Durum geçmişinin ilk satırı burada doğar; çekirdeğin metodu
             // status_history'yi ve bildirimleri yönetir.
             $order->updateOrderStatus($order->status_id, ['notify' => false]);
-
-            // Cari hesap ödemesinde sipariş borcu deftere düşer. Aynı
-            // transaction içinde: sipariş rollback olursa borç da yazılmaz.
-            // `account` geçidi tahsilat YAPMAZ (sipariş `pending` kalır);
-            // tahsilat sonra ayrı bir alacak hareketi olarak girilir.
-            if ($paymentMethod === 'account') {
-                $this->ledger->record(
-                    customerId: (int) $customer->customer_id,
-                    type: AccountLedgerEntry::TYPE_DEBIT,
-                    amountKurus: $subtotal + $deliveryFee,
-                    source: AccountLedgerEntry::SOURCE_ORDER,
-                    referenceType: 'order',
-                    referenceId: (int) $order->order_id,
-                    description: 'Sipariş #'.$order->order_id,
-                    effectiveDate: $when,
-                );
-            }
 
             return $order->refresh();
         });
@@ -225,12 +248,12 @@ class OrderFactory
     /**
      * Abonelikten o günün siparişini üretir.
      *
-     * Müşteri `create()` yolundan AYRI metot: `LocationGate` kapıları (kesim
-     * saati, asgari tutar, şalter) UYGULANMAZ — bu bir sözleşme siparişidir,
+     * Müşteri `create()` yolundan AYRI metot: vitrin kapıları (satış şalteri,
+     * asgari tutar) ve sipariş penceresi (kesim saati, ileri görüş penceresi)
+     * UYGULANMAZ — bu bir sözleşme siparişidir,
      * vitrin siparişi değil. Fiyat menü LİSTE fiyatından değil, aboneliğin
      * ANLAŞMALI fiyatından gelir ve o günkü değeriyle siparişe KOPYALANIR;
-     * sonraki menü zammı üretilmiş siparişi bozmaz. `account` ödeme modunda
-     * cari borç aynı transaction içinde düşer.
+     * sonraki menü zammı üretilmiş siparişi bozmaz.
      *
      * `menu_mode = daily_menu` aboneliğinde satırlar o günün yayınlanmış
      * menüsünden gelir; menü yoksa metot PATLAR ve çağıran
@@ -253,9 +276,14 @@ class OrderFactory
             : Order::COLLECTION;
         // Anlaşmalı fiyat teslimatı kapsar; abonelik siparişinde ekstra
         // teslimat ücreti alınmaz.
-        $paymentMethod = $subscription->payment_mode === Subscription::PAYMENT_ACCOUNT
-            ? 'account'
-            : 'cash';
+        //
+        // ÖDEME YÖNTEMİ SABİT `cash`: cari hesap kaldırıldıktan sonra tek
+        // abonelik ödeme modu peşin aylık (`prepaid_monthly`) ve o para
+        // sipariş başına değil, sözleşme üzerinden tahsil ediliyor. Sipariş
+        // yine de bir ödeme koduna İHTİYAÇ DUYUYOR (`orders.payment` →
+        // `payments.code`); `online` yazmak, hiç yapılmamış bir sanal POS
+        // tahsilatını ima ederdi.
+        $paymentMethod = 'cash';
 
         return DB::transaction(function () use (
             $subscription, $point, $serviceDate, $lines, $subtotal, $deliveryType, $paymentMethod,
@@ -300,19 +328,6 @@ class OrderFactory
             $this->lines->writeLines($order, $lines);
             $this->lines->rewriteTotals($order, $subtotal, 0);
             $order->updateOrderStatus($order->status_id, ['notify' => false]);
-
-            if ($paymentMethod === 'account') {
-                $this->ledger->record(
-                    customerId: (int) $customer->customer_id,
-                    type: AccountLedgerEntry::TYPE_DEBIT,
-                    amountKurus: $subtotal,
-                    source: AccountLedgerEntry::SOURCE_ORDER,
-                    referenceType: 'order',
-                    referenceId: (int) $order->order_id,
-                    description: 'Abonelik siparişi #'.$order->order_id,
-                    effectiveDate: $serviceDate,
-                );
-            }
 
             return $order->refresh();
         });

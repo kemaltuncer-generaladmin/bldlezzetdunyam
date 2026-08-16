@@ -40,17 +40,17 @@
                     <label class="form-label" for="bld-customer">
                         @lang('veykemtu.bridgeapi::phoneorder.label_customer')
                     </label>
-                    {{-- Arama kutusu değil `select`: kurumsal müşteri sayısı
-                         onlarla ifade ediliyor ve tarayıcının kendi yazarak
-                         bulma davranışı, yazdığımız her AJAX aramasından
-                         hızlı ve güvenilir. --}}
+                    {{-- Arama kutusu değil `select`: müşteri sayısı onlarla
+                         ifade ediliyor ve tarayıcının kendi yazarak bulma
+                         davranışı, yazdığımız her AJAX aramasından hızlı ve
+                         güvenilir. --}}
+                    {{-- `data-limit` (cari borç limiti) kalktı: cari hesap
+                         kaldırıldı ve öznitelik zaten hiçbir betik tarafından
+                         okunmuyordu. --}}
                     <select class="form-select" id="bld-customer" name="customer_id">
                         <option value="0">@lang('veykemtu.bridgeapi::phoneorder.option_new_customer')</option>
                         @foreach ($customers as $customer)
-                            <option
-                                value="{{ $customer->customer_id }}"
-                                data-limit="{{ $customer->bld_credit_limit_kurus === null ? '' : (int) $customer->bld_credit_limit_kurus }}"
-                            >
+                            <option value="{{ $customer->customer_id }}">
                                 {{ $customer->bld_org_name ?: trim($customer->first_name.' '.$customer->last_name) }}
                                 @if ($customer->telephone) — {{ $customer->telephone }} @endif
                             </option>

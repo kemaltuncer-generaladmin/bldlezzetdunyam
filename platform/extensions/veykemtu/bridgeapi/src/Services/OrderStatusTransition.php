@@ -8,7 +8,6 @@ use Igniter\Admin\Models\Status;
 use Igniter\Cart\Models\Order;
 use Illuminate\Support\Facades\DB;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
-use Veykemtu\BridgeApi\Models\AccountLedgerEntry;
 use Veykemtu\BridgeApi\Support\BusinessTime;
 use Veykemtu\BridgeApi\Support\Money;
 use Veykemtu\Payment\Refunds\RefundManager;
@@ -24,8 +23,8 @@ use Veykemtu\Payment\Refunds\RefundManager;
 class OrderStatusTransition
 {
     public function __construct(
-        private readonly AccountLedger $ledger,
         private readonly RefundManager $refunds,
+        private readonly DailyStock $stock,
     ) {}
 
     public const string NEW = 'yeni';
@@ -125,7 +124,22 @@ class OrderStatusTransition
         ], static fn($value): bool => $value !== null));
 
         if ($to === self::CANCELLED) {
-            $this->reverseAccountDebitOnCancel($order);
+            /*
+             * STOK GERİ VERİLİR (S2) — ve YALNIZ BİR KEZ.
+             *
+             * İptal edilen sipariş pişmeyecek; porsiyonları başkasına
+             * satılabilmeli. Çift kredi koruması `orders.
+             * bld_stock_released_at` ile ve `releaseOrder()` içinde ATOMİK:
+             * çift tıklama ya da KDS'in yeniden denemesi ikinci bir kredi
+             * üretmez. Detayı orada.
+             *
+             * İADEDEN ÖNCE: iade kaydı `RefundManager` üzerinden dış bir
+             * geçide uzanabiliyor. Stok geri verme yerel ve ucuz bir işlem;
+             * geçit yavaşladığında porsiyonun satışa dönmesini bekletmenin
+             * bir sebebi yok.
+             */
+            $this->stock->releaseOrder($order);
+
             $this->openRefundOnCancel($order);
         }
 
@@ -165,59 +179,26 @@ class OrderStatusTransition
     }
 
     /**
-     * İptal edilen `account` siparişinin cari borcunu ters alacakla nötrler.
-     *
-     * Append-only defter: borç silinmez, eşit bir alacak yazılır. Yalnızca
-     * gerçekten borç düşmüş siparişte çalışır (idempotent; ikinci iptal zaten
-     * durum makinesince engellenir).
-     */
-    private function reverseAccountDebitOnCancel(Order $order): void
-    {
-        if ($order->payment !== 'account') {
-            return;
-        }
-
-        $orderId = (int) $order->order_id;
-
-        if (!$this->ledger->hasEntry(
-            AccountLedgerEntry::SOURCE_ORDER,
-            'order',
-            $orderId,
-            AccountLedgerEntry::TYPE_DEBIT,
-        )) {
-            return;
-        }
-
-        $this->ledger->record(
-            customerId: (int) $order->customer_id,
-            type: AccountLedgerEntry::TYPE_CREDIT,
-            amountKurus: Money::toKurus($order->order_total),
-            source: AccountLedgerEntry::SOURCE_ORDER,
-            referenceType: 'order',
-            referenceId: $orderId,
-            description: 'Sipariş #'.$orderId.' iptal (ters kayıt)',
-            effectiveDate: BusinessTime::now(),
-        );
-    }
-
-    /**
      * İptal edilen siparişin parası için iade kaydı açar (K-13).
      *
-     * `account` HARİÇ: orada zaten ters defter kaydı yazıldı ve para
-     * hareketi yok. Diğerlerinde iade kaydı `pending`/`manual` olarak
-     * açılır ve admin panelde biri tamamlayana kadar açık durur —
-     * kaydetmemek, müşterinin parasını görünmez biçimde beklemesi
-     * demekti.
+     * İade kaydı `pending`/`manual` olarak açılır ve admin panelde biri
+     * tamamlayana kadar açık durur — kaydetmemek, müşterinin parasını
+     * görünmez biçimde beklemesi demekti.
      *
      * ÖDENMEMİŞ SİPARİŞ İADE ÜRETMEZ: kapıda ödeme henüz tahsil
      * edilmediyse iade edilecek bir şey yok.
+     *
+     * CARİ İSTİSNASI KALKTI. Eskiden `payment === 'account'` olan sipariş
+     * buradan erken dönüyordu: para hareketi yoktu, borç deftere ters
+     * kayıtla nötrleniyordu. Defter kaldırıldığına göre o telafi de yok.
+     * Arşivde kalan eski bir cari siparişi bugün iptal edilirse — ki
+     * `processed` işaretliyse parası bir yerde tahsil edilmiş demektir —
+     * `RefundManager` onu `ManualRefund`'a düşürür ve panelde ELLE
+     * kapatılacak bir iade satırı açar. İptali sessizce yutmak, o parayı
+     * kimsenin bakmadığı bir yerde bırakırdı.
      */
     private function openRefundOnCancel(Order $order): void
     {
-        if ((string) $order->payment === 'account') {
-            return;
-        }
-
         if (!(bool) $order->processed) {
             return;
         }

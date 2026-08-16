@@ -12,17 +12,28 @@ declare(strict_types=1);
  */
 
 use Illuminate\Support\Facades\Route;
-use Veykemtu\BridgeApi\Http\Controllers\AccountController;
 use Veykemtu\BridgeApi\Http\Controllers\AddressController;
 use Veykemtu\BridgeApi\Http\Controllers\AppVersionController;
 use Veykemtu\BridgeApi\Http\Controllers\AuthController;
 use Veykemtu\BridgeApi\Http\Controllers\BbdController;
 use Veykemtu\BridgeApi\Http\Controllers\CatalogController;
+use Veykemtu\BridgeApi\Http\Controllers\Control\AuditController as ControlAuditController;
+use Veykemtu\BridgeApi\Http\Controllers\Control\CmsController as ControlCmsController;
+use Veykemtu\BridgeApi\Http\Controllers\Control\CustomerController as ControlCustomerController;
+use Veykemtu\BridgeApi\Http\Controllers\Control\DailyMenuController as ControlDailyMenuController;
+use Veykemtu\BridgeApi\Http\Controllers\Control\DashboardController as ControlDashboardController;
 use Veykemtu\BridgeApi\Http\Controllers\Control\DeviceController as ControlDeviceController;
+use Veykemtu\BridgeApi\Http\Controllers\Control\InvoiceController as ControlInvoiceController;
 use Veykemtu\BridgeApi\Http\Controllers\Control\MenuController as ControlMenuController;
+use Veykemtu\BridgeApi\Http\Controllers\Control\MonitorController as ControlMonitorController;
+use Veykemtu\BridgeApi\Http\Controllers\Control\NotificationController as ControlNotificationController;
 use Veykemtu\BridgeApi\Http\Controllers\Control\OrderController as ControlOrderController;
 use Veykemtu\BridgeApi\Http\Controllers\Control\OverviewController as ControlOverviewController;
 use Veykemtu\BridgeApi\Http\Controllers\Control\PrintJobController as ControlPrintJobController;
+use Veykemtu\BridgeApi\Http\Controllers\Control\ProductController as ControlProductController;
+use Veykemtu\BridgeApi\Http\Controllers\Control\SettingsController as ControlSettingsController;
+use Veykemtu\BridgeApi\Http\Controllers\Control\SmsController as ControlSmsController;
+use Veykemtu\BridgeApi\Http\Controllers\Control\SubscriptionController as ControlSubscriptionController;
 use Veykemtu\BridgeApi\Http\Controllers\HealthController;
 use Veykemtu\BridgeApi\Http\Controllers\KitchenController;
 use Veykemtu\BridgeApi\Http\Controllers\OrderController;
@@ -148,15 +159,10 @@ Route::prefix('api')
             Route::get('orders/{order}', [OrderController::class, 'show']);
             Route::post('orders/{order}/cancel', [OrderController::class, 'cancel']);
 
-            // Cari hesap (self-servis): güncel bakiye + tarih aralığı ekstresi.
-            // Yalnız istek sahibinin verisi döner (controller `$request->user()`).
-            Route::get('account/summary', [AccountController::class, 'summary']);
-            Route::get('account/statement', [AccountController::class, 'statement']);
-            // Cari borç ödemesi başlatır (B-14). `bld-order` sınırı yeniden
-            // kullanılıyor: para hareketi başlatan bir uç, katalog okumakla
-            // aynı bütçeyi paylaşmamalı.
-            Route::post('account/payments', [AccountController::class, 'startPayment'])
-                ->middleware('throttle:bld-order');
+            // Cari hesap uçları (`account/summary|statement|payments`)
+            // KALDIRILDI — cari hesap iş modelinden çıktı. Adresler bilerek
+            // yeniden kullanılmıyor: eski bir istemci sürümü çağırdığında
+            // 404 alması, başka bir anlama gelen 200 almasından iyidir.
 
             // Abonelik (self-servis): müşteri kendi aboneliğini görür, TALEP
             // açar (fiyatı admin belirler), duraklatır/devam/iptal, tek-gün
@@ -261,5 +267,307 @@ Route::prefix('api')
                     // başka bir ürün koyar ve bunu mutfak fark eder.
                     Route::get('menu', [ControlMenuController::class, 'index']);
                 });
+
+            /*
+             * ── Kontrol paneli alanları — `docs/control/` (14 dosya) ──────
+             *
+             * KDS ailesinin YANINA gelirler, yerine değil: `control/kds/*`
+             * yayınlanmış bir yüzeydir ve Kontrol Merkezi'nin `bld_kds`
+             * modülü onu kullanıyor.
+             *
+             * TEK FARK HIZ SINIRI KOVASI: bu alanlar `bld-control-panel`
+             * (3000/saat) kullanır, KDS ise `bld-control` (1200/saat).
+             * Gerekçesi `Extension::registerRateLimiters()` içindedir ve
+             * özeti şudur: paneldeki bir yoklama patlaması mutfağın kasa
+             * yönetimini KİLİTLEMEMELİ.
+             *
+             * SINIF YOKSA GRUP HİÇ KAYDEDİLMEZ. Bu alanların
+             * denetleyicileri paralel yazılıyor ve bir kısmı bu dosya
+             * yazıldığında henüz yoktu. `class_exists()` denetimi olmadan
+             * `route:cache` (ve yol çakışması denetimi) var olmayan bir
+             * sınıfa bakıp uygulamayı AÇILIŞTA düşürebilirdi — yani tek bir
+             * eksik dosya bütün API'yi indirirdi.
+             *
+             * Kaydedilmeyen bir alan Laravel'in kendi 404'ünü döner ve bu
+             * BİLİNÇLİDİR: `docs/control/00-genel.md` §7 sonundaki ayrım
+             * ("uç yayında değil" ≠ "kayıt yok") tam olarak budur. Kontrol
+             * Merkezi geçidi o farka bakarak ekranı "yakında" diye
+             * gösterebilir; sözleşmeli bir `ApiException::notFound()`
+             * dönseydi ekran olmayan bir kaydı aradığını sanırdı.
+             *
+             * DENETLEYİCİ ADLARI BURADA SABİTLENİYOR. Alan dosyaları sınıf
+             * adı vermiyor; aşağıdaki eşleme, denetleyicileri yazan
+             * ajanların uyması gereken sözleşmedir. Tek istisna günlük menü
+             * takvimidir: `Control\MenuController` adı KDS'in ürün seçicisi
+             * tarafından kullanılıyor, bu yüzden takvim alanı
+             * `Control\DailyMenuController` adını alır (`Models\DailyMenu`,
+             * `Admin\DailyMenus`, `Services\DailyMenuService` ile aynı ad).
+             *
+             * `$where` GRUP DÜZEYİNDE VERİLİYOR: kimlik parçalarını `\d+`,
+             * tarih parçalarını `\d{4}-\d{2}-\d{2}` ile bağlamak, sabit
+             * parçaların (`export`, `categories`, `requests`) yanlışlıkla
+             * kimlik sanılmasını sıraya değil KALIBA bağlar. Sıra hâlâ doğru
+             * ama tek savunma o değil.
+             *
+             * @param  array<string, string>  $where
+             */
+            $alan = static function (
+                string $prefix,
+                string $controller,
+                Closure $routes,
+                array $where = [],
+            ): void {
+                if (!class_exists($controller)) {
+                    return;
+                }
+
+                Route::prefix('control/'.$prefix)
+                    ->middleware(['control.signature', 'throttle:bld-control-panel'])
+                    ->where($where)
+                    ->group($routes);
+            };
+
+            // ── Günlük menü takvimi — `docs/control/menu.md` ──────────────
+            //
+            // Yol parçası TARİHTİR, kimlik değil: `veykemtu_daily_menus`
+            // içinde (vitrin, gün) çifti tekil ve yönetici takvimden bir
+            // güne tıklıyor. Kalıp `\d{4}-\d{2}-\d{2}` ile bağlanıyor ki
+            // `days/stock` gibi bir yazım hatası tarih sanılmasın.
+            $alan('menu', ControlDailyMenuController::class, static function (): void {
+                Route::get('calendar', [ControlDailyMenuController::class, 'calendar']);
+                Route::post('days', [ControlDailyMenuController::class, 'store']);
+                Route::get('days/{date}', [ControlDailyMenuController::class, 'show']);
+                Route::patch('days/{date}', [ControlDailyMenuController::class, 'update']);
+                Route::delete('days/{date}', [ControlDailyMenuController::class, 'destroy']);
+                Route::post('days/{date}/publish', [ControlDailyMenuController::class, 'publish']);
+                Route::post('days/{date}/unpublish', [ControlDailyMenuController::class, 'unpublish']);
+                Route::post('days/{date}/duplicate', [ControlDailyMenuController::class, 'duplicate']);
+                Route::get('days/{date}/stock', [ControlDailyMenuController::class, 'stock']);
+                Route::put('days/{date}/stock', [ControlDailyMenuController::class, 'setStock']);
+                Route::post('days/{date}/items', [ControlDailyMenuController::class, 'storeItem']);
+                Route::patch('days/{date}/items/{item}', [ControlDailyMenuController::class, 'updateItem']);
+                Route::delete('days/{date}/items/{item}', [ControlDailyMenuController::class, 'destroyItem']);
+            }, ['date' => '\\d{4}-\\d{2}-\\d{2}', 'item' => '\\d+']);
+
+            // ── Ürün kataloğu — `docs/control/products.md` ────────────────
+            //
+            // `categories` SABİT PARÇASI `{menu}`'DEN ÖNCE. Yönlendirici
+            // önce eşleşeni alır; sıra ters olsaydı `/categories` bir ürün
+            // kimliği sanılır ve kategori ekranı 404 görürdü. Aynı tuzak
+            // `addresses/suggest`'te bir kez yaşandı.
+            $alan('products', ControlProductController::class, static function (): void {
+                Route::get('/', [ControlProductController::class, 'index']);
+                Route::post('/', [ControlProductController::class, 'store']);
+
+                Route::get('categories', [ControlProductController::class, 'categories']);
+                Route::post('categories', [ControlProductController::class, 'storeCategory']);
+                Route::patch('categories/{category}', [ControlProductController::class, 'updateCategory']);
+
+                Route::get('{menu}', [ControlProductController::class, 'show']);
+                Route::patch('{menu}', [ControlProductController::class, 'update']);
+                // YUMUŞAK KALDIRMA (`menu_status = 0`) — satır silinmez.
+                Route::delete('{menu}', [ControlProductController::class, 'destroy']);
+                Route::put('{menu}/image', [ControlProductController::class, 'setImage']);
+                Route::delete('{menu}/image', [ControlProductController::class, 'destroyImage']);
+                Route::post('{menu}/sold-out', [ControlProductController::class, 'soldOut']);
+                Route::delete('{menu}/sold-out', [ControlProductController::class, 'clearSoldOut']);
+            }, ['menu' => '\\d+', 'category' => '\\d+']);
+
+            // ── Satış ayarları — `docs/control/settings.md` ───────────────
+            //
+            // `ordering_enabled` BİLEREK `PUT /sales` DIŞINDA: şalteri
+            // gerekçesiz ve süresiz çevirmek, durdurmanın en sık hatasını
+            // (açmayı unutmak) üretirdi. Kendi uçları var.
+            $alan('settings', ControlSettingsController::class, static function (): void {
+                Route::get('sales', [ControlSettingsController::class, 'sales']);
+                Route::put('sales', [ControlSettingsController::class, 'updateSales']);
+                Route::post('ordering/pause', [ControlSettingsController::class, 'pause']);
+                Route::post('ordering/resume', [ControlSettingsController::class, 'resume']);
+                Route::get('closed-days', [ControlSettingsController::class, 'closedDays']);
+                Route::post('closed-days', [ControlSettingsController::class, 'storeClosedDay']);
+                Route::delete('closed-days/{date}', [ControlSettingsController::class, 'destroyClosedDay']);
+            }, ['date' => '\\d{4}-\\d{2}-\\d{2}']);
+
+            /*
+             * ── Siparişler — `docs/control/orders.md` ─────────────────────
+             *
+             * BEŞ UÇ İKİ YOLDA BİRDEN YAYINDA (`show`, `revisions` ×2,
+             * `status` aynı metotlar; liste ayrı). Eski yol silinseydi
+             * Kontrol Merkezi'nin `bld_kds` modülü kırılırdı; yeni yol
+             * açılmasaydı panel siparişleri KDS bütçesinden yer ve kasa
+             * yönetimini kilitlerdi.
+             *
+             * LİSTE AYRI METOT (`panelIndex`): `control/kds/orders` bugünün
+             * AKTİF siparişlerini döndürür ve mutfak panosuyla aynı kümedir;
+             * panel listesi geçmişe bakar, sayfalanır ve süzülür. Tek metot
+             * olsaydı KDS ekranının gördüğü küme değişirdi.
+             *
+             * `export` SABİT PARÇASI `{order}`'DAN ÖNCE ve `{order}` sayıya
+             * bağlı — ikisi birden, çünkü tek başına sıra ileride eklenecek
+             * bir sabit parçada yeniden düşünülmek zorunda kalırdı.
+             */
+            $alan('orders', ControlOrderController::class, static function (): void {
+                Route::get('/', [ControlOrderController::class, 'panelIndex']);
+                Route::get('export', [ControlOrderController::class, 'export']);
+                Route::get('{order}', [ControlOrderController::class, 'show']);
+                Route::get('{order}/revisions', [ControlOrderController::class, 'revisions']);
+                Route::post('{order}/revisions', [ControlOrderController::class, 'storeRevision']);
+                Route::post('{order}/status', [ControlOrderController::class, 'setStatus']);
+                Route::post('{order}/cancel', [ControlOrderController::class, 'cancel']);
+                Route::get('{order}/invoice', [ControlOrderController::class, 'invoice']);
+            }, ['order' => '\\d+']);
+
+            // ── Abonelik, talep, sözleşme, ödeme ──────────────────────────
+            //
+            // Dört alt aile tek önekte: `docs/control/subscriptions.md`
+            // hepsini `/api/control/subscriptions` altında topluyor.
+            // SABİT PARÇALI AİLELER (`requests`, `contracts`, `payments`,
+            // `orders`) `{subscription}`'DAN ÖNCE — aksi hâlde "requests"
+            // bir abonelik kimliği sanılırdı.
+            $alan('subscriptions', ControlSubscriptionController::class, static function (): void {
+                Route::get('/', [ControlSubscriptionController::class, 'index']);
+                Route::post('/', [ControlSubscriptionController::class, 'store']);
+
+                Route::get('requests', [ControlSubscriptionController::class, 'requests']);
+                Route::get('requests/{request}', [ControlSubscriptionController::class, 'showRequest']);
+                Route::patch('requests/{request}', [ControlSubscriptionController::class, 'updateRequest']);
+                Route::post('requests/{request}/convert', [ControlSubscriptionController::class, 'convertRequest']);
+
+                Route::get('contracts/{contract}', [ControlSubscriptionController::class, 'showContract']);
+                Route::post('contracts/{contract}/resend', [ControlSubscriptionController::class, 'resendContract']);
+                Route::post('contracts/{contract}/cancel', [ControlSubscriptionController::class, 'cancelContract']);
+
+                Route::post('payments/{payment}/mark-paid', [ControlSubscriptionController::class, 'markPaymentPaid']);
+
+                // Hedefi SİPARİŞTİR, abonelik değil: soru "bu sipariş neden
+                // erken düştü" biçiminde sorulur.
+                Route::post('orders/{order}/release', [ControlSubscriptionController::class, 'releaseOrder']);
+
+                Route::get('{subscription}', [ControlSubscriptionController::class, 'show']);
+                Route::patch('{subscription}', [ControlSubscriptionController::class, 'update']);
+                Route::post('{subscription}/activate', [ControlSubscriptionController::class, 'activate']);
+                Route::post('{subscription}/pause', [ControlSubscriptionController::class, 'pause']);
+                Route::post('{subscription}/resume', [ControlSubscriptionController::class, 'resume']);
+                Route::post('{subscription}/cancel', [ControlSubscriptionController::class, 'cancel']);
+                Route::get('{subscription}/calendar', [ControlSubscriptionController::class, 'calendar']);
+                Route::post('{subscription}/exceptions', [ControlSubscriptionController::class, 'storeException']);
+                Route::delete('{subscription}/exceptions/{date}', [ControlSubscriptionController::class, 'destroyException']);
+                Route::get('{subscription}/runs', [ControlSubscriptionController::class, 'runs']);
+                Route::post('{subscription}/generate', [ControlSubscriptionController::class, 'generate']);
+                Route::get('{subscription}/contracts', [ControlSubscriptionController::class, 'contracts']);
+                Route::post('{subscription}/contracts', [ControlSubscriptionController::class, 'storeContract']);
+                Route::get('{subscription}/payments', [ControlSubscriptionController::class, 'payments']);
+                Route::post('{subscription}/payments', [ControlSubscriptionController::class, 'storePayment']);
+            }, [
+                'subscription' => '\\d+',
+                'request' => '\\d+',
+                'contract' => '\\d+',
+                'payment' => '\\d+',
+                'order' => '\\d+',
+                'date' => '\\d{4}-\\d{2}-\\d{2}',
+            ]);
+
+            // ── Müşteriler — KVKK, `docs/control/customers.md` ────────────
+            //
+            // Bu ailede OKUMALAR DA denetim izine düşer (`customer.read`);
+            // kuralın gerekçesi `00-genel.md` §9'da. Rota katmanı bunu
+            // bilmez — zorunluluk denetleyicinin içindedir.
+            $alan('customers', ControlCustomerController::class, static function (): void {
+                Route::get('/', [ControlCustomerController::class, 'index']);
+                Route::get('{customer}', [ControlCustomerController::class, 'show']);
+                Route::patch('{customer}', [ControlCustomerController::class, 'update']);
+                Route::get('{customer}/orders', [ControlCustomerController::class, 'orders']);
+                Route::get('{customer}/subscriptions', [ControlCustomerController::class, 'subscriptions']);
+                Route::get('{customer}/addresses', [ControlCustomerController::class, 'addresses']);
+                Route::post('{customer}/disable', [ControlCustomerController::class, 'disable']);
+                Route::post('{customer}/enable', [ControlCustomerController::class, 'enable']);
+            }, ['customer' => '\\d+']);
+
+            // ── Fatura belgesi — `docs/control/invoices.md` ───────────────
+            //
+            // `{invoice}/html` JSON DEĞİL, yazdırılabilir A4 döner; tek
+            // istisna budur ve sözleşmede yazılıdır.
+            $alan('invoices', ControlInvoiceController::class, static function (): void {
+                Route::get('/', [ControlInvoiceController::class, 'index']);
+                Route::post('/', [ControlInvoiceController::class, 'store']);
+                Route::get('{invoice}', [ControlInvoiceController::class, 'show']);
+                Route::get('{invoice}/html', [ControlInvoiceController::class, 'html']);
+                Route::post('{invoice}/void', [ControlInvoiceController::class, 'void']);
+            }, ['invoice' => '\\d+']);
+
+            // ── Site içeriği — `docs/control/cms.md` ──────────────────────
+            //
+            // `content/{key}` kimlik değil METİN anahtar taşır
+            // (`veykemtu_site_content` birincil anahtarı bir metin); kalıp
+            // `[a-z_]+` ile bağlanıyor.
+            $alan('cms', ControlCmsController::class, static function (): void {
+                Route::get('content', [ControlCmsController::class, 'content']);
+                Route::put('content/{key}', [ControlCmsController::class, 'updateContent'])
+                    ->where('key', '[a-z_]+');
+
+                Route::get('services', [ControlCmsController::class, 'services']);
+                Route::post('services', [ControlCmsController::class, 'storeService']);
+                Route::patch('services/{service}', [ControlCmsController::class, 'updateService']);
+                Route::delete('services/{service}', [ControlCmsController::class, 'destroyService']);
+
+                Route::get('posts', [ControlCmsController::class, 'posts']);
+                Route::post('posts', [ControlCmsController::class, 'storePost']);
+                Route::patch('posts/{post}', [ControlCmsController::class, 'updatePost']);
+                Route::delete('posts/{post}', [ControlCmsController::class, 'destroyPost']);
+
+                Route::post('revalidate', [ControlCmsController::class, 'revalidate']);
+            }, ['service' => '\\d+', 'post' => '\\d+']);
+
+            // ── SMS şablon, kayıt, duyuru — `docs/control/sms.md` ─────────
+            $alan('sms', ControlSmsController::class, static function (): void {
+                Route::get('templates', [ControlSmsController::class, 'templates']);
+                Route::patch('templates/{key}', [ControlSmsController::class, 'updateTemplate'])
+                    ->where('key', '[a-z0-9_]+');
+                Route::post('templates/{key}/preview', [ControlSmsController::class, 'previewTemplate'])
+                    ->where('key', '[a-z0-9_]+');
+                Route::post('send-test', [ControlSmsController::class, 'sendTest']);
+                Route::get('log', [ControlSmsController::class, 'log']);
+                Route::get('announcement', [ControlSmsController::class, 'announcement']);
+                Route::put('announcement', [ControlSmsController::class, 'updateAnnouncement']);
+                Route::post('announcement/run', [ControlSmsController::class, 'runAnnouncement']);
+            });
+
+            // ── Uygulama içi duyuru — `docs/control/notifications.md` ─────
+            $alan('notifications', ControlNotificationController::class, static function (): void {
+                Route::get('/', [ControlNotificationController::class, 'index']);
+                Route::post('/', [ControlNotificationController::class, 'store']);
+                Route::patch('{notification}', [ControlNotificationController::class, 'update']);
+                // ARŞİVLEME (yumuşak) — satır silinmez.
+                Route::delete('{notification}', [ControlNotificationController::class, 'destroy']);
+                Route::post('{notification}/publish', [ControlNotificationController::class, 'publish']);
+                Route::get('{notification}/stats', [ControlNotificationController::class, 'stats']);
+            }, ['notification' => '\\d+']);
+
+            // ── Hata olayları ve kasa sağlığı — `docs/control/monitor.md` ─
+            $alan('monitor', ControlMonitorController::class, static function (): void {
+                Route::get('events', [ControlMonitorController::class, 'events']);
+                Route::get('events/{event}', [ControlMonitorController::class, 'showEvent']);
+                Route::post('events/{event}/resolve', [ControlMonitorController::class, 'resolveEvent']);
+                Route::get('devices', [ControlMonitorController::class, 'devices']);
+                Route::get('summary', [ControlMonitorController::class, 'summary']);
+            }, ['event' => '\\d+']);
+
+            // ── Açılış özeti — `docs/control/dashboard.md` ────────────────
+            //
+            // `control/kds/overview` ile KARIŞTIRILMAMALI: o, kasa yönetim
+            // ekranının dar özeti; bu, panelin açılış sayfası.
+            $alan('dashboard', ControlDashboardController::class, static function (): void {
+                Route::get('overview', [ControlDashboardController::class, 'overview']);
+            });
+
+            // ── Denetim izi — `docs/control/audit.md` ─────────────────────
+            //
+            // YAZMA UCU YOKTUR ve olmayacak: denetim izi silinemez,
+            // düzeltilemez. `actions` sabit parçası `{audit}`'ten önce.
+            $alan('audit', ControlAuditController::class, static function (): void {
+                Route::get('/', [ControlAuditController::class, 'index']);
+                Route::get('actions', [ControlAuditController::class, 'actions']);
+                Route::get('{audit}', [ControlAuditController::class, 'show']);
+            }, ['audit' => '\\d+']);
         });
     });

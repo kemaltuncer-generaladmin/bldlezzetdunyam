@@ -8,11 +8,9 @@ use Igniter\Cart\Models\Order;
 use Igniter\User\Facades\AdminAuth;
 use Igniter\User\Models\User;
 use Tests\KitchenTestCase;
-use Veykemtu\BridgeApi\Models\AccountLedgerEntry;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
 use Veykemtu\BridgeApi\Models\Subscription;
 use Veykemtu\BridgeApi\Models\SubscriptionException;
-use Veykemtu\BridgeApi\Services\AccountLedger;
 use Veykemtu\BridgeApi\Services\OrderStatusTransition;
 use Veykemtu\BridgeApi\Support\BusinessTime;
 
@@ -26,9 +24,9 @@ use Veykemtu\BridgeApi\Support\BusinessTime;
  *  1. **Sipariş `onaylandi` doğar ve mutfak beslemesine düşer.** `yeni`
  *     kalsaydı mutfak siparişi hiç görmezdi ve bunun tek belirtisi aç kalan
  *     bir müşteri olurdu.
- *  2. **Vitrin kapıları atlanır, para kapıları atlanmaz.** Sipariş alımı
- *     kapalıyken panel sipariş açabilmeli (telefonda teyit alınmış); ama
- *     cari limiti aşan sipariş açamamalı.
+ *  2. **Vitrin kapıları atlanır.** Sipariş alımı kapalıyken panel sipariş
+ *     açabilmeli — telefonda teyit zaten alınmış. (Cari limit kapısı, cari
+ *     hesabın kendisiyle birlikte kaldırıldı.)
  *  3. **Abonelik bağı sahibiyle sınırlı.** A firmasının siparişi B'nin
  *     sözleşmesine yazılamaz.
  */
@@ -140,12 +138,15 @@ class AdminPhoneOrderTest extends KitchenTestCase
     }
 
     /**
-     * Kayıtlı olmayan müşteri aynı ekranda açılır ve KURUMSAL doğar.
+     * Kayıtlı olmayan müşteri aynı ekranda açılır ve `corporate` etiketiyle
+     * doğar.
      *
-     * Cari hesap limiti 0 gelmeli: veresiye ayrı bir güven kararı ve
-     * telefonda alınan bir siparişle birlikte verilmemeli.
+     * Etiket artık bir yetki değil (kurumsal sipariş kapısı kalktı), ama
+     * değerin sabit kalması önemli: panelden açılan kayıtlarla web'den
+     * açılanlar aynı varsayılanı taşımalı, yoksa müşteri listesi zamanla
+     * iki farklı geçmişe bölünür.
      */
-    public function test_yeni_musteri_kurumsal_ve_cari_kapali_dogar(): void
+    public function test_yeni_musteri_kurumsal_etiketiyle_dogar(): void
     {
         $this->actingAsAdmin();
 
@@ -165,7 +166,6 @@ class AdminPhoneOrderTest extends KitchenTestCase
 
         $this->assertNotNull($customer);
         $this->assertSame('corporate', $customer->bld_account_type);
-        $this->assertSame(0, (int) $customer->bld_credit_limit_kurus);
     }
 
     public function test_unvani_olmayan_yeni_musteri_reddedilir(): void
@@ -187,63 +187,6 @@ class AdminPhoneOrderTest extends KitchenTestCase
 
         $this->assertSame($onceki, Order::query()->count());
         $this->assertSame(0, ApiCustomer::where('telephone', '05559998877')->count());
-    }
-
-    /**
-     * CARİ LİMİTİ PANELDE DE GEÇERLİ.
-     *
-     * Vitrin kapıları (şalter, kesim saati) bilerek atlanıyor; para kapısı
-     * atlanmıyor. Limitin amacı zaten insanı korumak — telefonda unutmaya
-     * karşı duruyor.
-     */
-    public function test_cari_limiti_asan_siparis_panelden_de_acilamaz(): void
-    {
-        $this->actingAsAdmin();
-
-        $customer = $this->corporateCustomer();
-        $customer->bld_credit_limit_kurus = 100; // 1 TL
-        $customer->save();
-
-        $onceki = Order::query()->count();
-
-        $this->post(self::BASE_URI, [
-            '_handler' => 'onCreateOrder',
-            'customer_id' => $customer->customer_id,
-            'delivery_type' => 'collection',
-            'payment_method' => 'account',
-            'line_menu_id' => [$this->menuId('Mercimek Çorbası')],
-            'line_quantity' => [10],
-        ]);
-
-        $this->assertSame(
-            $onceki,
-            Order::query()->count(),
-            'Limit aşılınca sipariş hiç doğmamalı.',
-        );
-    }
-
-    public function test_cari_odemeli_siparis_deftere_borc_yazar(): void
-    {
-        $this->actingAsAdmin();
-
-        $customer = $this->corporateCustomer();
-        $customer->bld_credit_limit_kurus = null; // sınırsız
-        $customer->save();
-
-        $this->post(self::BASE_URI, [
-            '_handler' => 'onCreateOrder',
-            'customer_id' => $customer->customer_id,
-            'delivery_type' => 'collection',
-            'payment_method' => 'account',
-            'line_menu_id' => [$this->menuId('Mercimek Çorbası')],
-            'line_quantity' => [2],
-        ])->assertRedirect();
-
-        $this->assertGreaterThan(
-            0,
-            resolve(AccountLedger::class)->balance((int) $customer->customer_id),
-            'Cari ödemeli sipariş borç yazmalı.',
-        );
     }
 
     // ── Abonelik bağı ─────────────────────────────────────────────────────
@@ -427,7 +370,7 @@ class AdminPhoneOrderTest extends KitchenTestCase
         $subscription->menu_mode = Subscription::MENU_FIXED_LIST;
         $subscription->default_quantity = $quantity;
         $subscription->agreed_unit_price_kurus = 5000;
-        $subscription->payment_mode = Subscription::PAYMENT_ACCOUNT;
+        $subscription->payment_mode = Subscription::PAYMENT_PREPAID;
         $subscription->save();
 
         return $subscription;

@@ -471,9 +471,9 @@
       }
     }
   },
-  "homeReorderPartial": "{count} ürün sepete eklendi. {missing} ürün artık menüde yok.",
+  "homeReorderPartial": "{count} ürün sepete eklendi. {missing} ürün eklenemedi: menüde yok ya da kalan porsiyon yetmedi.",
   "@homeReorderPartial": {
-    "description": "Tekrar siparişte bazı ürünler bulunamadığında",
+    "description": "Tekrar siparişte bazı ürünler sepete giremediğinde. İKİ sebep tek cümlede: kalem o gün menüde yok ya da stok tavanı doldu — müşteri açısından ikisi de 'bu ürün alınamadı'.",
     "placeholders": {
       "count": {
         "type": "int"
@@ -483,9 +483,9 @@
       }
     }
   },
-  "homeReorderEmpty": "Bu siparişteki ürünlerin hiçbiri şu an menüde yok.",
+  "homeReorderEmpty": "Bu siparişteki ürünlerin hiçbiri şu anda sepete eklenemiyor.",
   "@homeReorderEmpty": {
-    "description": "Tekrar siparişte hiçbir ürün bulunamadığında"
+    "description": "Tekrar siparişte hiçbir ürün sepete giremediğinde (menüde yok ya da tükendi)."
   },
   "registerCompanySection": "Firma bilgileri",
   "registerAccountSection": "Giriş bilgileri",
@@ -497,8 +497,6 @@
   "registerCorporateNote": "Yalnızca kurumsal hesaplar sipariş verebilir.",
   "registerCompanyRequired": "Ticari unvan zorunludur.",
   "registerContactRequired": "Yetkili kişi zorunludur.",
-  "orderingDisabledTitle": "Sipariş kapalı",
-  "orderingDisabledBody": "Hesabınız sipariş vermeye kapalı. Kurumsal onay için bizimle iletişime geçin.",
   "navSubscriptions": "Abonelik",
   "accountSubscriptions": "Aboneliklerim",
   "accountCompanyLabel": "Firma",
@@ -748,5 +746,72 @@
   "homeTodaysMenu": "Bugünün menüsü",
   "@homeTodaysMenu": {
     "description": "Ana sayfadaki bölüm başlığı."
+  },
+  "stockLowRemaining": "Son {count} porsiyon",
+  "@stockLowRemaining": {
+    "description": "Kalan porsiyon eşiğin altına düştüğünde çıkan rozet. Sayı HAM kalandır; müşterinin sepetindeki adet düşülmez.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "stockSoldOut": "Tükendi",
+  "@stockSoldOut": {
+    "description": "Kalan porsiyon sıfırken çıkan rozet; takvim açıklamasında ve gün şeridinin ekran okuyucu etiketinde de kullanılır."
+  },
+  "stockSoldOutNotice": "Bu yemeğin porsiyonları tükendi.",
+  "@stockSoldOutNotice": {
+    "description": "Kalem detayında sepete eklemeyi engelleyen sebep. Rozetten AYRI: rozet iki kelime, bu bir cümle."
+  },
+  "cartStockCapped": "Kalan porsiyon yetmiyor; bu üründen sepetinize daha fazla ekleyemezsiniz.",
+  "@cartStockCapped": {
+    "description": "Sepete ekleme kalan porsiyonu aştığında. Ekleme HEPSİ YA DA HİÇBİRİ: sepete hiçbir şey girmedi."
+  },
+  "cartStockAllInCart": "Kalan porsiyonların tamamı sepetinizde.",
+  "@cartStockAllInCart": {
+    "description": "Ürün satışta ve stokta var ama kalanın hepsi zaten sepette — 'tükendi'den AYRI bir durum."
+  },
+  "cartStockExceeded": "Sepetinizdeki adet kalan porsiyonu aşıyor. Devam etmek için adetleri azaltın.",
+  "@cartStockExceeded": {
+    "description": "Sepet ve ödeme ekranında gönderimi engelleyen stok uyarısı; tavan sepet doldurulduktan SONRA inmiş olabilir."
+  },
+  "dailyMenuCutoffInHours": "Sipariş için son {hours} saat {minutes} dakika",
+  "@dailyMenuCutoffInHours": {
+    "description": "Kesim saatine bir saatten fazla ama bir günden az kaldığında.",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "dailyMenuCutoffInMinutes": "Sipariş için son {minutes} dakika",
+  "@dailyMenuCutoffInMinutes": {
+    "description": "Kesim saatine bir saatten az kaldığında.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "dailyMenuCutoffAt": "Son sipariş: {moment}",
+  "@dailyMenuCutoffAt": {
+    "description": "Kesim saati bir günden uzaktayken geri sayım yerine mutlak an yazılır.",
+    "placeholders": {
+      "moment": {
+        "type": "String"
+      }
+    }
+  },
+  "dailyMenuNoMenuShort": "Menü yok",
+  "@dailyMenuNoMenuShort": {
+    "description": "Kısa pencerenin gün listesinde menüsü olmayan günün durumu. Boş durum başlığından AYRI: burası tek satır."
+  },
+  "dailyMenuNoServiceShort": "Servis yok",
+  "@dailyMenuNoServiceShort": {
+    "description": "Kısa pencerenin gün listesinde servis günü olmayan gün (`MenuCalendarDay.weekend`). 'Kapalıyız' DEĞİL: satış kanalı açık, yalnız o gün servis yok."
   }
 }

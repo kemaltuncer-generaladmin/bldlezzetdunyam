@@ -3,16 +3,19 @@
 import { useActionState, useEffect, useRef } from 'react';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { removeLineAction, updateQuantityAction } from '@/app/actions/cart';
-import { IDLE_CART_STATE, type CartActionState } from '@/lib/action-state';
+import type { DayCartState } from '@/app/actions/cart-state';
+import { IDLE_CART_STATE } from '@/lib/action-state';
 import { announceCartChanged } from '@/lib/cart-events';
 
 /** Sunucu eylemi bitince başlıktaki rozete haber ver. */
-function useAnnounce(state: CartActionState) {
+function useAnnounce(state: DayCartState) {
   const lastHandled = useRef(0);
   useEffect(() => {
     if (state.at === 0 || state.at === lastHandled.current) return;
     lastHandled.current = state.at;
-    if (state.status === 'ok') announceCartChanged();
+    // Tavana takılan güncelleme de sepeti değiştiriyor (adet kırpılıyor);
+    // rozet o hâlde de yenilenmeli.
+    if (state.status === 'ok' || state.status === 'limit') announceCartChanged();
   }, [state]);
 }
 
@@ -89,6 +92,22 @@ export function CartLineControls({ lineKey, quantity, itemName }: Props) {
           <span className="sr-only"> — {itemName}</span>
         </button>
       </form>
+
+      {/*
+        TAVANA TAKILAN ARTIRMA SÖYLENMEK ZORUNDA. Adet sunucuda kırpılıyor ve
+        sayaç eski değerine dönüyor; sebebi yazılmazsa müşteri "artı düğmesi
+        çalışmıyor" der ve tekrar tekrar basar. Hata da aynı yerden okunuyor:
+        sessizce başarısız olan bir sepet düğmesi en kötü hâl.
+      */}
+      {(updateState.status === 'limit' || updateState.status === 'error') && (
+        <p
+          role="status"
+          className="basis-full text-body-sm text-warning-foreground"
+          aria-live="polite"
+        >
+          {updateState.message}
+        </p>
+      )}
     </div>
   );
 }

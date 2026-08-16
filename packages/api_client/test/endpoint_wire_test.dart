@@ -245,4 +245,249 @@ void main() {
       expect(query['lng'], 32.4932);
     });
   });
+
+  group('SubscriptionService — dönem ödemesi', () {
+    Map<String, dynamic> paymentBody() => {
+      'payment_id': 501,
+      'subscription_id': 12,
+      'period': '2026-09',
+      'amount': 660000,
+      'currency': 'TRY',
+      'status': 'pending',
+      'next_action': 'otp',
+      'created_at': '2026-08-28T09:00:00Z',
+    };
+
+    test('ödeme başlatma yolu kurulur, TUTAR GÖNDERİLMEZ', () async {
+      final client = _client(paymentBody(), statusCode: 201);
+
+      final payment = await client.api.subscriptions.startPayment(12);
+
+      final request = client.adapter.requests.single;
+      expect(request.method, 'POST');
+      expect(request.path, '/subscriptions/12/payments');
+      // Tutar sunucuda hesaplanır; istemciden alınsaydı bir gün atlandığında
+      // abone eksik ödeyip "kapattım" sanırdı.
+      expect(request.data, isNull);
+      expect(payment.paymentId, 501);
+      expect(payment.needsOtp, isTrue);
+    });
+
+    test('dönem verilirse gövdeye girer', () async {
+      final client = _client(paymentBody());
+
+      await client.api.subscriptions.startPayment(12, period: '2026-10');
+
+      expect(client.adapter.requests.single.data, {'period': '2026-10'});
+    });
+
+    test('OTP sözleşmedeki `code` adıyla gider', () async {
+      final client = _client(paymentBody());
+
+      await client.api.subscriptions.confirmPayment(12, 501, otp: '482913');
+
+      final request = client.adapter.requests.single;
+      expect(request.path, '/subscriptions/12/payments/501/confirm');
+      // Ekranın sorduğu şey "SMS kodu" (otp); sözleşmedeki ad `code`.
+      // Çeviri tek yerde olmalı.
+      expect(request.data, {'code': '482913'});
+    });
+
+    test('kod verilmezse gövde BOŞ gider', () async {
+      final client = _client(paymentBody());
+
+      await client.api.subscriptions.confirmPayment(12, 501);
+
+      expect(client.adapter.requests.single.data, isNull);
+    });
+
+    test('ödeme yoklama yolu kurulur', () async {
+      final client = _client(paymentBody());
+
+      await client.api.subscriptions.payment(12, 501);
+
+      final request = client.adapter.requests.single;
+      expect(request.method, 'GET');
+      expect(request.path, '/subscriptions/12/payments/501');
+    });
+  });
+
+  group('ContractService', () {
+    Map<String, dynamic> contractBody() => {
+      'data': {
+        'status': 'sent',
+        'version': 1,
+        'body': 'Taraflar ...',
+        'body_format': 'markdown',
+        'service_days': [1, 2, 3, 4, 5],
+        'unit_price': 15000,
+        'currency': 'TRY',
+        'masked_phone': '0555 *** ** 33',
+      },
+    };
+
+    test('belirteç yola KAÇIŞLANARAK girer', () async {
+      // Belirteç imzalıdır ve taban64url dışı bir karakter taşıyabilir;
+      // ham gömmek bozuk bir yol üretir ve sunucu 404 döner.
+      final client = _client(contractBody());
+
+      final contract = await client.api.contracts.get('abc/def+123');
+
+      expect(client.adapter.requests.single.path, '/contracts/abc%2Fdef%2B123');
+      expect(contract.version, 1);
+      expect(contract.maskedPhone, '0555 *** ** 33');
+    });
+
+    test('kod isteği gövdesizdir — NUMARA İSTEKTE ALINMAZ', () async {
+      // İstemciden alınsaydı bağlantıyı ele geçiren biri kodu kendi
+      // telefonuna ısmarlayıp sözleşmeyi onaylayabilirdi.
+      final client = _client({
+        'message': 'Kod gönderildi',
+        'expires_in': 300,
+        'resend_after': 60,
+      }, statusCode: 202);
+
+      await client.api.contracts.requestOtp('token12345678901234567890');
+
+      final request = client.adapter.requests.single;
+      expect(request.method, 'POST');
+      expect(request.path, '/contracts/token12345678901234567890/otp');
+      expect(request.data, isNull);
+    });
+
+    test('onay kodu gövdeye girer ve sarmalayıcı açılır', () async {
+      final client = _client({
+        'data': {
+          ...(contractBody()['data']! as Map<String, dynamic>),
+          'status': 'approved',
+          'approved_at': '2026-08-26T12:30:00Z',
+        },
+      });
+
+      final contract = await client.api.contracts.approve(
+        'token12345678901234567890',
+        '482913',
+      );
+
+      final request = client.adapter.requests.single;
+      expect(request.path, '/contracts/token12345678901234567890/approve');
+      expect(request.data, {'code': '482913'});
+      expect(contract.isApproved, isTrue);
+    });
+
+    test(
+      'sözleşme ucu Authorization İSTEMEZ ama başlıklar yine gider',
+      () async {
+        // Uç kimlik gerektirmiyor; token deposu boşken istek yine kurulmalı.
+        final client = _client(contractBody());
+
+        await client.api.contracts.get('token12345678901234567890');
+
+        final headers = client.adapter.requests.single.headers;
+        expect(headers.containsKey('Authorization'), isFalse);
+        expect(headers['X-App-Id'], 'musteriapp');
+      },
+    );
+  });
+
+  group('AnnouncementService', () {
+    Map<String, dynamic> body() => {
+      'data': [
+        {
+          'id': 31,
+          'placement': 'home',
+          'body': 'Yarın servisimiz yoktur.',
+          'dismissible': true,
+          'seen': false,
+          'dismissed': false,
+        },
+      ],
+    };
+
+    test('yerleşim sorguya girer ve liste sarmalayıcıdan çıkar', () async {
+      final client = _client(body());
+
+      final duyurular = await client.api.announcements.list(
+        placement: AnnouncementPlacement.home,
+      );
+
+      final request = client.adapter.requests.single;
+      expect(request.path, '/announcements');
+      expect(request.queryParameters['placement'], 'home');
+      expect(duyurular.single.id, 31);
+    });
+
+    test('yerleşim verilmezse BOŞ anahtar oluşmaz', () async {
+      final client = _client(body());
+
+      await client.api.announcements.list();
+
+      expect(
+        client.adapter.requests.single.queryParameters.containsKey('placement'),
+        isFalse,
+      );
+    });
+  });
+
+  group('DiagnosticsService.reportError', () {
+    test('rapor sözleşmedeki yola gider', () async {
+      final client = _client(null, statusCode: 204);
+
+      await client.api.diagnostics.reportError(
+        const ClientErrorReport(
+          message: 'Menü çizilemedi',
+          kind: ClientErrorKind.render,
+        ),
+      );
+
+      final request = client.adapter.requests.single;
+      expect(request.method, 'POST');
+      expect(request.path, '/client-errors');
+      expect((request.data! as Map)['message'], 'Menü çizilemedi');
+      expect((request.data! as Map)['kind'], 'render');
+    });
+
+    test('uzun metin TELE ÇIKMADAN kesilir', () async {
+      final client = _client(null, statusCode: 204);
+
+      await client.api.diagnostics.reportError(
+        ClientErrorReport(message: 'x' * 900, stack: 'y' * 9000),
+      );
+
+      final body = client.adapter.requests.single.data! as Map;
+      expect((body['message'] as String).length, 500);
+      expect((body['stack'] as String).length, 8000);
+    });
+
+    test('SUNUCU HATASI FIRLATMAZ — hata bildirmek hata üretmemeli', () async {
+      // Bu metodun istisna atması, çağıranı catch bloğunun içinde ikinci bir
+      // hataya sokar ve kendini besleyen bir döngü doğar.
+      final client = _client({
+        'error': {'code': 'SERVER_ERROR', 'message': 'Sunucu hatası'},
+      }, statusCode: 500);
+
+      await expectLater(
+        client.api.diagnostics.reportError(
+          const ClientErrorReport(message: 'Hata'),
+        ),
+        completes,
+      );
+    });
+
+    test('oran sınırında da sessiz kalır ve TEKRAR DENEMEZ', () async {
+      final client = _client({
+        'error': {'code': 'RATE_LIMITED', 'message': 'Çok fazla istek'},
+      }, statusCode: 429);
+
+      await client.api.diagnostics.reportError(
+        const ClientErrorReport(message: 'Hata'),
+      );
+
+      expect(
+        client.adapter.requests,
+        hasLength(1),
+        reason: 'Tekrar denemek asıl teşhisi kaybettirir.',
+      );
+    });
+  });
 }

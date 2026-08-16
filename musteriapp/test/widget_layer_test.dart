@@ -17,15 +17,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:musteriapp/src/core/eta_text.dart';
 import 'package:musteriapp/src/theme/bld_theme.dart';
+import 'package:musteriapp/src/l10n/app_localizations.dart';
 import 'package:musteriapp/src/widgets/bld_card.dart';
 import 'package:musteriapp/src/widgets/empty_view.dart';
 import 'package:musteriapp/src/widgets/eta_notice.dart';
+import 'package:musteriapp/src/widgets/menu_photo_grid.dart';
 import 'package:musteriapp/src/widgets/money_text.dart';
 import 'package:musteriapp/src/widgets/network_food_image.dart';
+import 'package:musteriapp/src/widgets/order_cutoff_countdown.dart';
 import 'package:musteriapp/src/widgets/pill.dart';
 import 'package:musteriapp/src/widgets/section_header.dart';
 import 'package:musteriapp/src/widgets/skeletons.dart';
 import 'package:musteriapp/src/widgets/status_views.dart';
+import 'package:musteriapp/src/widgets/stock_pill.dart';
 
 const _eta = EtaPresentation(
   title: 'Tahmini teslim',
@@ -75,6 +79,39 @@ Widget _gallery() => SingleChildScrollView(
         ],
       ),
       const SizedBox(height: BldSpacing.sm),
+      // Stok rozetinin DÖRT bandı da: sınırsız ve bolluk hiç çizilmiyor,
+      // ikisi de galeride sessiz kalmalı.
+      Wrap(
+        spacing: BldSpacing.sm,
+        children: const [
+          StockPill(remaining: null),
+          StockPill(remaining: 42),
+          StockPill(remaining: 3),
+          StockPill(remaining: 0),
+        ],
+      ),
+      const SizedBox(height: BldSpacing.sm),
+      // Geri sayımın iki hâli: bir günden uzak (mutlak an) ve son bir saat
+      // (uyarı tonu). Zamanlayıcı testin sonunda `dispose` ile iptal edilmezse
+      // koşu "pending timer" ile düşer — bu galeri onu da sınıyor.
+      OrderCutoffCountdown(
+        cutoffAt: DateTime.now().toUtc().add(const Duration(days: 3)),
+      ),
+      OrderCutoffCountdown(
+        cutoffAt: DateTime.now().toUtc().add(const Duration(minutes: 40)),
+      ),
+      const SizedBox(height: BldSpacing.sm),
+      // Izgaranın 1/2/3/4 yerleşimi — dördü de kurulmalı, hiçbiri taşmamalı.
+      for (final count in [0, 1, 2, 3, 4])
+        Padding(
+          padding: const EdgeInsets.only(bottom: BldSpacing.sm),
+          child: MenuPhotoGrid(
+            imageUrls: [
+              for (var index = 0; index < count; index++)
+                'https://ornek.test/yemek$index.jpg',
+            ],
+          ),
+        ),
       const EtaNotice(eta: _eta),
       const SizedBox(height: BldSpacing.sm),
       const OfflineBanner(message: 'Çevrimdışısınız.'),
@@ -113,6 +150,10 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: theme,
+          // Bileşenlerin bir kısmı metnini `l10n`'dan alıyor (stok rozeti,
+          // geri sayım); delegeler olmadan galeri ilk karede patlar.
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(body: _gallery()),
         ),
       );
@@ -122,7 +163,11 @@ void main() {
       // Galerinin gerçekten çizildiğinin kanıtı: bileşenlerden birkaçı
       // ağaçta olmalı, yoksa boş bir liste de "istisna yok" derdi.
       expect(find.byType(BldCard), findsNWidgets(2));
-      expect(find.byType(BldPill), findsNWidgets(6));
+      // Altı anlamsal rozet + stok rozetinin ÇİZİLEN iki bandı ("son 3
+      // porsiyon" ve "tükendi"); sınırsız ve bolluk sessiz.
+      expect(find.byType(BldPill), findsNWidgets(8));
+      expect(find.text('Son 3 porsiyon'), findsOneWidget);
+      expect(find.text('Tükendi'), findsOneWidget);
       expect(find.text('410,00 ₺'), findsOneWidget);
       // Üç durum tonunun ÜÇÜ de kuruldu — ekranın altında kalanlar dahil.
       expect(

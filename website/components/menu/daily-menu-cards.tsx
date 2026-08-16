@@ -1,9 +1,12 @@
 import { Leaf, UtensilsCrossed } from 'lucide-react';
 import { AddToDayCart } from '@/components/menu/add-to-day-cart';
+import { MenuPhotoGrid } from '@/components/menu/menu-photo-grid';
+import { OrderCutoffCountdown } from '@/components/menu/order-cutoff-countdown';
 import { Money } from '@/components/money';
 import { ProductImage } from '@/components/product-image';
 import { ProductOptions } from '@/components/product-options';
 import { formatLongDate, type BusinessDate } from '@/lib/business-date';
+import { stockLevel } from '@/lib/stock-policy';
 import { cn } from '@/lib/utils';
 import type { DailyMenu, DailyMenuPackage, MenuItem } from '@/lib/api/types';
 
@@ -18,7 +21,44 @@ import type { DailyMenu, DailyMenuPackage, MenuItem } from '@/lib/api/types';
  * Sıra bilinçli: işletme paketi satmak istiyor ve paket fiyatı kalemlerin
  * toplamından ucuz. Kalemleri önce göstermek, müşteriyi pahalı olan yola
  * sokardı.
+ *
+ * ## STOK SAYILARI DIŞARIDAN GELİYOR
+ *
+ * Kartlar `remaining_portions` alanlarını kendileri okumuyor; kalan porsiyon
+ * ile "kaç tane daha eklenebilir" sayısı sayfada hesaplanıp geçiliyor
+ * (`app/menu/page.tsx`). İkincisi müşterinin sepetine bağlı ve sepet burada
+ * yok; ilkini burada, ikincisini orada hesaplamak aynı aritmetiği iki
+ * dosyaya bölerdi.
  */
+
+/**
+ * STOK ROZETİ — kalan porsiyonun ekrandaki hâli.
+ *
+ * Yalnız DARALDIĞINDA çiziliyor: kırk porsiyonu kalan bir güne "40 porsiyon
+ * var" yazmak aciliyet değil gürültü üretir, üstelik her kartta tekrarlanır.
+ * Bandın kendisi `lib/stock-policy.ts` içinde ve mobil uygulamayla ortak;
+ * burada yapılan tek iş ona bir renk ve bir cümle vermek.
+ *
+ * Sayı SEPETTEN ARINDIRILMAZ: "son 3 porsiyon" bir satış bilgisidir, kişisel
+ * bir durum değil — sepetine iki tane atmış müşteriye başka bir sayı
+ * göstermek, iki müşterinin aynı ekranda farklı rakam okuması demekti.
+ */
+function StockBadge({ remaining }: { remaining: number | null }) {
+  const level = stockLevel({ remaining });
+
+  // `unlimited` (tavan konmamış) ile `plenty` (bol) sessiz kalır.
+  if (remaining === null || level === 'plenty') return null;
+
+  if (level === 'soldOut') {
+    return <span className="bld-badge bg-danger-surface text-danger-foreground">Tükendi</span>;
+  }
+
+  return (
+    <span className="bld-badge bg-warning-surface text-warning-foreground">
+      Son {remaining} porsiyon
+    </span>
+  );
+}
 
 /** Alerjen rozeti — metin API'den geliyor, BÜYÜTÜLMÜYOR (İ/ı kırılır). */
 function AllergenList({ allergens }: { allergens?: string[] }) {
@@ -45,6 +85,9 @@ export function DailyMenuPackageCard({
   daily,
   serviceDate,
   advantageKurus,
+  remainingPortions,
+  maxAddable,
+  serverNow,
   canOrder,
   disabledReason,
 }: {
@@ -53,6 +96,12 @@ export function DailyMenuPackageCard({
   serviceDate: BusinessDate;
   /** `items_total − package.price`; avantaj yoksa `0` (`lib/api/daily-menu.ts`). */
   advantageKurus: number;
+  /** Paketin o günkü efektif kalanı (gün ile paket tavanının darı); `null` sınırsız. */
+  remainingPortions: number | null;
+  /** Sepete daha kaç paket eklenebilir. */
+  maxAddable: number;
+  /** Sunucunun sayfayı çizdiği an — geri sayımın saat referansı. */
+  serverNow: number;
   canOrder: boolean;
   disabledReason: string;
 }) {
@@ -62,10 +111,16 @@ export function DailyMenuPackageCard({
   return (
     <article className="overflow-hidden rounded-md bg-card text-card-foreground shadow-raised dark:shadow-none dark:inset-ring dark:inset-ring-white/5">
       <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="relative aspect-16/9 lg:aspect-auto lg:min-h-72">
-          <ProductImage
-            src={menu.image_url}
-            alt=""
+        {/*
+          KAPAK VARSA IZGARAYA TERCİH EDİLİR — sözleşmenin kuralı: `image_url`
+          yöneticinin o güne elle yüklediği kapaktır, `image_urls` ise
+          kapaksız günlerin boş kart görünmesini engellemek için var. Tek
+          görselle çağrılan ızgara zaten tam kanama çiziyor, yani eski
+          davranış aynen sürüyor.
+        */}
+        <div className="aspect-16/9 lg:aspect-auto lg:min-h-72">
+          <MenuPhotoGrid
+            imageUrls={menu.image_url ? [menu.image_url] : menu.image_urls}
             priority
             sizes="(max-width: 1024px) 100vw, 560px"
           />
@@ -118,6 +173,19 @@ export function DailyMenuPackageCard({
             )}
           </div>
 
+          {/*
+            KALAN PORSİYON ve KESİM SAATİ yan yana: ikisi de "acele etmeli
+            miyim" sorusunu cevaplıyor ve müşteri kararını fiyatı gördükten
+            hemen sonra veriyor. Boşken satır hiç çizilmiyor (`empty:hidden`),
+            yoksa çoğu günde altı boş bir aralık kalırdı.
+          */}
+          <div className="mt-4 flex flex-wrap items-center gap-2 empty:hidden">
+            <StockBadge remaining={remainingPortions} />
+            {menu.cutoff_at && (
+              <OrderCutoffCountdown cutoffAt={menu.cutoff_at} serverNow={serverNow} />
+            )}
+          </div>
+
           {soldOut && daily.sold_out_reason && (
             <p role="status" className="mt-3 text-body-sm text-danger-foreground">
               {daily.sold_out_reason}
@@ -129,6 +197,7 @@ export function DailyMenuPackageCard({
               menuId={daily.menu_id}
               serviceDate={serviceDate}
               label="Menüyü sepete ekle"
+              maxAddable={maxAddable}
               disabled={!canOrder || soldOut}
               disabledReason={soldOut ? 'Bugünlük tükendi' : disabledReason}
               showMessage
@@ -151,11 +220,17 @@ export function DailyMenuPackageCard({
 export function DailyMenuItemCard({
   item,
   serviceDate,
+  remainingPortions,
+  maxAddable,
   canOrder,
   disabledReason,
 }: {
   item: MenuItem;
   serviceDate: BusinessDate;
+  /** Kalemin o günkü efektif kalanı (gün ile kalem tavanının darı). */
+  remainingPortions: number | null;
+  /** Sepete bu kalemden daha kaç tane eklenebilir. */
+  maxAddable: number;
   canOrder: boolean;
   disabledReason: string;
 }) {
@@ -183,6 +258,15 @@ export function DailyMenuItemCard({
           <p className="mt-1 text-body-sm text-muted-foreground">{item.description}</p>
         )}
 
+        {/*
+          Rozet alerjenlerin ÜSTÜNDE: kalan porsiyon satın alma kararını
+          değiştiriyor, alerjen listesi ise zaten kararını vermiş müşteriyi
+          ilgilendiriyor.
+        */}
+        <div className="mt-2 empty:hidden">
+          <StockBadge remaining={remainingPortions} />
+        </div>
+
         <AllergenList allergens={item.allergens} />
 
         {soldOut && (
@@ -196,6 +280,7 @@ export function DailyMenuItemCard({
             menuId={item.id}
             serviceDate={serviceDate}
             label="Sepete ekle"
+            maxAddable={maxAddable}
             size="sm"
             variant="outline"
             disabled={!canOrder || soldOut}

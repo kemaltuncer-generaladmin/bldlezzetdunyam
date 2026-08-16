@@ -57,7 +57,10 @@ void main() {
     final outcome = reorderInto(
       order: _order([10, 11]),
       menuItems: [_item(10), _item(11)],
-      addToCart: (item, quantity) => eklenen.add((item.id, quantity)),
+      addToCart: (item, quantity) {
+        eklenen.add((item.id, quantity));
+        return true;
+      },
     );
 
     expect(outcome.added, 2);
@@ -75,7 +78,10 @@ void main() {
     final outcome = reorderInto(
       order: _order([10, 99]),
       menuItems: [_item(10)],
-      addToCart: (item, _) => eklenen.add(item.id),
+      addToCart: (item, _) {
+        eklenen.add(item.id);
+        return true;
+      },
     );
 
     expect(eklenen, [10]);
@@ -94,7 +100,10 @@ void main() {
     final outcome = reorderInto(
       order: _order([10]),
       menuItems: [_item(10, available: false)],
-      addToCart: (item, _) => eklenen.add(item.id),
+      addToCart: (item, _) {
+        eklenen.add(item.id);
+        return true;
+      },
     );
 
     expect(eklenen, isEmpty);
@@ -109,7 +118,10 @@ void main() {
     final outcome = reorderInto(
       order: _order([98, 99]),
       menuItems: [_item(10)],
-      addToCart: (_, _) => cagrildi = true,
+      addToCart: (_, _) {
+        cagrildi = true;
+        return true;
+      },
     );
 
     expect(cagrildi, isFalse);
@@ -126,7 +138,10 @@ void main() {
     final outcome = reorderInto(
       order: _order([10, 10]),
       menuItems: [_item(10)],
-      addToCart: (item, _) => eklenen.add(item.id),
+      addToCart: (item, _) {
+        eklenen.add(item.id);
+        return true;
+      },
     );
 
     expect(eklenen, [10, 10]);
@@ -165,11 +180,36 @@ void main() {
         ],
       ),
       menuItems: [_item(900)],
-      addToCart: (item, _) => eklenen.add(item.id),
+      addToCart: (item, _) {
+        eklenen.add(item.id);
+        return true;
+      },
     );
 
     expect(eklenen, [900], reason: 'Yalnız paketin kendisi eklenmeli.');
     expect(outcome.added, 1);
     expect(outcome.missing, 0);
+  });
+
+  test('sepetin REDDETTİĞİ kalem eklenmiş sayılmaz', () {
+    // Menüde duran ve satışta olan bir kalem, kalan porsiyon yetmediği için
+    // sepetten geri dönebilir (`CartAddResult.stockCapped`). Sayımı çağrı
+    // sayısına dayandırsaydık müşteri "2 ürün sepete eklendi" okuyup sepette
+    // bir tane bulurdu — eksik siparişin en sessiz hâli.
+    var cagri = 0;
+
+    final outcome = reorderInto(
+      order: _order([10, 11]),
+      menuItems: [_item(10), _item(11)],
+      addToCart: (item, _) {
+        cagri++;
+        return item.id == 10;
+      },
+    );
+
+    expect(cagri, 2, reason: 'İkisi de denenmeli.');
+    expect(outcome.added, 1);
+    expect(outcome.missing, 1);
+    expect(outcome.isPartial, isTrue);
   });
 }

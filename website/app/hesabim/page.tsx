@@ -22,8 +22,8 @@ export const metadata: Metadata = {
  * CARİ BAKİYE KARTI KALDIRILDI (B-19). Kart yalnız bir bağlantı değildi:
  * çizilebilmek için her açılışta `/account/summary` çağırıyordu. Cari yüzeyi
  * müşteri arayüzünden kalkınca o istek, hiçbir yere götürmeyen bir rakam için
- * hesap sayfasını dış bir uca bağlı tutuyordu. Uç ve admin paneli duruyor
- * (`lib/api/account.ts`).
+ * hesap sayfasını dış bir uca bağlı tutuyordu. Uçlar (`/account/*`) ve admin
+ * paneli duruyor; sitedeki istemci sarmalayıcısı silindi.
  */
 export default async function AccountPage() {
   const { customer } = await requireSession('/hesabim');

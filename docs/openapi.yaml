@@ -20,6 +20,23 @@ info:
     - **Kapsam dışı:** öğrenci ve kurum içi sipariş kanalları yoktur ve olmayacaktır
       (`docs/00-genel-bakis.md` §4). Sipariş çeşitliliği yalnızca `delivery_type` ile ifade edilir.
 
+    ## Cari hesap kaldırıldı (16.08.2026)
+
+    Günlük menü satış modeline geçişle birlikte cari hesap **tamamen**
+    kalktı. `/account/summary`, `/account/statement` ve `/account/payments`
+    yolları ile `AccountSummary` / `AccountEntry` / `AccountStatement`
+    şemaları bu dosyadan **silindi**; ödeme yöntemleri `online` ve `cash`
+    ile sınırlı.
+
+    Bu, uyumluluk kuralının (§1.4) tek istisnasıdır ve bilinçlidir: silinen
+    yolları çağıran istemci `404` alır. Bu yüzden **istemciler sunucudan
+    önce yayınlanır** — sırası ters olursa sahadaki uygulama hâlâ çizdiği
+    ekranı doldurmak için o yolları çağırır ve kullanıcı boş bir hata görür.
+
+    `PaymentMethod` enum'undaki `account` değeri **silinmedi**: cutover
+    öncesi siparişler o değerle kaydedildi ve enum'dan çıkarmak geçmiş
+    sipariş listesini ayrıştıramaz hâle getirirdi.
+
     ## Oran sınırları
     | Uç grubu | Sınır |
     |---|---|
@@ -28,6 +45,8 @@ info:
     | `/kitchen/*` | 2000 istek / saat / cihaz (5 sn polling = 720/saat, üstüne BBD kuyruğu, heartbeat, sağlık, satış şalteri ve durum trafiği) |
     | `/control/kds/*` | 1200 istek / saat / **IP** (`bld-control`, K-21) |
     | `/addresses/suggest`, `/addresses/reverse` | 30 istek / dakika / **hesap** |
+    | `/contracts/{token}/otp` | 5 istek / saat / **token** |
+    | `POST /client-errors` | 60 istek / dakika / IP |
     | Diğer | 120 istek / dakika / IP |
 
     Mutfak sınırı **12.08.2026'da 1200'den 2000'e çıktı** ve bu tablo o gün
@@ -48,6 +67,19 @@ info:
     tek yol bu iki uç ve fatura orada doğuyor. IP başına sayılsaydı tek NAT
     arkasından çıkan bir ofisin çalışanları birbirini kilitlerdi — kurumsal
     müşterinin tipik ağı tam olarak budur.
+
+    `/contracts/{token}/otp` sınırı neden **token** başına: o uç kimlik
+    istemez, imzalı bağlantıyı elinde tutan herkes çağırabilir. IP başına
+    saysaydık aynı ofisten bakan iki abone birbirini kilitlerdi; hesap başına
+    sayamazdık çünkü henüz oturum yok. Sayacın bağlanabileceği tek kimlik
+    bağlantının kendisidir ve zaten korunması gereken de odur — bir sözleşme
+    bağlantısına sınırsız SMS ısmarlanabilmesi doğrudan para kaybıdır.
+
+    `POST /client-errors` sınırı neden bu kadar yüksek: uç bir hata
+    boşaltma yeridir ve asıl işi kaybedilen teşhis bilgisini yakalamaktır.
+    Döngüye giren bir istemci sınırı doldurur ama sınıra takılan istek
+    **sessizce düşer** — istemci `429` yüzünden ikinci bir hata üretmemelidir,
+    yoksa hata bildirimi kendi kendini besleyen bir döngüye girer.
 
     Sınır aşılırsa `429 RATE_LIMITED`.
   license:
@@ -90,10 +122,37 @@ tags:
       Talepleri** ekranına düşer.
   - name: Sürüm
     description: İstemci sürüm kontrolü ve zorunlu güncelleme eşiği.
-  - name: Cari hesap
-    description: Kurumsal müşteri cari bakiye ve ekstre (B2B).
   - name: Abonelik
-    description: Kurumsal öğle yemeği aboneliği — sipariş üreten kural (B2B).
+    description: |
+      Öğle yemeği aboneliği — sipariş üreten kural. Abonelik o günün
+      yayınlanmış menüsünü otomatik alır; abone tek tek günleri atlayabilir
+      (`exceptions`). Siparişler gece üretilir ve mutfağa 07:00'de düşer.
+  - name: Ödeme
+    description: |
+      Abonelik dönem ödemeleri. Ödeme **başlatılır**, sonra ya sağlayıcının
+      sayfasında ya da OTP ile **onaylanır**; sonuç yoklama ile okunur.
+      Üç ayrı uç olması bilinçli: tek uçla yürüyen bir ödeme akışında
+      istemci "sıradaki adım ne" sorusunu yanıt gövdesinden çıkarmak
+      zorunda kalır, oysa o adım (`next_action`) sunucunun kararıdır.
+  - name: Sözleşme
+    description: |
+      Abonelik sözleşmesinin imzalı bağlantı üzerinden okunması ve SMS
+      koduyla onaylanması. **Kimlik gerektirmez**: sözleşme bağlantısı
+      aboneye SMS ile gider ve onaylayan kişi çoğu zaman uygulamada oturum
+      açmış kişi değildir (satın almayı onaylayan yetkili başkasıdır).
+      Bağlantının kendisi imzalıdır ve süresi doludur; koruma oradadır.
+  - name: Duyuru
+    description: |
+      Uygulama-içi duyurular. **Push (FCM) yoktur** — duyuru istemci
+      açıkken çekilir ve yerleşimine göre gösterilir. Görüldü/kapatıldı
+      işaretleri sunucuda tutulur ki müşteri aynı duyuruyu web'de
+      kapattıktan sonra mobilde tekrar görmesin.
+  - name: Teşhis
+    description: |
+      İstemcilerin yakalayamadıkları hataları sunucuya boşalttığı uç.
+      Kimlik **opsiyoneldir**: hataların çoğu oturum açılamadığı için
+      doğuyor ve tam o durumda token istemek, en çok ihtiyaç duyulan
+      kaydı kaybettirir.
   - name: Ortak
     description: |
       BLD'nin **istemcisi olmayan**, ayrı bir sistemle paylaşılan uçlar.
@@ -973,114 +1032,6 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/InvalidTransition' }
 
-  # ────────────────────────────── Cari hesap ────────────────────────────
-
-  /account/summary:
-    parameters:
-      - $ref: '#/components/parameters/AppId'
-      - $ref: '#/components/parameters/AppVersion'
-      - $ref: '#/components/parameters/AcceptLanguage'
-    get:
-      tags: [Cari hesap]
-      summary: Cari bakiye
-      description: Müşterinin güncel cari bakiyesi. Pozitif = müşterinin borcu.
-      operationId: getAccountSummary
-      security:
-        - CustomerToken: []
-      responses:
-        '200':
-          description: Güncel bakiye
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/AccountSummary' }
-        '401': { $ref: '#/components/responses/Unauthenticated' }
-
-  /account/statement:
-    parameters:
-      - $ref: '#/components/parameters/AppId'
-      - $ref: '#/components/parameters/AppVersion'
-      - $ref: '#/components/parameters/AcceptLanguage'
-      - name: from
-        in: query
-        required: false
-        schema: { type: string, format: date }
-        description: 'Başlangıç tarihi (varsayılan 3 ay önce).'
-      - name: to
-        in: query
-        required: false
-        schema: { type: string, format: date }
-        description: 'Bitiş tarihi (varsayılan bugün).'
-    get:
-      tags: [Cari hesap]
-      summary: Cari ekstre
-      description: Tarih aralığındaki hareketler, açılış ve kapanış bakiyesiyle.
-      operationId: getAccountStatement
-      security:
-        - CustomerToken: []
-      responses:
-        '200':
-          description: Ekstre
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/AccountStatement' }
-        '401': { $ref: '#/components/responses/Unauthenticated' }
-
-  /account/payments:
-    parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
-    post:
-      tags: [Cari hesap]
-      summary: Cari borç ödemesi başlat
-      description: |
-        İki mod, tek uç: `amount` ile istenen tutar, `full: true` ile borcun
-        tamamı.
-
-        **Tutar sunucuda doğrulanır.** `full` modunda istemcinin gönderdiği
-        hiçbir rakam okunmaz; bakiye yeniden hesaplanır. Aksi hâlde
-        istemcinin ekranındaki eski bakiye ile gerçek borç ayrıştığında
-        (arada bir sipariş geçmişse) müşteri eksik ödeyip "kapattım" sanırdı.
-
-        Borcu aşan ödeme reddedilir: fazla ödeme defterde negatif bakiye
-        yaratır ve iadesi elle iş demektir.
-
-        Ödeme BU UÇTA TAMAMLANMAZ. Yanıttaki `redirect_url` sağlayıcının
-        sayfasıdır (bugün simülasyon); defter ancak ödeme kesinleşince
-        yazılır.
-      operationId: startAccountPayment
-      security:
-        - CustomerToken: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                amount:
-                  type: integer
-                  minimum: 1
-                  description: 'Ödenecek tutar (kuruş). `full` true ise yok sayılır.'
-                full:
-                  type: boolean
-                  description: 'true ise o anki borcun tamamı ödenir.'
-      responses:
-        '201':
-          description: Ödeme başlatıldı
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [payment_id, amount, balance, currency, status, redirect_url]
-                properties:
-                  payment_id: { type: integer }
-                  amount: { type: integer, description: 'Ödenecek tutar (kuruş).' }
-                  balance: { type: integer, description: 'İşlem başlatıldığı andaki borç (kuruş).' }
-                  currency: { type: string, example: TRY }
-                  status: { type: string, enum: [pending] }
-                  redirect_url: { type: string, format: uri }
-        '401': { $ref: '#/components/responses/Unauthenticated' }
-        '422': { $ref: '#/components/responses/ValidationFailed' }
-        '429': { $ref: '#/components/responses/RateLimited' }
-
   # ─────────────────────────────── Abonelik ─────────────────────────────
 
   /subscriptions:
@@ -1260,11 +1211,484 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/ValidationFailed' }
 
+  # ──────────────────────────── Abonelik ödemesi ────────────────────────
+
+  /subscriptions/{id}/payments:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      tags: [Ödeme]
+      summary: Dönem ödemesi başlat
+      description: |
+        Aboneliğin yürürlükteki dönemi için ödeme başlatır.
+
+        **Tutar istekte GÖNDERİLMEZ.** Dönem tutarı sunucuda hesaplanır
+        (servis günü sayısı × porsiyon × anlaşmalı fiyat, atlanan günler
+        düşülmüş). İstemciden alınsaydı, ekranındaki tutar ile gerçek tutar
+        ayrıştığı anda (arada bir gün atlanmışsa) abone eksik ödeyip
+        "kapattım" sanırdı.
+
+        Yanıttaki `next_action` sıradaki adımı söyler: `otp` ise kod
+        `.../confirm` ucuna gönderilir, `three_ds` ise `redirect_url`
+        açılır, `none` ise ek adım yoktur ve sonuç `status`'tadır.
+
+        **Ödeme BU UÇTA TAMAMLANMAZ.** `status` yalnız ödeme kesinleşince
+        `paid` olur; istemci onu yoklamayla (`GET .../payments/{paymentId}`)
+        öğrenir.
+      operationId: startSubscriptionPayment
+      security:
+        - CustomerToken: []
+      responses:
+        '200':
+          description: |
+            Aynı dönem için **zaten açık bir ödeme vardı**; yenisi
+            yaratılmadı, mevcut kayıt döndü.
+
+            İkinci bir kayıt açsaydık geri dönüp tekrar deneyen abone iki
+            ödeme kaydı bırakır, ikisi de sağlayıcıda ayrı ayrı yaşar ve
+            biri gecikmeli başarıya dönerse aynı dönem iki kez tahsil
+            edilirdi.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionPayment' }
+        '201':
+          description: Ödeme başlatıldı
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionPayment' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          description: |
+            Abonelik ödemeye hazır değil — fiyatı girilmemiş, sözleşmesi
+            onaylanmamış (`awaiting_contract`), iptal edilmiş, ya da dönem
+            zaten ödenmiş.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /subscriptions/{id}/payments/{paymentId}:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+      - name: paymentId
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      tags: [Ödeme]
+      summary: Ödeme durumunu yokla
+      description: |
+        Ödemenin güncel hâli. `three_ds` yönlendirmesinden dönen istemci
+        sonucu buradan okur — sağlayıcının dönüş adresi bize ulaştığında
+        istemcinin elinde hâlâ eski gövde vardır.
+
+        **Yoklama aralığı en az 2 saniye olmalıdır.** Ödeme sağlayıcıdan
+        saniyeler içinde kesinleşmez ve daha sık yoklamak yalnız oran
+        sınırını doldurur; sınıra takılan istemci ödemesi başarılı olmuş
+        bir aboneye başarısız ekranı gösterir.
+      operationId: getSubscriptionPayment
+      security:
+        - CustomerToken: []
+      responses:
+        '200':
+          description: Ödeme
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionPayment' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /subscriptions/{id}/payments/{paymentId}/confirm:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+      - name: paymentId
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      tags: [Ödeme]
+      summary: Ödemeyi OTP koduyla onayla
+      description: |
+        `next_action = otp` iken kullanılır. Kod bankadan/sağlayıcıdan
+        aboneye SMS ile gider; biz üretmeyiz, yalnız iletiriz.
+
+        Yanlış kod `422 VALIDATION_FAILED` döner ve **denemeyi tüketir**.
+        Deneme hakkı bittiğinde ödeme başarısız kapanır; abone yeni bir
+        ödeme başlatır. Sınırsız deneme, çalınan bir kartın kodunu
+        aramanın önünü açardı.
+      operationId: confirmSubscriptionPayment
+      security:
+        - CustomerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string, minLength: 4, maxLength: 8, examples: ['482913'] }
+      responses:
+        '200':
+          description: Onaylandı ya da sonuç güncellendi
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionPayment' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          description: Kod hatalı, süresi dolmuş ya da ödeme onay bekleyen durumda değil.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  # ─────────────────────── Abonelik sözleşmesi (açık) ───────────────────
+
+  /contracts/{token}:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: token
+        in: path
+        required: true
+        description: |
+          İmzalı, süreli sözleşme bağlantısının belirteci. Aboneye SMS ile
+          gider. Tahmin edilemez ve **kayıt kimliği taşımaz** — sıralı bir
+          kimlik olsaydı bir bağlantıyı eline geçiren, komşu numaraları
+          deneyerek başkalarının sözleşmelerini okuyabilirdi.
+        schema: { type: string, minLength: 20, maxLength: 200 }
+    get:
+      tags: [Sözleşme]
+      summary: Sözleşmeyi oku
+      description: |
+        Sözleşme metnini ve fiyatını döndürür. **Kimlik gerektirmez**:
+        bağlantı aboneye SMS ile gidiyor ve onaylayan kişi çoğu zaman
+        uygulamada oturum açmış kişi değil, satın almayı onaylayan
+        yetkilidir. Oturum istemek, onayı imkânsız hâle getirirdi.
+
+        Yanıt bilinçli olarak dardır (bkz. `SubscriptionContract`):
+        adres, e-posta, sipariş geçmişi ve müşteri kimliği dönmez.
+
+        Süresi dolmuş bağlantı `410` **değil**, `200` +
+        `status: expired` döner: istemci "bu bağlantının süresi doldu,
+        yenisini isteyin" cümlesini kurabilmeli, boş bir hata sayfası
+        görmemelidir.
+      operationId: getContract
+      security: []
+      responses:
+        '200':
+          description: Sözleşme
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/SubscriptionContract' }
+        '404':
+          description: |
+            Belirteç tanınmadı. **Süresi dolmuş bağlantıdan ayrıdır** —
+            burada gerçekten böyle bir sözleşme yok.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /contracts/{token}/otp:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: token
+        in: path
+        required: true
+        schema: { type: string, minLength: 20, maxLength: 200 }
+    post:
+      tags: [Sözleşme]
+      summary: Onay kodu iste
+      description: |
+        Sözleşmedeki telefona SMS ile 6 haneli onay kodu gönderir. Numara
+        **istekte alınmaz**: sözleşmenin kayıtlı numarasına gider. İstemciden
+        alınsaydı, bağlantıyı eline geçiren biri kodu kendi telefonuna
+        ısmarlayıp sözleşmeyi onaylayabilirdi — imzalı bağlantı tek başına
+        kimlik değildir, ikinci etken tam olarak budur.
+
+        Yanıt, kod gerçekten gönderilmiş olsun olmasın aynı biçimdedir.
+        Oran sınırı **belirteç başına** 5 istek/saattir; sınırın sebebi
+        `info.description` içinde.
+      operationId: requestContractOtp
+      security: []
+      responses:
+        '202':
+          description: İstek alındı (sözleşme onaya uygunsa SMS gönderildi)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, expires_in, resend_after]
+                properties:
+                  message: { type: string }
+                  expires_in: { type: integer, description: 'Kodun ömrü (saniye).', examples: [300] }
+                  resend_after: { type: integer, description: 'Yeni kod için beklenecek süre (saniye).', examples: [60] }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          description: Sözleşme onaya uygun durumda değil (`approved`, `expired`, `cancelled`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /contracts/{token}/approve:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: token
+        in: path
+        required: true
+        schema: { type: string, minLength: 20, maxLength: 200 }
+    post:
+      tags: [Sözleşme]
+      summary: Sözleşmeyi onayla
+      description: |
+        SMS kodunu doğrular ve sözleşmeyi `approved` yapar. Aboneliğin
+        durumu `awaiting_contract` → `awaiting_payment`'a geçer.
+
+        **Onay geri alınamaz.** Vazgeçme, sözleşmenin iptali değil
+        aboneliğin iptalidir (`POST /subscriptions/{id}/cancel`) — onay
+        kaydı hukuki bir izdir ve silinmez.
+
+        Aynı kodla ikinci çağrı `200` ve aynı gövdeyi döndürür (idempotent);
+        SMS'in gecikip kullanıcının iki kez dokunması sık yaşanıyor ve
+        ikincisinin hata vermesi, onaylanmış bir sözleşmede "onaylanamadı"
+        yazan bir ekran demek olurdu.
+      operationId: approveContract
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string, minLength: 6, maxLength: 6, examples: ['482913'] }
+                full_name:
+                  type: string
+                  maxLength: 120
+                  description: |
+                    Onaylayan kişinin beyan ettiği ad soyad. Zorunlu
+                    değildir; onayın kimin elinden geçtiğini belgeye
+                    yazmak için alınır, doğrulanmaz.
+      responses:
+        '200':
+          description: Onaylandı
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/SubscriptionContract' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          description: Kod hatalı/süresi dolmuş ya da sözleşme onaya uygun durumda değil.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  # ─────────────────────────────── Duyuru ───────────────────────────────
+
+  /announcements:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: placement
+        in: query
+        required: false
+        description: |
+          Yalnız bu yerleşimdeki duyuruları döndür. Verilmezse müşterinin
+          o an görmesi gereken **tüm** duyurular döner.
+
+          Yerleşim kümesi panelde büyüyor; bilinmeyen bir değer `422`
+          değil, **boş liste** döndürür. Sözleşmede olmayan bir yerleşimi
+          soran istemcinin ekranı hata vermek yerine duyurusuz açılmalıdır.
+        schema: { type: string, examples: [home] }
+    get:
+      tags: [Duyuru]
+      summary: Uygulama-içi duyurular
+      description: |
+        Müşterinin **şu anda görmesi gereken** duyurular: yayın penceresi
+        içinde olan ve bu müşteri tarafından kapatılmamış olanlar.
+        Sıralama sunucudandır (önce `critical`, sonra yeni olan).
+
+        Filtreleme sunucuda yapılıyor ki üç istemci pencere ve kapatma
+        kuralını üç kez yazmasın — cihaz saatine bakan bir istemci, saati
+        kaymış telefonda süresi dolmuş duyuruyu göstermeye devam ederdi.
+      operationId: listAnnouncements
+      security:
+        - CustomerToken: []
+      responses:
+        '200':
+          description: Duyurular
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Announcement' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /announcements/{id}/seen:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      tags: [Duyuru]
+      summary: Görüldü işaretle
+      description: |
+        Duyuru ekranda çizildiğinde çağrılır. Duyuruyu listeden
+        **düşürmez** — düşüren `dismiss`'tir.
+
+        İşaret sunucuda tutulur ki müşteri web'de gördüğü duyurunun
+        "yeni" rozetini mobilde tekrar görmesin. İstemci yerelinde
+        tutulsaydı her cihaz aynı duyuruyu bir kez daha yeni sayardı.
+
+        **İdempotenttir**: aynı duyuru için tekrar çağrılması hata değildir
+        ve ilk görülme anını değiştirmez.
+      operationId: markAnnouncementSeen
+      security:
+        - CustomerToken: []
+      responses:
+        '204': { description: İşaretlendi }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /announcements/{id}/dismiss:
+    parameters:
+      - $ref: '#/components/parameters/AppId'
+      - $ref: '#/components/parameters/AppVersion'
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      tags: [Duyuru]
+      summary: Duyuruyu kapat
+      description: |
+        Müşteri duyuruyu kapattı; bir daha `GET /announcements` listesinde
+        **dönmez**.
+
+        `dismissible: false` duyuru için `422` döner — kapatılamayan bir
+        duyuruyu istemcinin isteğiyle kapatmak, hizmet kesintisi
+        duyurusunu ilk dokunuşta yok etmek olurdu.
+
+        **İdempotenttir**: zaten kapatılmış duyuru için de `204` döner.
+      operationId: dismissAnnouncement
+      security:
+        - CustomerToken: []
+      responses:
+        '204': { description: Kapatıldı }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          description: 'Duyuru kapatılabilir değil (`dismissible` yanlış).'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  # ─────────────────────────────── Teşhis ───────────────────────────────
+
+  /client-errors:
+    parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
+    post:
+      tags: [Teşhis]
+      summary: İstemci hatası bildir
+      description: |
+        İstemcinin yakalayamadığı hataları sunucuya boşaltır.
+
+        **`source` alanı gövdede BULUNMAZ.** Raporun hangi uygulamadan
+        geldiğini sunucu `X-App-Id` başlığından türetir. Gövdeye
+        bırakılsaydı web sitesi `mutfakapp` yazan bir rapor üretebilir ve
+        mutfağın güvendiği hata monitörüne sahte KDS alarmı düşürebilirdi —
+        o monitör sahada "kasada bir sorun var mı" sorusunun tek cevabı;
+        zehirlendiğinde mutfak kör kalır. Gövdede `source` gönderilirse
+        **sessizce yok sayılır**, istek reddedilmez.
+
+        **Kimlik opsiyoneldir.** Token varsa rapor müşteriye bağlanır;
+        yoksa da kabul edilir. Hataların önemli bir kısmı tam da oturum
+        açılamadığı için doğuyor ve orada token istemek, en çok ihtiyaç
+        duyulan kaydı kaybettirirdi.
+
+        **Yanıt her zaman `204`'tür** — doğrulama hatası bile dönmez.
+        Bu ucun bir hata döndürmesi, hata bildirmeye çalışan istemcinin
+        ikinci bir hata üretmesi demek olur ve kendini besleyen bir döngü
+        doğar. Ayrıştırılamayan alanlar boş bırakılır, sınırı aşan metin
+        kesilir, rapor yine kaydedilir.
+      operationId: reportClientError
+      security:
+        - {}
+        - CustomerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClientErrorReport' }
+      responses:
+        '204':
+          description: |
+            Alındı. Gövde dönmez — istemcinin okuyacağı bir şey yok ve
+            hata yolunda ek ayrıştırma yapmaması gerekir.
+        '429': { $ref: '#/components/responses/RateLimited' }
+
   /me/push-token:
     parameters: [$ref: '#/components/parameters/AppId', $ref: '#/components/parameters/AppVersion', $ref: '#/components/parameters/AcceptLanguage']
     post:
       tags: [Sipariş]
       summary: FCM push token'ı kaydet
+      deprecated: true
+      description: |
+        **KULLANIMDAN KALDIRILDI (16.08.2026).** Push bildirimi (FCM)
+        kapsam dışına alındı; müşteriye ulaşmanın yolu uygulama-içi
+        duyuru (`GET /announcements`) ve SMS'tir.
+
+        Uç sözleşmede duruyor (§1.4) ve token'ı kabul etmeye devam ediyor
+        ama **hiçbir bildirim gönderilmiyor**. Sahadaki eski mobil
+        sürümler açılışta bu ucu çağırıyor; kaldırılsaydı her açılışta
+        `404` alıp hata ekranı gösterirlerdi. Yeni istemciler bu ucu
+        **çağırmaz**.
       operationId: registerPushToken
       requestBody:
         required: true
@@ -1624,7 +2048,7 @@ paths:
 
         Bu siparişler BLD'nin `orders` tablosuna **girmez**, KDS
         panosunda görünmez, üretim listesine / vardiya istatistiğine /
-        `orders_today` sayacına / cari hesaba **karışmaz**. Tek bağ ses
+        `orders_today` sayacına / tahsilat kayıtlarına **karışmaz**. Tek bağ ses
         ve kâğıttır; geri bildirim, durum senkronizasyonu yoktur.
 
         **Kimlik doğrulama HMAC imzasıyla, token'la değil.** Arada
@@ -1804,7 +2228,7 @@ paths:
       description: |
         **FİYAT YOKTUR** (ADR-08). Personel adet değiştirirken fiyata
         bakmıyor; iade/fark tutarı kaydetme onayında tek bir sayı olarak
-        gösteriliyor ve o cari bakiye değil.
+        gösteriliyor ve o bir bakiye değil, yalnız bu siparişin farkıdır.
       operationId: getEditableOrder
       security: [{ KitchenToken: [] }]
       responses:
@@ -1860,8 +2284,8 @@ paths:
 
         Sunucu tek işlemde: satırları yeniden yazar, toplamları yeniden
         hesaplar, `orders.updated_at`'i **dokunur** (KDS'in değişikliği
-        görmesi buna bağlı), revizyon belgesini yazar, cari hesabı düzeltir
-        ve gerekiyorsa iade başlatır.
+        görmesi buna bağlı), revizyon belgesini yazar ve gerekiyorsa iade
+        başlatır.
 
         `items` **tam listedir**, fark değil: eksik gönderilen kalem
         siparişten çıkarılır. Boş liste `422` — tümünü kaldırmak "iptal"
@@ -3041,13 +3465,13 @@ paths:
 
         İş mantığı `OrderEditor`'da — mutfak kasasının kullandığı sınıfın
         **ta kendisi**. Ayrı bir kopya yazılsaydı sipariş merkezden
-        düzenlendiğinde cari hesap ya da iade kaydı sessizce oluşmayabilirdi.
+        düzenlendiğinde iade kaydı sessizce oluşmayabilirdi.
 
         `items` **tam listedir**, delta değil. Fark göndermek iki tarafın
         "şu anki hâl" konusunda anlaşmasını gerektirirdi; eşzamanlı bir kasa
         düzenlemesiyle yarışan bir merkez isteği sessizce yanlış sipariş
         üretirdi. **Boş liste `422`** — siparişi boşaltmak iptal değildir ve
-        iptalin kendi durumu, kendi cari kaydı vardır.
+        iptalin kendi durumu ve kendi iade kaydı vardır.
 
         **ÇAĞIRAN AYRIMI:** `created_by_device_id` **NULL** kalır (kasa yok)
         ve revizyon **notunun başına** `Kontrol Merkezi · <actor>` etiketi
@@ -3502,8 +3926,8 @@ components:
 
         `yeni`ye dönüş ve terminal durumlardan (`teslim_edildi`, `iptal`)
         geri alma **yoktur**: mutfak fişi `onaylandi`da basılıyor ve basılı
-        kâğıt geri alınamaz; iptal ise cari hesaba ters kayıt yazıyor ve
-        geri alması bir muhasebe düzeltmesi olur.
+        kâğıt geri alınamaz; iptal ise iade/ters kayıt doğuruyor ve geri
+        alması bir muhasebe düzeltmesi olur.
 
         Pencere dışındaki ya da iki adımlık bir geri alma isteği
         `422 INVALID_TRANSITION` döner. Gerekçe: dokunmatik monitörde
@@ -3518,11 +3942,31 @@ components:
     PaymentMethod:
       type: string
       enum: [online, cash, account]
+      x-deprecated-values: [account]
       description: |
-        `online` = sanal POS, `cash` = kapıda ödeme, `account` = cari hesap.
+        `online` = sanal POS, `cash` = kapıda ödeme.
 
         Faz 1'de `online`, gerçek tahsilat yapmayan bir **simülasyon**
         geçidine bağlıdır; akış gerçek POS ile aynıdır.
+
+        ### `account` — **KULLANIMDAN KALDIRILDI** (16.08.2026)
+
+        `account` (cari hesap) yöntemi kaldırıldı. **Yeni siparişte asla
+        dönmez** ve istekte gönderilirse `422 VALIDATION_FAILED` alır;
+        yalnızca **cutover öncesi tarihsel siparişlerde** görülür.
+
+        Değer enum'dan **çıkarılmadı**: çıkarılsaydı geçmiş sipariş
+        listesini çözen istemci, kendi ürettiği kapalı birleşim tipine
+        uymayan bir değerle karşılaşıp ayrıştırmayı kırardı. Kırk sipariş
+        geçmişi olan bir müşterinin listesi tek eski satır yüzünden hiç
+        açılmazdı.
+
+        `x-deprecated-values` üretilen istemci tipini etkilemez; ayrımı
+        yapması gereken insan ve kod incelemesidir. İstemci `account` gören
+        satırda ödeme yöntemini "Cari hesap (kapatıldı)" gibi geçmişe ait
+        bir etiketle göstermeli, ödeme seçeneği olarak **teklif
+        etmemelidir** — vitrinin `payment_methods` listesi zaten bu değeri
+        içermez.
 
     PaymentStatus:
       type: string
@@ -3531,6 +3975,29 @@ components:
         Faz 1'de yalnızca bu iki değer üretilir. Sanal POS devreye girdiğinde
         `failed`/`refunded` **eklenebilir** (ek değer, kırıcı değişiklik değil);
         istemciler bilmedikleri değeri "belirsiz" olarak göstermeli, çökmemelidir.
+
+    PaymentNextAction:
+      type: string
+      enum: [none, otp, three_ds]
+      description: |
+        Ödemenin kesinleşmesi için **sıradaki adım**. Kararı sunucu verir;
+        istemci ödeme tipine, tutara ya da bankaya bakarak bunu kendi
+        çıkarmaz — o kural sağlayıcı tarafında ve bizim dışımızda değişir.
+
+        | Değer | İstemci ne yapar |
+        |---|---|
+        | `none` | Ek adım yok. Sonuç `status` alanındadır. |
+        | `otp` | Kullanıcıdan SMS kodu alır, `.../confirm` ucuna gönderir. |
+        | `three_ds` | `redirect_url` adresine yönlendirir, dönüşte yoklar. |
+
+        **GEVŞEK ENUM.** Buraya ileride yeni adım tipleri eklenecektir
+        (`app2app`, `biometric` gibi) ve ek değer kırıcı değişiklik
+        sayılmaz. İstemci bilmediği değeri gördüğünde **çökmemeli** ve
+        kendiliğinden `none` varsaymamalıdır: `none` saymak, atlanan bir
+        doğrulama adımını "ödeme bitti" diye göstermek olurdu. Doğru
+        davranış, kullanıcıya güncelleme gerektiğini söyleyip
+        `GET /subscriptions/{id}/payments/{paymentId}` ile yoklamaya
+        düşmektir — sonuç yine de oradan okunur.
 
     ReceiptType:
       type: string
@@ -3651,57 +4118,28 @@ components:
         account_type:
           type: string
           enum: [corporate, individual]
-          description: B2B — yeni kayıtlar `corporate`. Bireysel hesap sipariş veremez.
+          description: |
+            Hesabın **etiketi**. Yeni kayıtlar `corporate` işaretlenir.
+
+            **KURAL KALKTI (16.08.2026).** Bu alan artık sipariş hakkını
+            belirlemez; kurumsal sipariş kapısı (`CustomerGate`) kaldırıldı
+            ve herkes sipariş verebilir. Alan panelde müşteriyi ayırmaya ve
+            raporlamaya yarayan bir etiket olarak duruyor. İstemciler bu
+            alana bakarak **sipariş yolunu kapatmamalıdır**.
         can_order:
           type: boolean
-          description: İstemci sipariş yolunu bununla açar/kapatır; sunucu da denetler.
+          description: |
+            **Artık her zaman `true` döner** — sipariş kapısı kaldırıldı
+            (16.08.2026). Alan silinmedi (§1.4): sahadaki istemciler bunu
+            okuyup sipariş düğmesini çiziyor ve kaldırılsaydı `undefined`
+            gören eski istemci düğmeyi hiç göstermezdi.
+
+            Yeni istemciler bu alanı **okumamalı**. Siparişin gerçekten
+            verilebilir olup olmadığı vitrinin (`Location.is_open`,
+            `ordering_enabled`) ve günün (`DailyMenu.is_orderable`)
+            durumundan okunur; bağlayıcı olan `POST /orders`'ın kendisidir.
         company_name: { type: [string, 'null'] }
         contact_person: { type: [string, 'null'] }
-
-    # ── Cari hesap ──────────────────────────────────────────────────────
-
-    AccountSummary:
-      type: object
-      required: [balance, currency, as_of]
-      properties:
-        balance:
-          type: integer
-          format: int64
-          description: Güncel bakiye (kuruş). Pozitif = müşterinin borcu, negatif = fazla ödeme.
-        currency: { $ref: '#/components/schemas/Currency' }
-        as_of: { type: string, format: date-time }
-
-    AccountEntry:
-      type: object
-      required: [date, entry_type, amount, running_balance, source]
-      properties:
-        date: { type: string, format: date }
-        entry_type:
-          type: string
-          enum: [debit, credit]
-          description: '`debit` = borç (sipariş/abonelik), `credit` = alacak (tahsilat/iptal).'
-        amount: { $ref: '#/components/schemas/Money' }
-        running_balance:
-          type: integer
-          format: int64
-          description: O satırdan sonraki yürüyen bakiye (kuruş, işaretli).
-        source:
-          type: string
-          enum: [order, subscription, payment, manual, adjustment]
-        description: { type: [string, 'null'] }
-
-    AccountStatement:
-      type: object
-      required: [opening_balance, closing_balance, currency, from, to, entries]
-      properties:
-        opening_balance: { type: integer, format: int64 }
-        closing_balance: { type: integer, format: int64 }
-        currency: { $ref: '#/components/schemas/Currency' }
-        from: { type: string, format: date }
-        to: { type: string, format: date }
-        entries:
-          type: array
-          items: { $ref: '#/components/schemas/AccountEntry' }
 
     # ── Abonelik ────────────────────────────────────────────────────────
 
@@ -3712,7 +4150,28 @@ components:
          default_quantity, payment_mode, menu_mode, lines, delivery_points, created_at]
       properties:
         id: { type: integer, format: int64 }
-        status: { type: string, enum: [pending, active, paused, cancelled] }
+        status:
+          type: string
+          enum: [pending, awaiting_contract, awaiting_payment, active, paused, cancelled]
+          description: |
+            | Değer | Anlamı |
+            |---|---|
+            | `pending` | Talep açıldı, admin henüz fiyatlandırmadı. |
+            | `awaiting_contract` | Fiyat girildi, sözleşme bağlantısı gönderildi, onay bekleniyor. |
+            | `awaiting_payment` | Sözleşme onaylandı, ilk dönem ödemesi bekleniyor. |
+            | `active` | Yürürlükte; gece sipariş üretiyor. |
+            | `paused` | Abone durdurdu; sipariş üretilmiyor. |
+            | `cancelled` | Sonlandı (terminal). |
+
+            İki ara durum 16.08.2026'da **eklendi**. Ayrı tutulmalarının
+            sebebi ekranın kuracağı cümlenin ayrı olması: birinde abonenin
+            yapacağı iş sözleşmeyi okuyup onaylamak, öbüründe ödemek. Tek
+            bir `pending` altında toplansalardı istemci "ne bekleniyor"
+            sorusunu yanıtlayamaz, abone de hiçbir şey yapmadan beklerdi.
+
+            **Bilinmeyen durum çökertmemelidir.** Eski istemci bu iki
+            değeri tanımaz; tanımadığı durumu "işleniyor" gibi nötr bir
+            metinle göstermeli ve eylem düğmelerini kapatmalıdır.
         location_id: { type: integer, format: int64 }
         delivery_type: { $ref: '#/components/schemas/DeliveryType' }
         start_date: { type: string, format: date }
@@ -3729,7 +4188,17 @@ components:
             - { $ref: '#/components/schemas/Money' }
             - { type: 'null' }
           description: Porsiyon başı anlaşmalı fiyat. Talepte null; admin belirler.
-        payment_mode: { type: string, enum: [account, prepaid_monthly] }
+        payment_mode:
+          type: string
+          enum: [account, prepaid_monthly]
+          x-deprecated-values: [account]
+          description: |
+            Bugün üretilen tek değer `prepaid_monthly`'dir: dönem peşin
+            ödenir (`payment` alanı).
+
+            `account` (cari hesaptan tahsil) **kullanımdan kaldırıldı**
+            (16.08.2026) ve yeni abonelikte dönmez; enum'dan çıkarılmadı
+            çünkü cutover öncesi abonelik kayıtları o değerle duruyor.
         menu_mode: { type: string, enum: [fixed_list, daily_menu] }
         lines:
           type: array
@@ -3737,6 +4206,45 @@ components:
         delivery_points:
           type: array
           items: { $ref: '#/components/schemas/SubscriptionDeliveryPoint' }
+        exceptions:
+          type: array
+          description: |
+            Aboneliğin **tek-günlük istisnaları**: atlanan günler ve adedi
+            değiştirilen günler.
+
+            **16.08.2026'da eklendi ve bir açığı kapatıyor:**
+            `POST /subscriptions/{id}/exceptions` istisnayı yazıyordu ama
+            hiçbir uç geri okumuyordu — abone bir günü atladıktan sonra
+            atladığını ekranda göremiyor, emin olmak için aynı günü tekrar
+            tekrar atlıyordu.
+
+            Yalnız **bugün ve sonrası** için girilmiş istisnalar döner.
+            Geçmiş istisnalar da tabloda durur (append-only) ama listeye
+            girmez: abonenin ekranında üç aylık atlama geçmişi işe yaramaz
+            ve yanıtı gereksiz büyütür.
+          items: { $ref: '#/components/schemas/SubscriptionException' }
+        payment:
+          oneOf:
+            - $ref: '#/components/schemas/SubscriptionPaymentSummary'
+            - type: 'null'
+          description: |
+            **Yürürlükteki dönemin** ödeme durumu; henüz fiyatlanmamış
+            talepte `null`.
+
+            Ödemenin geçmişi burada değildir — bu alan "şu an ne
+            bekleniyor" sorusunu yanıtlar. Tek bir dönem yerine listeyi
+            gömseydik, abonelik listesi ekranı her satır için aylarca
+            geriye giden bir dizi taşırdı.
+        contract:
+          oneOf:
+            - $ref: '#/components/schemas/SubscriptionContractSummary'
+            - type: 'null'
+          description: |
+            Abonelik sözleşmesinin durumu; sözleşme henüz üretilmediyse
+            `null`. Sözleşme metninin kendisi burada **yoktur**, imzalı
+            bağlantının arkasındadır (`GET /contracts/{token}`) — metin
+            sayfalarca sürüyor ve abonelik listesinde taşınacak bir şey
+            değil.
         created_at: { type: string, format: date-time }
 
     SubscriptionLine:
@@ -3814,6 +4322,208 @@ components:
         skip: { type: boolean }
         quantity_override: { type: integer, minimum: 1, maximum: 9999 }
 
+    SubscriptionException:
+      type: object
+      required: [service_date, skip]
+      description: |
+        Aboneliğin tek bir servis günü için geçerli istisnası. Kuralın
+        kendisini değiştirmez; yalnız o günü etkiler.
+      properties:
+        service_date:
+          type: string
+          format: date
+          description: İstisnanın geçerli olduğu servis günü (Europe/Istanbul).
+        skip:
+          type: boolean
+          description: |
+            `true` ise o gün sipariş **üretilmez**. `false` ise gün
+            üretilir ve varsa `quantity_override` uygulanır.
+        quantity_override:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 9999
+          description: |
+            O güne özel porsiyon adedi; verilmemişse `null` ve aboneliğin
+            `default_quantity` değeri geçerlidir. `skip` doğruyken
+            anlamsızdır ve `null` döner.
+        created_at:
+          type: [string, 'null']
+          format: date-time
+          description: |
+            İstisnanın girildiği an. Ekranda "12 Ağustos'ta atladınız"
+            diyebilmek için var: aynı gün için iki kez işlem yapıldığında
+            abone hangisinin geçerli olduğunu ancak zamana bakarak anlar.
+
+    SubscriptionPaymentSummary:
+      type: object
+      required: [period, amount, currency, status]
+      description: |
+        Aboneliğin yürürlükteki dönem ödemesinin özeti. Ayrıntı ve akış
+        `GET /subscriptions/{id}/payments/{paymentId}` ucundadır.
+      properties:
+        payment_id:
+          type: [integer, 'null']
+          format: int64
+          description: |
+            Ödeme kaydının kimliği; henüz ödeme başlatılmadıysa `null`.
+            `null` ile `0` karıştırılmamalıdır — `0` diye bir kayıt yoktur.
+        period:
+          type: string
+          pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
+          description: |
+            Ödeme dönemi, `YYYY-AA` (Europe/Istanbul takvim ayı). Gün
+            taşımaz: dönem bir aydır, bir tarih değil.
+          examples: ['2026-09']
+        amount:
+          allOf: [$ref: '#/components/schemas/Money']
+          description: |
+            Dönem tutarı (kuruş). **Sunucu hesaplar**: o ayın servis günü
+            sayısı × porsiyon × anlaşmalı birim fiyat, atlanan günler
+            düşülmüş hâlde. İstemci bu çarpımı tekrarlamaz — atlanan gün
+            kuralını iki yerde tutmak, iki farklı tutar göstermenin en
+            kısa yoludur.
+        currency: { $ref: '#/components/schemas/Currency' }
+        status: { $ref: '#/components/schemas/PaymentStatus' }
+        due_date:
+          type: [string, 'null']
+          format: date
+          description: |
+            Son ödeme günü (Europe/Istanbul); tanımlı değilse `null`.
+            Tarih olarak veriliyor, an olarak değil: "ayın 5'i" bir gün
+            adıdır ve saat dilimi tartışması yaratmaz.
+
+    SubscriptionContractSummary:
+      type: object
+      required: [status]
+      description: Abonelik sözleşmesinin özeti. Metin imzalı bağlantının arkasındadır.
+      properties:
+        status: { $ref: '#/components/schemas/ContractStatus' }
+        version:
+          type: [integer, 'null']
+          minimum: 1
+          description: |
+            Sözleşme metninin sürümü. Fiyat ya da koşul değişince yeni bir
+            sürüm üretilir ve **yeniden onay** istenir; onaylanan sürümün
+            numarası burada durur.
+        sent_at:
+          type: [string, 'null']
+          format: date-time
+          description: Sözleşme bağlantısının SMS ile gönderildiği an.
+        approved_at:
+          type: [string, 'null']
+          format: date-time
+          description: Abonenin SMS koduyla onayladığı an; onaylanmadıysa `null`.
+
+    ContractStatus:
+      type: string
+      enum: [draft, sent, approved, expired, cancelled]
+      description: |
+        | Değer | Anlamı |
+        |---|---|
+        | `draft` | Metin üretildi, bağlantı henüz gönderilmedi. |
+        | `sent` | Bağlantı gönderildi, onay bekleniyor. |
+        | `approved` | Abone SMS koduyla onayladı (terminal). |
+        | `expired` | Bağlantının süresi doldu; yeni bağlantı gerekir. |
+        | `cancelled` | Sözleşme geçersiz kılındı (yeni sürüm ya da iptal). |
+
+        `expired` ile `cancelled` ayrı: birinde abonenin yapacağı iş yeni
+        bağlantı istemek, öbüründe hiçbir şey yapmamak. Tek değere
+        sıkıştırılsalardı ekran ikisine de aynı düğmeyi çizerdi.
+
+    SubscriptionContract:
+      type: object
+      required: [status, version, body, body_format, service_days, unit_price, currency]
+      description: |
+        İmzalı bağlantının arkasındaki sözleşme görünümü.
+
+        **Kimlik gerektirmeyen bir uçtan döndüğü için bilinçli olarak
+        dardır:** abonenin adresleri, e-postası, sipariş geçmişi ve müşteri
+        kimliği burada **yoktur**. Bağlantıyı ele geçiren biri yalnız
+        sözleşmenin kendisini ve maskeli telefonu görür — onay için SMS
+        kodu ayrıca gerekir.
+      properties:
+        status: { $ref: '#/components/schemas/ContractStatus' }
+        version: { type: integer, minimum: 1 }
+        title: { type: [string, 'null'] }
+        body:
+          type: string
+          description: Sözleşme metninin tamamı.
+        body_format:
+          type: string
+          enum: [markdown, plain]
+          description: |
+            Metnin biçimi. Sunucudan **HTML gönderilmez**: metin panelde
+            yazılıyor ve doğrudan HTML gömmek, sözleşme sayfasına script
+            sokabilecek bir kapı açardı.
+        customer_label:
+          type: [string, 'null']
+          description: |
+            Sözleşmenin karşı tarafı — kurum unvanı ya da ad soyad.
+            Onaylayan kişi doğru sözleşmeye baktığını buradan anlar.
+        masked_phone:
+          type: [string, 'null']
+          description: |
+            SMS kodunun gideceği numaranın maskeli hâli. Tamamı
+            gösterilmez: bağlantı kimlik istemiyor ve tam numarayı basmak,
+            bağlantıyı ele geçirene doğrulanmış bir telefon numarası
+            hediye etmek olurdu.
+          examples: ['0555 *** ** 33']
+        start_date: { type: string, format: date }
+        end_date: { type: [string, 'null'], format: date }
+        service_days:
+          type: array
+          items: { type: integer, minimum: 1, maximum: 7 }
+          description: ISO hafta günleri (1 Pazartesi .. 7 Pazar).
+        default_quantity: { type: integer, minimum: 1 }
+        unit_price:
+          allOf: [$ref: '#/components/schemas/Money']
+          description: Porsiyon başı anlaşmalı fiyat (kuruş).
+        monthly_estimate:
+          oneOf:
+            - $ref: '#/components/schemas/Money'
+            - type: 'null'
+          description: |
+            Tipik bir ayın tahmini tutarı (kuruş). Onaylayan kişi neyi
+            imzaladığını porsiyon fiyatından zihninde çarparak değil,
+            yazılı bir rakamla görmelidir.
+        currency: { $ref: '#/components/schemas/Currency' }
+        expires_at:
+          type: [string, 'null']
+          format: date-time
+          description: Bağlantının geçerlilik sonu; süresizse `null`.
+        approved_at: { type: [string, 'null'], format: date-time }
+
+    SubscriptionPayment:
+      type: object
+      required: [payment_id, subscription_id, period, amount, currency, status, next_action, created_at]
+      description: Bir abonelik dönem ödemesinin tam hâli.
+      properties:
+        payment_id: { type: integer, format: int64 }
+        subscription_id: { type: integer, format: int64 }
+        period:
+          type: string
+          pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
+          examples: ['2026-09']
+        amount: { $ref: '#/components/schemas/Money' }
+        currency: { $ref: '#/components/schemas/Currency' }
+        status: { $ref: '#/components/schemas/PaymentStatus' }
+        next_action: { $ref: '#/components/schemas/PaymentNextAction' }
+        redirect_url:
+          type: [string, 'null']
+          format: uri
+          description: |
+            Yalnız `next_action = three_ds` iken dolu. Ödeme kesinleştikten
+            sonra `null` döner — kullanıcı ikinci kez ödeme sayfasına
+            gönderilmemelidir.
+        failure_reason:
+          type: [string, 'null']
+          description: |
+            Başarısız denemenin kullanıcıya gösterilebilir Türkçe sebebi
+            ("Kart limiti yetersiz."). Sağlayıcının ham hata kodu
+            **dönmez**: müşteriye bir şey anlatmıyor ve teşhis günlükte.
+        created_at: { type: string, format: date-time }
+        paid_at: { type: [string, 'null'], format: date-time }
+
     # ── Katalog ─────────────────────────────────────────────────────────
 
     Location:
@@ -3856,6 +4566,23 @@ components:
             geçerken bir ay ileriye menü girilmiş olması gerekiyor. Şalter
             olmasaydı, geri dönmek üç uygulamayı birden yeniden yayınlamak
             demekti. `false` iken eski katalog akışı aynen çalışır.
+        service_weekdays:
+          type: array
+          items: { type: integer, minimum: 1, maximum: 7 }
+          description: |
+            Menü çıkan haftanın günleri, ISO numaralarıyla (1 Pazartesi ..
+            7 Pazar). Bugün `[1,2,3,4,5]` — hafta sonu menü yok.
+
+            **Yalnız görüntüleme içindir.** Gün seçici, menüsü hiç
+            olmayacak günleri baştan soluk çizsin diye veriliyor; kararı
+            veren alan yine `MenuCalendarDay.is_orderable` /
+            `DailyMenu.is_orderable`'dır. İstemci bu diziden kendi
+            "sipariş verilebilir mi" hesabını çıkarmamalıdır.
+
+            **Hafta sonu menü yoktur ama satış kanalı AÇIKTIR:** cumartesi
+            günü pazartesiye sipariş verilebilir. Bu yüzden listede olmayan
+            bir gün, "o gün sipariş alınmıyor" değil, "o gün için servis
+            yok" demektir.
         max_lookahead_days:
           type: integer
           minimum: 0
@@ -3864,11 +4591,28 @@ components:
             Bugünden itibaren kaç gün sonrasına sipariş alınabileceği.
             Gün seçici takvimi bu kadar ileriye çizer; sunucu aynı sınırı
             `POST /orders` üzerinde yeniden uygular.
+
+            **Sunucunun bugün döndürdüğü değer `7`'dir** (16.08.2026 —
+            günlük menü satış modeli). Şemadaki `default: 30`, katalog
+            dönemine ait tarihsel bir annotasyondur ve **korunuyor**;
+            istemci bu varsayılana değil, yanıttaki gerçek değere bakar.
+            İki uygulamada iki farklı sabit gömülü kalmasın diye alan zaten
+            sözleşmede.
+          examples: [7]
         order_cutoff:
           type: [string, 'null']
           pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
-          description: Günlük son sipariş saati (Europe/Istanbul) veya `null`.
-          examples: ['16:00']
+          description: |
+            Vitrinin **varsayılan** günlük kesim saati (Europe/Istanbul)
+            veya `null`.
+
+            **ARTIK BAĞLAYICI DEĞİL (16.08.2026).** Her servis günü kendi
+            sabah kesim saatinde kapanır ve o saat Kontrol Merkezi'nden gün
+            gün ayarlanır; bağlayıcı olan `DailyMenu.cutoff_at` /
+            `MenuCalendarDay.cutoff_at` alanlarındaki **mutlak andır**. Bu
+            alan panelde girilen varsayılanı gösterir ve "genelde saat
+            kaçta kapanıyor" cümlesini kurmaya yarar.
+          examples: ['08:00']
         min_order_total:
           allOf: [$ref: '#/components/schemas/Money']
           description: Altında sipariş `422 VALIDATION_FAILED`.
@@ -3893,6 +4637,11 @@ components:
           description: |
             Bu vitrinde **açık** olan ödeme yöntemleri. İstemci ödeme ekranında yalnızca
             bunları gösterir. Listede olmayan yöntemle sipariş → `422 VALIDATION_FAILED`.
+
+            Cari hesap kaldırıldığından bu liste **hiçbir zaman `account`
+            içermez** (16.08.2026).
+          examples:
+            - [online, cash]
         busy:
           type: boolean
           description: |
@@ -4634,6 +5383,25 @@ components:
           description: 'Günün adı, örn. "Ev Yemeği Menüsü".'
         description: { type: [string, 'null'] }
         image_url: { type: [string, 'null'], format: uri }
+        image_urls:
+          type: array
+          maxItems: 4
+          items: { type: string, format: uri }
+          description: |
+            Menünün **ilk dört kaleminin** görselleri, yöneticinin verdiği
+            sırada. İstemci bunları 2x2 bir ızgarada dizer; dörtten az
+            görsel varsa ızgara o kadar hücreyle çizilir.
+
+            Görseli olmayan kalem listeye **girmez** — dizide boş yer
+            tutulmaz. Aksi hâlde istemci `null` hücreyi kendi kararıyla
+            doldurmak zorunda kalır ve üç uygulamada üç farklı yer tutucu
+            çıkardı.
+
+            `image_url` (tekil) **kalıyor**: yöneticinin o güne elle
+            yüklediği kapak görselidir ve varsa ızgaraya tercih edilir.
+            Bu dizi, kapak yüklenmemiş günlerin boş kart görünmesini
+            engellemek için var — menü listesinde günlerin çoğunun kapağı
+            yok ve boş kart tıklanmıyor.
         package:
           oneOf:
             - $ref: '#/components/schemas/DailyMenuPackage'
@@ -4663,15 +5431,75 @@ components:
           description: |
             Bu güne **şu anda** sipariş verilebilir mi? Menünün yayında
             olmasını, günün kapalı olmamasını, kesim saatinin geçmemiş
-            olmasını ve azami ileri görüş penceresinin aşılmamasını birlikte
-            özetler. Bağlayıcı olan yine `POST /orders` anındaki denetimdir.
+            olmasını, stokun tükenmemiş olmasını ve azami ileri görüş
+            penceresinin aşılmamasını birlikte özetler. Bağlayıcı olan yine
+            `POST /orders` anındaki denetimdir.
+
+            **Karar kapısı her zaman budur.** İstemci `cutoff_at` ile
+            `remaining_portions`'ı kendi başına yorumlayıp "bu gün
+            kapanmıştır" sonucuna varmamalıdır; o iki alan yalnız geri
+            sayım ve stok bandı çizmek içindir.
+        cutoff_at:
+          type: [string, 'null']
+          format: date-time
+          description: |
+            Bu güne sipariş kabulünün **bittiği mutlak an** (UTC). Gün
+            kapandıysa ya da kesim tanımlı değilse `null`.
+
+            **Neden saat değil de mutlak an:** kesim kuralını üç dilde
+            yeniden hesaplamak (TS `Intl`, Dart'ta sabit UTC+3, PHP'de
+            `Europe/Istanbul`) sapmanın kaynağıdır — yaz saati, telefonun
+            yanlış saat dilimi, sunucunun UTC'si üç ayrı sonuç üretir.
+            Üstüne cihaz saatleri yalan söyler. Sunucu tek bir an
+            gönderir, istemci onunla **yalnız geri sayım gösterir**.
+
+            Geri sayım sıfırlandığında istemci ekranı kilitlemez; menüyü
+            yeniden çeker ve `is_orderable`'a bakar. Cihaz saati beş dakika
+            ileriyse müşteriye hâlâ açık olan bir günü kapalı göstermek,
+            saati geri olan cihazda kapalı günü açık göstermekten daha
+            pahalıdır — biri satış kaybı, öbürü sunucunun zaten
+            reddedeceği bir istek.
+        remaining_portions:
+          type: [integer, 'null']
+          minimum: 0
+          description: |
+            O gün için **toplam** kalan porsiyon (gün tavanı). `null`
+            **sınırsız** demektir; `0` tükendi demektir. İkisi asla
+            karıştırılmamalıdır — `null`'ı `0` sayan istemci, tavanı hiç
+            konmamış bir günü tükenmiş gösterir.
+
+            Kalem bazlı tavan ayrıca `items[].remaining_portions` ve
+            `package.remaining_portions` alanlarındadır. Hangisi önce
+            dolarsa satışı o kapatır; sepete eklenebilecek azami adet
+            ikisinin `min()`'idir. Aritmetiğin normatif vaka tablosu:
+            `docs/contract/sales-rules.cases.json`.
         unavailable_reason:
           type: [string, 'null']
-          enum: [null, closed_day, not_published, cutoff_passed, past, too_far]
+          enum: [null, closed_day, not_published, cutoff_passed, past, too_far, no_service_day, sold_out]
           description: |
             `is_orderable` yanlışken sebebin makine okunur hâli. Kullanıcıya
             gösterilecek metni istemci kendi diliyle yazar — sunucudan gelen
             cümleyi ekrana basmak, arayüz metnini sunucu sürümüne bağlar.
+
+            | Değer | Anlamı |
+            |---|---|
+            | `closed_day` | İşletme o gün kapalı (tatil, özel gün). |
+            | `not_published` | Menü henüz yayınlanmamış (taslak). |
+            | `cutoff_passed` | O günün kesim saati geçti. |
+            | `past` | Gün geçmişte. |
+            | `too_far` | `max_lookahead_days` penceresinin dışında. |
+            | `no_service_day` | O gün servis yok (hafta sonu). |
+            | `sold_out` | Stok tükendi (gün tavanı ya da tüm kalemler). |
+
+            Son iki değer 16.08.2026'da **eklendi**. `no_service_day` ile
+            `closed_day` ayrı tutuldu çünkü müşteriye kurulacak cümle ayrı:
+            biri "hafta sonu servisimiz yok", öbürü "o gün kapalıyız". Aynı
+            değere sıkıştırılsalardı istemci her hafta sonunu tatil gibi
+            anlatırdı.
+
+            **Bilinmeyen değer çökertmemelidir**: enum'a ileride yeni sebep
+            eklenebilir ve istemci tanımadığı sebebi genel bir "bu güne
+            sipariş verilemiyor" metniyle karşılamalıdır.
         items:
           type: array
           description: |
@@ -4702,6 +5530,20 @@ components:
             "bugün tükendi" işaretlendiyse paket de düşer: ana yemeği
             olmayan bir menüyü satmak, kırk telefon özrü demek.
         sold_out_reason: { type: [string, 'null'] }
+        remaining_portions:
+          type: [integer, 'null']
+          minimum: 0
+          description: |
+            Paketten kalan porsiyon sayısı. `null` **sınırsız**, `0`
+            tükendi. Günün toplam tavanı (`DailyMenu.remaining_portions`)
+            ile birlikte değerlendirilir: sepete eklenebilecek azami adet
+            ikisinin `min()`'idir.
+
+            Aboneliklerin rezervasyonu bu sayıdan **önceden düşülmüştür** —
+            abone sabah siparişini garanti eder, tek seferlik satış artandan
+            yürür. Tersi olsaydı bir günü aboneler için ayırmak elle iş
+            olurdu.
+          examples: [12]
         components:
           type: array
           description: Paketin içindekiler — mutfağın pişireceği yemekler.
@@ -4728,6 +5570,46 @@ components:
         has_menu: { type: boolean }
         closed: { type: boolean }
         is_orderable: { type: boolean }
+        cutoff_at:
+          type: [string, 'null']
+          format: date-time
+          description: |
+            O günün sipariş kabulünün bittiği **mutlak an** (UTC); kesim
+            yoksa ya da gün kapandıysa `null`. `DailyMenu.cutoff_at` ile
+            aynı değerdir ve aynı gerekçeyle mutlak andır (bkz. orası).
+
+            Takvimde veriliyor ki gün seçici, her günü ayrı ayrı
+            sorgulamadan "bugün 08:00'e kadar" bandını çizebilsin.
+        sold_out:
+          type: boolean
+          default: false
+          description: |
+            O günün stoku tükendi mi? Menüsü olan ama satılacak porsiyonu
+            kalmayan gün takvimde **görünmeye devam eder**: müşteri o günün
+            menüsünü yine okuyabilmeli, yalnız sipariş verememelidir.
+            Günü listeden düşürseydik "menü girilmemiş" ile "kapış kapış
+            gitti" aynı boşluğa düşerdi.
+
+            Kalan porsiyonun **sayısı** takvimde verilmez; takvim
+            doksan güne kadar çizilir ve her gün için stok sayısı okumak
+            listenin maliyetini gereksiz yere büyütürdü. Sayı gün
+            açıldığında `GET /locations/{id}/daily-menu` ile gelir.
+        weekend:
+          type: boolean
+          default: false
+          description: |
+            Bu gün servis günü **dışında** mı? (`Location.service_weekdays`
+            listesinde yok.)
+
+            Adı "weekend" ama anlamı "servis yok": bugün servis dışı günler
+            cumartesi ve pazar. Ayrı bir alan olması, istemcinin haftanın
+            gününü kendi hesaplayıp yorumlamasını gereksiz kılar —
+            takvimdeki her hücre kendi durumunu taşır.
+
+            **Hafta sonu sipariş kanalı kapalı DEĞİLDİR:** cumartesi günü
+            pazartesiye sipariş verilebilir. Bu alan yalnız o hücrenin
+            kendi servis gününü anlatır ve `is_orderable` zaten `false`
+            olur (`unavailable_reason: no_service_day`).
         title: { type: [string, 'null'] }
         package_price:
           oneOf:
@@ -4774,6 +5656,23 @@ components:
         sold_out_reason:
           type: [string, 'null']
           description: '`sold_out_today` doğruyken mutfağın yazdığı sebep.'
+        remaining_portions:
+          type: [integer, 'null']
+          minimum: 0
+          description: |
+            Bu kalemden servis günü için kalan porsiyon (kalem tavanı).
+            `null` **sınırsız**, `0` tükendi — `null`'ı `0` saymak, tavanı
+            hiç konmamış bir ürünü satıştan düşürür.
+
+            Yalnız günün menüsü yanıtında (`DailyMenu.items[]`) doludur;
+            katalog ucunda (`/locations/{id}/menu`) `null` döner çünkü stok
+            **güne** bağlıdır, ürüne değil.
+
+            Gün toplamı (`DailyMenu.remaining_portions`) ile birlikte
+            değerlendirilir: hangisi önce dolarsa satışı o kapatır.
+            Aritmetiğin normatif vaka tablosu
+            `docs/contract/sales-rules.cases.json`.
+          examples: [4]
         allergens:
           type: array
           items: { type: string }
@@ -4918,7 +5817,13 @@ components:
           type: [string, 'null']
           format: date-time
           description: İstenen teslim zamanı. `order_cutoff` kuralına takılırsa `LOCATION_CLOSED`.
-        payment_method: { $ref: '#/components/schemas/PaymentMethod' }
+        payment_method:
+          allOf: [$ref: '#/components/schemas/PaymentMethod']
+          description: |
+            Yalnız vitrinin `payment_methods` listesindeki bir değer kabul
+            edilir. `account` (cari hesap) **kaldırıldı** ve gönderilirse
+            `422 VALIDATION_FAILED` döner — enum'da yalnız tarihsel
+            siparişleri ayrıştırabilmek için duruyor.
         customer_note: { type: [string, 'null'], maxLength: 500 }
 
     Payment:
@@ -4927,6 +5832,24 @@ components:
       properties:
         method: { $ref: '#/components/schemas/PaymentMethod' }
         status: { $ref: '#/components/schemas/PaymentStatus' }
+        payment_id:
+          type: [integer, 'null']
+          format: int64
+          description: |
+            Tahsilat kaydının kimliği. `cash` siparişte ve ödeme geçidine
+            hiç uğramamış siparişte `null`.
+
+            Sipariş kimliğinden **ayrı** bir kimliktir: başarısız bir
+            denemeden sonra ikinci kez ödenen sipariş aynı `id` altında iki
+            tahsilat kaydı taşır ve sağlayıcıya sorarken kullanılacak olan
+            budur. `null` ile `0` karıştırılmamalıdır.
+        next_action:
+          oneOf:
+            - $ref: '#/components/schemas/PaymentNextAction'
+            - type: 'null'
+          description: |
+            Ödemenin kesinleşmesi için sıradaki adım. `cash` siparişte ve
+            ödeme akışı olmayan durumda `null`.
         redirect_url:
           type: [string, 'null']
           format: uri
@@ -5776,6 +6699,162 @@ components:
           description: |
             Sitenin bildirdiği gönderim anı. `created_at` ile aynı olmak
             zorunda değil: site kuyruğa alıp gecikmeli iletebilir.
+
+    # ── Duyuru ──────────────────────────────────────────────────────────
+
+    Announcement:
+      type: object
+      required: [id, placement, body, dismissible, seen, dismissed]
+      description: |
+        Uygulama-içi duyuru. **Push (FCM) yoktur**: duyuru yalnız istemci
+        açıkken çekilir. Bu, "duyuru okundu mu" sorusunun cevabını da
+        değiştirir — görüldü işareti bildirimin tesliminden değil,
+        duyurunun ekranda çizilmesinden doğar.
+      properties:
+        id: { type: integer, format: int64 }
+        placement:
+          type: string
+          description: |
+            Duyurunun gösterileceği yer. Bilinen değerler: `home`
+            (ana sayfa bandı), `menu` (gün seçicinin üstü), `cart`
+            (sepet), `checkout` (ödeme adımı), `orders` (siparişlerim),
+            `subscription` (abonelik ekranı).
+
+            **Kapalı enum DEĞİLDİR.** Yerleşimler panelde tanımlanıyor ve
+            yeni bir ekran açıldığında sözleşmeyi beklemek, duyurunun
+            haftalarca yayınlanamaması demek olurdu. **İstemci tanımadığı
+            yerleşimi hiç çizmez** — bilmediği bir yeri "ana sayfa" sayıp
+            duyuruyu yanlış ekrana koymak, sessizce atlamaktan kötüdür.
+          examples: [home]
+        severity:
+          type: string
+          enum: [info, warning, critical]
+          default: info
+          description: |
+            Duyurunun tonu. İstemci rengi ve ikonu buna göre seçer; metni
+            sunucudan gelen `title`/`body` verir.
+
+            `critical` bir **kapanmaz** bant demek değildir; kapanabilirliği
+            `dismissible` söyler. İkisi ayrı çünkü kritik ama bir kez
+            okunması yeten duyurular var ("yarın servis yok").
+        title: { type: [string, 'null'] }
+        body:
+          type: string
+          description: Duyuru metni (düz metin). Biçimlendirme istemcinindir.
+        action_label: { type: [string, 'null'] }
+        action_url:
+          type: [string, 'null']
+          format: uri
+          description: |
+            Duyurunun düğmesi. `action_label` boşsa düğme çizilmez.
+            Adresin **uygulama içi** bir yola işaret etmesi beklenir;
+            istemci tanımadığı adresi tarayıcıda açar.
+        image_url: { type: [string, 'null'], format: uri }
+        dismissible:
+          type: boolean
+          description: |
+            Kullanıcı bu duyuruyu kapatabilir mi? `false` ise duyuru
+            yayın penceresi boyunca ekranda kalır — hizmet kesintisi gibi
+            duyurular kapatıldıktan sonra bir daha görünmezse müşteri
+            aynı soruyu telefonla sorar.
+        starts_at: { type: [string, 'null'], format: date-time }
+        ends_at:
+          type: [string, 'null']
+          format: date-time
+          description: |
+            Yayın penceresinin sonu; süresizse `null`. İstemci **kendi
+            saatine göre eleme yapmaz**: pencere dışına çıkmış duyuru
+            listeye zaten girmez. Alan yalnız "şu tarihe kadar geçerli"
+            cümlesini kurmak için var.
+        seen:
+          type: boolean
+          description: Bu müşteri duyuruyu daha önce gördü mü?
+        dismissed:
+          type: boolean
+          description: |
+            Bu müşteri duyuruyu kapattı mı? Kapatılan duyuru listeye
+            **girmez**; alan, aynı yanıtta hem kapatılan hem kapatılmayanı
+            gösteren yönetim görünümleri için ve istemcinin iyimser
+            güncellemesini geri alabilmesi için duruyor.
+        created_at: { type: [string, 'null'], format: date-time }
+
+    # ── Teşhis ──────────────────────────────────────────────────────────
+
+    ClientErrorReport:
+      type: object
+      required: [message]
+      description: |
+        İstemcinin yakalayamadığı bir hatanın raporu.
+
+        **`source` alanı BULUNMAZ ve gönderilirse yok sayılır.** Raporun
+        hangi uygulamadan geldiğini sunucu `X-App-Id` başlığından türetir.
+        Gövdeye bırakılsaydı web sitesi `mutfakapp` yazan bir rapor
+        üretebilir, mutfağın güvendiği hata monitörüne sahte KDS alarmı
+        düşürebilirdi — o monitör sahada "kasada bir sorun var mı"
+        sorusunun tek cevabı ve zehirlenmesi mutfağı kör eder.
+
+        Bilinmeyen alanlar da aynı sebeple sessizce yok sayılır, istek
+        reddedilmez: bu ucun başarısızlığı kaybedilmiş teşhis bilgisidir
+        (bkz. `POST /client-errors`).
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Hatanın tek satırlık özeti. Sınırı aşan metin **kesilir**, reddedilmez.
+        kind:
+          type: string
+          description: |
+            Hatanın türü — istemcinin kendi sınıflandırması. Bilinen
+            değerler: `unhandled` (yakalanmamış istisna), `network`
+            (istek başarısız), `render` (arayüz çizilemedi), `parse`
+            (yanıt ayrıştırılamadı), `manual` (kullanıcı bildirdi).
+            Kapalı enum değildir; bilinmeyen tür olduğu gibi saklanır.
+          examples: [unhandled]
+        stack:
+          type: [string, 'null']
+          maxLength: 8000
+          description: |
+            Yığın izi. Sınırı aşan kısım **kesilir**. Sekiz bin karakter,
+            Flutter'ın uzun izlerini de alan ama tek bir döngüye giren
+            istemcinin diski doldurmasını engelleyen bir orta yol.
+        route:
+          type: [string, 'null']
+          maxLength: 200
+          description: |
+            Hatanın oluştuğu ekran/rota (`/siparislerim/1234` gibi).
+            **Sorgu dizesi olmadan** gönderilmelidir: adres çubuğundaki
+            parametreler zaman zaman kişisel veri taşır ve hata kaydı
+            onları saklamak için yanlış yerdir.
+        occurred_at:
+          type: [string, 'null']
+          format: date-time
+          description: |
+            Hatanın istemcide oluştuğu an. Sunucu kendi alış anını ayrıca
+            yazar; ikisi arasındaki fark, çevrimdışıyken biriktirilip
+            sonra gönderilen raporları ayırt eder.
+        app_build:
+          type: [string, 'null']
+          maxLength: 40
+          description: |
+            Sürüm numarasının altındaki yapı kimliği (build number, commit
+            kısaltması). `X-App-Version` semver'i aynı kalırken yeniden
+            yayınlanan bir yapıyı ayırmanın tek yolu budur.
+        device:
+          type: [string, 'null']
+          maxLength: 120
+          description: |
+            Cihaz/işletim sistemi/tarayıcı özeti. Serbest metin: üç
+            uygulamanın üç farklı kaynağı var ve tek bir yapıya
+            sıkıştırmak hiçbirine uymuyordu.
+        context:
+          type: [object, 'null']
+          additionalProperties: true
+          description: |
+            Ek bağlam (ekrandaki kayıt kimliği, deneme sayısı gibi).
+            **Kişisel veri ve sır konmaz** — token, parola, kart bilgisi
+            ya da tam adres gönderen istemci hata raporunu bir sızıntı
+            kanalına çevirir.
 
     # ── Kontrol Merkezi (K-21) ──────────────────────────────────────────
 

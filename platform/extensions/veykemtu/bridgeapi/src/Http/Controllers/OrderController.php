@@ -12,7 +12,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
-use Veykemtu\BridgeApi\Services\CustomerGate;
+use Veykemtu\BridgeApi\Services\LocationGate;
 use Veykemtu\BridgeApi\Services\OrderFactory;
 use Veykemtu\BridgeApi\Services\OrderPresenter;
 use Veykemtu\BridgeApi\Services\OrderStatusTransition;
@@ -31,7 +31,6 @@ class OrderController extends ApiController
         private readonly OrderFactory $factory,
         private readonly OrderPresenter $presenter,
         private readonly OrderStatusTransition $transitions,
-        private readonly CustomerGate $customerGate,
     ) {}
 
     public function store(Request $request): JsonResponse
@@ -103,8 +102,20 @@ class OrderController extends ApiController
             // gün ve yayınlanmış menü tek yerde karar veriliyor ki takvimde
             // açık görünen bir güne sipariş verip 422 alınmasın.
             'service_date' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
-            'payment_method' => ['required', Rule::in(['online', 'cash', 'account'])],
+            // `account` KALDIRILDI (cari hesap iş modelinden çıktı). Liste
+            // `LocationGate::ALL_PAYMENT_METHODS` ile aynı olmalı; oradaki
+            // eleme yönetici ayarını, buradaki kural istemci girdisini
+            // süzüyor ve ikisi ayrışırsa vitrinde kapalı bir yöntem
+            // sipariş ucundan geçerdi.
+            'payment_method' => ['required', Rule::in(LocationGate::ALL_PAYMENT_METHODS)],
             'customer_note' => ['sometimes', 'nullable', 'string', 'max:500'],
+        ], [
+            // MESAJ GEÇERLİ DEĞERLERİ SAYAR. Laravel'in varsayılanı
+            // ("seçilen değer geçersiz") istemciye NEYİN geçerli olduğunu
+            // söylemiyor; `account` gönderen eski bir istemci sürümünün
+            // geliştiricisi hatayı okuyup ne yapacağını bilemezdi.
+            'payment_method.in' => 'Geçerli ödeme yöntemleri: '
+                .implode(', ', LocationGate::ALL_PAYMENT_METHODS).'.',
         ]);
 
         $this->assertPinInsideServiceArea($data['address'] ?? null);
@@ -119,11 +130,6 @@ class OrderController extends ApiController
 
         /** @var ApiCustomer $customer */
         $customer = $request->user();
-
-        // B2B: yalnızca kurumsal müşteri sipariş verebilir. Mevcut müşteriler
-        // grandfather ile 'corporate'; bu kapı yalnızca admin panelden
-        // 'individual' işaretlenmiş bir hesabı durdurur.
-        $this->customerGate->assertCorporate($customer);
 
         $order = $this->factory->create(
             customer: $customer,

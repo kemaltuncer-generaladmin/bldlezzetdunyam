@@ -8,9 +8,10 @@ library;
 
 import 'package:bld_core/bld_core.dart';
 
-import 'models/account.dart';
+import 'models/announcement.dart';
 import 'models/auth.dart';
 import 'models/catalog.dart';
+import 'models/client_error.dart';
 import 'models/daily_menu.dart';
 import 'models/kitchen.dart';
 import 'models/order.dart';
@@ -178,27 +179,103 @@ abstract interface class SubscriptionService {
   Future<Subscription> cancel(int id);
 
   /// Tek-günlük istisna (atla veya adet değiştir).
+  ///
+  /// Yazılan istisna yanıtta [Subscription.exceptions] içinde geri gelir;
+  /// ekran atladığı günü görebilsin diye.
   Future<Subscription> addException(
     int id,
     SubscriptionExceptionRequest request,
   );
+
+  /// Yürürlükteki dönem için ödeme başlatır.
+  ///
+  /// **Tutar GÖNDERİLMEZ** — dönem tutarı sunucuda hesaplanır (servis günü
+  /// sayısı × porsiyon × anlaşmalı fiyat, atlanan günler düşülmüş). İstemciden
+  /// alınsaydı, ekrandaki tutar ile gerçek tutar ayrıştığı anda abone eksik
+  /// ödeyip "kapattım" sanırdı.
+  ///
+  /// [period] `YYYY-AA`; verilmezse sunucu yürürlükteki dönemi seçer.
+  ///
+  /// Aynı dönem için zaten açık bir ödeme varsa **yenisi yaratılmaz**, mevcut
+  /// kayıt döner (`200`); ikinci bir kayıt aynı dönemi iki kez tahsil etme
+  /// riski demekti.
+  ///
+  /// Ödeme bu uçta TAMAMLANMAZ: sonuç [payment] ile yoklanır.
+  Future<SubscriptionPayment> startPayment(int id, {String? period});
+
+  /// `nextAction == otp` iken kullanılır; kodu sağlayıcıya iletir.
+  ///
+  /// Yanlış kod `VALIDATION_FAILED` atar ve **denemeyi tüketir**. Hak
+  /// bittiğinde ödeme başarısız kapanır ve abone yeni bir ödeme başlatır.
+  ///
+  /// [otp] `null` bırakılabilir: sağlayıcı kodu kendi tarafında doğrulamış
+  /// olabilir ve uç yalnız sonucu tazeler.
+  Future<SubscriptionPayment> confirmPayment(
+    int id,
+    int paymentId, {
+    String? otp,
+  });
+
+  /// Ödemenin güncel hâli. **Yoklama aralığı en az 2 saniye olmalıdır**;
+  /// daha sık yoklamak oran sınırını doldurur ve sınıra takılan istemci,
+  /// başarılı olmuş bir ödemede başarısız ekranı gösterir.
+  Future<SubscriptionPayment> payment(int id, int paymentId);
 }
 
-/// Cari hesap uçları — müşteri token'ı gerektirir.
+/// Abonelik sözleşmesi uçları — **kimlik GEREKTİRMEZ**.
 ///
-/// **MÜŞTERİ ARAYÜZLERİNDEN ÇAĞRILMIYOR, BİLEREK.** Cari hesap B-19'da web
-/// ve mobil yüzeylerden kaldırıldı; bakiye ve ekstre artık yalnızca admin
-/// panelinde görülüyor. Arka uç, uçlar ve panel AYNEN duruyor — bu yüzden
-/// arayüz de silinmedi: silmek yayınlanmış bir sözleşme parçasını kaldırmak
-/// olurdu (`AGENTS.md` §2.3, yalnızca ekleme yapılır) ve panelin okuduğu
-/// veriyi istemci tarafında görünmez kılmak, yarın geri açılacağı zaman
-/// yeniden yazmak demekti.
-///
-/// Yeni bir müşteri ekranı bunu çağırmadan önce kararın değiştiğini
-/// doğrulayın: bugün doğru davranış çağırmamaktır.
-abstract interface class AccountService {
-  Future<AccountSummary> summary();
+/// Bağlantı aboneye SMS ile gidiyor ve onaylayan kişi çoğu zaman uygulamada
+/// oturum açmış kişi değil, satın almayı onaylayan yetkilidir. Oturum istemek
+/// onayı imkânsız hâle getirirdi. İkinci etken SMS kodudur.
+abstract interface class ContractService {
+  /// Sözleşme metnini ve fiyatını okur.
+  ///
+  /// Süresi dolmuş bağlantı **hata atmaz**: `200` + `status: expired` döner ki
+  /// ekran "bu bağlantının süresi doldu, yenisini isteyin" diyebilsin. Boş bir
+  /// hata sayfası bunu söyleyemezdi. Tanınmayan belirteç `NOT_FOUND` atar —
+  /// süresi dolmuş bağlantıdan ayrıdır.
+  Future<SubscriptionContract> get(String token);
 
-  /// [from]/[to] `YYYY-AA-GG`; verilmezse sunucu son 3 ayı döner.
-  Future<AccountStatement> statement({String? from, String? to});
+  /// Sözleşmedeki telefona 6 haneli onay kodu gönderir.
+  ///
+  /// **Numara istekte alınmaz**, sözleşmenin kayıtlı numarasına gider:
+  /// istemciden alınsaydı bağlantıyı ele geçiren biri kodu kendi telefonuna
+  /// ısmarlayıp sözleşmeyi onaylayabilirdi.
+  ///
+  /// Oran sınırı belirteç başına 5 istek/saattir.
+  Future<void> requestOtp(String token);
+
+  /// SMS kodunu doğrular ve sözleşmeyi `approved` yapar.
+  ///
+  /// **Onay geri alınamaz.** Vazgeçme, sözleşmenin iptali değil aboneliğin
+  /// iptalidir — onay kaydı hukuki bir izdir ve silinmez.
+  ///
+  /// Aynı kodla ikinci çağrı hata değildir (idempotent): SMS gecikip
+  /// kullanıcının iki kez dokunması sık yaşanıyor ve ikincisinin hata
+  /// vermesi, onaylanmış bir sözleşmede "onaylanamadı" yazan ekran demekti.
+  Future<SubscriptionContract> approve(String token, String code);
+}
+
+/// Uygulama-içi duyuru uçları — müşteri token'ı gerektirir.
+abstract interface class AnnouncementService {
+  /// Müşterinin **şu anda görmesi gereken** duyurular.
+  ///
+  /// Yayın penceresi ve kapatma elemesi SUNUCUDA yapılır; istemci kendi
+  /// saatine göre eleme yapmaz. [placement] verilmezse hepsi döner;
+  /// bilinmeyen bir yerleşim hata değil **boş liste** verir.
+  Future<List<Announcement>> list({String? placement});
+}
+
+/// Teşhis ucu — `POST /client-errors`.
+abstract interface class DiagnosticsService {
+  /// İstemci hatasını sunucuya boşaltır.
+  ///
+  /// **ASLA FIRLATMAZ, ASLA YENİDEN DENEMEZ.** Bu metodun bir istisna atması,
+  /// hata bildirmeye çalışan istemcinin ikinci bir hata üretmesi demektir ve
+  /// kendini besleyen bir döngü doğar. Yeniden denemek de aynı kapıya çıkar:
+  /// döngüye girmiş bir ekran zaten saniyede onlarca rapor üretiyor, üstüne
+  /// tekrar denemek oran sınırını doldurur ve asıl teşhis kaybolur.
+  ///
+  /// Kaybedilen rapor kabul edilmiş bir kayıptır; kaybedilen uygulama değil.
+  Future<void> reportError(ClientErrorReport report);
 }

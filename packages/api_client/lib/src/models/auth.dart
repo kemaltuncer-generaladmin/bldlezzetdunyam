@@ -78,8 +78,20 @@ abstract class Customer with _$Customer {
     /// `corporate` | `individual`. Eski yanıtlarda gelmeyebilir (`null`).
     String? accountType,
 
-    /// Sipariş verebilir mi? Sunucu belirler; istemci sipariş yolunu buna
-    /// göre açar. Eski yanıtta alan yoksa `true` (grandfather güvencesi).
+    /// **ARTIK OKUNMUYOR (16.08.2026). Yeni kod bu alana BAKMAZ.**
+    ///
+    /// Alan cari hesap dönemine aitti: borcu olan kurumsal müşterinin sipariş
+    /// yolu `CustomerGate` ile kapatılıyordu. Cari hesap kaldırıldı, kapı da
+    /// kaldırıldı — **herkes sipariş verir**; sipariş verilip verilemeyeceğine
+    /// artık gün karar veriyor (`DailyMenu.isOrderable`).
+    ///
+    /// Alanın kendisi **korunuyor**: sözleşme yalnızca ekleme yapar
+    /// (`AGENTS.md` §2.3) ve sunucu bunu göndermeye devam ediyor. Silseydik
+    /// alanı gönderen bir sunucuda hiçbir şey kırılmazdı ama geri açılması
+    /// gerektiğinde model, önbellek ve testler yeniden yazılırdı.
+    ///
+    /// Varsayılan `true` kalıyor: alan gelmediğinde sipariş yolunu kapatmak
+    /// hiç kimsenin istemediği davranıştır.
     @Default(true) bool canOrder,
     String? companyName,
     String? contactPerson,

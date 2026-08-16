@@ -3,9 +3,9 @@ import type {
   DailyMenuUnavailableReason,
   DeliveryType,
   OrderStatus,
-  PaymentMethod,
   PaymentStatus,
 } from '@/lib/api/types';
+import type { CheckoutPaymentMethod } from '@/lib/validation/checkout';
 
 const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   yeni: 'Alındı',
@@ -25,24 +25,53 @@ export function orderStatusLabel(status: string): string {
   return ORDER_STATUS_LABELS[status as OrderStatus] ?? 'Belirsiz';
 }
 
-const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+/*
+ * ÖDEME YÖNTEMİ SÖZ DAĞARCIĞI — `PaymentMethod` değil, `CheckoutPaymentMethod`.
+ *
+ * Sözleşmedeki `PaymentMethod` üç değer taşıyor ve `account` orada KALIYOR:
+ * cutover öncesi siparişleri çözen istemci, kapalı birleşim tipine uymayan
+ * bir değerle karşılaşırsa kırk siparişlik geçmişi tek eski satır yüzünden
+ * hiç açamazdı (`docs/openapi.yaml` → `PaymentMethod`).
+ *
+ * Sitenin SUNDUĞU küme ise `lib/validation/checkout.ts` içindeki
+ * `CheckoutPaymentMethod` — `online` + `cash`. Tabloları o tipe bağlamak,
+ * cari hesabın ödeme ekranına geri sızmasını derleme anında engelliyor:
+ * `account` için bir metin yazmak artık tip hatası.
+ */
+const PAYMENT_METHOD_LABELS: Record<CheckoutPaymentMethod, string> = {
   cash: 'Kapıda ödeme',
-  account: 'Cari hesap',
   online: 'Online ödeme (kredi kartı)',
 };
 
-const PAYMENT_METHOD_HINTS: Record<PaymentMethod, string> = {
+const PAYMENT_METHOD_HINTS: Record<CheckoutPaymentMethod, string> = {
   cash: 'Teslimat sırasında nakit veya kart ile ödersiniz.',
-  account: 'Tutar cari hesabınıza işlenir, tahsilat ayrıca yapılır.',
   online: 'Güvenli ödeme sayfasına yönlendirilirsiniz.',
 };
 
+/**
+ * KALDIRILMIŞ yöntemler — yalnız GEÇMİŞ siparişlerde görünür, hiçbir yerde
+ * teklif edilmez.
+ *
+ * Ayrı tabloda çünkü tek tabloda dursaydı `Record<CheckoutPaymentMethod,…>`
+ * kısıtı işlemez, ödeme ekranı da yanlışlıkla buradan metin bulabilirdi.
+ * Etiket geçmiş zaman kuruyor ("kapatıldı") ki eski bir siparişi açan
+ * müşteri, artık seçemeyeceği bir yöntemi arayıp durmasın.
+ */
+const RETIRED_PAYMENT_METHOD_LABELS: Record<string, string> = {
+  account: 'Cari hesap (kapatıldı)',
+};
+
 export function paymentMethodLabel(method: string): string {
-  return PAYMENT_METHOD_LABELS[method as PaymentMethod] ?? 'Diğer';
+  return (
+    PAYMENT_METHOD_LABELS[method as CheckoutPaymentMethod] ??
+    RETIRED_PAYMENT_METHOD_LABELS[method] ??
+    'Diğer'
+  );
 }
 
+/** Yalnız SUNULAN yöntemlerin ipucu var; geçmişteki bir yöntem seçilemez. */
 export function paymentMethodHint(method: string): string {
-  return PAYMENT_METHOD_HINTS[method as PaymentMethod] ?? '';
+  return PAYMENT_METHOD_HINTS[method as CheckoutPaymentMethod] ?? '';
 }
 
 const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
@@ -97,6 +126,20 @@ export function isTerminalStatus(status: string): boolean {
  */
 export type DayUnavailableCopy = { title: string; message: string };
 
+/**
+ * Sebep bilinmiyor ya da verilmemiş.
+ *
+ * İki ayrı yoldan buraya gelinir ve ikisinde de söylenecek şey aynı:
+ * sunucu `unavailable_reason: null` gönderdi (bilinen senaryo: vitrinin ana
+ * şalteri kapalı — gün sorunsuz, sipariş alımı durmuş), ya da sözleşmeye
+ * bizim tanımadığımız yeni bir sebep eklendi. Sözleşme ikincisi için
+ * çökmemeyi ŞART KOŞUYOR: *"Bilinmeyen değer çökertmemelidir."*
+ */
+const GENERIC_UNAVAILABLE_COPY: DayUnavailableCopy = {
+  title: 'Şu anda sipariş alamıyoruz',
+  message: 'Menüyü inceleyebilirsiniz. Sipariş alımı açıldığında sepete ekleyebilirsiniz.',
+};
+
 export function dayUnavailableCopy(
   reason: DailyMenuUnavailableReason | null | undefined,
   date: BusinessDate,
@@ -106,11 +149,26 @@ export function dayUnavailableCopy(
 
   switch (reason) {
     case 'closed_day':
+      /*
+       * "Kapalıyız" ile "servis günü değil" AYRI cümleler (bkz.
+       * `no_service_day`). Buradaki metin tatili anlatır: normalde yemek
+       * çıkan bir gün istisnaen kapatılmıştır.
+       */
       return {
         title: `${formatDayMonth(date)} kapalıyız`,
         message: closedNote
-          ? `${closedNote} nedeniyle bu gün yemek çıkarmıyoruz. Takvimden başka bir gün seçebilirsiniz.`
-          : 'Bu gün yemek çıkarmıyoruz. Takvimden başka bir gün seçebilirsiniz.',
+          ? `${closedNote} nedeniyle bu gün kapalıyız. Takvimden başka bir gün seçebilirsiniz.`
+          : 'Bu gün kapalıyız. Takvimden başka bir gün seçebilirsiniz.',
+      };
+    case 'no_service_day':
+      /*
+       * SATIŞ KANALI AÇIK, yalnız o gün servis yok: cumartesi günü
+       * pazartesiye sipariş verilebiliyor. Metin bunu söylemezse müşteri
+       * hafta sonu siteyi "kapalı" sanıp çıkar.
+       */
+      return {
+        title: 'Bu gün yemek çıkarmıyoruz',
+        message: `${day} servis günümüz değil. Sipariş almaya devam ediyoruz — takvimden menü çıkan bir gün seçip şimdi sipariş verebilirsiniz.`,
       };
     case 'not_published':
       return {
@@ -123,6 +181,16 @@ export function dayUnavailableCopy(
         message:
           'Bugüne sipariş kabul etmiyoruz ama yarın ve sonrası için sipariş verebilirsiniz. Takvimden bir gün seçin.',
       };
+    case 'sold_out':
+      /*
+       * Menü OKUNMAYA DEVAM EDİYOR; kapanan yalnız satış. Tükenmiş günü
+       * "menü yok" gibi anlatmak, kapış kapış giden bir günü hiç
+       * hazırlanmamış gibi gösterirdi.
+       */
+      return {
+        title: 'Bu günün kontenjanı doldu',
+        message: `${day} için ayırdığımız porsiyonlar tükendi. Menüyü inceleyebilirsiniz; sipariş için takvimden başka bir gün seçin.`,
+      };
     case 'past':
       return {
         title: 'Bu gün geçti',
@@ -133,15 +201,25 @@ export function dayUnavailableCopy(
         title: 'Bu tarih için henüz sipariş almıyoruz',
         message: `${day} takvimimizde çok ileride. Menüler yaklaştıkça açılıyor; daha yakın bir gün seçin.`,
       };
-    default:
-      /*
-       * Sebep verilmemiş ama gün yine de sipariş alamıyor. Tek bilinen
-       * senaryo: vitrinin ana şalteri kapalı (`ordering_enabled`) — gün
-       * sorunsuz, sipariş alımı durmuş. Menüyü görmek engellenmiyor.
-       */
-      return {
-        title: 'Şu anda sipariş alamıyoruz',
-        message: 'Menüyü inceleyebilirsiniz. Sipariş alımı açıldığında sepete ekleyebilirsiniz.',
-      };
+    case null:
+    case undefined:
+      return GENERIC_UNAVAILABLE_COPY;
   }
+
+  /*
+   * TÜKENMEZLİK BEKÇİSİ — `default:` dalı BİLEREK YOK.
+   *
+   * `default` varken sözleşmeye eklenen her yeni sebep sessizce genel metne
+   * düşüyordu: `no_service_day` ve `sold_out` eklendiğinde derleyici tek bir
+   * uyarı vermedi, oysa `lib/api/types.ts` "derleyici burayı gösterir" diye
+   * iddia ediyordu. Aşağıdaki atama o iddiayı gerçek yapıyor — sekizinci bir
+   * sebep eklenip `schema.ts` yeniden üretildiğinde `reason` artık `never`
+   * olmaz ve `npm run typecheck` kırılır.
+   *
+   * Buna rağmen ÇALIŞMA ZAMANINDA metin dönülüyor: tipe uymayan bir değer
+   * gönderen sunucu ekranı çökertmemeli (sözleşmenin açık şartı).
+   */
+  const _exhaustive: never = reason;
+
+  return GENERIC_UNAVAILABLE_COPY;
 }

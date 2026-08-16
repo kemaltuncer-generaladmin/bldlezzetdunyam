@@ -50,8 +50,14 @@ export type MenuCalendarDay = Schemas['MenuCalendarDay'];
  *
  * `null` DIŞARIDA BIRAKILDI: alan `null` da olabiliyor ama o hâli "sebep yok"
  * demek, yani gösterilecek bir metni de yok. Metin eşlemesi
- * (`lib/labels.ts`) böylece beş sebebin hepsini karşılamak ZORUNDA kalıyor —
- * sözleşmeye altıncı sebep eklendiğinde derleyici burayı gösterir.
+ * (`lib/labels.ts`) böylece YEDİ sebebin hepsini karşılamak ZORUNDA kalıyor.
+ *
+ * "Derleyici burayı gösterir" iddiası bir süre YALANDI: `lib/labels.ts`
+ * içindeki `switch` bir `default` dalıyla bitiyordu ve sözleşmeye eklenen
+ * her yeni sebep sessizce genel metne düşüyordu — `no_service_day` ile
+ * `sold_out` eklendiğinde tek bir uyarı çıkmadı. `default` kaldırıldı ve
+ * yerine `never` bekçisi kondu; artık sekizinci sebep gerçekten
+ * `npm run typecheck` kırar.
  */
 export type DailyMenuUnavailableReason = NonNullable<DailyMenu['unavailable_reason']>;
 
@@ -102,10 +108,12 @@ export type SavedAddressInput = NonNullable<
   operations['createAddress']['requestBody']
 >['content']['application/json'];
 
-/** Cari hesap (W-12). */
-export type AccountSummary = JsonOk<operations['getAccountSummary']>;
-export type AccountStatement = JsonOk<operations['getAccountStatement']>;
-export type AccountPaymentStarted = JsonCreated<operations['startAccountPayment']>;
+/*
+ * Cari hesap (W-12) KALDIRILDI: iş modeli cari hesaptan çıktı, `/account/*`
+ * uçları sözleşmeden silindi ve `lib/api/account.ts` sarmalayıcısı da gitti.
+ * Tipler burada bırakılsaydı var olmayan bir `operations` üyesine bakacak ve
+ * derleme kırılacaktı.
+ */
 
 /** Abonelik (W-13). */
 export type SubscriptionListResponse = JsonOk<operations['listSubscriptions']>;

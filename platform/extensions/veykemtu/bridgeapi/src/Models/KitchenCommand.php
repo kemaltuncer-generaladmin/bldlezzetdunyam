@@ -27,6 +27,9 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $executed_at
  * @property bool|null $succeeded
  * @property string|null $result
+ * @property int $attempts
+ * @property Carbon|null $expires_at
+ * @property string|null $dedupe_key
  */
 class KitchenCommand extends Model
 {
@@ -117,6 +120,64 @@ class KitchenCommand extends Model
      */
     public const int STALE_AFTER_MINUTES = 10;
 
+    /**
+     * Bir komut en fazla bu kadar kez teslim edilir (`K-23`).
+     *
+     * SAHADAKİ HATA: sayaç yoktu ve [STALE_AFTER_MINUTES] her turda
+     * `delivered_at`'i yeniden damgalıyordu, yani onaylanmayan bir komut
+     * SONSUZA KADAR on dakikada bir yeniden teslim ediliyordu. Mutfak
+     * ekranı bunu her on dakikada bir test fişi olarak görüyordu.
+     *
+     * Üç: bir kez ağ, bir kez kasa, bir kez şans. Dördüncüsü artık
+     * "geçici bir aksaklık" değil, bir arıza — ve arıza panelde
+     * görünmeli, kâğıt harcamamalı.
+     */
+    public const int MAX_ATTEMPTS = 3;
+
+    /**
+     * Komut bu süre sonra anlamını yitirir.
+     *
+     * [MAX_ATTEMPTS] ULAŞILABİLEN kasayı sınırlar, bu damga ULAŞILAMAYANI:
+     * hafta sonu kapalı kalan bir kasada `attempts` hâlâ sıfırdır ve
+     * pazartesi açıldığında cuma akşamından kalma bir test fişi basılırdı.
+     * `restart`, `update` ve `unpair` ise yapısal olarak sonuçlarının
+     * dönmemesini garanti ediyor (`restart` iki saniye sonra `exit(0)`,
+     * `unpair` token'ı siliyor — ikisi de bir sonraki sağlık atımından
+     * çok önce); onları kesin sonuca bağlayan tek şey bu damga.
+     */
+    public const int DEFAULT_TTL_MINUTES = 30;
+
+    /**
+     * Yinelenen komut penceresi.
+     *
+     * Yönetici "olmadı" deyip aynı düğmeye ikinci kez bastığında iki
+     * bağımsız komut açılıyordu. Pencere KISA: iki dakikadan sonra basılan
+     * düğme artık sabırsızlık değil, bilinçli bir tekrar isteğidir.
+     */
+    public const int DEDUPE_WINDOW_MINUTES = 2;
+
+    /**
+     * Yinelenmesi anlamsız olan komutlar.
+     *
+     * Hepsi idempotent: iki kez susturmak bir kez susturmakla aynı, iki
+     * kez yeniden başlatmak bir kez yeniden başlatmakla aynı.
+     *
+     * [REPRINT] BİLEREK DIŞARIDA. Aynı fişi ikinci kez basmak o düğmenin
+     * TEK VARLIK SEBEBİ; yinelenme koruması onu kırardı ve mutfak "fiş
+     * yırtıldı, tekrar bas" dediğinde hiçbir şey olmazdı.
+     *
+     * @var list<string>
+     */
+    public const array DEDUPED = [
+        self::TEST_RECEIPT,
+        self::SILENCE_ALARM,
+        self::CLEAR_FAILED,
+        self::CLEAR_QUEUE,
+        self::RESTART,
+        self::UPDATE,
+        self::UNPAIR,
+    ];
+
     protected $table = 'veykemtu_kitchen_commands';
 
     protected $guarded = [];
@@ -136,7 +197,9 @@ class KitchenCommand extends Model
         'payload' => 'array',
         'delivered_at' => 'datetime',
         'executed_at' => 'datetime',
+        'expires_at' => 'datetime',
         'succeeded' => 'boolean',
+        'attempts' => 'integer',
     ];
 
     public function device(): BelongsTo
@@ -152,18 +215,164 @@ class KitchenCommand extends Model
      * fazladan bir kâğıt, "yeniden başlat"ta zararsız; komutun hiç
      * çalışmaması ise sessiz bir başarısızlık.
      *
+     * AMA SONSUZA KADAR DEĞİL. Bu cümle `K-23`'e kadar eksikti ve
+     * eksikliği mutfağa on dakikada bir test fişi olarak yansıdı:
+     * [MAX_ATTEMPTS] denemeden ve [DEFAULT_TTL_MINUTES] dakikadan sonra
+     * "tekrar dene" artık bir kurtarma değil, bir arıza.
+     *
      * @return \Illuminate\Database\Eloquent\Builder<KitchenCommand>
      */
     public static function pendingFor(int $deviceId)
     {
-        $stale = Carbon::now()->subMinutes(self::STALE_AFTER_MINUTES);
+        $now = Carbon::now();
+        $stale = $now->copy()->subMinutes(self::STALE_AFTER_MINUTES);
 
         return static::query()
             ->where('device_id', $deviceId)
             ->whereNull('executed_at')
+            ->where('attempts', '<', self::MAX_ATTEMPTS)
+            ->where(fn($q) => $q
+                ->whereNull('expires_at')
+                ->orWhere('expires_at', '>', $now))
             ->where(fn($q) => $q
                 ->whereNull('delivered_at')
                 ->orWhere('delivered_at', '<', $stale))
             ->orderBy('id');
+    }
+
+    /**
+     * Tükenmiş ve süresi geçmiş komutları KESİN SONUCA bağlar.
+     *
+     * Yalnız `pendingFor()`'dan düşürmek yetmezdi: satır `executed_at`'i
+     * boş kaldığı sürece Kontrol Merkezi'nde sonsuza kadar "uçuşta"
+     * görünürdü ve yönetici hiç dönmeyecek bir cevabı beklerdi. Bir
+     * komutun iki dürüst sonu var — çalıştı ya da çalışmadı; "belki"
+     * bir sonuç değil.
+     *
+     * UÇUŞTA OLAN SATIRA DOKUNULMAZ (`delivered_at` taze ise). `update`
+     * komutu dakikalarca sürebiliyor; son denemesini yeni almış bir
+     * kasayı başarısız ilan etmek, tam da başarıyla kurulan bir sürümü
+     * panelde "ulaşmadı" göstermek olurdu.
+     */
+    public static function sweepStale(int $deviceId): void
+    {
+        $now = Carbon::now();
+        $stale = $now->copy()->subMinutes(self::STALE_AFTER_MINUTES);
+
+        $base = static fn() => static::query()
+            ->where('device_id', $deviceId)
+            ->whereNull('executed_at')
+            ->where(fn($q) => $q
+                ->whereNull('delivered_at')
+                ->orWhere('delivered_at', '<', $stale));
+
+        // İKİ AYRI GEREKÇE, İKİ AYRI CÜMLE. Tek bir metinle kapatmak
+        // ("Kasaya ulaşmadı") hiç teslim edilmemiş bir komut için "3
+        // deneme" yazardı; yönetici olmayan üç denemenin kaydını arardı.
+        $base()
+            ->where('attempts', '>=', self::MAX_ATTEMPTS)
+            ->update(self::finalFailure(
+                'Kasaya ulaşmadı ('.self::MAX_ATTEMPTS.' deneme)',
+                $now,
+            ));
+
+        $base()
+            ->whereNotNull('expires_at')
+            ->where('expires_at', '<=', $now)
+            ->update(self::finalFailure('Süresi doldu, kasaya ulaşmadı', $now));
+    }
+
+    /**
+     * Kuyruğa alır; aynı komut zaten bekliyorsa ONU döndürür.
+     *
+     * `deduped` bayrağı çağırana geri veriliyor çünkü fark kullanıcıya
+     * söylenmeli: "gönderildi" yazan bir ekran, ikinci basışta hiçbir şey
+     * olmadığını gizler ve yönetici üçüncü kez basar.
+     *
+     * @param  array<string, mixed>|null  $payload
+     * @return array{command: KitchenCommand, deduped: bool}
+     */
+    public static function queueFor(int $deviceId, string $command, ?array $payload): array
+    {
+        $now = Carbon::now();
+        $key = self::dedupeKeyFor($command, $payload);
+
+        if ($key !== null) {
+            $existing = static::query()
+                ->where('device_id', $deviceId)
+                ->where('dedupe_key', $key)
+                ->whereNull('delivered_at')
+                ->where('created_at', '>=', $now->copy()->subMinutes(self::DEDUPE_WINDOW_MINUTES))
+                ->orderByDesc('id')
+                ->first();
+
+            if ($existing instanceof self) {
+                return ['command' => $existing, 'deduped' => true];
+            }
+
+            // PENCERE KAPANDIYSA ANAHTAR BIRAKILIR. `UNIQUE(device_id,
+            // dedupe_key)` aksi hâlde çevrimdışı bir kasada bekleyen eski
+            // satır yüzünden yeni komutu veritabanı hatasıyla düşürürdü.
+            // Anahtar iki dakikalık pencereyi korur, satırın ömrünü değil.
+            static::query()
+                ->where('device_id', $deviceId)
+                ->where('dedupe_key', $key)
+                ->update(['dedupe_key' => null, 'updated_at' => $now]);
+        }
+
+        $row = static::create([
+            'device_id' => $deviceId,
+            'command' => $command,
+            'payload' => $payload,
+            'dedupe_key' => $key,
+            'expires_at' => $now->copy()->addMinutes(self::DEFAULT_TTL_MINUTES),
+            // DAMGA ELLE VURULUYOR: `Igniter\Flame\Database\Model` zaman
+            // damgalarını varsayılan olarak kapalı tutuyor ve yinelenme
+            // penceresi `created_at`'e bakıyor — boş kalırsa pencere hiç
+            // çalışmazdı.
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        return ['command' => $row, 'deduped' => false];
+    }
+
+    /**
+     * Yinelenme anahtarı; yinelenmesi meşru komutlarda `null`.
+     *
+     * Yük de anahtara giriyor: iki farklı siparişin komutu aynı sayılmaz.
+     * Bugün yük taşıyan tek komut [REPRINT] ve o zaten listede değil, ama
+     * anahtarı komut adına indirgemek bir sonraki yüklü komutta sessizce
+     * yanlış davranırdı.
+     *
+     * @param  array<string, mixed>|null  $payload
+     */
+    public static function dedupeKeyFor(string $command, ?array $payload): ?string
+    {
+        if (!in_array($command, self::DEDUPED, true)) {
+            return null;
+        }
+
+        return sha1($command.'|'.json_encode($payload));
+    }
+
+    /**
+     * Süpürmenin yazdığı sütunlar.
+     *
+     * `dedupe_key` DE BIRAKILIYOR: kapanmış bir satırın anahtarı tekil
+     * dizini tutmaya devam etseydi, yönetici aynı komutu bir daha hiç
+     * gönderemezdi.
+     *
+     * @return array<string, mixed>
+     */
+    private static function finalFailure(string $result, Carbon $now): array
+    {
+        return [
+            'executed_at' => $now,
+            'succeeded' => false,
+            'result' => $result,
+            'dedupe_key' => null,
+            'updated_at' => $now,
+        ];
     }
 }

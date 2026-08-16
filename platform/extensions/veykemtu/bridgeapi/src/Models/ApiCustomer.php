@@ -6,7 +6,6 @@ namespace Veykemtu\BridgeApi\Models;
 
 use Igniter\User\Models\Customer;
 use Laravel\Sanctum\HasApiTokens;
-use Veykemtu\BridgeApi\Admin\LiraField;
 
 /**
  * API token taşıyabilen müşteri.
@@ -19,6 +18,10 @@ use Veykemtu\BridgeApi\Admin\LiraField;
  * Çözüm: aynı tabloyu kullanan bir alt sınıf. Token'lar
  * `tokenable_type = ApiCustomer::class` ile saklanır, Sanctum bu sınıfı
  * çözer ve `instanceof Customer` her yerde doğru kalır.
+ *
+ * `credit_limit_lira` erişimcileri cari hesapla birlikte kaldırıldı;
+ * dayandıkları `bld_credit_limit_kurus` kolonu artık yok
+ * (`2026_08_20_000002_drop_account_tables`).
  */
 class ApiCustomer extends Customer
 {
@@ -28,34 +31,4 @@ class ApiCustomer extends Customer
     public const string SCOPE = 'customer';
 
     protected $table = 'customers';
-
-    /**
-     * Admin formundaki TL alanı ↔ `bld_credit_limit_kurus` (B-14).
-     *
-     * ÜÇ DURUMU İKİYE İNDİRMEDEN taşır — ve bu, alanın en ince yeri:
-     *
-     *   ""    ↔ NULL  → limitsiz
-     *   "0"   ↔ 0     → cari hesap kapalı
-     *   "250" ↔ 25000 → 250 TL tavan
-     *
-     * `LiraField::toKurus('')` sıfır döndürüyor; onu doğrudan kullansaydık
-     * "alanı boş bırakan yönetici limitsiz istiyor" ile "sıfır yazan yönetici
-     * cariyi kapatmak istiyor" aynı sonuca varırdı. Boş girdi bu yüzden
-     * dönüşümden önce ayrılıyor.
-     *
-     * Aynı desen `Subscription::agreed_price_lira`'da da var.
-     */
-    public function getCreditLimitLiraAttribute(): string
-    {
-        $kurus = $this->attributes['bld_credit_limit_kurus'] ?? null;
-
-        return $kurus !== null ? LiraField::toInput((int) $kurus) : '';
-    }
-
-    public function setCreditLimitLiraAttribute(mixed $value): void
-    {
-        $this->attributes['bld_credit_limit_kurus'] = trim((string) $value) === ''
-            ? null
-            : max(0, LiraField::toKurus($value));
-    }
 }

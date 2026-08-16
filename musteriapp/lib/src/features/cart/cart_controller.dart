@@ -5,6 +5,7 @@ library;
 import 'dart:async';
 
 import 'package:bld_api_client/bld_api_client.dart';
+import 'package:bld_core/bld_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/infra_providers.dart';
@@ -26,6 +27,19 @@ enum CartAddResult {
 
   /// Kalem girmedi: satışta değil ya da adet geçersiz.
   rejected,
+
+  /// Kalem girmedi: istenen adet o günün ya da o yemeğin **kalan porsiyonunu**
+  /// aşıyor (`bld_core` `maxAddable`).
+  ///
+  /// [rejected]'tan AYRI çünkü müşteriye kurulacak cümle ayrı: biri "bu satışta
+  /// değil", öbürü "bu kadarı kalmadı". Aynı değere sıkıştırılsalardı, son iki
+  /// porsiyonu kalan bir yemeği üç isteyen müşteri onu hiç satılmıyor sanır ve
+  /// vazgeçerdi.
+  ///
+  /// **Ekleme HEPSİ YA DA HİÇBİRİ:** sığmayan istek sessizce kısılmaz. Üç
+  /// isteyip iki alan müşteri, farkı ancak yemek gelince görürdü; sepet ise
+  /// hiç dokunulmadan durur ve müşteri adedi kendi düşürür.
+  stockCapped,
 }
 
 class CartNotifier extends Notifier<Cart> {
@@ -52,11 +66,19 @@ class CartNotifier extends Notifier<Cart> {
   /// - **Servis günü değiştiyse:** bir sipariş tek güne verilir
   ///   (`OrderCreateRequest.service_date`). Bu durum [CartAddResult] ile
   ///   çağırana bildirilir.
+  ///
+  /// [dayRemaining] o servis gününün TOPLAM kalan porsiyonu
+  /// (`DailyMenu.remainingPortions`); kalem tavanı [item]'ın kendi
+  /// `remainingPortions` alanından okunur. **İkisi de `null` olabilir ve `null`
+  /// SINIRSIZ demektir.** Çağıran günün menüsünü elinde tutuyorsa bu değeri
+  /// vermelidir: verilmezse yalnız kalem tavanı bağlar ve gün toplamı dolmuş
+  /// bir menüden sepete kalem girer.
   CartAddResult add({
     required MenuItem item,
     required int locationId,
     required String serviceDate,
     int quantity = 1,
+    int? dayRemaining,
     List<int> optionValueIds = const <int>[],
     String? note,
     List<DailyMenuPackageComponent> packageComponents =
@@ -74,6 +96,21 @@ class CartNotifier extends Notifier<Cart> {
     final locationChanged =
         state.locationId != null && state.locationId != locationId;
     final base = (dayChanged || locationChanged) ? Cart.empty : state;
+
+    // Tavan denetimi SIFIRLANMIŞ sepete göre yapılıyor: gün değişiyorsa önceki
+    // günün adetleri bu günün tavanını tüketmiyor.
+    //
+    // Denetim `_emit`'ten ÖNCE ve erken dönüşle: sığmayan bir ekleme yüzünden
+    // müşterinin dolu sepetini boşaltmak, istemediği bir kaybı istemediği bir
+    // isteğe bedel yapardı.
+    final room = maxAddable(
+      dayRemaining: dayRemaining,
+      itemRemaining: item.remainingPortions,
+      alreadyInCartForDay: base.quantityOn(serviceDate),
+      alreadyInCartForItem: base.quantityOfItemOn(serviceDate, item.id),
+      hardMax: kMaxCartLineQuantity,
+    );
+    if (quantity > room) return CartAddResult.stockCapped;
 
     final incoming = CartLine(
       item: item,
@@ -104,7 +141,14 @@ class CartNotifier extends Notifier<Cart> {
   }
 
   /// Adedi ayarlar. `0` ve altı kalemi siler.
-  void setQuantity(String signature, int quantity) {
+  ///
+  /// **Artırma stok tavanıyla KISILIR, eksiltme kısılmaz:** sepeti azaltan bir
+  /// hareketin stokla işi yok ve tavan sonradan indirilmiş bir sepette
+  /// müşterinin adedi düşürmesini engellemek onu kilitlerdi.
+  ///
+  /// [dayRemaining] verilmezse yalnız kalem tavanı ve satır başı tavan bağlar
+  /// (bkz. [add]).
+  void setQuantity(String signature, int quantity, {int? dayRemaining}) {
     final index = state.indexOfSignature(signature);
     if (index < 0) return;
 
@@ -113,15 +157,35 @@ class CartNotifier extends Notifier<Cart> {
       return;
     }
 
+    final line = state.lines[index];
+    if (quantity > line.quantity) {
+      final room = maxAddable(
+        dayRemaining: dayRemaining,
+        itemRemaining: line.item.remainingPortions,
+        alreadyInCartForDay: state.itemCount,
+        alreadyInCartForItem: state.quantityOfItem(line.item.id),
+        hardMax: kMaxCartLineQuantity,
+      );
+      final ceiling = line.quantity + room;
+      // Sepette hiç yer yoksa hiçbir şey yazılmaz: aynı değeri yeniden
+      // yazmak, dinleyen her ekranı boşuna çizdirir.
+      if (ceiling <= line.quantity) return;
+      if (quantity > ceiling) quantity = ceiling;
+    }
+
     final lines = [...state.lines];
-    lines[index] = lines[index].copyWith(quantity: quantity);
+    lines[index] = line.copyWith(quantity: quantity);
     _emit(state.copyWith(lines: lines));
   }
 
-  void increment(String signature) {
+  void increment(String signature, {int? dayRemaining}) {
     final index = state.indexOfSignature(signature);
     if (index < 0) return;
-    setQuantity(signature, state.lines[index].quantity + 1);
+    setQuantity(
+      signature,
+      state.lines[index].quantity + 1,
+      dayRemaining: dayRemaining,
+    );
   }
 
   void decrement(String signature) {

@@ -115,7 +115,8 @@ class SubscriptionController extends ApiController
             $subscription->menu_mode = $menuMode;
             $subscription->default_quantity = $data['default_quantity'];
             $subscription->agreed_unit_price_kurus = null; // admin belirler
-            $subscription->payment_mode = Subscription::PAYMENT_ACCOUNT;
+            // Cari ödeme modu kaldırıldı; tek mod peşin aylık.
+            $subscription->payment_mode = Subscription::PAYMENT_PREPAID;
             $subscription->save();
 
             foreach ($data['lines'] ?? [] as $line) {

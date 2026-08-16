@@ -187,10 +187,12 @@ engellenir — müşteri "site çalışmıyor" der, oysa şalter kapalıdır.
 
 ### 3.3 Ödeme yöntemi görünmüyor
 
-Faz 1'de **online ödeme kapalıdır**; kapıda ödeme ve cari hesap çalışır.
-Bu bir arıza değil, sunucudaki bir şalterdir. Sanal POS sözleşmesi
-tamamlandığında yalnızca sunucu ayarı değişir — uygulama güncellemesi
-gerekmez.
+Faz 1'de **online ödeme kapalıdır**; kapıda ödeme çalışır. Bu bir arıza
+değil, sunucudaki bir şalterdir. Sanal POS sözleşmesi tamamlandığında
+yalnızca sunucu ayarı değişir — uygulama güncellemesi gerekmez.
+
+**"Cari hesaba yaz" seçeneği artık yok** ve geri gelmeyecek (§9). Müşteri
+onu arıyorsa arıza değil, iş modeli değişikliğidir.
 
 ---
 
@@ -437,3 +439,101 @@ sürümü geri alıyorsan önce yedek al.
 | Kasa canlılık uyarısı (admin panel) | Servis dışıysa aynı gün; servis içindeyse hemen |
 | Disk %80 | Aynı hafta |
 | TLS sertifikası 15 gün içinde bitiyor | Aynı hafta (Caddy normalde kendi yeniler) |
+
+---
+
+## 9. Cari hesap kaldırma dağıtımı — ARŞİVİ ÖNCE İNDİR
+
+Bu bölüm **bir kez** uygulanır: cari hesabı şemadan kaldıran sürüm
+(`2026_08_20_*` göçleri) dağıtılırken. Sonrasında tarihsel kayıt olarak
+durur.
+
+**Ne oluyor:** `veykemtu_account_ledger`, `veykemtu_account_periods`,
+`veykemtu_account_payments` tabloları ve `customers.bld_credit_limit_kurus`
+kolonu **düşürülüyor**. Göçün `down()`'ı şemayı geri kurar, **veriyi geri
+getirmez**. Verinin tek yolu aşağıdaki arşivdir.
+
+### 9.1 Adım 1 — arşivi ELLE al (dağıtımdan ÖNCE)
+
+```bash
+A=$(docker ps --format '{{.Names}}' | grep '^app-' | head -1)
+docker exec -u www-data -e HOME=/tmp "$A" php artisan veykemtu:cari-arsivle
+```
+
+Komut satır sayılarını ve **mutlak dizin yolunu** ekrana yazar, örneğin:
+
+```
+veykemtu_account_ledger                 1842 satır
+veykemtu_account_periods                  57 satır
+veykemtu_account_payments                 31 satır
+customers.bld_credit_limit_kurus         214 satır
+dizin  /var/www/platform/storage/app/bld-cari-arsiv/2026-08-20-091500
+```
+
+### 9.2 Adım 2 — dizini SUNUCUDAN İNDİR
+
+**Bu adım atlanamaz.** `storage/app` bir Docker **adlandırılmış birimidir**
+(`platform-storage`), yani dosya normal bir yeniden dağıtımda silinmez —
+ama bu bir yedek DEĞİLDİR:
+
+- Tek bir sunucunun diskinde durur; veritabanı yedek rotasyonuna
+  (`infra/backup/`) **girmez**.
+- Birim silinirse ya da yığın sıfırdan kurulursa gider.
+- Sunucu gittiğinde arşiv de gider.
+
+```bash
+# Sunucuda: konteynerden host'a kopyala
+docker cp "$A":/var/www/platform/storage/app/bld-cari-arsiv /opt/bld/cari-arsiv
+
+# Yerel makineye çek (bu satır KENDİ bilgisayarında koşar)
+scp -r root@62.238.102.197:/opt/bld/cari-arsiv ./cari-arsiv-yedek
+```
+
+Dosyalar NDJSON'dur (satır başına bir JSON nesnesi); `ozet.json` satır
+sayılarını taşır. Kontrol:
+
+```bash
+wc -l ./cari-arsiv-yedek/*/*.ndjson
+cat ./cari-arsiv-yedek/*/ozet.json
+```
+
+Satır sayıları komutun ekrana yazdıklarıyla **birebir aynı olmalı**.
+Tutmuyorsa dağıtımı başlatma.
+
+> **Arşiv müşteri finansal verisi taşır** (kimin ne kadar borcu vardı,
+> kimin ne kadar veresiye limiti vardı). Repoya, paylaşılan sürücüye ya da
+> sohbete koyma; veritabanı yedeklerinin durduğu yerde dursun.
+
+### 9.3 Adım 3 — dağıt
+
+Coolify'dan normal dağıtım. Göçler sırayla koşar: önce arşiv kopyası
+(`2026_08_20_000001`), sonra düşürme (`..._000002`).
+
+Göçün içindeki arşiv **ikinci emniyet kemeridir**, birincisi değil: aynı
+birime yazar ve 9.2'nin yerini tutmaz.
+
+### 9.4 Adım 4 — panelde iade yetkisini yeniden ver
+
+Kaldırmayla birlikte `Veykemtu.AccountLedger` yetkisi (cari hesap +
+iadeler) `Veykemtu.Refunds` (yalnız iadeler) olarak yeniden adlandırıldı.
+**Yetki dizesi değiştiği için mevcut personel rolleri iade ekranını
+göremez hâle gelir.**
+
+Admin panel → **Kullanıcılar → Roller** → iadeyi görmesi gereken her rolde
+"İade takibi" kutusunu işaretle ve kaydet. Kontrol: o rolle giriş yapıp
+**Kurumsal → İadeler** ekranının açıldığını gör.
+
+### 9.5 Bir şeyler ters giderse
+
+Şema geri alınabilir, **veri geri alınamaz**:
+
+```bash
+docker exec -u www-data -e HOME=/tmp "$A" php artisan migrate:rollback
+```
+
+Bu, üç tabloyu ve kolonu **boş** olarak geri kurar. İçlerini doldurmak
+9.2'de indirdiğin NDJSON dosyalarından elle içe aktarmakla olur.
+
+Kaldırmanın kullanıcıya yansıyan yüzü: ödeme yöntemi listesinde "cari
+hesaba yaz" yok, `/api/account/*` uçları 404 dönüyor ve panelde "Cari
+hesaplar"/"Cari hareketler" ekranları yok. Bunların hiçbiri arıza değildir.

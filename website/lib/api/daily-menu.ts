@@ -9,6 +9,7 @@ import type {
   Location,
   MenuCalendarDay,
   MenuCalendarResponse,
+  MenuItem,
 } from './types';
 
 /**
@@ -78,9 +79,11 @@ export function lastOrderableDate(
   location: Location | null,
   today: BusinessDate = businessToday(),
 ): BusinessDate {
-  // Sözleşmedeki varsayılan 30; alan her yanıtta geliyor ama eski bir sunucu
-  // sürümünde eksik kalırsa takvimin tek güne düşmemesi gerekiyor.
-  const lookahead = location?.max_lookahead_days ?? 30;
+  // Yedek değer 7 (günlük menü satış modeli). Alan her yanıtta geliyor ama
+  // eksik kalırsa takvim, sunucunun reddedeceği günleri açık göstermemeli.
+  // Şemadaki `default: 30` katalog dönemine ait tarihsel bir annotasyon;
+  // ona düşmek takvimi üç haftadan fazla ileriye açardı.
+  const lookahead = location?.max_lookahead_days ?? 7;
   // Takvim ucunun üst sınırı 92 gün; daha genişi `422` döner.
   return addDays(today, Math.min(Math.max(lookahead, 0), 92));
 }
@@ -157,7 +160,7 @@ export function packageAdvantageKurus(menu: DailyMenu | null): number {
 /**
  * Bu gün için sepete ekleme yapılabilir mi?
  *
- * İKİ AYRI KAPI birlikte değerlendiriliyor ve ikisi de sunucuda tekrar
+ * ÜÇ AYRI KAPI birlikte değerlendiriliyor ve üçü de sunucuda tekrar
  * uygulanıyor:
  *   * GÜN kapısı — menü yayında mı, gün kapalı mı, kesim saati geçti mi
  *     (`DailyMenu.is_orderable`).
@@ -165,8 +168,64 @@ export function packageAdvantageKurus(menu: DailyMenu | null): number {
  *     çalışma saati). Cuma menüsüne bugün 03:00'te sipariş verilemiyor:
  *     `LocationGate::assertAcceptsOrder` çalışma saatini SİPARİŞİN VERİLDİĞİ
  *     ana göre denetliyor.
+ *   * STOK kapısı — günün toplam tavanı açıkça `0` mı.
  */
 export function canOrderDay(location: Location | null, menu: DailyMenu | null): boolean {
   if (!location || !menu) return false;
+
+  /*
+   * `remaining_portions === 0` SÖZLEŞMEDE TEK ANLAMLIDIR: tükendi. `null` ya
+   * da eksik alan "tavan konmamış" demek ve kapıyı KAPATMAZ — ikisini
+   * karıştıran istemci, tavanı hiç girilmemiş bir günü satıştan düşürür.
+   *
+   * Burada `cutoff_at` yorumlanmıyor: sözleşme, istemcinin o alandan kendi
+   * "gün kapandı" kararını çıkarmasını açıkça yasaklıyor ve karar kapısı
+   * `is_orderable`. Sıfır porsiyon istisna çünkü yorum gerektirmiyor;
+   * sunucu günü bir an için hâlâ açık gösterirken ekranda "sepete ekle"
+   * bırakmak, müşteriye sunucunun reddedeceği bir sipariş verdirmek olurdu.
+   */
+  if (menu.remaining_portions === 0) return false;
+
   return menu.is_orderable && location.is_open && location.ordering_enabled;
+}
+
+/**
+ * Günün toplam kalan porsiyonu — `null` SINIRSIZ.
+ *
+ * İnce ama gerekli bir okuyucu: alan sözleşmede İSTEĞE BAĞLI, yani gelmeyen
+ * bir yanıtta `undefined` olur. `undefined`'ı olduğu gibi aritmetiğe sokmak
+ * `NaN` üretir; burada "tavan konmamış" anlamına gelen `null`'a indirgeniyor
+ * ve `lib/stock-policy.ts` tek bir sınırsızlık işareti görüyor.
+ */
+export function dayStock(menu: DailyMenu | null | undefined): number | null {
+  return menu?.remaining_portions ?? null;
+}
+
+/**
+ * Bir kalemin O GÜN için efektif kalanı — gün tavanı ile kalem tavanının dar
+ * olanı. `null` SINIRSIZ.
+ *
+ * STOK BANDI bu sayıyla çizilir: gün toplamı 2'ye düşmüşken kalemin kendi
+ * tavanı 40 olsa bile müşteri en fazla 2 alabilir, rozet de "son 2 porsiyon"
+ * demelidir. Bağlamanın normatif tarifi
+ * `docs/contract/sales-rules.cases.json` → `case_input_binding`.
+ *
+ * `maxAddable` bu birleşimi KULLANMAZ: orada iki tavan ayrı ayrı, kendi
+ * sepet adetleriyle düşülür (gün adedi gün tavanından, kalem adedi kalem
+ * tavanından) ve `min()` ancak ondan sonra alınır.
+ *
+ * İkinci parametre yapısal: `DailyMenuPackage` de `remaining_portions`
+ * taşıdığı için paket kartı aynı okuyucuyu kullanabiliyor.
+ */
+export function itemStock(
+  menu: DailyMenu | null | undefined,
+  item: Pick<MenuItem, 'remaining_portions'> | null | undefined,
+): number | null {
+  const day = dayStock(menu);
+  const perItem = item?.remaining_portions ?? null;
+
+  if (day === null) return perItem;
+  if (perItem === null) return day;
+
+  return Math.min(day, perItem);
 }

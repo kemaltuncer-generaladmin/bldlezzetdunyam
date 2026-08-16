@@ -7,17 +7,20 @@ library;
 
 export 'src/api_exception.dart';
 export 'src/bld_api.dart';
-export 'src/models/account.dart';
+export 'src/models/announcement.dart';
 export 'src/models/auth.dart';
 export 'src/models/catalog.dart';
+export 'src/models/client_error.dart';
 export 'src/models/converters.dart'
     show
         EtaSource,
         PaymentMethod,
+        PaymentNextAction,
         PaymentStatus,
         ReceiptType,
         UnknownEnumValueException,
         paymentMethodLabelsTr,
+        paymentNextActionLabelsTr,
         paymentStatusLabelsTr;
 export 'src/models/daily_menu.dart';
 export 'src/models/kitchen.dart';

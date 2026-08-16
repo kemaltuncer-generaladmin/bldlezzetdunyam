@@ -160,8 +160,9 @@ class ContractTest extends TestCase
             ->json('data.0.payment_methods');
 
         $this->assertContains('cash', $methods);
-        $this->assertContains('account', $methods);
         $this->assertContains('online', $methods);
+        // Cari hesap kaldırıldı; sözleşmede iki yöntem kaldı.
+        $this->assertNotContains('account', $methods);
     }
 
     public function test_include_completed_sorgu_dizesi_bicimlerini_kabul_eder(): void

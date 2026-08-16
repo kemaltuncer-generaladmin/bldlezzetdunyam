@@ -1133,8 +1133,20 @@ as String,
 mixin _$Customer {
 
  int get id; String get firstName; String get lastName; String get email; String get telephone; int? get defaultLocationId;/// `corporate` | `individual`. Eski yanıtlarda gelmeyebilir (`null`).
- String? get accountType;/// Sipariş verebilir mi? Sunucu belirler; istemci sipariş yolunu buna
-/// göre açar. Eski yanıtta alan yoksa `true` (grandfather güvencesi).
+ String? get accountType;/// **ARTIK OKUNMUYOR (16.08.2026). Yeni kod bu alana BAKMAZ.**
+///
+/// Alan cari hesap dönemine aitti: borcu olan kurumsal müşterinin sipariş
+/// yolu `CustomerGate` ile kapatılıyordu. Cari hesap kaldırıldı, kapı da
+/// kaldırıldı — **herkes sipariş verir**; sipariş verilip verilemeyeceğine
+/// artık gün karar veriyor (`DailyMenu.isOrderable`).
+///
+/// Alanın kendisi **korunuyor**: sözleşme yalnızca ekleme yapar
+/// (`AGENTS.md` §2.3) ve sunucu bunu göndermeye devam ediyor. Silseydik
+/// alanı gönderen bir sunucuda hiçbir şey kırılmazdı ama geri açılması
+/// gerektiğinde model, önbellek ve testler yeniden yazılırdı.
+///
+/// Varsayılan `true` kalıyor: alan gelmediğinde sipariş yolunu kapatmak
+/// hiç kimsenin istemediği davranıştır.
  bool get canOrder; String? get companyName; String? get contactPerson;
 /// Create a copy of Customer
 /// with the given fields replaced by the non-null parameter values.
@@ -1349,8 +1361,20 @@ class _Customer extends Customer {
 @override final  int? defaultLocationId;
 /// `corporate` | `individual`. Eski yanıtlarda gelmeyebilir (`null`).
 @override final  String? accountType;
-/// Sipariş verebilir mi? Sunucu belirler; istemci sipariş yolunu buna
-/// göre açar. Eski yanıtta alan yoksa `true` (grandfather güvencesi).
+/// **ARTIK OKUNMUYOR (16.08.2026). Yeni kod bu alana BAKMAZ.**
+///
+/// Alan cari hesap dönemine aitti: borcu olan kurumsal müşterinin sipariş
+/// yolu `CustomerGate` ile kapatılıyordu. Cari hesap kaldırıldı, kapı da
+/// kaldırıldı — **herkes sipariş verir**; sipariş verilip verilemeyeceğine
+/// artık gün karar veriyor (`DailyMenu.isOrderable`).
+///
+/// Alanın kendisi **korunuyor**: sözleşme yalnızca ekleme yapar
+/// (`AGENTS.md` §2.3) ve sunucu bunu göndermeye devam ediyor. Silseydik
+/// alanı gönderen bir sunucuda hiçbir şey kırılmazdı ama geri açılması
+/// gerektiğinde model, önbellek ve testler yeniden yazılırdı.
+///
+/// Varsayılan `true` kalıyor: alan gelmediğinde sipariş yolunu kapatmak
+/// hiç kimsenin istemediği davranıştır.
 @override@JsonKey() final  bool canOrder;
 @override final  String? companyName;
 @override final  String? contactPerson;

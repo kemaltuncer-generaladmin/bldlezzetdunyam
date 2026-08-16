@@ -518,6 +518,28 @@ class KitchenHealthStatus {
             : const <KitchenCommand>[],
       );
 
+  /// Bağlantı koptuğunda arayüzde kalacak hâli: **sayılar durur, komutlar
+  /// gider.**
+  ///
+  /// SAHADAKİ HATA (`K-23` §2): başarısız yoklamada durum
+  /// `copyWith(reachable: false)` ile güncelleniyordu ve `copyWith` önceki
+  /// [KitchenHealthStatus]'u — dolayısıyla içindeki [commands] listesini —
+  /// olduğu gibi koruyordu. Çağıran her turda o listeyi yeniden
+  /// çalıştırdığı için bağlantı titrerken dakikada bir test fişi
+  /// basılıyordu.
+  ///
+  /// Sayılar bilinçli olarak KALIYOR: "bugün 12 sipariş (3 dk önce)"
+  /// bilgisi hiç sayı görmemekten iyidir. Komut ise bir EYLEMDİR ve bir
+  /// eylemin bayatı olmaz — sunucu onu yeniden gönderirse yeniden
+  /// çalışır, göndermezse çalışmamalıdır.
+  KitchenHealthStatus stale() => KitchenHealthStatus(
+    serverTime: serverTime,
+    ordersToday: ordersToday,
+    ordersActive: ordersActive,
+    settings: settings,
+    commands: const <KitchenCommand>[],
+  );
+
   @override
   bool operator ==(Object other) =>
       other is KitchenHealthStatus &&
@@ -653,6 +675,18 @@ class KitchenHealthState {
   int get hashCode => Object.hash(status, lastSuccessAt, reachable, everTried);
 }
 
+/// Bir yoklamanın sonucu.
+///
+/// [delivered] YALNIZ BAŞARIDA dolu ve tam olarak sunucunun aldığı rapor.
+/// Çağıran, gönderdiği komut sonuçlarını ancak bu raporu görünce
+/// unutabilir: sonuçları istek gönderilmeden önce boşaltmak, düşen tek bir
+/// sağlık atımında sonucu sonsuza kaybettiriyordu (`K-23` §3) — sunucu da
+/// `executed_at` yazamadığı için komutu on dakika sonra yeniden gönderiyordu.
+typedef KitchenPollResult = ({
+  KitchenHealthState state,
+  KitchenHealthReport? delivered,
+});
+
 /// Sağlık bildirimini yapan ve sonucu durumda tutan saf mantık.
 ///
 /// Zamanlayıcı burada DEĞİL: [poll] dışarıdan çağrılır, böylece test sahte
@@ -687,9 +721,18 @@ class KitchenHealthMonitor {
   /// mutfağın sipariş görmesini engellememeli. Başarısızlığın kendisi zaten
   /// bilgidir: "sunucu" göstergesi kırmızıya döner ve son başarılı iletişimin
   /// üzerinden geçen süre görünür kalır.
-  Future<KitchenHealthState> poll() async {
+  ///
+  /// Dönen [KitchenPollResult.delivered] yalnız başarıda dolu; çağıran
+  /// komut sonuçlarını ancak onu görünce unutur.
+  Future<KitchenPollResult> poll() async {
+    KitchenHealthReport? delivered;
+
     try {
-      final status = await _api.report(await _collect());
+      final report = await _collect();
+      final status = await _api.report(report);
+      // ATAMA `report()` DÖNDÜKTEN SONRA: rapor "toplandı" değil,
+      // "sunucuya ulaştı" anlamına gelmeli.
+      delivered = report;
       _state = KitchenHealthState(
         status: status,
         lastSuccessAt: _clock(),
@@ -697,8 +740,18 @@ class KitchenHealthMonitor {
         everTried: true,
       );
     } on Object {
-      _state = _state.copyWith(reachable: false, everTried: true);
+      // `copyWith` DEĞİL: o, önceki durumu — içindeki komut listesiyle
+      // birlikte — koruyordu ve çağıran her başarısız turda son BAŞARILI
+      // turun komutlarını yeniden çalıştırıyordu. Sayaçlar bilinçli
+      // olarak bayat kalıyor, komutlar düşüyor ([KitchenHealthStatus.stale]).
+      _state = KitchenHealthState(
+        status: _state.status?.stale(),
+        lastSuccessAt: _state.lastSuccessAt,
+        reachable: false,
+        everTried: true,
+      );
     }
-    return _state;
+
+    return (state: _state, delivered: delivered);
   }
 }

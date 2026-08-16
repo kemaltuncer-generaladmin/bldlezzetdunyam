@@ -71,6 +71,43 @@ return [
                 'comment' => 'lang:veykemtu.bridgeapi::default.help_min_order_total',
                 'attributes' => ['inputmode' => 'decimal'],
             ],
+            /*
+             * İLERİ SİPARİŞ PENCERESİ VE ABONELİK DÜŞME SAATİ — bu iki alan
+             * asıl olarak Kontrol Merkezi'nden yönetiliyor
+             * (`docs/control/settings.md`). Panelde de duruyorlar çünkü
+             * ikisi de `location_options`'ta yaşıyor ve yalnız uzaktaki bir
+             * ekrandan görülebilen bir ayar, sunucuya giren yöneticinin
+             * "burada niye yok" diye aramasıyla sonuçlanır.
+             *
+             * METİNLER BURADA GÖMÜLÜ, `lang/` DOSYASINDA DEĞİL: çeviri
+             * dosyaları paylaşılan yüzeylerdir ve bu değişiklik başka bir
+             * kulvarla çakışmasın diye alan tanımının yanında duruyor.
+             * Anahtarlara taşınması ayrıca bildirildi.
+             */
+            SettingsRepository::FIELD_LOOKAHEAD => [
+                'label' => 'İleri sipariş penceresi (gün)',
+                'type' => 'number',
+                'span' => 'right',
+                'default' => SettingsRepository::MAX_LOOKAHEAD_DAYS,
+                'comment' => 'Bugünden en fazla kaç gün sonrasına sipariş alınır.'
+                    .' 0 geçerlidir ve "yalnız bugüne sipariş" demektir.'
+                    .' Tavan '.SettingsRepository::MAX_LOOKAHEAD_DAYS.' gündür.',
+                'attributes' => [
+                    'min' => 0,
+                    'max' => SettingsRepository::MAX_LOOKAHEAD_DAYS,
+                    'step' => 1,
+                ],
+            ],
+            SettingsRepository::FIELD_SUBSCRIPTION_RELEASE => [
+                'label' => 'Abonelik siparişlerinin düşme saati',
+                'type' => 'text',
+                'span' => 'left',
+                'placeholder' => SettingsRepository::DEFAULT_SUBSCRIPTION_RELEASE_TIME,
+                'comment' => 'Gece üretilen abonelik siparişleri mutfak ekranına bu saatte düşer.'
+                    .' SS:DD biçiminde. Boş bırakılamaz: siparişlerin hiç düşmediği bir'
+                    .' yapılandırma, mutfağın sabah boş ekrana bakması demektir.',
+                'attributes' => ['inputmode' => 'numeric', 'maxlength' => 5],
+            ],
             SettingsRepository::FIELD_DELIVERY_FEE => [
                 'label' => 'lang:veykemtu.bridgeapi::default.label_delivery_fee',
                 'type' => 'text',
@@ -83,10 +120,13 @@ return [
                 'label' => 'lang:veykemtu.bridgeapi::default.label_payment_methods',
                 'type' => 'checkbox',
                 'comment' => 'lang:veykemtu.bridgeapi::default.help_payment_methods',
+                // `account` (cari hesaba yazdır) seçeneği kaldırıldı — cari
+                // hesap iş modelinden çıktı. Kayıtlı ayarlarda kalan değer
+                // `LocationGate::paymentMethods()` içindeki `array_intersect`
+                // ile eleniyor; veri göçü gerekmiyor.
                 'options' => [
                     'online' => 'lang:veykemtu.bridgeapi::default.text_payment_online',
                     'cash' => 'lang:veykemtu.bridgeapi::default.text_payment_cash',
-                    'account' => 'lang:veykemtu.bridgeapi::default.text_payment_account',
                 ],
             ],
             'busy_section' => [
@@ -167,6 +207,18 @@ return [
                 SettingsRepository::FIELD_DELIVERY_FEE,
                 'lang:veykemtu.bridgeapi::default.label_delivery_fee',
                 'required|regex:/^\d{1,6}([.,]\d{1,2})?$/',
+            ],
+            // Tavan sabitten okunuyor: `SettingsRepository::save()` de aynı
+            // sabitle kesiyor, yani form kuralı ile sunucu kuralı ayrışamaz.
+            [
+                SettingsRepository::FIELD_LOOKAHEAD,
+                'İleri sipariş penceresi (gün)',
+                'required|integer|min:0|max:'.SettingsRepository::MAX_LOOKAHEAD_DAYS,
+            ],
+            [
+                SettingsRepository::FIELD_SUBSCRIPTION_RELEASE,
+                'Abonelik siparişlerinin düşme saati',
+                'required|date_format:H:i',
             ],
             [
                 SettingsRepository::FIELD_PAYMENTS,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Veykemtu\BridgeApi\Services;
 
 use Igniter\Cart\Models\Menu;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Veykemtu\BridgeApi\Models\DailyMenu;
 use Veykemtu\BridgeApi\Support\BusinessTime;
@@ -24,15 +25,96 @@ use Veykemtu\BridgeApi\Support\BusinessTime;
  * bir sözleşmedir, günlük stok kararı onu iptal edemez. Mutfak bir abonelik
  * gününü atlamak istiyorsa `veykemtu_subscription_exceptions` kaydı girer —
  * o ayrı ve bilinçli bir karardır.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * ÜÇÜNCÜ KAVRAM: STOK TAVANI (S2). `veykemtu_daily_menu_stock` sayılı bir
+ * tavandır ve dolduğunda ürün de tükenmiş sayılır.
+ *
+ * BOOLEAN TABLO KALIYOR, TAVAN ONUN YERİNE GEÇMİYOR. İkisi ayrı sorulara
+ * cevap: "porsiyon kalmadı" (sayı) ile "malzeme bitti / kazan devrildi"
+ * (mutfağın kararı). Elle işaret, tavan konmamış bir günde de çalışmak
+ * zorunda ve mutfağın "bitti" düğmesi bir sayıya bağlanamaz.
+ *
+ * SATIŞ KAPILARI BİRLEŞİMİ GÖRÜR ([soldOutToday], [soldOutReasons]);
+ * MUTFAĞIN AÇ/KAPA EKRANI YALNIZ ELLE İŞARETLERİ ([kitchenCatalog]). İkisi
+ * ayrılmasaydı stok yüzünden kapanmış bir ürün mutfak ekranında "kapalı"
+ * görünür, personel "aç"a basar ve hiçbir şey olmazdı — tavanı yükseltmek
+ * Kontrol Merkezi'nin işi.
+ * ─────────────────────────────────────────────────────────────────────────
  */
 class MenuAvailability
 {
+    public function __construct(
+        private readonly DailyStock $stock,
+    ) {}
+
     /**
-     * Bugün tükenmiş ürün kimlikleri.
+     * Bugün tükenmiş ürün kimlikleri — elle işaretler + tavanı dolanlar.
      *
      * @return list<int>
      */
     public function soldOutToday(): array
+    {
+        return array_values(array_unique([
+            ...$this->manualSoldOut(),
+            ...$this->stock->soldOutOn(BusinessTime::now()),
+        ]));
+    }
+
+    /**
+     * Bugün tükenmiş ürünlerin sebepleriyle birlikte listesi.
+     *
+     * ELLE YAZILAN SEBEP KAZANIR. Tavanı dolan ürüne genel bir cümle
+     * yazılıyor, ama mutfak "tencere devrildi" yazdıysa müşteriye o
+     * gitmeli: insanın yazdığı sebep her zaman daha bilgilendirici.
+     *
+     * @return array<int, string|null> menu_id => sebep
+     */
+    public function soldOutReasons(): array
+    {
+        $reasons = [];
+
+        foreach ($this->stock->soldOutOn(BusinessTime::now()) as $menuId) {
+            $reasons[$menuId] = 'Bugünkü porsiyonlar tükendi.';
+        }
+
+        // Sonra yazılıyor ki elle girilen sebep tavan cümlesini ezsin.
+        foreach ($this->manualSoldOutReasons() as $menuId => $reason) {
+            $menuId = (int) $menuId;
+            $reason = is_string($reason) && trim($reason) !== '' ? $reason : null;
+
+            /*
+             * SEBEPSİZ ELLE İŞARET, TAVAN CÜMLESİNİ SİLMEZ. Mutfak sebep
+             * yazmadan kapatabiliyor (alan nullable) ve doğrudan atama, o
+             * ürün aynı zamanda tavanı dolduysa müşteriye söylenecek TEK
+             * cümleyi de silerdi. Ürün yine tükenmiş görünürdü, ama
+             * sebepsiz.
+             */
+            $reasons[$menuId] = $reason ?? ($reasons[$menuId] ?? null);
+        }
+
+        return $reasons;
+    }
+
+    /**
+     * O ürünün belirtilen servis günü için kalan porsiyonu — `null` sınırsız.
+     *
+     * Sözleşmedeki `MenuItem.remaining_portions`. Vitrin parametresi YOK:
+     * çağrı yerlerinin çoğu (mutfak, katalog kalemi) vitrin taşımıyor ve
+     * Faz 1'de tek vitrin var. Birden çok vitrinde en dar kalan söylenir —
+     * gerekçe `DailyStock::tightestRemaining()` içinde.
+     */
+    public function remainingFor(int $menuId, Carbon $date): ?int
+    {
+        return $this->stock->tightestRemaining($menuId, $date);
+    }
+
+    /**
+     * Mutfağın ELLE işaretlediği ürün kimlikleri (bugün).
+     *
+     * @return list<int>
+     */
+    private function manualSoldOut(): array
     {
         return DB::table('veykemtu_menu_soldout')
             ->whereDate('sold_out_on', BusinessTime::now()->toDateString())
@@ -42,11 +124,11 @@ class MenuAvailability
     }
 
     /**
-     * Bugün tükenmiş ürünlerin sebepleriyle birlikte listesi.
+     * Elle işaretler, sebepleriyle.
      *
-     * @return array<int, string|null> menu_id => sebep
+     * @return array<int, string|null>
      */
-    public function soldOutReasons(): array
+    private function manualSoldOutReasons(): array
     {
         return DB::table('veykemtu_menu_soldout')
             ->whereDate('sold_out_on', BusinessTime::now()->toDateString())
@@ -110,11 +192,19 @@ class MenuAvailability
      * ADR-08 korunuyor: mutfak kapsamı para görmez. Ürün adı, kategorisi ve
      * bugünkü durumu, "ne bitti" kararını vermeye fazlasıyla yeter.
      *
+     * YALNIZ ELLE İŞARETLER — STOK TAVANI BURAYA KARIŞMAZ (S2). Bu ekran
+     * mutfağın kendi aç/kapa düğmesinin durumudur; `sold_out` alanı
+     * "bastığım düğme açık mı" sorusunun cevabı. Tavanı dolan ürün de
+     * kapalı gösterilseydi personel "aç"a basar, `clearSoldOut()` silecek
+     * bir satır bulamaz ve ürün kapalı kalırdı — düğmenin çalışmadığı
+     * izlenimi, bu ekranın en pahalı arızası. Tavanı yükseltmek Kontrol
+     * Merkezi'nin işi.
+     *
      * @return list<array<string, mixed>>
      */
     public function kitchenCatalog(): array
     {
-        $soldOut = $this->soldOutReasons();
+        $soldOut = $this->manualSoldOutReasons();
 
         $query = Menu::query()->orderBy('menu_name');
 

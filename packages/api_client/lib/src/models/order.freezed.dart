@@ -1970,7 +1970,21 @@ $AddressCopyWith<$Res>? get address {
 /// @nodoc
 mixin _$Payment {
 
-@PaymentMethodConverter() PaymentMethod get method;@PaymentStatusConverter() PaymentStatus get status;/// Yalnızca `online` yönteminde dolu; istemci kullanıcıyı buraya yönlendirir.
+@PaymentMethodConverter() PaymentMethod get method;@PaymentStatusConverter() PaymentStatus get status;/// Tahsilat kaydının kimliği; `cash` siparişte ve ödeme geçidine hiç
+/// uğramamış siparişte `null`.
+///
+/// **Sipariş kimliğinden AYRI bir kimliktir:** başarısız bir denemeden
+/// sonra ikinci kez ödenen sipariş aynı `id` altında iki tahsilat kaydı
+/// taşır ve sağlayıcıya sorarken kullanılacak olan budur. `null` ile `0`
+/// karıştırılmaz — `0` diye bir kayıt yoktur.
+ int? get paymentId;/// Ödemenin kesinleşmesi için sıradaki adım.
+///
+/// **GEVŞEK enum, bu alan büyüyecek** (`converters.dart`
+/// [PaymentNextAction]). `cash` siparişte ve ödeme akışı olmayan durumda
+/// sunucu `null` gönderir; o da [PaymentNextAction.none]'a düşer.
+/// Bilinmeyen bir adım [PaymentNextAction.unknown] olur ve `none`
+/// SAYILMAZ — atlanan bir doğrulamayı "bitti" göstermemek için.
+@PaymentNextActionConverter() PaymentNextAction get nextAction;/// Yalnızca `online` yönteminde dolu; istemci kullanıcıyı buraya yönlendirir.
  String? get redirectUrl;
 /// Create a copy of Payment
 /// with the given fields replaced by the non-null parameter values.
@@ -1984,16 +1998,16 @@ $PaymentCopyWith<Payment> get copyWith => _$PaymentCopyWithImpl<Payment>(this as
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Payment&&(identical(other.method, method) || other.method == method)&&(identical(other.status, status) || other.status == status)&&(identical(other.redirectUrl, redirectUrl) || other.redirectUrl == redirectUrl));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Payment&&(identical(other.method, method) || other.method == method)&&(identical(other.status, status) || other.status == status)&&(identical(other.paymentId, paymentId) || other.paymentId == paymentId)&&(identical(other.nextAction, nextAction) || other.nextAction == nextAction)&&(identical(other.redirectUrl, redirectUrl) || other.redirectUrl == redirectUrl));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,method,status,redirectUrl);
+int get hashCode => Object.hash(runtimeType,method,status,paymentId,nextAction,redirectUrl);
 
 @override
 String toString() {
-  return 'Payment(method: $method, status: $status, redirectUrl: $redirectUrl)';
+  return 'Payment(method: $method, status: $status, paymentId: $paymentId, nextAction: $nextAction, redirectUrl: $redirectUrl)';
 }
 
 
@@ -2004,7 +2018,7 @@ abstract mixin class $PaymentCopyWith<$Res>  {
   factory $PaymentCopyWith(Payment value, $Res Function(Payment) _then) = _$PaymentCopyWithImpl;
 @useResult
 $Res call({
-@PaymentMethodConverter() PaymentMethod method,@PaymentStatusConverter() PaymentStatus status, String? redirectUrl
+@PaymentMethodConverter() PaymentMethod method,@PaymentStatusConverter() PaymentStatus status, int? paymentId,@PaymentNextActionConverter() PaymentNextAction nextAction, String? redirectUrl
 });
 
 
@@ -2021,11 +2035,13 @@ class _$PaymentCopyWithImpl<$Res>
 
 /// Create a copy of Payment
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? method = null,Object? status = null,Object? redirectUrl = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? method = null,Object? status = null,Object? paymentId = freezed,Object? nextAction = null,Object? redirectUrl = freezed,}) {
   return _then(_self.copyWith(
 method: null == method ? _self.method : method // ignore: cast_nullable_to_non_nullable
 as PaymentMethod,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
-as PaymentStatus,redirectUrl: freezed == redirectUrl ? _self.redirectUrl : redirectUrl // ignore: cast_nullable_to_non_nullable
+as PaymentStatus,paymentId: freezed == paymentId ? _self.paymentId : paymentId // ignore: cast_nullable_to_non_nullable
+as int?,nextAction: null == nextAction ? _self.nextAction : nextAction // ignore: cast_nullable_to_non_nullable
+as PaymentNextAction,redirectUrl: freezed == redirectUrl ? _self.redirectUrl : redirectUrl // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }
@@ -2111,10 +2127,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@PaymentMethodConverter()  PaymentMethod method, @PaymentStatusConverter()  PaymentStatus status,  String? redirectUrl)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@PaymentMethodConverter()  PaymentMethod method, @PaymentStatusConverter()  PaymentStatus status,  int? paymentId, @PaymentNextActionConverter()  PaymentNextAction nextAction,  String? redirectUrl)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Payment() when $default != null:
-return $default(_that.method,_that.status,_that.redirectUrl);case _:
+return $default(_that.method,_that.status,_that.paymentId,_that.nextAction,_that.redirectUrl);case _:
   return orElse();
 
 }
@@ -2132,10 +2148,10 @@ return $default(_that.method,_that.status,_that.redirectUrl);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@PaymentMethodConverter()  PaymentMethod method, @PaymentStatusConverter()  PaymentStatus status,  String? redirectUrl)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@PaymentMethodConverter()  PaymentMethod method, @PaymentStatusConverter()  PaymentStatus status,  int? paymentId, @PaymentNextActionConverter()  PaymentNextAction nextAction,  String? redirectUrl)  $default,) {final _that = this;
 switch (_that) {
 case _Payment():
-return $default(_that.method,_that.status,_that.redirectUrl);case _:
+return $default(_that.method,_that.status,_that.paymentId,_that.nextAction,_that.redirectUrl);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -2152,10 +2168,10 @@ return $default(_that.method,_that.status,_that.redirectUrl);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@PaymentMethodConverter()  PaymentMethod method, @PaymentStatusConverter()  PaymentStatus status,  String? redirectUrl)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@PaymentMethodConverter()  PaymentMethod method, @PaymentStatusConverter()  PaymentStatus status,  int? paymentId, @PaymentNextActionConverter()  PaymentNextAction nextAction,  String? redirectUrl)?  $default,) {final _that = this;
 switch (_that) {
 case _Payment() when $default != null:
-return $default(_that.method,_that.status,_that.redirectUrl);case _:
+return $default(_that.method,_that.status,_that.paymentId,_that.nextAction,_that.redirectUrl);case _:
   return null;
 
 }
@@ -2167,11 +2183,27 @@ return $default(_that.method,_that.status,_that.redirectUrl);case _:
 @JsonSerializable()
 
 class _Payment extends Payment {
-  const _Payment({@PaymentMethodConverter() required this.method, @PaymentStatusConverter() required this.status, this.redirectUrl}): super._();
+  const _Payment({@PaymentMethodConverter() required this.method, @PaymentStatusConverter() required this.status, this.paymentId, @PaymentNextActionConverter() this.nextAction = PaymentNextAction.none, this.redirectUrl}): super._();
   factory _Payment.fromJson(Map<String, dynamic> json) => _$PaymentFromJson(json);
 
 @override@PaymentMethodConverter() final  PaymentMethod method;
 @override@PaymentStatusConverter() final  PaymentStatus status;
+/// Tahsilat kaydının kimliği; `cash` siparişte ve ödeme geçidine hiç
+/// uğramamış siparişte `null`.
+///
+/// **Sipariş kimliğinden AYRI bir kimliktir:** başarısız bir denemeden
+/// sonra ikinci kez ödenen sipariş aynı `id` altında iki tahsilat kaydı
+/// taşır ve sağlayıcıya sorarken kullanılacak olan budur. `null` ile `0`
+/// karıştırılmaz — `0` diye bir kayıt yoktur.
+@override final  int? paymentId;
+/// Ödemenin kesinleşmesi için sıradaki adım.
+///
+/// **GEVŞEK enum, bu alan büyüyecek** (`converters.dart`
+/// [PaymentNextAction]). `cash` siparişte ve ödeme akışı olmayan durumda
+/// sunucu `null` gönderir; o da [PaymentNextAction.none]'a düşer.
+/// Bilinmeyen bir adım [PaymentNextAction.unknown] olur ve `none`
+/// SAYILMAZ — atlanan bir doğrulamayı "bitti" göstermemek için.
+@override@JsonKey()@PaymentNextActionConverter() final  PaymentNextAction nextAction;
 /// Yalnızca `online` yönteminde dolu; istemci kullanıcıyı buraya yönlendirir.
 @override final  String? redirectUrl;
 
@@ -2188,16 +2220,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Payment&&(identical(other.method, method) || other.method == method)&&(identical(other.status, status) || other.status == status)&&(identical(other.redirectUrl, redirectUrl) || other.redirectUrl == redirectUrl));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Payment&&(identical(other.method, method) || other.method == method)&&(identical(other.status, status) || other.status == status)&&(identical(other.paymentId, paymentId) || other.paymentId == paymentId)&&(identical(other.nextAction, nextAction) || other.nextAction == nextAction)&&(identical(other.redirectUrl, redirectUrl) || other.redirectUrl == redirectUrl));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,method,status,redirectUrl);
+int get hashCode => Object.hash(runtimeType,method,status,paymentId,nextAction,redirectUrl);
 
 @override
 String toString() {
-  return 'Payment(method: $method, status: $status, redirectUrl: $redirectUrl)';
+  return 'Payment(method: $method, status: $status, paymentId: $paymentId, nextAction: $nextAction, redirectUrl: $redirectUrl)';
 }
 
 
@@ -2208,7 +2240,7 @@ abstract mixin class _$PaymentCopyWith<$Res> implements $PaymentCopyWith<$Res> {
   factory _$PaymentCopyWith(_Payment value, $Res Function(_Payment) _then) = __$PaymentCopyWithImpl;
 @override @useResult
 $Res call({
-@PaymentMethodConverter() PaymentMethod method,@PaymentStatusConverter() PaymentStatus status, String? redirectUrl
+@PaymentMethodConverter() PaymentMethod method,@PaymentStatusConverter() PaymentStatus status, int? paymentId,@PaymentNextActionConverter() PaymentNextAction nextAction, String? redirectUrl
 });
 
 
@@ -2225,11 +2257,13 @@ class __$PaymentCopyWithImpl<$Res>
 
 /// Create a copy of Payment
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? method = null,Object? status = null,Object? redirectUrl = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? method = null,Object? status = null,Object? paymentId = freezed,Object? nextAction = null,Object? redirectUrl = freezed,}) {
   return _then(_Payment(
 method: null == method ? _self.method : method // ignore: cast_nullable_to_non_nullable
 as PaymentMethod,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
-as PaymentStatus,redirectUrl: freezed == redirectUrl ? _self.redirectUrl : redirectUrl // ignore: cast_nullable_to_non_nullable
+as PaymentStatus,paymentId: freezed == paymentId ? _self.paymentId : paymentId // ignore: cast_nullable_to_non_nullable
+as int?,nextAction: null == nextAction ? _self.nextAction : nextAction // ignore: cast_nullable_to_non_nullable
+as PaymentNextAction,redirectUrl: freezed == redirectUrl ? _self.redirectUrl : redirectUrl // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }

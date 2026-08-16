@@ -30,11 +30,12 @@ import '../../router/app_router.dart';
 import '../../theme/bld_semantic_colors.dart';
 import '../../theme/bld_theme.dart';
 import '../../widgets/bld_card.dart';
+import '../../widgets/menu_photo_grid.dart';
 import '../../widgets/money_text.dart';
-import '../../widgets/network_food_image.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/skeletons.dart';
 import '../../widgets/status_views.dart';
+import '../../widgets/stock_pill.dart';
 import '../cart/cart_controller.dart';
 import '../menu/daily_menu_cart.dart';
 import 'reorder.dart';
@@ -346,15 +347,22 @@ class _LastOrderCard extends ConsumerWidget {
     final outcome = reorderInto(
       order: order,
       menuItems: menu.menu.isOrderable ? candidates : const <MenuItem>[],
-      addToCart: (item, quantity) => cart.add(
-        item: item,
-        locationId: locationId,
-        serviceDate: today,
-        quantity: quantity,
-        packageComponents: item.id == menu.menu.package?.menuId
-            ? menu.menu.package!.components
-            : const <DailyMenuPackageComponent>[],
-      ),
+      addToCart: (item, quantity) {
+        final result = cart.add(
+          item: item,
+          locationId: locationId,
+          serviceDate: today,
+          quantity: quantity,
+          // Gün toplamı olmadan tekrar sipariş, tavanı dolmuş bir güne dünkü
+          // siparişin tamamını doldurmayı denerdi.
+          dayRemaining: menu.menu.remainingPortions,
+          packageComponents: item.id == menu.menu.package?.menuId
+              ? menu.menu.package!.components
+              : const <DailyMenuPackageComponent>[],
+        );
+        return result == CartAddResult.added ||
+            result == CartAddResult.addedAfterDayChange;
+      },
     );
 
     if (!context.mounted) return;
@@ -494,6 +502,22 @@ class _TodaysMenuCard extends ConsumerWidget {
     final package = menu.package;
     final saving = menu.packageSavingKurus;
 
+    // Gün toplamı ile paketin kendi tavanından dar olanı bağlar; `null`
+    // sınırsızdır. Ana sayfadaki düğme de menü ekranındakiyle aynı stoku
+    // görmeli, yoksa buradan eklenen sepet orada reddediliyormuş gibi olurdu.
+    final remaining = effectiveRemaining(
+      dayRemaining: menu.remainingPortions,
+      itemRemaining: package?.remainingPortions,
+    );
+    final band = stockLevel(
+      remaining: remaining,
+      lowThreshold: kStockLowThreshold,
+    );
+    final soldOut = band == StockLevel.soldOut;
+    // Rozetin çizileceği durumlar; bolluk ve sınırsızlık sessiz olduğu için
+    // üstündeki boşluk da onlarla birlikte düşer.
+    final showStock = band == StockLevel.low || soldOut;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: BldSpacing.md),
       child: BldCard(
@@ -506,8 +530,11 @@ class _TodaysMenuCard extends ConsumerWidget {
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(BldRadius.md),
               ),
-              child: NetworkFoodImage(
-                url: menu.imageUrl,
+              // Menü sekmesindeki kartla AYNI kural: kapak varsa o, yoksa ilk
+              // dört kalemin ızgarası. İki yüzey aynı günü farklı çizerse
+              // müşteri iki ayrı menü olduğunu sanıyor.
+              child: MenuPhotoGrid(
+                imageUrls: menu.cardImageUrls,
                 aspectRatio: 16 / 9,
                 radius: 0,
               ),
@@ -549,11 +576,19 @@ class _TodaysMenuCard extends ConsumerWidget {
                         ],
                       ],
                     ),
+                    if (showStock) ...[
+                      const SizedBox(height: BldSpacing.sm),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: StockPill(remaining: remaining),
+                      ),
+                    ],
                     const SizedBox(height: BldSpacing.md),
                     FilledButton.icon(
                       onPressed:
                           menu.isOrderable &&
                               package.isAvailable &&
+                              !soldOut &&
                               location.acceptsOrders
                           ? () => _addPackage(context, ref)
                           : null,
@@ -583,6 +618,7 @@ class _TodaysMenuCard extends ConsumerWidget {
           item: item,
           locationId: location.id,
           serviceDate: menu.date,
+          dayRemaining: menu.remainingPortions,
           packageComponents: menu.package!.components,
         );
 

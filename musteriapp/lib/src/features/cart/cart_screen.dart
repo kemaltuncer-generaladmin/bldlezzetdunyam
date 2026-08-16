@@ -20,6 +20,7 @@ import '../../widgets/empty_view.dart';
 import '../../widgets/eta_notice.dart';
 import '../../widgets/network_food_image.dart';
 import '../../widgets/status_views.dart';
+import '../../widgets/stock_pill.dart';
 import 'cart_controller.dart';
 import 'cart_model.dart';
 
@@ -47,6 +48,19 @@ class CartScreen extends ConsumerWidget {
         BusinessDate.long(cart.serviceDate ?? ''),
       ),
     };
+
+    // O günün GÜNCEL menüsü. Sepetteki satırlar kalan porsiyonun eklendiği
+    // andaki kopyasını taşıyor; tavan o zamandan beri inmiş olabilir
+    // (yönetici düşürdü, abonelikler rezerve etti). Menü henüz gelmediyse ya
+    // da çevrimdışıysak `null` ve hiçbir engel konmuyor — bilinmeyen bir
+    // durumu "tükendi" saymak, satılabilir bir sepeti kilitlemek olurdu.
+    final serviceDate = cart.serviceDate;
+    final menu = serviceDate == null
+        ? null
+        : ref.watch(dailyMenuProvider(serviceDate)).valueOrNull?.menu;
+    final stockMessage = (menu != null && cartExceedsStock(cart, menu))
+        ? l10n.cartStockExceeded
+        : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -77,8 +91,19 @@ class CartScreen extends ConsumerWidget {
                     itemCount: cart.lines.length,
                     separatorBuilder: (_, _) =>
                         const SizedBox(height: BldSpacing.md - 4),
-                    itemBuilder: (context, index) =>
-                        _CartLineTile(line: cart.lines[index]),
+                    itemBuilder: (context, index) {
+                      final line = cart.lines[index];
+                      return _CartLineTile(
+                        line: line,
+                        dayRemaining: menu?.remainingPortions,
+                        itemRemaining: menu == null
+                            ? line.item.remainingPortions
+                            : dailyMenuSellableFor(
+                                menu,
+                                line.item.id,
+                              )?.remainingPortions,
+                      );
+                    },
                   ),
                 ),
                 _CartSummary(
@@ -101,10 +126,12 @@ class CartScreen extends ConsumerWidget {
                       : null,
                   offlineMessage: offline ? l10n.offlineOrderBlocked : null,
                   dayMessage: dayMessage,
+                  stockMessage: stockMessage,
                   onCheckout:
                       (belowMinimum ||
                           orderingClosed ||
                           offline ||
+                          stockMessage != null ||
                           dayProblem != null)
                       ? null
                       : () => context.push(Routes.checkout),
@@ -162,16 +189,42 @@ class _ServiceDayHeader extends StatelessWidget {
 }
 
 class _CartLineTile extends ConsumerWidget {
-  const _CartLineTile({required this.line});
+  const _CartLineTile({
+    required this.line,
+    required this.dayRemaining,
+    required this.itemRemaining,
+  });
 
   final CartLine line;
+
+  /// Günün toplam kalanı; menü bilinmiyorsa `null` (= sınırsız).
+  final int? dayRemaining;
+
+  /// Bu ürünün GÜNCEL kalanı; menü bilinmiyorsa satırın kendi kopyası.
+  final int? itemRemaining;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final textTheme = Theme.of(context).textTheme;
     final notifier = ref.read(cartProvider.notifier);
+    final cart = ref.watch(cartProvider);
     final options = line.optionLabels;
+
+    // Artı düğmesinin açık olması, sepetin o adedi KABUL EDECEĞİ anlamına
+    // gelmeli. Sepet satırı kendi kopyasındaki tavana bakıyor, ekran ise
+    // menüden gelen güncel tavana; ikisinin DARI alınmazsa tavan yükselmiş
+    // bir üründe düğme açık görünür ama dokunuş hiçbir şey yapmaz.
+    final room = maxAddable(
+      dayRemaining: dayRemaining,
+      itemRemaining: effectiveRemaining(
+        dayRemaining: itemRemaining,
+        itemRemaining: line.item.remainingPortions,
+      ),
+      alreadyInCartForDay: cart.itemCount,
+      alreadyInCartForItem: cart.quantityOfItem(line.item.id),
+      hardMax: kMaxCartLineQuantity,
+    );
 
     return BldCard(
       padding: const EdgeInsets.all(BldSpacing.sm + 2),
@@ -241,7 +294,23 @@ class _CartLineTile extends ConsumerWidget {
               _MiniStepper(
                 quantity: line.quantity,
                 onDecrement: () => notifier.decrement(line.signature),
-                onIncrement: () => notifier.increment(line.signature),
+                onIncrement: room > 0
+                    ? () => notifier.increment(
+                        line.signature,
+                        dayRemaining: dayRemaining,
+                      )
+                    : null,
+              ),
+              const SizedBox(width: BldSpacing.sm),
+              // Kalan porsiyon SATIRIN yanında: sepette adedi artıran
+              // müşterinin sınırı öğrenmek için menüye geri dönmesi gerekmiyor.
+              Flexible(
+                child: StockPill(
+                  remaining: effectiveRemaining(
+                    dayRemaining: dayRemaining,
+                    itemRemaining: itemRemaining,
+                  ),
+                ),
               ),
               const Spacer(),
               TextButton.icon(
@@ -270,7 +339,9 @@ class _MiniStepper extends StatelessWidget {
 
   final int quantity;
   final VoidCallback onDecrement;
-  final VoidCallback onIncrement;
+
+  /// `null` = stok tavanı doldu; artı düğmesi kapanır.
+  final VoidCallback? onIncrement;
 
   @override
   Widget build(BuildContext context) {
@@ -298,7 +369,7 @@ class _MiniStepper extends StatelessWidget {
     );
   }
 
-  Widget _btn(IconData icon, VoidCallback onTap) {
+  Widget _btn(IconData icon, VoidCallback? onTap) {
     return Material(
       color: Colors.transparent,
       shape: const CircleBorder(),
@@ -307,7 +378,13 @@ class _MiniStepper extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(BldSpacing.sm),
-          child: Icon(icon, size: 18, color: bldColor(BldColors.brand700)),
+          child: Icon(
+            icon,
+            size: 18,
+            color: onTap == null
+                ? bldColor(BldColors.neutral400)
+                : bldColor(BldColors.brand700),
+          ),
         ),
       ),
     );
@@ -323,6 +400,7 @@ class _CartSummary extends StatelessWidget {
     this.closedMessage,
     this.offlineMessage,
     this.dayMessage,
+    this.stockMessage,
   });
 
   final Cart cart;
@@ -335,6 +413,9 @@ class _CartSummary extends StatelessWidget {
   /// Sepetin günüyle ilgili engel (`cartDayProblem`).
   final String? dayMessage;
 
+  /// Sepetin kalan porsiyonu aştığı uyarısı (`cartExceedsStock`).
+  final String? stockMessage;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -344,6 +425,10 @@ class _CartSummary extends StatelessWidget {
     // müşteriyi hiçbir işe yaramayacak bir kalem eklemeye yönlendirirdi.
     final blockers = [
       ?dayMessage,
+      // Stok günden SONRA, kapalılıktan ÖNCE: günü geçmiş bir sepette kalan
+      // porsiyondan söz etmek anlamsız, ama vitrin kapalıyken bile müşteri
+      // adedini düzeltebilir ve düzeltmesi gerektiğini bilmelidir.
+      ?stockMessage,
       ?closedMessage,
       ?offlineMessage,
       ?belowMinimumMessage,

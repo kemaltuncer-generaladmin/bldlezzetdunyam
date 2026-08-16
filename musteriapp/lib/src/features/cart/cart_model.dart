@@ -12,6 +12,15 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'cart_model.freezed.dart';
 part 'cart_model.g.dart';
 
+/// Bir satırda durabilecek azami adet.
+///
+/// Stok tavanlarından BAĞIMSIZ bir tavandır: tavanı hiç konmamış bir yemekte
+/// bile parmak kaymasıyla 400 porsiyon istenmesini engeller. Değer
+/// `website/lib/cart.ts` içindeki `MAX_QUANTITY` ile aynı ve altın veri
+/// kümesindeki `defaults.hard_max` da budur
+/// (`docs/contract/sales-rules.cases.json`) — üçü birlikte değişir.
+const int kMaxCartLineQuantity = 99;
+
 /// Sepetteki tek bir kalem: ürün + seçilen seçenekler + adet + not.
 @freezed
 abstract class CartLine with _$CartLine {
@@ -126,6 +135,27 @@ abstract class Cart with _$Cart {
   /// Belirli bir kalem kimliğiyle eşleşen satırın konumu; yoksa `-1`.
   int indexOfSignature(String signature) =>
       lines.indexWhere((line) => line.signature == signature);
+
+  /// Aynı ÜRÜNDEN sepette toplam kaç adet var?
+  ///
+  /// Satır değil ürün sayılıyor: aynı yemek farklı seçenek ya da farklı notla
+  /// eklendiğinde ayrı satır olur ama mutfakta aynı tencereden çıkar. Stok
+  /// tavanı satıra değil ürüne konuyor; satır başına sayan bir hesap, iki
+  /// satıra bölünmüş bir yemeğin tavanı iki kez tüketmesine izin verirdi.
+  int quantityOfItem(int menuId) => lines.fold(
+    0,
+    (total, line) => line.item.id == menuId ? total + line.quantity : total,
+  );
+
+  /// [date] gününe ait sepette toplam kaç adet var?
+  ///
+  /// Sepet başka bir güne bağlıysa `0`: o sepet ilk eklemede zaten
+  /// boşalacak, dolayısıyla bu günün tavanından hiçbir şey tüketmiyor.
+  int quantityOn(String date) => serviceDate == date ? itemCount : 0;
+
+  /// [date] gününe ait sepette bu üründen kaç adet var? (bkz. [quantityOn])
+  int quantityOfItemOn(String date, int menuId) =>
+      serviceDate == date ? quantityOfItem(menuId) : 0;
 }
 
 /// Sepetin servis günüyle ilgili sorunu.
@@ -155,4 +185,49 @@ CartDayProblem? cartDayProblem(Cart cart, {required String today}) {
   if (date == null || !BusinessDate.isValid(date)) return CartDayProblem.missing;
   if (BusinessDate.isBefore(date, today)) return CartDayProblem.past;
   return null;
+}
+
+/// O günün menüsünde bu kimlikle satılan kalem — PAKET de dahil.
+///
+/// `DailyMenu.itemFor` yalnız tek tek satılan kalemlere bakıyor; paket ise
+/// sepette sıradan bir satır olarak duruyor (`DailyMenu.packageAsMenuItem`).
+/// Sepetteki bir satırın güncel stokunu ararken ikisine birden bakmak
+/// gerekiyor, yoksa paketin tavanı hiç görülmez ve tükenmiş bir menü sepette
+/// sınırsız görünürdü.
+MenuItem? dailyMenuSellableFor(DailyMenu menu, int menuId) {
+  final item = menu.itemFor(menuId);
+  if (item != null) return item;
+
+  final package = menu.packageAsMenuItem;
+  return (package != null && package.id == menuId) ? package : null;
+}
+
+/// Sepet, o günün stok tavanını AŞIYOR mu?
+///
+/// **Neden istemci de bakıyor:** bağlayıcı denetim `POST /orders`'ta ve orada
+/// kalıyor. Ama yönetici tavanı sepet doldurulduktan sonra indirebiliyor ve
+/// abonelikler rezervasyonu önden düşüyor; müşteriye adresini yazdırıp en
+/// sonda `422` göstermek yerine erken söylenir.
+///
+/// Sepetteki satırın kendi kopyası DEĞİL, [menu]'deki güncel kalan okunuyor:
+/// satır sepete girdiği andaki sayıyı taşıyor ve o sayı eskimiş olabilir.
+/// Kalemi o gün menüde bulunamayan satır için satırın kendi kopyasına
+/// düşülüyor — menü değişmiş olabilir, ama elimizdeki tek bilgi o.
+///
+/// **`null` kalan SINIRSIZ demektir**, tükenmiş değil.
+bool cartExceedsStock(Cart cart, DailyMenu menu) {
+  if (cart.isEmpty || cart.serviceDate != menu.date) return false;
+
+  final dayRemaining = menu.remainingPortions;
+  if (dayRemaining != null && cart.itemCount > dayRemaining) return true;
+
+  for (final line in cart.lines) {
+    final remaining =
+        dailyMenuSellableFor(menu, line.item.id)?.remainingPortions ??
+        line.item.remainingPortions;
+    if (remaining != null && cart.quantityOfItem(line.item.id) > remaining) {
+      return true;
+    }
+  }
+  return false;
 }

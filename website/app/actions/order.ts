@@ -4,9 +4,17 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { ApiError, userMessage } from '@/lib/api/client';
 import { fetchPrimaryLocation, isOrderingOpen } from '@/lib/api/catalog';
-import { canOrderDay, fetchDailyMenu } from '@/lib/api/daily-menu';
+import { canOrderDay, dayStock, fetchDailyMenu } from '@/lib/api/daily-menu';
 import { cancelOrder, createOrder, fetchOrder } from '@/lib/api/orders';
-import { addLine, clearCart, resolveCart, writeCart, EMPTY_CART, type Cart } from '@/lib/cart';
+import {
+  addLine,
+  clearCart,
+  resolveCart,
+  writeCart,
+  EMPTY_CART,
+  type Cart,
+  type ResolvedCart,
+} from '@/lib/cart';
 import { businessToday, formatDayMonth } from '@/lib/business-date';
 import { dayUnavailableCopy } from '@/lib/labels';
 import { readToken } from '@/lib/session';
@@ -45,6 +53,51 @@ function pinOf(
 function text(formData: FormData, key: string): string {
   const value = formData.get(key);
   return typeof value === 'string' ? value : '';
+}
+
+/**
+ * Sepetteki adetler o günün kalan porsiyonunu AŞIYOR MU?
+ *
+ * ## Neden ödeme adımında yeniden bakılıyor
+ *
+ * Sepet doldurulurken tavan uygulanıyor (`app/actions/cart.ts`) ama tavan
+ * SABİT DEĞİL: aynı gün başka müşteriler sipariş veriyor, mutfak porsiyon
+ * sayısını düşürebiliyor, abonelikler rezervasyonu artırabiliyor. Ödeme
+ * formunu doldurmak dakikalar sürüyor; o sırada tükenmiş bir günü sunucuya
+ * göndermek, müşteriye kart bilgisini girdirdikten sonra "olmadı" demek
+ * olurdu.
+ *
+ * ## İKİ TAVAN AYRI AYRI
+ *
+ * Gün toplamı sepetteki bütün adetlerle, kalem tavanı ise o `menu_id`'nin
+ * satırları toplanarak karşılaştırılıyor — aynı ürünün farklı seçenekli
+ * satırları tek stok yiyor. `null` SINIRSIZ demek ve hiçbir zaman `0`
+ * sayılmıyor; tavanı hiç konmamış bir günü tükenmiş göstermek satışı kendi
+ * elimizle kesmek olurdu.
+ *
+ * Sunucu aynı denetimi `POST /orders` içinde yine yapıyor ve tükenmişi
+ * `ITEM_UNAVAILABLE` ile reddediyor; bu yüzden stok için yeni bir hata kodu
+ * açılmadı.
+ */
+function hasOverStock(cart: ResolvedCart): boolean {
+  const menu = cart.menu;
+  if (menu === null) return false;
+
+  const dayRemaining = dayStock(menu);
+  if (dayRemaining !== null && cart.itemCount > dayRemaining) return true;
+
+  const byMenuId = new Map<number, number>();
+  for (const line of cart.lines) {
+    byMenuId.set(line.menuId, (byMenuId.get(line.menuId) ?? 0) + line.quantity);
+  }
+
+  return cart.lines.some((line) => {
+    const remaining = line.isPackage
+      ? (menu.package?.remaining_portions ?? null)
+      : (line.item?.remaining_portions ?? null);
+
+    return remaining !== null && (byMenuId.get(line.menuId) ?? 0) > remaining;
+  });
 }
 
 /** Sözleşmedeki beş sebepten biri mi? Bilinmeyen değer `null`'a düşer. */
@@ -114,6 +167,11 @@ export async function createOrderAction(
   }
   if (cart.hasUnavailable) {
     return invalid('Sepetinizde tükenen ürün var. Sepetten çıkarıp tekrar deneyin.');
+  }
+  if (hasOverStock(cart)) {
+    return invalid(
+      'Sepetinizdeki adet o gün için kalan porsiyondan fazla. Sepette adetleri azaltıp tekrar deneyin.',
+    );
   }
   if (cart.subtotal < cart.location.min_order_total) {
     return invalid('Sepet tutarı minimum sipariş tutarının altında.');

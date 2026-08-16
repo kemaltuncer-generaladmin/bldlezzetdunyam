@@ -99,12 +99,34 @@ abstract class Location with _$Location {
     /// sunucu/önbellek onu içermiyor — o durumda eski katalog akışı çalışır.
     @Default(false) bool dailyMenuEnabled,
 
+    /// Menü çıkan haftanın günleri, ISO numaralarıyla (1 Pazartesi .. 7 Pazar).
+    ///
+    /// **Yalnız görüntüleme içindir.** Gün seçici, menüsü hiç olmayacak
+    /// günleri baştan soluk çizsin diye veriliyor; kararı veren alan yine
+    /// `MenuCalendarDay.isOrderable` / `DailyMenu.isOrderable`'dır. İstemci
+    /// bu diziden kendi "sipariş verilebilir mi" hesabını ÇIKARMAZ.
+    ///
+    /// Varsayılan `[1,2,3,4,5]`: alan sözleşmeye sonradan eklendi ve eski
+    /// sunucu/önbellek onu içermiyor — hafta içi bugünün gerçeğidir ve boş
+    /// liste varsaymak takvimin her gününü soluk çizmek olurdu.
+    ///
+    /// **Hafta sonu menü yoktur ama satış kanalı AÇIKTIR:** cumartesi günü
+    /// pazartesiye sipariş verilebilir. Listede olmayan gün "o gün sipariş
+    /// alınmıyor" değil, "o gün için servis yok" demektir.
+    @Default(<int>[1, 2, 3, 4, 5]) List<int> serviceWeekdays,
+
     /// Bugünden itibaren kaç gün sonrasına sipariş alınabileceği.
     ///
     /// Gün seçici takvimi bu kadar ileriye çizer; **sunucu aynı sınırı
     /// `POST /orders` üzerinde yeniden uygular** — istemcinin çizdiği takvim
     /// bir kolaylıktır, kapı değil.
-    @Default(30) int maxLookaheadDays,
+    ///
+    /// Varsayılan **7** (16.08.2026, günlük menü satış modeli). Şemadaki
+    /// `default: 30` katalog dönemine ait tarihsel bir annotasyondur ve
+    /// sözleşmede korunuyor; alan gelmediğinde bugünkü gerçeği varsaymak,
+    /// eski önbellekten okuyan istemcinin bir ay ileriye tıklanabilir bir
+    /// takvim çizip sunucudan `too_far` yemesinden iyidir.
+    @Default(7) int maxLookaheadDays,
 
     /// Kuruş. Altında sipariş `422 VALIDATION_FAILED`.
     required int minOrderTotal,
@@ -184,6 +206,21 @@ abstract class MenuItem with _$MenuItem {
 
     /// `soldOutToday` doğruyken mutfağın yazdığı sebep.
     String? soldOutReason,
+
+    /// Bu kalemden servis günü için kalan porsiyon (kalem tavanı).
+    ///
+    /// **`null` SINIRSIZ, `0` tükendi** — `null`'ı `0` saymak, tavanı hiç
+    /// konmamış bir ürünü satıştan düşürür.
+    ///
+    /// Yalnız günün menüsü yanıtında (`DailyMenu.items[]`) doludur; katalog
+    /// ucunda (`/locations/{id}/menu`) `null` gelir çünkü stok **güne**
+    /// bağlıdır, ürüne değil.
+    ///
+    /// Gün toplamı (`DailyMenu.remainingPortions`) ile birlikte
+    /// değerlendirilir: hangisi önce dolarsa satışı o kapatır. Aritmetik
+    /// `bld_core`'da, burada değil; normatif vaka tablosu
+    /// `docs/contract/sales-rules.cases.json`.
+    int? remainingPortions,
     String? description,
     String? imageUrl,
     @Default(<String>[]) List<String> allergens,

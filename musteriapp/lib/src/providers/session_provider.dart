@@ -21,11 +21,11 @@ class Session {
   final bool isSignedIn;
   final Customer? customer;
 
-  /// Sunucu kararı: bu müşteri sipariş verebilir mi? (B2B geçişi — yalnız
-  /// kurumsal onaylı hesaplar sipariş verir.) Profil henüz çekilmediyse
-  /// (çevrimdışı açılış) kapıyı kapatmayız: `true` varsayılır, gerçek engel
-  /// sipariş ucundan (`403`) yine de gelir.
-  bool get canOrder => customer?.canOrder ?? true;
+  // `canOrder` KALDIRILDI (Faz 0). Cari hesap kalkınca "yalnız kurumsal onaylı
+  // hesaplar sipariş verir" kuralının dayanağı da kalktı; herkes sipariş
+  // veriyor. Sunucu bir gün yine bir hesabı kapatırsa bunu `POST /orders`
+  // üzerinden söyler ve istemci hata metnini gösterir — istemcide bir kapı
+  // tutmak, sunucunun kararını ikinci kez ve eskimiş bir kopyayla uygulamaktı.
 
   @override
   bool operator ==(Object other) =>

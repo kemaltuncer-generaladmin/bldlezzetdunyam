@@ -673,12 +673,12 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String homeReorderPartial(int count, int missing) {
-    return '$count ürün sepete eklendi. $missing ürün artık menüde yok.';
+    return '$count ürün sepete eklendi. $missing ürün eklenemedi: menüde yok ya da kalan porsiyon yetmedi.';
   }
 
   @override
   String get homeReorderEmpty =>
-      'Bu siparişteki ürünlerin hiçbiri şu an menüde yok.';
+      'Bu siparişteki ürünlerin hiçbiri şu anda sepete eklenemiyor.';
 
   @override
   String get registerCompanySection => 'Firma bilgileri';
@@ -710,13 +710,6 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get registerContactRequired => 'Yetkili kişi zorunludur.';
-
-  @override
-  String get orderingDisabledTitle => 'Sipariş kapalı';
-
-  @override
-  String get orderingDisabledBody =>
-      'Hesabınız sipariş vermeye kapalı. Kurumsal onay için bizimle iletişime geçin.';
 
   @override
   String get navSubscriptions => 'Abonelik';
@@ -1011,4 +1004,47 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get homeTodaysMenu => 'Bugünün menüsü';
+
+  @override
+  String stockLowRemaining(int count) {
+    return 'Son $count porsiyon';
+  }
+
+  @override
+  String get stockSoldOut => 'Tükendi';
+
+  @override
+  String get stockSoldOutNotice => 'Bu yemeğin porsiyonları tükendi.';
+
+  @override
+  String get cartStockCapped =>
+      'Kalan porsiyon yetmiyor; bu üründen sepetinize daha fazla ekleyemezsiniz.';
+
+  @override
+  String get cartStockAllInCart => 'Kalan porsiyonların tamamı sepetinizde.';
+
+  @override
+  String get cartStockExceeded =>
+      'Sepetinizdeki adet kalan porsiyonu aşıyor. Devam etmek için adetleri azaltın.';
+
+  @override
+  String dailyMenuCutoffInHours(int hours, int minutes) {
+    return 'Sipariş için son $hours saat $minutes dakika';
+  }
+
+  @override
+  String dailyMenuCutoffInMinutes(int minutes) {
+    return 'Sipariş için son $minutes dakika';
+  }
+
+  @override
+  String dailyMenuCutoffAt(String moment) {
+    return 'Son sipariş: $moment';
+  }
+
+  @override
+  String get dailyMenuNoMenuShort => 'Menü yok';
+
+  @override
+  String get dailyMenuNoServiceShort => 'Servis yok';
 }

@@ -279,12 +279,15 @@ $config['form']['fields'] = [
         'options' => Subscription::statusOptions(),
         'comment' => 'lang:veykemtu.bridgeapi::subscription.help_status',
     ],
+    // Cari ödeme modu (`account`) kaldırıldı — cari hesap iş modelinden
+    // çıktı. Tek seçenek kaldı ama alan gizlenmedi: `payment_mode` kolonu
+    // duruyor ve yöneticinin siparişin parasının nasıl toplandığını
+    // ekranda görmesi, görünmez bir varsayımdan iyidir.
     'payment_mode' => [
         'label' => 'lang:veykemtu.bridgeapi::subscription.column_payment',
         'type' => 'select',
         'span' => 'right',
         'options' => [
-            'account' => 'lang:veykemtu.bridgeapi::subscription.payment_account',
             'prepaid_monthly' => 'lang:veykemtu.bridgeapi::subscription.payment_prepaid',
         ],
     ],
@@ -382,7 +385,7 @@ $config['form']['rules'] = [
     [
         'payment_mode',
         'lang:veykemtu.bridgeapi::subscription.column_payment',
-        'required|string|in:account,prepaid_monthly',
+        'required|string|in:'.Subscription::PAYMENT_PREPAID,
     ],
     [
         'agreed_price_lira',

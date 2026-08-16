@@ -109,7 +109,8 @@ class Subscriptions extends AdminController
         $model->location_id ??= resolve(SettingsRepository::class)->location()?->location_id;
         $model->status ??= Subscription::STATUS_ACTIVE;
         $model->menu_mode ??= Subscription::MENU_FIXED_LIST;
-        $model->payment_mode ??= Subscription::PAYMENT_ACCOUNT;
+        // Cari ödeme modu kaldırıldı; tek mod peşin aylık.
+        $model->payment_mode ??= Subscription::PAYMENT_PREPAID;
         $model->delivery_type ??= 'delivery';
         $model->default_quantity ??= 1;
     }

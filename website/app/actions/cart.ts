@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { canOrderDay, fetchDailyMenu } from '@/lib/api/daily-menu';
+import { canOrderDay, dayStock, fetchDailyMenu } from '@/lib/api/daily-menu';
 import { fetchPrimaryLocation } from '@/lib/api/catalog';
 import {
   addLine,
@@ -11,12 +11,15 @@ import {
   setQuantity,
   writeCart,
   EMPTY_CART,
+  type Cart,
 } from '@/lib/cart';
 import { userMessage } from '@/lib/api/client';
-import { formatDayMonth, parseBusinessDate } from '@/lib/business-date';
+import { formatDayMonth, parseBusinessDate, type BusinessDate } from '@/lib/business-date';
 import { dayUnavailableCopy } from '@/lib/labels';
+import { maxAddable } from '@/lib/stock-policy';
 import type { DailyMenu, MenuItem } from '@/lib/api/types';
 import type { CartActionState } from '@/lib/action-state';
+import type { CartLimitState, DayCartState } from './cart-state';
 
 function ok(message: string): CartActionState {
   return { status: 'ok', message, at: Date.now() };
@@ -24,6 +27,44 @@ function ok(message: string): CartActionState {
 
 function fail(message: string): CartActionState {
   return { status: 'error', message, at: Date.now() };
+}
+
+function limit(message: string, addedQuantity: number): CartLimitState {
+  return { status: 'limit', message, at: Date.now(), addedQuantity };
+}
+
+/**
+ * Sepette O GÜN için duran toplam adet.
+ *
+ * Sepet başka bir güne bağlıysa `0`: gün tavanı SERVİS GÜNÜNE ait, sepetin
+ * kendisine değil. Başka günün adetlerini saymak, salı için dolu bir sepetin
+ * çarşamba kontenjanını da tüketmesi demekti.
+ */
+function quantityForDay(cart: Cart, serviceDate: BusinessDate): number {
+  if (cart.serviceDate !== serviceDate) return 0;
+  return cart.lines.reduce((total, line) => total + line.quantity, 0);
+}
+
+/**
+ * Sepette BU KALEM için duran adet.
+ *
+ * Aynı ürünün farklı seçenekli satırları TOPLANIYOR: mutfak "az acılı" ile
+ * "acılı" için ayrı tencere kurmuyor, stok ürünün kendisine ait. Satır satır
+ * saymak, iki seçenekle sipariş veren müşteriye tavanı iki kez tanırdı.
+ */
+function quantityForItem(cart: Cart, serviceDate: BusinessDate, menuId: number): number {
+  if (cart.serviceDate !== serviceDate) return 0;
+  return cart.lines.reduce(
+    (total, line) => (line.menuId === menuId ? total + line.quantity : total),
+    0,
+  );
+}
+
+/** Bir `menu_id`'nin o günkü kalan porsiyonu; `null` SINIRSIZ. */
+function remainingForMenuId(menu: DailyMenu, menuId: number): number | null {
+  const daily = menu.package;
+  if (daily && daily.menu_id === menuId) return daily.remaining_portions ?? null;
+  return menu.items.find((item) => item.id === menuId)?.remaining_portions ?? null;
 }
 
 function readInt(formData: FormData, key: string): number | null {
@@ -77,11 +118,19 @@ function missingRequiredOption(item: MenuItem, chosen: number[]): string | null 
  * Menü paketi de aynı yoldan ekleniyor: sözleşme paketi bir `menu_id` ile
  * sipariş ettiriyor (`DailyMenu.package.menu_id`), yani istek biçimi
  * "paket mi ürün mü" ayrımını taşımıyor.
+ *
+ * ## STOK TAVANI BURADA DA UYGULANIYOR
+ *
+ * Menü ekranı düğmeyi zaten kapatıyor ama o karar sayfanın çizildiği andaki
+ * stoka dayanıyor; müşteri sekmeyi açık bırakıp on dakika sonra tıkladığında
+ * kalan porsiyon değişmiş olabilir. Tavan aşılırsa istek reddedilmiyor,
+ * KIRPILIYOR: üç isteyip iki alan müşteriye iki tanesini vermek, hiçbirini
+ * vermemekten iyi (`lib/stock-policy.ts` → `maxAddable`).
  */
 export async function addToCartAction(
-  _prev: CartActionState,
+  _prev: DayCartState,
   formData: FormData,
-): Promise<CartActionState> {
+): Promise<DayCartState> {
   const menuId = readInt(formData, 'menu_id');
   const serviceDate = parseBusinessDate(readText(formData, 'service_date'));
   const quantityInput = readInt(formData, 'quantity');
@@ -118,6 +167,8 @@ export async function addToCartAction(
 
     let name: string;
     let optionValueIds: number[] = [];
+    /** Bu kalemin kendi tavanı; `null` SINIRSIZ (gün tavanı ayrı okunur). */
+    let itemRemaining: number | null = null;
 
     if (daily !== null && isPackage) {
       if (!daily.is_available) {
@@ -127,6 +178,7 @@ export async function addToCartAction(
       // satırında yok sayıyor. Formdan geleni taşımıyoruz ki sunucu ile
       // istemci aynı satırı üretsin.
       name = daily.name;
+      itemRemaining = daily.remaining_portions ?? null;
     } else {
       const item = menu.items.find((candidate) => candidate.id === menuId);
       if (!item) {
@@ -141,6 +193,7 @@ export async function addToCartAction(
       if (missing) return fail(`Devam etmek için "${missing}" seçimini yapın.`);
 
       name = item.name;
+      itemRemaining = item.remaining_portions ?? null;
     }
 
     const cart = await readCart();
@@ -160,10 +213,41 @@ export async function addToCartAction(
       };
     }
 
-    const next = addLine(confirmReset ? EMPTY_CART : cart, {
+    // Onaylı sıfırlamada sepet boşalıyor: tavan hesabı da boş sepete göre
+    // yapılmalı, yoksa birazdan silinecek satırlar kontenjanı yiyor.
+    const base = confirmReset ? EMPTY_CART : cart;
+    const dayRemaining = dayStock(menu);
+
+    const addable = maxAddable({
+      dayRemaining,
+      itemRemaining,
+      alreadyInCartForDay: quantityForDay(base, serviceDate),
+      alreadyInCartForItem: quantityForItem(base, serviceDate, menuId),
+    });
+
+    if (addable === 0) {
+      /*
+       * Sıfırın İKİ sebebi var ve müşteriye söylenecek şey ayrı: gün ya da
+       * kalem tavanı dolduysa "kontenjan bitti" (başka gün seçmeli), tavan
+       * hiç konmamışken sıfır çıktıysa satır başı azami adede dayanmıştır
+       * (adet azaltmalı). Tek cümle yazmak, doksan dokuz porsiyon sepete
+       * atmış müşteriye "kontenjan doldu" dedirtirdi.
+       */
+      const capped = dayRemaining !== null || itemRemaining !== null;
+      return limit(
+        capped
+          ? `${name} için ${formatDayMonth(serviceDate)} kontenjanı doldu. Sepetinizdeki adet o günün kalanı kadar.`
+          : `${name} için satırdaki azami adede ulaştınız.`,
+        0,
+      );
+    }
+
+    const accepted = Math.min(quantity, addable);
+
+    const next = addLine(base, {
       serviceDate,
       menuId,
-      quantity,
+      quantity: accepted,
       optionValueIds,
       note,
     });
@@ -171,25 +255,81 @@ export async function addToCartAction(
     await writeCart(next);
     revalidatePath('/sepet');
 
+    if (accepted < quantity) {
+      return limit(
+        `${name} sepete ${accepted} adet eklendi; ${formatDayMonth(serviceDate)} için kalan bu kadardı.`,
+        accepted,
+      );
+    }
+
     return ok(`${name} sepete eklendi.`);
   } catch (error) {
     return fail(userMessage(error, 'Ürün sepete eklenemedi, tekrar deneyin.'));
   }
 }
 
+/**
+ * Adet güncelleme.
+ *
+ * ARTIRMA bir sipariş kararıdır ve tavan denetimi ister; AZALTMA ile silme
+ * ise kalan porsiyonu artırır, yani menüyü çekmeye gerek yok. Ayrımı
+ * yapmasaydık sepetten bir ürün çıkarmak bile iki ağ isteğine ve yeni bir
+ * hata yoluna bağlanırdı — sepetin en sık kullanılan düğmesi için ağır bir
+ * bedel.
+ */
 export async function updateQuantityAction(
-  _prev: CartActionState,
+  _prev: DayCartState,
   formData: FormData,
-): Promise<CartActionState> {
+): Promise<DayCartState> {
   const key = formData.get('line_key');
   const quantity = readInt(formData, 'quantity');
   if (typeof key !== 'string' || quantity === null) {
     return fail('Sepet güncellenemedi, tekrar deneyin.');
   }
 
-  await writeCart(setQuantity(await readCart(), key, quantity));
+  const cart = await readCart();
+  const line = cart.lines.find((candidate) => candidate.key === key) ?? null;
+  const serviceDate = cart.serviceDate;
+
+  if (line === null || serviceDate === null || quantity <= line.quantity) {
+    await writeCart(setQuantity(cart, key, quantity));
+    revalidatePath('/sepet');
+    return ok(quantity <= 0 ? 'Ürün sepetten çıkarıldı.' : 'Adet güncellendi.');
+  }
+
+  let ceiling: number;
+  try {
+    const location = await fetchPrimaryLocation('fresh');
+    if (!location) return fail('Vitrin bilgisi alınamadı, tekrar deneyin.');
+
+    const menu = await fetchDailyMenu(location.id, serviceDate, 'fresh');
+
+    // `maxAddable` "kaç tane DAHA" der; satırın ulaşabileceği tavan, o
+    // satırın mevcut adedi üstüne eklenerek bulunur.
+    ceiling =
+      line.quantity +
+      maxAddable({
+        dayRemaining: dayStock(menu),
+        itemRemaining: remainingForMenuId(menu, line.menuId),
+        alreadyInCartForDay: quantityForDay(cart, serviceDate),
+        alreadyInCartForItem: quantityForItem(cart, serviceDate, line.menuId),
+      });
+  } catch (error) {
+    return fail(userMessage(error, 'Adet güncellenemedi, tekrar deneyin.'));
+  }
+
+  const accepted = Math.min(quantity, ceiling);
+  await writeCart(setQuantity(cart, key, accepted));
   revalidatePath('/sepet');
-  return ok(quantity <= 0 ? 'Ürün sepetten çıkarıldı.' : 'Adet güncellendi.');
+
+  if (accepted < quantity) {
+    return limit(
+      `${formatDayMonth(serviceDate)} için kalan porsiyon en fazla ${accepted} adede yetiyor.`,
+      accepted,
+    );
+  }
+
+  return ok('Adet güncellendi.');
 }
 
 export async function removeLineAction(

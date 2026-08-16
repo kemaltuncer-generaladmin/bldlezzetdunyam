@@ -16,8 +16,18 @@ import type { Subscription } from '@/lib/api/types';
 
 const DAY_NAMES = ['', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'] as const;
 
+/*
+ * `Record<Subscription['status'], …>` BİLEREK: sözleşmeye yeni bir durum
+ * eklendiğinde derleyici burayı gösterir. `awaiting_contract` ve
+ * `awaiting_payment` tam olarak böyle yakalandı — sözleşmeye eklendiler ve
+ * derleme kırıldı. Bu haritayı gevşetmek (`Partial`, `string` indeksi,
+ * `default` dalı) o uyarıyı sessizce kapatır ve müşteri bir gün etiketsiz
+ * bir rozet görür.
+ */
 const STATUS_LABELS: Record<Subscription['status'], { text: string; className: string }> = {
   pending: { text: 'Fiyat bekleniyor', className: 'bg-info/10 text-info' },
+  awaiting_contract: { text: 'Sözleşme bekleniyor', className: 'bg-info/10 text-info' },
+  awaiting_payment: { text: 'Ödeme bekleniyor', className: 'bg-warning/10 text-warning' },
   active: { text: 'Aktif', className: 'bg-success/10 text-success' },
   paused: { text: 'Duraklatıldı', className: 'bg-warning/10 text-warning' },
   cancelled: { text: 'İptal edildi', className: 'bg-muted text-muted-foreground' },

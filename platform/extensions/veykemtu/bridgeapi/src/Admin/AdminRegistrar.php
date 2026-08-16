@@ -62,21 +62,27 @@ final class AdminRegistrar
     public const string PERMISSION_QUOTES = 'Veykemtu.QuoteRequests';
 
     /**
-     * Cari hesap ekranlarına erişim yetkisi — BEŞİNCİ kutu.
+     * İade takibi ekranına erişim yetkisi — BEŞİNCİ kutu.
      *
-     * PARA HAREKETİ. Cari bakiye ve hareketler, hangi kurumsal müşterinin ne
-     * kadar borcu olduğunu gösterir — ticari olarak hassas veri. İçerik veya
-     * teklif yetkisiyle aynı kutuya konsaydı, blog yazan birine tüm müşteri
-     * bakiyeleri açılırdı. Ayrı yetki, "en dar çevre" ilkesinin gereği.
+     * PARA HAREKETİ. Hangi siparişin parası kime, ne zaman geri gitti —
+     * ticari olarak hassas veri. İçerik veya teklif yetkisiyle aynı kutuya
+     * konsaydı, blog yazan birine iade defteri açılırdı. Ayrı yetki, "en
+     * dar çevre" ilkesinin gereği.
+     *
+     * ESKİ ADI `PERMISSION_ACCOUNT` (`Veykemtu.AccountLedger`) İDİ ve cari
+     * hesap ekranlarıyla paylaşılıyordu. Cari kalkınca kutuda tek ekran
+     * kaldı; adı da o ekranı anlatıyor. **Yetki dizesi değişti** — mevcut
+     * personel rollerinde iade yetkisi bir kez yeniden işaretlenmelidir
+     * (`docs/RUNBOOK.md` §9).
      */
-    public const string PERMISSION_ACCOUNT = 'Veykemtu.AccountLedger';
+    public const string PERMISSION_REFUNDS = 'Veykemtu.Refunds';
 
     /**
      * Abonelik ekranlarına erişim yetkisi — ALTINCI kutu.
      *
-     * Cari (para hareketi) ile abonelik (sipariş üreten kural + fiyatlandırma)
-     * farklı işler: satış ekibi aboneliği fiyatlandırır, muhasebe cariyi
-     * yönetir. Ayrı yetki, "en dar çevre" ilkesi.
+     * İade (gerçekleşmiş para hareketi) ile abonelik (sipariş üreten kural +
+     * fiyatlandırma) farklı işler: satış ekibi aboneliği fiyatlandırır,
+     * muhasebe iadeyi kapatır. Ayrı yetki, "en dar çevre" ilkesi.
      */
     public const string PERMISSION_SUBSCRIPTIONS = 'Veykemtu.Subscriptions';
 
@@ -138,12 +144,6 @@ final class AdminRegistrar
     /** İçerik ekranlarının ortak üst menü grubu kodu. */
     public const string CONTENT_MENU = 'bld_content';
 
-    /** Cari hesaplar ekranının admin paneldeki adresi. */
-    public const string ACCOUNTS_URI = 'veykemtu/bridgeapi/customer_accounts';
-
-    /** Cari hareketler ekranının admin paneldeki adresi. */
-    public const string ACCOUNT_ENTRIES_URI = 'veykemtu/bridgeapi/account_entries';
-
     /** Abonelikler ekranının admin paneldeki adresi. */
     public const string SUBSCRIPTIONS_URI = 'veykemtu/bridgeapi/subscriptions';
 
@@ -153,7 +153,7 @@ final class AdminRegistrar
     /** İade takibi ekranının admin paneldeki adresi. */
     public const string REFUNDS_URI = 'veykemtu/bridgeapi/refunds';
 
-    /** Kurumsal (cari/abonelik) ekranların ortak üst menü grubu kodu. */
+    /** Kurumsal (abonelik/iade/kapalı gün) ekranların ortak menü grubu kodu. */
     public const string CORPORATE_MENU = 'bld_corporate';
 
     private function __construct() {}
@@ -361,18 +361,22 @@ final class AdminRegistrar
             ],
 
             /*
-             * KURUMSAL üst grubu — cari hesap (ve ileride abonelik) ekranları.
+             * KURUMSAL üst grubu — abonelik, iade ve kapalı gün ekranları.
              *
              * "İçerikler"in (45) hemen ardında (46): sipariş/içerik akışından
-             * sonra, kurumsal muhasebe yüzeyi. Kendi yetkisi (`PERMISSION_ACCOUNT`)
-             * ve kendi grubu — para hareketi verisi içerik/teklifle karışmaz.
-             * Çocukların hepsinde `priority` zorunlu (CONTENT_MENU gerekçesi).
+             * sonra, sözleşme ve para yüzeyi. Çocukların hepsinde `priority`
+             * zorunlu (CONTENT_MENU gerekçesi).
+             *
+             * Cari hesap ekranları (`bld_customer_accounts`,
+             * `bld_account_entries`) kaldırıldı. Grup KALDI: içinde üç ekran
+             * daha var ve grubu dağıtmak, alışılmış menü yerlerini boşuna
+             * değiştirmek olurdu.
              */
             self::CORPORATE_MENU => [
                 'priority' => 46,
                 'class' => self::CORPORATE_MENU,
                 'icon' => 'fa-building',
-                'title' => lang('veykemtu.bridgeapi::accountledger.side_menu_group'),
+                'title' => lang('veykemtu.bridgeapi::default.side_menu_corporate'),
                 'child' => [
                     'bld_subscriptions' => [
                         'priority' => 5,
@@ -381,33 +385,18 @@ final class AdminRegistrar
                         'title' => lang('veykemtu.bridgeapi::subscription.side_menu'),
                         'permission' => self::PERMISSION_SUBSCRIPTIONS,
                     ],
-                    'bld_customer_accounts' => [
-                        'priority' => 10,
-                        'class' => 'bld_customer_accounts',
-                        'href' => admin_url(self::ACCOUNTS_URI),
-                        'title' => lang('veykemtu.bridgeapi::accountledger.side_menu_accounts'),
-                        'permission' => self::PERMISSION_ACCOUNT,
-                    ],
                     /*
-                     * İADELER, cari hareketlerin ÜSTÜNDE (15). Hareketler
-                     * bir arşivdir — geriye dönüp bakılır. İadeler ise bir
-                     * gelen kutusudur: `manual` durumdaki her satır birinin
-                     * para göndermesini bekliyor. Bekleyen iş, arşivin
-                     * altında kalmamalı.
+                     * İADELER bir gelen kutusudur: `manual` durumdaki her
+                     * satır birinin para göndermesini bekliyor. Bekleyen iş,
+                     * takvim gibi arka plan ekranlarının altında kalmamalı —
+                     * bu yüzden kapalı günlerden önce (15 < 30).
                      */
                     'bld_refunds' => [
                         'priority' => 15,
                         'class' => 'bld_refunds',
                         'href' => admin_url(self::REFUNDS_URI),
                         'title' => lang('veykemtu.bridgeapi::refund.side_menu'),
-                        'permission' => self::PERMISSION_ACCOUNT,
-                    ],
-                    'bld_account_entries' => [
-                        'priority' => 20,
-                        'class' => 'bld_account_entries',
-                        'href' => admin_url(self::ACCOUNT_ENTRIES_URI),
-                        'title' => lang('veykemtu.bridgeapi::accountledger.side_menu_entries'),
-                        'permission' => self::PERMISSION_ACCOUNT,
+                        'permission' => self::PERMISSION_REFUNDS,
                     ],
                     'bld_closed_days' => [
                         'priority' => 30,
@@ -446,8 +435,8 @@ final class AdminRegistrar
                 'label' => 'lang:veykemtu.bridgeapi::quoterequest.permission',
                 'group' => 'igniter::admin.permissions.name',
             ],
-            self::PERMISSION_ACCOUNT => [
-                'label' => 'lang:veykemtu.bridgeapi::accountledger.permission',
+            self::PERMISSION_REFUNDS => [
+                'label' => 'lang:veykemtu.bridgeapi::default.permission_refunds',
                 'group' => 'igniter::admin.permissions.name',
             ],
             self::PERMISSION_SUBSCRIPTIONS => [

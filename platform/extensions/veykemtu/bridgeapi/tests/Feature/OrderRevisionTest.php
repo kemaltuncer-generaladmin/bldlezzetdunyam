@@ -7,7 +7,6 @@ namespace Veykemtu\BridgeApi\Tests\Feature;
 use Igniter\Cart\Models\Order;
 use Illuminate\Support\Facades\DB;
 use Tests\KitchenTestCase;
-use Veykemtu\BridgeApi\Services\AccountLedger;
 use Veykemtu\BridgeApi\Services\OrderStatusTransition;
 use Veykemtu\BridgeApi\Support\Money;
 
@@ -239,14 +238,20 @@ class OrderRevisionTest extends KitchenTestCase
         )->assertStatus(422);
     }
 
-    public function test_IKINCI_REVIZYON_cari_deftere_YAZILABILIR(): void
+    /**
+     * İKİNCİ REVİZYON DA KENDİ PARA KAYDINI DOĞURUR.
+     *
+     * Para kaydı REVİZYONA bağlanıyor, siparişe değil. Siparişe
+     * bağlansaydı aynı siparişin ikinci düzenlemesi ya sessizce yutulur ya
+     * da birincisinin üstüne yazardı — iki kez küçültülen bir siparişin
+     * ikinci iadesi kimsenin görmediği bir yerde kaybolurdu.
+     *
+     * (Bu değişmez eskiden cari defter üzerinden ölçülüyordu; cari hesap
+     * kaldırılınca aynı soru iade tablosuna soruluyor.)
+     */
+    public function test_IKINCI_REVIZYON_kendi_iade_kaydini_acar(): void
     {
-        // Defterdeki `UNIQUE(source, reference_type, reference_id,
-        // entry_type)` kısıtı sipariş kimliğine bağlansaydı, aynı
-        // siparişin ikinci düzenlemesi `insertOrIgnore` tarafından
-        // sessizce yutulur ve müşteri fazla borçlu kalırdı. Referans
-        // REVİZYONA bağlı olduğu için ikisi de yazılıyor.
-        $order = $this->confirmedOrder(quantity: 10, payment: 'account');
+        $order = $this->confirmedOrder(quantity: 10);
         $menuId = $this->menuId('Tavuk Sote');
 
         foreach ([8, 6] as $quantity) {
@@ -257,11 +262,15 @@ class OrderRevisionTest extends KitchenTestCase
             )->assertOk();
         }
 
-        $this->assertSame(
+        $revisionIds = DB::table('veykemtu_payment_refunds')
+            ->where('order_id', $order->order_id)
+            ->pluck('revision_id');
+
+        $this->assertCount(2, $revisionIds, 'Her revizyon kendi iade satırını açmalı.');
+        $this->assertCount(
             2,
-            DB::table('veykemtu_account_ledger')
-                ->where('reference_type', 'order_revision')
-                ->count(),
+            array_unique($revisionIds->all()),
+            'İki iade satırı AYRI revizyonlara bağlı olmalı.',
         );
     }
 

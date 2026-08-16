@@ -49,7 +49,12 @@ _Location _$LocationFromJson(Map<String, dynamic> json) => _Location(
       ? null
       : DateTime.parse(json['ordering_resumes_at'] as String),
   dailyMenuEnabled: json['daily_menu_enabled'] as bool? ?? false,
-  maxLookaheadDays: (json['max_lookahead_days'] as num?)?.toInt() ?? 30,
+  serviceWeekdays:
+      (json['service_weekdays'] as List<dynamic>?)
+          ?.map((e) => (e as num).toInt())
+          .toList() ??
+      const <int>[1, 2, 3, 4, 5],
+  maxLookaheadDays: (json['max_lookahead_days'] as num?)?.toInt() ?? 7,
   minOrderTotal: (json['min_order_total'] as num).toInt(),
   paymentMethods: (json['payment_methods'] as List<dynamic>)
       .map((e) => const PaymentMethodConverter().fromJson(e as String))
@@ -69,6 +74,7 @@ Map<String, dynamic> _$LocationToJson(_Location instance) => <String, dynamic>{
   'ordering_pause_reason': ?instance.orderingPauseReason,
   'ordering_resumes_at': ?instance.orderingResumesAt?.toIso8601String(),
   'daily_menu_enabled': instance.dailyMenuEnabled,
+  'service_weekdays': instance.serviceWeekdays,
   'max_lookahead_days': instance.maxLookaheadDays,
   'min_order_total': instance.minOrderTotal,
   'payment_methods': instance.paymentMethods
@@ -104,6 +110,7 @@ _MenuItem _$MenuItemFromJson(Map<String, dynamic> json) => _MenuItem(
   isAvailable: json['is_available'] as bool,
   soldOutToday: json['sold_out_today'] as bool? ?? false,
   soldOutReason: json['sold_out_reason'] as String?,
+  remainingPortions: (json['remaining_portions'] as num?)?.toInt(),
   description: json['description'] as String?,
   imageUrl: json['image_url'] as String?,
   allergens:
@@ -124,6 +131,7 @@ Map<String, dynamic> _$MenuItemToJson(_MenuItem instance) => <String, dynamic>{
   'is_available': instance.isAvailable,
   'sold_out_today': instance.soldOutToday,
   'sold_out_reason': ?instance.soldOutReason,
+  'remaining_portions': ?instance.remainingPortions,
   'description': ?instance.description,
   'image_url': ?instance.imageUrl,
   'allergens': instance.allergens,

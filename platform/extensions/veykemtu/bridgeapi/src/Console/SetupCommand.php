@@ -117,7 +117,10 @@ class SetupCommand extends Command
 
         $sinif::syncAll();
 
-        $kodlar = $sinif::whereIn('code', ['cash', 'account', 'online'])
+        // `account` listeden çıktı: cari hesap kaldırıldı ve geçit sınıfı
+        // artık yok. `payments` satırı tarihsel kayıt olarak duruyor ama
+        // kurulum onu tohumlamıyor, raporlamıyor.
+        $kodlar = $sinif::whereIn('code', ['cash', 'online'])
             ->pluck('code')->sort()->implode(', ');
 
         $this->components->twoColumnDetail('  ödeme geçitleri', $kodlar !== '' ? $kodlar : '-');

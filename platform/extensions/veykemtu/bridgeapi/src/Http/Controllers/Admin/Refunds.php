@@ -49,13 +49,14 @@ class Refunds extends AdminController
     ];
 
     /**
-     * Cari yetkisiyle aynı kutu — ikisi de PARA HAREKETİ.
+     * PARA HAREKETİ kutusu — bu ekran artık kutunun tek sakini.
      *
-     * Ayrı bir yetki açmadık: iadeyi işaretleyen kişi zaten tahsilatı da
-     * giren kişi (muhasebe). Yetki sayısını gereksiz artırmak, rol
-     * tanımlarını kimsenin doğru kuramayacağı kadar ince böler.
+     * Yetki eskiden cari hesap ekranlarıyla paylaşılıyordu
+     * (`PERMISSION_ACCOUNT` / `Veykemtu.AccountLedger`); cari kalkınca kutu
+     * yalnız iadeye kaldı ve adı da onu anlatıyor. Ayrımın kendisi
+     * korundu: iade defterini görmek, blog yazmakla aynı yetki olmamalı.
      */
-    protected null|string|array $requiredPermissions = AdminRegistrar::PERMISSION_ACCOUNT;
+    protected null|string|array $requiredPermissions = AdminRegistrar::PERMISSION_REFUNDS;
 
     public function __construct()
     {

@@ -39,6 +39,13 @@ void showCartAddFeedback(
       l10n.menuItemUnavailable,
       const Duration(seconds: 3),
     ),
+    // "Satışta değil"den AYRI bir cümle: yemek satışta, yalnız o kadarı
+    // kalmamış. Sepete hiçbir şey girmedi — müşteri adedi kendi düşürecek,
+    // o yüzden "eklendi"den uzun duruyor.
+    CartAddResult.stockCapped => (
+      l10n.cartStockCapped,
+      const Duration(seconds: 4),
+    ),
   };
 
   messenger.hideCurrentSnackBar();

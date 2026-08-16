@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Veykemtu\BridgeApi\Tests\Feature;
 
 use Igniter\Cart\Models\Menu;
+use Igniter\Cart\Models\Order;
 use Igniter\Flame\Flash\FlashBag;
 use Igniter\Flame\Flash\Message;
 use Igniter\Local\Models\Location;
@@ -16,10 +17,12 @@ use ReflectionClass;
 use ReflectionMethod;
 use Tests\KitchenTestCase;
 use Veykemtu\BridgeApi\Http\Controllers\Admin\DailyMenus;
+use Veykemtu\BridgeApi\Models\ApiCustomer;
 use Veykemtu\BridgeApi\Models\ClosedDay;
 use Veykemtu\BridgeApi\Models\DailyMenu;
 use Veykemtu\BridgeApi\Models\DailyMenuItem;
 use Veykemtu\BridgeApi\Services\LocationGate;
+use Veykemtu\BridgeApi\Services\OrderFactory;
 use Veykemtu\BridgeApi\Services\OrderStatusTransition;
 use Veykemtu\BridgeApi\Support\BusinessTime;
 
@@ -817,22 +820,42 @@ class AdminDailyMenuTest extends KitchenTestCase
     /**
      * O güne yayında bir menü kurar VE gerçek bir sipariş açar.
      *
-     * Sipariş `OrderFactory` üzerinden geçiyor (API ucu), doğrudan tabloya
-     * yazılmıyor: kilidin dayandığı `orders.bld_service_date` değerini o
-     * yazıyor. Elle insert edilseydi test, gerçekte var olmayan bir
-     * değişmezi doğrulardı.
+     * Sipariş `OrderFactory` üzerinden geçiyor, doğrudan tabloya yazılmıyor:
+     * kilidin dayandığı `orders.bld_service_date` değerini o yazıyor. Elle
+     * insert edilseydi test, gerçekte var olmayan bir değişmezi doğrulardı.
+     *
+     * NEDEN MÜŞTERİ UCU (`POST /api/orders`) DEĞİL, PANEL BAĞLAMI: müşteri
+     * bugünden en fazla `LocationGate::DEFAULT_LOOKAHEAD_DAYS` (7) gün
+     * ileriye sipariş verebiliyor; `OrderingWindow::assertWithinWindow()`
+     * daha ilerisini "Bu tarih için henüz sipariş alınmıyor." ile reddediyor.
+     * Hafta kopyası testinin kilitlediği gün HEDEF haftada, yani pencerenin
+     * dışında. Gerçek hayatta da o güne sipariş yalnız yöneticinin telefon
+     * siparişinden doğar; `adminContext: true` pencereyi bilerek atlayan tek
+     * yol (`OrderFactory::create()` gerekçesi orada yazılı). Kural bilinçli
+     * olduğu için gevşetilmiyor, test gerçek doğuş yoluna taşınıyor.
+     *
+     * BUNUNLA BİRLİKTE HAFTANIN GÜNÜNE BAĞLI KIRILGANLIK DA BİTTİ: kilitli
+     * gün içinde bulunulan haftanın pazartesisinden sayıldığı için bugüne 3
+     * ilâ 9 gün uzakta olabiliyordu, yani aynı test cuma koşumunda geçip
+     * pazartesi koşumunda kalıyordu. Panel bağlamı mesafeye hiç bakmadığı
+     * için sonuç artık koşum gününden bağımsız.
      */
     private function makePublishedDayWithOrder(Carbon $date): DailyMenu
     {
         $menu = $this->makeDay($date, 25000, ['Tavuk Sote'], DailyMenu::STATUS_PUBLISHED);
 
-        $this->asCustomer()->postJson('/api/orders', [
-            'location_id' => $this->locationId(),
-            'items' => [['menu_id' => $this->packageMenuId(), 'quantity' => 1]],
-            'delivery_type' => 'pickup',
-            'payment_method' => 'cash',
-            'service_date' => $date->toDateString(),
-        ], self::HEADERS)->assertCreated();
+        app(OrderFactory::class)->create(
+            customer: $this->phoneCustomer(),
+            location: $this->location(),
+            deliveryType: Order::COLLECTION,
+            items: [['menu_id' => $this->packageMenuId(), 'quantity' => 1]],
+            address: null,
+            requestedAt: null,
+            paymentMethod: 'cash',
+            customerNote: null,
+            adminContext: true,
+            serviceDate: $date->toDateString(),
+        );
 
         $this->assertSame(
             1,
@@ -840,12 +863,38 @@ class AdminDailyMenuTest extends KitchenTestCase
             'Kilidi kuran değişmez: `orders.bld_service_date` yazılmış olmalı.',
         );
 
-        // Müşteri belirteci sonraki panel isteklerine bulaşmasın — panel
-        // oturumla kimlikleniyor ve iki kimliğin aynı istekte durması,
-        // bir gün sebebi anlaşılmayan bir hata olurdu.
-        $this->withHeaders(['Authorization' => '']);
-
         return $menu->refresh();
+    }
+
+    /**
+     * Panelden girilen siparişin müşterisi.
+     *
+     * `Admin\PhoneOrders::resolveCustomer()` ile aynı kalıp: telefonla
+     * arayanın kaydı panelde açılır, müşteri kayıt/oturum ucundan geçmez —
+     * zaten bu paketin sınadığı şey takvim ekranı, kimlik akışı değil.
+     * `invalid.` alan adı RFC 6761 ile ayrılmıştır, kazara posta gitmez.
+     *
+     * Aynı testte ikinci kez çağrılırsa mevcut kayıt dönüyor: `customers`
+     * tablosunda e-posta tekil ve ikinci `save()` kilitli gün kurulumunu
+     * konuyla ilgisiz bir tekillik hatasıyla düşürürdü.
+     */
+    private function phoneCustomer(): ApiCustomer
+    {
+        $existing = ApiCustomer::query()->firstWhere('email', 'tel-05001112233@bld.invalid');
+
+        if ($existing instanceof ApiCustomer) {
+            return $existing;
+        }
+
+        $customer = new ApiCustomer;
+        $customer->first_name = 'Telefon';
+        $customer->last_name = 'Müşterisi';
+        $customer->email = 'tel-05001112233@bld.invalid';
+        $customer->telephone = '05001112233';
+        $customer->status = true;
+        $customer->save();
+
+        return $customer;
     }
 
     /**

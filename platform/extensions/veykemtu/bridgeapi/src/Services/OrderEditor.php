@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Veykemtu\BridgeApi\Services;
 
+use DateTimeInterface;
+use Igniter\Cart\Models\Menu;
 use Igniter\Cart\Models\Order;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
-use Veykemtu\BridgeApi\Models\AccountLedgerEntry;
 use Veykemtu\BridgeApi\Models\DailyMenu;
 use Veykemtu\BridgeApi\Support\BusinessTime;
 use Veykemtu\BridgeApi\Support\Money;
@@ -41,9 +42,9 @@ class OrderEditor
     public function __construct(
         private readonly LineResolver $lines,
         private readonly LocationGate $gate,
-        private readonly AccountLedger $ledger,
         private readonly OrderStatusTransition $transitions,
         private readonly RefundManager $refunds,
+        private readonly DailyStock $stock,
     ) {}
 
     /**
@@ -103,6 +104,17 @@ class OrderEditor
             $order, $lines, $subtotal, $deliveryFee, $before,
             $reason, $note, $requestedAt, $customerNote, $deviceId, $staffId,
         ): array {
+            /*
+             * STOK TALEBİNİN ÖNCESİ, SATIRLAR SİLİNMEDEN OKUNUR (S2).
+             *
+             * `writeLines(replace: true)` eski satırları siliyor; bir satır
+             * sonrasında "önce ne düşülmüştü" sorusunun cevabı kalmaz.
+             * Servis günü de burada saklanıyor çünkü aşağıda taşınabiliyor
+             * ve eski günün stoku ESKİ güne geri verilmeli.
+             */
+            $stockBefore = $this->stock->demandOf($order);
+            $dateBefore = $order->bld_service_date ?? $order->order_date;
+
             $this->lines->writeLines($order, $lines, replace: true);
             $this->lines->rewriteTotals($order, $subtotal, $deliveryFee);
 
@@ -141,6 +153,15 @@ class OrderEditor
             $order->save();
             $order->touch();
 
+            // Stok farkı `save()` SONRASINDA: servis günü yukarıda taşınmış
+            // olabilir ve yeni düşüm YENİ güne yazılmalı.
+            $stockNote = $this->applyStockDiff(
+                $order,
+                $stockBefore,
+                $this->lines->stockDemand($lines),
+                $dateBefore,
+            );
+
             $after = $this->snapshot($order->refresh());
 
             $totalBefore = $before['total_kurus'];
@@ -152,7 +173,11 @@ class OrderEditor
                 'order_id' => (int) $order->order_id,
                 'revision_no' => $revisionNo,
                 'reason' => $reason,
-                'note' => $note,
+                // Tavan aşıldıysa notun sonuna yazılıyor: revizyon belgesi
+                // "ne olduğunun" kaydı ve tavanı aşmak olan bitenin bir
+                // parçası. Ayrı bir kolon açmak, tek satırlık bir bilgi için
+                // şemayı büyütmek olurdu.
+                'note' => self::appendNote($note, $stockNote),
                 'before_json' => json_encode($before, JSON_UNESCAPED_UNICODE),
                 'after_json' => json_encode($after, JSON_UNESCAPED_UNICODE),
                 'subtotal_before_kurus' => $before['subtotal_kurus'],
@@ -181,7 +206,12 @@ class OrderEditor
     }
 
     /**
-     * Para farkını işler: cari defter ve/veya iade geçidi.
+     * Para farkını işler: iade geçidi ya da elle tahsil edilecek fark.
+     *
+     * CARİ DEFTER DÜZELTMESİ KALKTI (cari hesap iş modelinden çıktı).
+     * Eskiden `payment === 'account'` olan siparişte para hareketi yerine
+     * deftere ters bir satır yazılıyordu; defter olmadığına göre kalan tek
+     * yol gerçek para yoludur ve o da aşağıdaki iki daldır.
      *
      * @return array<string, mixed>
      */
@@ -193,31 +223,6 @@ class OrderEditor
         int $extra,
         string $reason,
     ): array {
-        $isAccount = (string) $order->payment === 'account';
-
-        // CARİ HESAP: para hareketi yok, defter düzeltilir.
-        //
-        // Referans REVİZYONA bağlanıyor, siparişe değil. Defterdeki
-        // `UNIQUE(source, reference_type, reference_id, entry_type)`
-        // kısıtı sipariş kimliğine bağlansaydı, aynı siparişin ikinci
-        // düzenlemesi `insertOrIgnore` tarafından sessizce yutulur ve
-        // müşteri fazla borçlu kalırdı.
-        if ($isAccount && ($refund > 0 || $extra > 0)) {
-            $this->ledger->record(
-                customerId: (int) $order->customer_id,
-                type: $refund > 0
-                    ? AccountLedgerEntry::TYPE_CREDIT
-                    : AccountLedgerEntry::TYPE_DEBIT,
-                amountKurus: $refund > 0 ? $refund : $extra,
-                source: AccountLedgerEntry::SOURCE_ADJUSTMENT,
-                referenceType: 'order_revision',
-                referenceId: $revisionId,
-                description: 'Sipariş #'.$order->order_id.' revizyon #'.$revisionNo
-                    .' ('.$reason.')',
-                effectiveDate: BusinessTime::now(),
-            );
-        }
-
         if ($refund > 0) {
             $result = $this->refunds->refund(
                 $order,
@@ -230,20 +235,141 @@ class OrderEditor
         }
 
         if ($extra > 0) {
-            // EK TAHSİLAT ONLINE/NAKİTTE OTOMATİK ALINMAZ. Müşterinin
+            // EK TAHSİLAT HİÇBİR YÖNTEMDE OTOMATİK ALINMAZ. Müşterinin
             // kartından habersiz ek çekim yapmak kabul edilemez; kapıda
             // ödemede de tahsilat kuryenin işi. Fark kurye fişine
             // yazılıyor (K-14) ve kayıtta duruyor.
+            //
+            // `succeeded` dalı cariyle birlikte kalktı: kendiliğinden
+            // kapanan tek yol defterdi.
             return [
                 'kind' => 'extra_charge',
-                'status' => $isAccount ? 'succeeded' : 'manual',
-                'message' => $isAccount
-                    ? null
-                    : 'Fark teslimatta tahsil edilecek; kurye fişine yazıldı.',
+                'status' => 'manual',
+                'message' => 'Fark teslimatta tahsil edilecek; kurye fişine yazıldı.',
             ];
         }
 
         return ['kind' => 'none', 'status' => 'succeeded', 'message' => null];
+    }
+
+    /**
+     * Stok farkını uygular ve varsa aşımı anlatan notu döner (S2).
+     *
+     * REVİZYONDA DÜŞÜM ASLA FIRLATMAZ (`allowOvershoot: true`). Personel
+     * müşteriyle telefonda konuşuyor ve adedi bilerek artırıyor; o gün tavan
+     * dolduğu için düzenlemenin reddedilmesi, zaten verilmiş bir sözü geri
+     * almak olurdu. Aynı felsefe bu sınıfın `enforceAvailability: false`
+     * kararında da var. Aşım sessizce yutulmuyor: notu revizyon belgesine
+     * yazılıyor ve `sold > capacity` olarak tabloda duruyor.
+     *
+     * ÖNCE İADE, SONRA DÜŞÜM: aynı düzenlemede bir kalem azalıp öteki
+     * artıyorsa, azalan porsiyonlar önce serbest bırakılmalı. Ters sırada
+     * yapılsaydı, aslında tavana sığan bir değişiklik "aşım" diye kayda
+     * geçerdi.
+     *
+     * @param  array<int, int>  $before
+     * @param  array<int, int>  $after
+     */
+    private function applyStockDiff(
+        Order $order,
+        array $before,
+        array $after,
+        DateTimeInterface|string|null $dateBefore,
+    ): ?string {
+        $locationId = (int) $order->location_id;
+        $dateAfter = $order->bld_service_date ?? $order->order_date;
+
+        if ($dateAfter === null) {
+            return null;
+        }
+
+        /*
+         * GÜN TAŞINDIYSA FARK DEĞİL, TAŞIMA: eski gün tamamen geri verilir,
+         * yeni gün tamamen düşülür. Fark hesabı iki ayrı günün sayılarını
+         * birbirinden çıkarırdı ve eski günün tavanı sonsuza kadar dolu
+         * kalırdı — mutfak o gün için pişirmeyeceği porsiyonları satamaz
+         * hâlde bulurdu.
+         */
+        if ($dateBefore !== null && self::dayKey($dateBefore) !== self::dayKey($dateAfter)) {
+            $this->stock->release($locationId, $dateBefore, $before);
+
+            return self::overshootNote(
+                $this->stock->take($locationId, $dateAfter, $after, allowOvershoot: true),
+            );
+        }
+
+        $increase = [];
+        $decrease = [];
+
+        foreach (array_keys($before + $after) as $menuId) {
+            $delta = ($after[$menuId] ?? 0) - ($before[$menuId] ?? 0);
+
+            if ($delta > 0) {
+                $increase[$menuId] = $delta;
+            } elseif ($delta < 0) {
+                $decrease[$menuId] = -$delta;
+            }
+        }
+
+        if ($decrease !== []) {
+            $this->stock->release($locationId, $dateAfter, $decrease);
+        }
+
+        if ($increase === []) {
+            return null;
+        }
+
+        return self::overshootNote(
+            $this->stock->take($locationId, $dateAfter, $increase, allowOvershoot: true),
+        );
+    }
+
+    /**
+     * Aşımın insan okuyabilir hâli — aşım yoksa `null`.
+     *
+     * @param  array<int, int>  $overshoot
+     */
+    private static function overshootNote(array $overshoot): ?string
+    {
+        if ($overshoot === []) {
+            return null;
+        }
+
+        $parts = [];
+
+        foreach ($overshoot as $menuId => $amount) {
+            if ($menuId === DailyStock::DAY_TOTAL) {
+                $parts[] = "gün toplamı +{$amount}";
+
+                continue;
+            }
+
+            $name = Menu::query()->where('menu_id', $menuId)->value('menu_name');
+            $label = is_string($name) && $name !== '' ? $name : "#{$menuId}";
+
+            $parts[] = "{$label} +{$amount}";
+        }
+
+        return 'STOK TAVANI AŞILDI: '.implode(', ', $parts).'.';
+    }
+
+    /** Personelin notunu ezmeden altına ekler. */
+    private static function appendNote(?string $note, ?string $extra): ?string
+    {
+        if ($extra === null) {
+            return $note;
+        }
+
+        $note = trim((string) $note);
+
+        return $note === '' ? $extra : $note."\n".$extra;
+    }
+
+    private static function dayKey(DateTimeInterface|string $date): string
+    {
+        return $date instanceof DateTimeInterface
+            ? $date->format('Y-m-d')
+            : substr(trim($date), 0, 10);
     }
 
     /** @throws ApiException */

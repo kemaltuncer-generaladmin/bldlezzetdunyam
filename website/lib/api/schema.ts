@@ -663,96 +663,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/account/summary": {
-        parameters: {
-            query?: never;
-            header: {
-                "X-App-Id": components["parameters"]["AppId"];
-                "X-App-Version": components["parameters"]["AppVersion"];
-                "Accept-Language": components["parameters"]["AcceptLanguage"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Cari bakiye
-         * @description Müşterinin güncel cari bakiyesi. Pozitif = müşterinin borcu.
-         */
-        get: operations["getAccountSummary"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/account/statement": {
-        parameters: {
-            query?: {
-                /** @description Başlangıç tarihi (varsayılan 3 ay önce). */
-                from?: string;
-                /** @description Bitiş tarihi (varsayılan bugün). */
-                to?: string;
-            };
-            header: {
-                "X-App-Id": components["parameters"]["AppId"];
-                "X-App-Version": components["parameters"]["AppVersion"];
-                "Accept-Language": components["parameters"]["AcceptLanguage"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Cari ekstre
-         * @description Tarih aralığındaki hareketler, açılış ve kapanış bakiyesiyle.
-         */
-        get: operations["getAccountStatement"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/account/payments": {
-        parameters: {
-            query?: never;
-            header: {
-                "X-App-Id": components["parameters"]["AppId"];
-                "X-App-Version": components["parameters"]["AppVersion"];
-                "Accept-Language": components["parameters"]["AcceptLanguage"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Cari borç ödemesi başlat
-         * @description İki mod, tek uç: `amount` ile istenen tutar, `full: true` ile borcun
-         *     tamamı.
-         *
-         *     **Tutar sunucuda doğrulanır.** `full` modunda istemcinin gönderdiği
-         *     hiçbir rakam okunmaz; bakiye yeniden hesaplanır. Aksi hâlde
-         *     istemcinin ekranındaki eski bakiye ile gerçek borç ayrıştığında
-         *     (arada bir sipariş geçmişse) müşteri eksik ödeyip "kapattım" sanırdı.
-         *
-         *     Borcu aşan ödeme reddedilir: fazla ödeme defterde negatif bakiye
-         *     yaratır ve iadesi elle iş demektir.
-         *
-         *     Ödeme BU UÇTA TAMAMLANMAZ. Yanıttaki `redirect_url` sağlayıcının
-         *     sayfasıdır (bugün simülasyon); defter ancak ödeme kesinleşince
-         *     yazılır.
-         */
-        post: operations["startAccountPayment"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/subscriptions": {
         parameters: {
             query?: never;
@@ -902,6 +812,376 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/subscriptions/{id}/payments": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dönem ödemesi başlat
+         * @description Aboneliğin yürürlükteki dönemi için ödeme başlatır.
+         *
+         *     **Tutar istekte GÖNDERİLMEZ.** Dönem tutarı sunucuda hesaplanır
+         *     (servis günü sayısı × porsiyon × anlaşmalı fiyat, atlanan günler
+         *     düşülmüş). İstemciden alınsaydı, ekranındaki tutar ile gerçek tutar
+         *     ayrıştığı anda (arada bir gün atlanmışsa) abone eksik ödeyip
+         *     "kapattım" sanırdı.
+         *
+         *     Yanıttaki `next_action` sıradaki adımı söyler: `otp` ise kod
+         *     `.../confirm` ucuna gönderilir, `three_ds` ise `redirect_url`
+         *     açılır, `none` ise ek adım yoktur ve sonuç `status`'tadır.
+         *
+         *     **Ödeme BU UÇTA TAMAMLANMAZ.** `status` yalnız ödeme kesinleşince
+         *     `paid` olur; istemci onu yoklamayla (`GET .../payments/{paymentId}`)
+         *     öğrenir.
+         */
+        post: operations["startSubscriptionPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions/{id}/payments/{paymentId}": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+                paymentId: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Ödeme durumunu yokla
+         * @description Ödemenin güncel hâli. `three_ds` yönlendirmesinden dönen istemci
+         *     sonucu buradan okur — sağlayıcının dönüş adresi bize ulaştığında
+         *     istemcinin elinde hâlâ eski gövde vardır.
+         *
+         *     **Yoklama aralığı en az 2 saniye olmalıdır.** Ödeme sağlayıcıdan
+         *     saniyeler içinde kesinleşmez ve daha sık yoklamak yalnız oran
+         *     sınırını doldurur; sınıra takılan istemci ödemesi başarılı olmuş
+         *     bir aboneye başarısız ekranı gösterir.
+         */
+        get: operations["getSubscriptionPayment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions/{id}/payments/{paymentId}/confirm": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+                paymentId: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ödemeyi OTP koduyla onayla
+         * @description `next_action = otp` iken kullanılır. Kod bankadan/sağlayıcıdan
+         *     aboneye SMS ile gider; biz üretmeyiz, yalnız iletiriz.
+         *
+         *     Yanlış kod `422 VALIDATION_FAILED` döner ve **denemeyi tüketir**.
+         *     Deneme hakkı bittiğinde ödeme başarısız kapanır; abone yeni bir
+         *     ödeme başlatır. Sınırsız deneme, çalınan bir kartın kodunu
+         *     aramanın önünü açardı.
+         */
+        post: operations["confirmSubscriptionPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/contracts/{token}": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                /**
+                 * @description İmzalı, süreli sözleşme bağlantısının belirteci. Aboneye SMS ile
+                 *     gider. Tahmin edilemez ve **kayıt kimliği taşımaz** — sıralı bir
+                 *     kimlik olsaydı bir bağlantıyı eline geçiren, komşu numaraları
+                 *     deneyerek başkalarının sözleşmelerini okuyabilirdi.
+                 */
+                token: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Sözleşmeyi oku
+         * @description Sözleşme metnini ve fiyatını döndürür. **Kimlik gerektirmez**:
+         *     bağlantı aboneye SMS ile gidiyor ve onaylayan kişi çoğu zaman
+         *     uygulamada oturum açmış kişi değil, satın almayı onaylayan
+         *     yetkilidir. Oturum istemek, onayı imkânsız hâle getirirdi.
+         *
+         *     Yanıt bilinçli olarak dardır (bkz. `SubscriptionContract`):
+         *     adres, e-posta, sipariş geçmişi ve müşteri kimliği dönmez.
+         *
+         *     Süresi dolmuş bağlantı `410` **değil**, `200` +
+         *     `status: expired` döner: istemci "bu bağlantının süresi doldu,
+         *     yenisini isteyin" cümlesini kurabilmeli, boş bir hata sayfası
+         *     görmemelidir.
+         */
+        get: operations["getContract"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/contracts/{token}/otp": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Onay kodu iste
+         * @description Sözleşmedeki telefona SMS ile 6 haneli onay kodu gönderir. Numara
+         *     **istekte alınmaz**: sözleşmenin kayıtlı numarasına gider. İstemciden
+         *     alınsaydı, bağlantıyı eline geçiren biri kodu kendi telefonuna
+         *     ısmarlayıp sözleşmeyi onaylayabilirdi — imzalı bağlantı tek başına
+         *     kimlik değildir, ikinci etken tam olarak budur.
+         *
+         *     Yanıt, kod gerçekten gönderilmiş olsun olmasın aynı biçimdedir.
+         *     Oran sınırı **belirteç başına** 5 istek/saattir; sınırın sebebi
+         *     `info.description` içinde.
+         */
+        post: operations["requestContractOtp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/contracts/{token}/approve": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sözleşmeyi onayla
+         * @description SMS kodunu doğrular ve sözleşmeyi `approved` yapar. Aboneliğin
+         *     durumu `awaiting_contract` → `awaiting_payment`'a geçer.
+         *
+         *     **Onay geri alınamaz.** Vazgeçme, sözleşmenin iptali değil
+         *     aboneliğin iptalidir (`POST /subscriptions/{id}/cancel`) — onay
+         *     kaydı hukuki bir izdir ve silinmez.
+         *
+         *     Aynı kodla ikinci çağrı `200` ve aynı gövdeyi döndürür (idempotent);
+         *     SMS'in gecikip kullanıcının iki kez dokunması sık yaşanıyor ve
+         *     ikincisinin hata vermesi, onaylanmış bir sözleşmede "onaylanamadı"
+         *     yazan bir ekran demek olurdu.
+         */
+        post: operations["approveContract"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/announcements": {
+        parameters: {
+            query?: {
+                /**
+                 * @description Yalnız bu yerleşimdeki duyuruları döndür. Verilmezse müşterinin
+                 *     o an görmesi gereken **tüm** duyurular döner.
+                 *
+                 *     Yerleşim kümesi panelde büyüyor; bilinmeyen bir değer `422`
+                 *     değil, **boş liste** döndürür. Sözleşmede olmayan bir yerleşimi
+                 *     soran istemcinin ekranı hata vermek yerine duyurusuz açılmalıdır.
+                 */
+                placement?: string;
+            };
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Uygulama-içi duyurular
+         * @description Müşterinin **şu anda görmesi gereken** duyurular: yayın penceresi
+         *     içinde olan ve bu müşteri tarafından kapatılmamış olanlar.
+         *     Sıralama sunucudandır (önce `critical`, sonra yeni olan).
+         *
+         *     Filtreleme sunucuda yapılıyor ki üç istemci pencere ve kapatma
+         *     kuralını üç kez yazmasın — cihaz saatine bakan bir istemci, saati
+         *     kaymış telefonda süresi dolmuş duyuruyu göstermeye devam ederdi.
+         */
+        get: operations["listAnnouncements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/announcements/{id}/seen": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Görüldü işaretle
+         * @description Duyuru ekranda çizildiğinde çağrılır. Duyuruyu listeden
+         *     **düşürmez** — düşüren `dismiss`'tir.
+         *
+         *     İşaret sunucuda tutulur ki müşteri web'de gördüğü duyurunun
+         *     "yeni" rozetini mobilde tekrar görmesin. İstemci yerelinde
+         *     tutulsaydı her cihaz aynı duyuruyu bir kez daha yeni sayardı.
+         *
+         *     **İdempotenttir**: aynı duyuru için tekrar çağrılması hata değildir
+         *     ve ilk görülme anını değiştirmez.
+         */
+        post: operations["markAnnouncementSeen"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/announcements/{id}/dismiss": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Duyuruyu kapat
+         * @description Müşteri duyuruyu kapattı; bir daha `GET /announcements` listesinde
+         *     **dönmez**.
+         *
+         *     `dismissible: false` duyuru için `422` döner — kapatılamayan bir
+         *     duyuruyu istemcinin isteğiyle kapatmak, hizmet kesintisi
+         *     duyurusunu ilk dokunuşta yok etmek olurdu.
+         *
+         *     **İdempotenttir**: zaten kapatılmış duyuru için de `204` döner.
+         */
+        post: operations["dismissAnnouncement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/client-errors": {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * İstemci hatası bildir
+         * @description İstemcinin yakalayamadığı hataları sunucuya boşaltır.
+         *
+         *     **`source` alanı gövdede BULUNMAZ.** Raporun hangi uygulamadan
+         *     geldiğini sunucu `X-App-Id` başlığından türetir. Gövdeye
+         *     bırakılsaydı web sitesi `mutfakapp` yazan bir rapor üretebilir ve
+         *     mutfağın güvendiği hata monitörüne sahte KDS alarmı düşürebilirdi —
+         *     o monitör sahada "kasada bir sorun var mı" sorusunun tek cevabı;
+         *     zehirlendiğinde mutfak kör kalır. Gövdede `source` gönderilirse
+         *     **sessizce yok sayılır**, istek reddedilmez.
+         *
+         *     **Kimlik opsiyoneldir.** Token varsa rapor müşteriye bağlanır;
+         *     yoksa da kabul edilir. Hataların önemli bir kısmı tam da oturum
+         *     açılamadığı için doğuyor ve orada token istemek, en çok ihtiyaç
+         *     duyulan kaydı kaybettirirdi.
+         *
+         *     **Yanıt her zaman `204`'tür** — doğrulama hatası bile dönmez.
+         *     Bu ucun bir hata döndürmesi, hata bildirmeye çalışan istemcinin
+         *     ikinci bir hata üretmesi demek olur ve kendini besleyen bir döngü
+         *     doğar. Ayrıştırılamayan alanlar boş bırakılır, sınırı aşan metin
+         *     kesilir, rapor yine kaydedilir.
+         */
+        post: operations["reportClientError"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/push-token": {
         parameters: {
             query?: never;
@@ -915,7 +1195,19 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** FCM push token'ı kaydet */
+        /**
+         * FCM push token'ı kaydet
+         * @deprecated
+         * @description **KULLANIMDAN KALDIRILDI (16.08.2026).** Push bildirimi (FCM)
+         *     kapsam dışına alındı; müşteriye ulaşmanın yolu uygulama-içi
+         *     duyuru (`GET /announcements`) ve SMS'tir.
+         *
+         *     Uç sözleşmede duruyor (§1.4) ve token'ı kabul etmeye devam ediyor
+         *     ama **hiçbir bildirim gönderilmiyor**. Sahadaki eski mobil
+         *     sürümler açılışta bu ucu çağırıyor; kaldırılsaydı her açılışta
+         *     `404` alıp hata ekranı gösterirlerdi. Yeni istemciler bu ucu
+         *     **çağırmaz**.
+         */
         post: operations["registerPushToken"];
         delete?: never;
         options?: never;
@@ -1170,7 +1462,7 @@ export interface paths {
          *
          *     Bu siparişler BLD'nin `orders` tablosuna **girmez**, KDS
          *     panosunda görünmez, üretim listesine / vardiya istatistiğine /
-         *     `orders_today` sayacına / cari hesaba **karışmaz**. Tek bağ ses
+         *     `orders_today` sayacına / tahsilat kayıtlarına **karışmaz**. Tek bağ ses
          *     ve kâğıttır; geri bildirim, durum senkronizasyonu yoktur.
          *
          *     **Kimlik doğrulama HMAC imzasıyla, token'la değil.** Arada
@@ -1307,7 +1599,7 @@ export interface paths {
          * Düzenlenebilir sipariş görüntüsü
          * @description **FİYAT YOKTUR** (ADR-08). Personel adet değiştirirken fiyata
          *     bakmıyor; iade/fark tutarı kaydetme onayında tek bir sayı olarak
-         *     gösteriliyor ve o cari bakiye değil.
+         *     gösteriliyor ve o bir bakiye değil, yalnız bu siparişin farkıdır.
          */
         get: operations["getEditableOrder"];
         put?: never;
@@ -1342,8 +1634,8 @@ export interface paths {
          *
          *     Sunucu tek işlemde: satırları yeniden yazar, toplamları yeniden
          *     hesaplar, `orders.updated_at`'i **dokunur** (KDS'in değişikliği
-         *     görmesi buna bağlı), revizyon belgesini yazar, cari hesabı düzeltir
-         *     ve gerekiyorsa iade başlatır.
+         *     görmesi buna bağlı), revizyon belgesini yazar ve gerekiyorsa iade
+         *     başlatır.
          *
          *     `items` **tam listedir**, fark değil: eksik gönderilen kalem
          *     siparişten çıkarılır. Boş liste `422` — tümünü kaldırmak "iptal"
@@ -1646,6 +1938,657 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/control/kds/overview": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Panel açılış özeti
+         * @description Tek istekte cihaz, sipariş ve fiş sayıları. Üçünü ayrı ayrı çekip
+         *     saydırmak panel her açıldığında üç ağır sorgu demekti; sayılar da
+         *     istemcide hesaplanırdı ve "kaç sipariş aktif" sorusunun cevabı
+         *     istemci sürümüne göre değişirdi.
+         *
+         *     **BURADAKİ SAYILAR TANIMDIR, TAHMİN DEĞİL.** Her birinin tanımı
+         *     `ControlOverview` şemasında alan alan yazılı.
+         */
+        get: operations["controlKdsOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/control/kds/devices": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Kasa listesi
+         * @description Bütün kasalar — **iptal edilmişler dâhil**. İptal satırı silinmiyor
+         *     (`veykemtu_kitchen_devices` satırı yerinde kalır); `revoked_at`
+         *     dolu olan kayıt listede durur ve `online` her zaman `false` döner.
+         */
+        get: operations["controlKdsListDevices"];
+        put?: never;
+        /**
+         * Kasa aç (+ ilk eşleme kodu)
+         * @description Kayıt açılır ve **hemen ardından** ilk eşleme kodu üretilir; admin
+         *     ekranındaki `formAfterCreate` ile aynı gerekçe: "cihazı ekledim ama
+         *     eşleyemiyorum" diye ikinci bir adım aranmasın.
+         *
+         *     Yanıttaki `device.pairing.code` bu uçta **açıkça döner** — kodu
+         *     üreten uçların yanıtı, kodun okunabildiği iki yerden biri.
+         */
+        post: operations["controlKdsCreateDevice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/control/kds/devices/{id}": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Kasayı yeniden adlandır
+         * @description **Yalnız ad.** Ayarlar ayrı uçtan yazılır ve kilitler de o ucun
+         *     içindedir (`PATCH /control/kds/devices/{id}/settings`).
+         */
+        patch: operations["controlKdsRenameDevice"];
+        trace?: never;
+    };
+    "/control/kds/devices/{id}/pairing-code": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Yeni eşleme kodu üret
+         * @description Kod biçimi `XXXX-XXXX` (`^[A-Z0-9]{4}-[A-Z0-9]{4}$`), **10 dakika**
+         *     ömürlü ve **tek kullanımlık**. Karıştırılması kolay karakterler
+         *     (`0`/`O`, `1`/`I`) alfabede yoktur — kod mutfakta elle, çoğu zaman
+         *     kötü ışıkta giriliyor.
+         *
+         *     **İPTAL EDİLMİŞ KASAYA KOD ÜRETİLMEZ (`422`).** Üretilse bile
+         *     `pairingCodeIsUsable()` iptali eleyip kodu geçersiz sayardı, yani
+         *     sessizce çalışmayan bir kod verilmiş olurdu.
+         */
+        post: operations["controlKdsRefreshPairingCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/control/kds/devices/{id}/revoke": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Kasayı iptal et
+         * @description **SATIR DA TOKEN DA SİLİNMEZ**, yalnız `revoked_at` damgalanır.
+         *
+         *     Token kasten bırakılıyor: silinseydi `findToken()` `null` döner ve
+         *     istek `401 UNAUTHENTICATED` ile biterdi — KDS'in beklediği
+         *     `403 DEVICE_REVOKED` dalına hiç ulaşılmaz, mutfak "eşleme iptal
+         *     edildi" yerine genel bir oturum hatası görürdü. Erişim yine kapalı:
+         *     her mutfak ucu `bld.auth` içinde `isRevoked()` denetiminden geçiyor.
+         *
+         *     **İKİNCİ İPTAL DAMGAYI OYNATMAZ.** `revoked_at` "ne zaman iptal
+         *     edildi" sorusunun cevabı ve denetim değeri ilk damgadadır; istek
+         *     yine `200` döner ve `would.already_revoked` / denetim yükü durumu
+         *     anlatır.
+         */
+        post: operations["controlKdsRevokeDevice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/control/kds/devices/{id}/settings": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Yönetilen ayarları ve kilitleri yaz
+         * @description **YAZIM KISMİDİR.** Gönderilmeyen anahtar değişmez; `null`
+         *     gönderilen anahtar "yönetici dokunmadı"ya geri döner.
+         *
+         *     **AYARLAR `settings` NESNESİNİN ALTINDADIR**, gövdenin kökünde
+         *     değil. Kökte olsalardı `reason` / `actor` / `dry_run` ile aynı ad
+         *     alanını paylaşırlardı ve `reason` adında bir ayar eklemek imkânsız
+         *     hâle gelirdi. Ayrıca `GET /control/kds/devices` yanıtındaki
+         *     `device.settings` ile simetrik: okunan biçim ile yazılan biçim aynı.
+         *
+         *     **TANINMAYAN ANAHTAR SESSİZCE YUTULMAZ → `422`.** Bu uç kilit
+         *     yazıyor: `allow_settngs: false` gibi bir yazım hatası göz ardı
+         *     edilseydi yönetici kilidi koyduğunu sanır, kasa serbest kalır ve
+         *     yanlışlığı ancak birinin o ekrana girmesiyle öğrenirdik.
+         *
+         *     **BOŞ `settings` NESNESİ DE `422`** — yönetilen anahtarlardan
+         *     hiçbiri gövdede yoksa istek bir şey söylemiyor demektir.
+         *
+         *     **SINIR DIŞI DEĞER SESSİZCE KIRPILMAZ → `422`.** Servis (
+         *     `KitchenDeviceSettings`) değeri zaten kırpıyor; buradaki kuralların
+         *     işi kırpmayı önlemek değil **görünür** kılmak. Makine istemcisinde
+         *     sessiz kırpma daha tehlikeli: Kontrol Merkezi 70 yazıp 60
+         *     kaydedildiğini fark etmez ve ekranında yanlış değeri gösterirdi.
+         *
+         *     **`late_after_minutes` yine de sunucuda düzeltilir:** uyarı
+         *     eşiğinden küçük bırakılırsa uyarı eşiğine çekilir — küçük olsaydı
+         *     kart hiç kırmızıya dönmezdi.
+         *
+         *     Yazma başarılıysa `device.settings_updated_at` ilerler ve kasa yeni
+         *     değerleri **bir sonraki sağlık bildiriminin yanıtında** alır
+         *     (`GET /kitchen/health`); anında değil.
+         */
+        patch: operations["controlKdsUpdateDeviceSettings"];
+        trace?: never;
+    };
+    "/control/kds/devices/{id}/commands": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Komut geçmişi (son 50)
+         * @description En yeni önce. Üç damga, üç ayrı soru: **gönderildi mi**
+         *     (`created_at`), **kasaya ulaştı mı** (`delivered_at`), **çalıştı mı**
+         *     (`executed_at` + `succeeded`)? Tek bir "durum" alanı "kasa aldı ama
+         *     çalıştıramadı" hâlini anlatamazdı.
+         */
+        get: operations["controlKdsListDeviceCommands"];
+        put?: never;
+        /**
+         * Kasaya tek seferlik komut kuyrukla
+         * @description **ANINDA DEĞİL.** Komut kasanın bir sonraki **sağlık bildiriminin
+         *     yanıtına** biniyor (`GET /kitchen/health`). Yanıttaki
+         *     `arrives_within_seconds` bunu açıkça söylüyor — söylenmeseydi
+         *     Kontrol Merkezi'ndeki kullanıcı "olmadı" deyip aynı düğmeye tekrar
+         *     basar ve **iki fiş** çıkardı. Değer kasanın `health_seconds`
+         *     ayarıdır (dokunulmamışsa derleme varsayılanı).
+         *
+         *     `reprint` komutu `payload.order_id` **ve** `payload.type` ister;
+         *     eksikse `422`. Diğer komutlarda yük gönderilse bile `null`'a
+         *     indirgenir.
+         *
+         *     **İPTAL EDİLMİŞ KASAYA KOMUT GÖNDERİLEMEZ (`422`)** — kasa hiçbir
+         *     uca giremediği için komut sonsuza kadar kuyrukta kalırdı.
+         */
+        post: operations["controlKdsSendDeviceCommand"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/control/kds/print-jobs": {
+        parameters: {
+            query?: {
+                device_id?: number;
+                order_id?: number;
+                /**
+                 * @description Tavan **200**: denetim ekranı sayfalıyor ve sınırsız bir liste yıl
+                 *     sonunda on binlerce satır döndürürdü.
+                 */
+                limit?: number;
+            };
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fiş denetim kaydı
+         * @description **BU BİR KUYRUK DEĞİLDİR.** `veykemtu_print_jobs` yalnızca
+         *     **denetim** tablosudur: hangi fiş, hangi kasada, ne zaman basıldı.
+         *     KDS'in kalıcı kuyruğu **kasanın diskindedir** ve sunucuda karşılığı
+         *     yoktur — buradan bir işi silmek ya da yeniden sıraya almak mümkün
+         *     değil, çünkü silinecek bir sıra yok.
+         *
+         *     "Kaç iş bekliyor / kaçı başarısız" sorusunun cevabı cihaz
+         *     sağlığından okunur (`device.health.print_queue_pending` /
+         *     `print_queue_failed`) ve o değerleri kasa **beyan eder**; sunucu
+         *     doğrulayamaz.
+         *
+         *     Bir işi yeniden bastırmanın tek yolu `reprint` komutudur
+         *     (`POST /control/kds/devices/{id}/commands`).
+         *
+         *     En yeni önce sıralanır: denetim sorusu neredeyse her zaman "az önce
+         *     ne basıldı" biçiminde geliyor.
+         */
+        get: operations["controlKdsListPrintJobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/control/kds/orders": {
+        parameters: {
+            query?: {
+                /**
+                 * @description Artımlı imleç. **Durum değişimlerini de yakalar** (`updated_at`
+                 *     üzerinden); yalnız yeni siparişleri isteyen bir imleç, düzenlenmiş
+                 *     bir siparişi kaçırırdı.
+                 */
+                since?: string;
+                /**
+                 * @description Terminal siparişleri de getir. **`boolean` değil `string` enum:**
+                 *     sorgu dizesinde boolean ancak metin olarak ifade edilebilir ve
+                 *     Laravel'in `boolean` kuralı `"true"` dizgesini reddeder. Aynı hata
+                 *     mutfak ucunda KDS'i kör etmişti.
+                 */
+                include_completed?: "1" | "0" | "true" | "false";
+            };
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sipariş listesi
+         * @description **KAPSAM MUTFAK PANOSUYLA AYNI** (`GET /kitchen/orders`): işletme
+         *     gününe ait siparişler, terminal olanlar hariç. Kontrol
+         *     Merkezi'ndeki ekran mutfağın gördüğünü göstermek için var; iki uç
+         *     farklı bir küme dönseydi "bende görünüyor, mutfakta yok"
+         *     tartışması çözülemezdi.
+         *
+         *     Yanıt `KitchenOrder` şemasıdır — yani **fiyat taşımaz**. Fiyatın
+         *     gerektiği tek yer düzenleme ekranının ürün seçicisidir
+         *     (`GET /control/kds/menu`).
+         */
+        get: operations["controlKdsListOrders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/control/kds/orders/{id}": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Tek sipariş — düzenlenebilir görünüm
+         * @description `GET /kitchen/orders/{id}/editable` ile **aynı şema**. Kalemlerdeki
+         *     `option_value_ids` revizyon gövdesine aynen geri gönderilmelidir.
+         */
+        get: operations["controlKdsShowOrder"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/control/kds/orders/{id}/revisions": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Revizyon geçmişi
+         * @description Mutfaktaki karşılığından (`GET /kitchen/orders/{id}/revisions`) tek
+         *     farkı `created_by_device_id` alanını da taşıması: revizyonun
+         *     **kasadan mı merkezden mi** geldiği buradan okunur (`null` =
+         *     merkez).
+         *
+         *     **`server_time` DÖNMEZ** — bu uç bir imleç taşımıyor.
+         */
+        get: operations["controlKdsListOrderRevisions"];
+        put?: never;
+        /**
+         * Siparişi düzenle (yeni revizyon)
+         * @description Gövde `POST /kitchen/orders/{id}/revisions` ile **birebir aynı**,
+         *     üstüne `actor` + `dry_run`. `reason` burada da **160 karakteri**
+         *     aşamaz: aynı metin `veykemtu_order_revisions.reason` sütununa da
+         *     yazılıyor ve taşan gerekçe sessizce kırpılmak yerine `422` alır.
+         *
+         *     İş mantığı `OrderEditor`'da — mutfak kasasının kullandığı sınıfın
+         *     **ta kendisi**. Ayrı bir kopya yazılsaydı sipariş merkezden
+         *     düzenlendiğinde iade kaydı sessizce oluşmayabilirdi.
+         *
+         *     `items` **tam listedir**, delta değil. Fark göndermek iki tarafın
+         *     "şu anki hâl" konusunda anlaşmasını gerektirirdi; eşzamanlı bir kasa
+         *     düzenlemesiyle yarışan bir merkez isteği sessizce yanlış sipariş
+         *     üretirdi. **Boş liste `422`** — siparişi boşaltmak iptal değildir ve
+         *     iptalin kendi durumu ve kendi iade kaydı vardır.
+         *
+         *     **ÇAĞIRAN AYRIMI:** `created_by_device_id` **NULL** kalır (kasa yok)
+         *     ve revizyon **notunun başına** `Kontrol Merkezi · <actor>` etiketi
+         *     yazılır. Etiket `created_by_staff` sütununa yazılamıyor: o sütun
+         *     `unsignedBigInteger` (bir yönetici kimliği) ve tipini değiştirmek
+         *     yayınlanmış bir şemayı kırmak olurdu.
+         *
+         *     **KURU PROVA GERÇEKTEN DENETLER:** teslim edilmiş ya da iptal
+         *     edilmiş sipariş `dry_run: true` ile de `422` alır. Yalnız isteği
+         *     yankılasaydı, "kuru prova geçti" diyen bir ekran gerçek gönderimde
+         *     patlardı.
+         */
+        post: operations["controlKdsCreateOrderRevision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/control/kds/orders/{id}/status": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Durum geçişi
+         * @description Kararı `OrderStatusTransition` verir — mutfağın kullandığı sınıfın
+         *     **ta kendisi**: aynı matris, aynı 120 saniyelik geri alma penceresi,
+         *     aynı iptal ters kaydı. Geçersiz geçiş `422 INVALID_TRANSITION` ve
+         *     **kuru provada da** aynı yanıt gelir.
+         *
+         *     Gerekçe `status_history`'ye yorum olarak da düşer, başına
+         *     `Kontrol Merkezi · <actor>` etiketiyle: "bu sipariş neden iptal
+         *     edildi" sorusunun cevabı siparişin **kendi geçmişinde** durmalı,
+         *     yalnız ayrı bir denetim tablosunda değil.
+         *
+         *     `user_id` **yazılmaz**: geçişi bir admin kullanıcısı değil, Kontrol
+         *     Merkezi yaptı ve o kişinin BLD'de hesabı yok.
+         */
+        post: operations["controlKdsSetOrderStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/control/kds/menu": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ürün seçici (düzenleme ekranı için)
+         * @description **NEDEN VAR:** revizyon ucu `menu_id` istiyor ve o sayı kimsenin
+         *     ezberinde değil. Seçici olmadan elle yazılan bir kimlik siparişe
+         *     başka bir ürün koyar ve bunu ancak mutfak, tabağı hazırlarken fark
+         *     eder.
+         *
+         *     Yalnız **eklenebilir** ürünler listelenir (`listed = true`);
+         *     satıştan kaldırılmış bir ürünü seçtirmek düzenlemeyi kaydetme anında
+         *     hataya çevirirdi. Bugünlük tükenmiş ürün listede **kalır ama
+         *     işaretlidir** (`sold_out`): gizlemek "ürün nerede" sorusunu
+         *     doğururdu, işaretsiz bırakmak mutfağın bugün yapamayacağı bir kalemi
+         *     siparişe koydururdu.
+         *
+         *     **FİYAT VE SEÇENEKLER BURADA VAR, `/kitchen/menu`'DE YOK — bilinçli.**
+         *     ADR-08 **mutfak kapsamını** para görmekten men ediyor; kasa ekranı
+         *     gün boyu mutfakta açık duruyor ve fiyat orada yalnız sızıntı riski.
+         *     Kontrol Merkezi ise bir yönetim yüzeyi: revizyonun **iade mi ek
+         *     tahsilat mı** üreteceğini göndermeden önce görebilmek gerekiyor.
+         *     Seçenekler ise zorunlu: `LineResolver` satırı `option_value_ids` ile
+         *     fiyatlıyor ve kimlikler gönderilmezse seçenekli bir ürün seçeneksiz
+         *     yeniden fiyatlanır.
+         */
+        get: operations["controlKdsMenu"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1685,8 +2628,8 @@ export interface components {
          *
          *     `yeni`ye dönüş ve terminal durumlardan (`teslim_edildi`, `iptal`)
          *     geri alma **yoktur**: mutfak fişi `onaylandi`da basılıyor ve basılı
-         *     kâğıt geri alınamaz; iptal ise cari hesaba ters kayıt yazıyor ve
-         *     geri alması bir muhasebe düzeltmesi olur.
+         *     kâğıt geri alınamaz; iptal ise iade/ters kayıt doğuruyor ve geri
+         *     alması bir muhasebe düzeltmesi olur.
          *
          *     Pencere dışındaki ya da iki adımlık bir geri alma isteği
          *     `422 INVALID_TRANSITION` döner. Gerekçe: dokunmatik monitörde
@@ -1699,10 +2642,29 @@ export interface components {
         /** @enum {string} */
         DeliveryType: "delivery" | "pickup";
         /**
-         * @description `online` = sanal POS, `cash` = kapıda ödeme, `account` = cari hesap.
+         * @description `online` = sanal POS, `cash` = kapıda ödeme.
          *
          *     Faz 1'de `online`, gerçek tahsilat yapmayan bir **simülasyon**
          *     geçidine bağlıdır; akış gerçek POS ile aynıdır.
+         *
+         *     ### `account` — **KULLANIMDAN KALDIRILDI** (16.08.2026)
+         *
+         *     `account` (cari hesap) yöntemi kaldırıldı. **Yeni siparişte asla
+         *     dönmez** ve istekte gönderilirse `422 VALIDATION_FAILED` alır;
+         *     yalnızca **cutover öncesi tarihsel siparişlerde** görülür.
+         *
+         *     Değer enum'dan **çıkarılmadı**: çıkarılsaydı geçmiş sipariş
+         *     listesini çözen istemci, kendi ürettiği kapalı birleşim tipine
+         *     uymayan bir değerle karşılaşıp ayrıştırmayı kırardı. Kırk sipariş
+         *     geçmişi olan bir müşterinin listesi tek eski satır yüzünden hiç
+         *     açılmazdı.
+         *
+         *     `x-deprecated-values` üretilen istemci tipini etkilemez; ayrımı
+         *     yapması gereken insan ve kod incelemesidir. İstemci `account` gören
+         *     satırda ödeme yöntemini "Cari hesap (kapatıldı)" gibi geçmişe ait
+         *     bir etiketle göstermeli, ödeme seçeneği olarak **teklif
+         *     etmemelidir** — vitrinin `payment_methods` listesi zaten bu değeri
+         *     içermez.
          * @enum {string}
          */
         PaymentMethod: "online" | "cash" | "account";
@@ -1713,6 +2675,28 @@ export interface components {
          * @enum {string}
          */
         PaymentStatus: "pending" | "paid";
+        /**
+         * @description Ödemenin kesinleşmesi için **sıradaki adım**. Kararı sunucu verir;
+         *     istemci ödeme tipine, tutara ya da bankaya bakarak bunu kendi
+         *     çıkarmaz — o kural sağlayıcı tarafında ve bizim dışımızda değişir.
+         *
+         *     | Değer | İstemci ne yapar |
+         *     |---|---|
+         *     | `none` | Ek adım yok. Sonuç `status` alanındadır. |
+         *     | `otp` | Kullanıcıdan SMS kodu alır, `.../confirm` ucuna gönderir. |
+         *     | `three_ds` | `redirect_url` adresine yönlendirir, dönüşte yoklar. |
+         *
+         *     **GEVŞEK ENUM.** Buraya ileride yeni adım tipleri eklenecektir
+         *     (`app2app`, `biometric` gibi) ve ek değer kırıcı değişiklik
+         *     sayılmaz. İstemci bilmediği değeri gördüğünde **çökmemeli** ve
+         *     kendiliğinden `none` varsaymamalıdır: `none` saymak, atlanan bir
+         *     doğrulama adımını "ödeme bitti" diye göstermek olurdu. Doğru
+         *     davranış, kullanıcıya güncelleme gerektiğini söyleyip
+         *     `GET /subscriptions/{id}/payments/{paymentId}` ile yoklamaya
+         *     düşmektir — sonuç yine de oradan okunur.
+         * @enum {string}
+         */
+        PaymentNextAction: "none" | "otp" | "three_ds";
         /**
          * @description `kurye` K-14 ile eklendi: kuryenin eline giden fiş (ad + telefon,
          *     adres + harita QR, tahsil edilecek tutar, revizyon özeti).
@@ -1808,60 +2792,56 @@ export interface components {
             /** Format: int64 */
             default_location_id?: number | null;
             /**
-             * @description B2B — yeni kayıtlar `corporate`. Bireysel hesap sipariş veremez.
+             * @description Hesabın **etiketi**. Yeni kayıtlar `corporate` işaretlenir.
+             *
+             *     **KURAL KALKTI (16.08.2026).** Bu alan artık sipariş hakkını
+             *     belirlemez; kurumsal sipariş kapısı (`CustomerGate`) kaldırıldı
+             *     ve herkes sipariş verebilir. Alan panelde müşteriyi ayırmaya ve
+             *     raporlamaya yarayan bir etiket olarak duruyor. İstemciler bu
+             *     alana bakarak **sipariş yolunu kapatmamalıdır**.
              * @enum {string}
              */
             account_type?: "corporate" | "individual";
-            /** @description İstemci sipariş yolunu bununla açar/kapatır; sunucu da denetler. */
+            /**
+             * @description **Artık her zaman `true` döner** — sipariş kapısı kaldırıldı
+             *     (16.08.2026). Alan silinmedi (§1.4): sahadaki istemciler bunu
+             *     okuyup sipariş düğmesini çiziyor ve kaldırılsaydı `undefined`
+             *     gören eski istemci düğmeyi hiç göstermezdi.
+             *
+             *     Yeni istemciler bu alanı **okumamalı**. Siparişin gerçekten
+             *     verilebilir olup olmadığı vitrinin (`Location.is_open`,
+             *     `ordering_enabled`) ve günün (`DailyMenu.is_orderable`)
+             *     durumundan okunur; bağlayıcı olan `POST /orders`'ın kendisidir.
+             */
             can_order?: boolean;
             company_name?: string | null;
             contact_person?: string | null;
         };
-        AccountSummary: {
-            /**
-             * Format: int64
-             * @description Güncel bakiye (kuruş). Pozitif = müşterinin borcu, negatif = fazla ödeme.
-             */
-            balance: number;
-            currency: components["schemas"]["Currency"];
-            /** Format: date-time */
-            as_of: string;
-        };
-        AccountEntry: {
-            /** Format: date */
-            date: string;
-            /**
-             * @description `debit` = borç (sipariş/abonelik), `credit` = alacak (tahsilat/iptal).
-             * @enum {string}
-             */
-            entry_type: "debit" | "credit";
-            amount: components["schemas"]["Money"];
-            /**
-             * Format: int64
-             * @description O satırdan sonraki yürüyen bakiye (kuruş, işaretli).
-             */
-            running_balance: number;
-            /** @enum {string} */
-            source: "order" | "subscription" | "payment" | "manual" | "adjustment";
-            description?: string | null;
-        };
-        AccountStatement: {
-            /** Format: int64 */
-            opening_balance: number;
-            /** Format: int64 */
-            closing_balance: number;
-            currency: components["schemas"]["Currency"];
-            /** Format: date */
-            from: string;
-            /** Format: date */
-            to: string;
-            entries: components["schemas"]["AccountEntry"][];
-        };
         Subscription: {
             /** Format: int64 */
             id: number;
-            /** @enum {string} */
-            status: "pending" | "active" | "paused" | "cancelled";
+            /**
+             * @description | Değer | Anlamı |
+             *     |---|---|
+             *     | `pending` | Talep açıldı, admin henüz fiyatlandırmadı. |
+             *     | `awaiting_contract` | Fiyat girildi, sözleşme bağlantısı gönderildi, onay bekleniyor. |
+             *     | `awaiting_payment` | Sözleşme onaylandı, ilk dönem ödemesi bekleniyor. |
+             *     | `active` | Yürürlükte; gece sipariş üretiyor. |
+             *     | `paused` | Abone durdurdu; sipariş üretilmiyor. |
+             *     | `cancelled` | Sonlandı (terminal). |
+             *
+             *     İki ara durum 16.08.2026'da **eklendi**. Ayrı tutulmalarının
+             *     sebebi ekranın kuracağı cümlenin ayrı olması: birinde abonenin
+             *     yapacağı iş sözleşmeyi okuyup onaylamak, öbüründe ödemek. Tek
+             *     bir `pending` altında toplansalardı istemci "ne bekleniyor"
+             *     sorusunu yanıtlayamaz, abone de hiçbir şey yapmadan beklerdi.
+             *
+             *     **Bilinmeyen durum çökertmemelidir.** Eski istemci bu iki
+             *     değeri tanımaz; tanımadığı durumu "işleniyor" gibi nötr bir
+             *     metinle göstermeli ve eylem düğmelerini kapatmalıdır.
+             * @enum {string}
+             */
+            status: "pending" | "awaiting_contract" | "awaiting_payment" | "active" | "paused" | "cancelled";
             /** Format: int64 */
             location_id: number;
             delivery_type: components["schemas"]["DeliveryType"];
@@ -1878,12 +2858,54 @@ export interface components {
             default_quantity: number;
             /** @description Porsiyon başı anlaşmalı fiyat. Talepte null; admin belirler. */
             agreed_unit_price?: components["schemas"]["Money"] | null;
-            /** @enum {string} */
+            /**
+             * @description Bugün üretilen tek değer `prepaid_monthly`'dir: dönem peşin
+             *     ödenir (`payment` alanı).
+             *
+             *     `account` (cari hesaptan tahsil) **kullanımdan kaldırıldı**
+             *     (16.08.2026) ve yeni abonelikte dönmez; enum'dan çıkarılmadı
+             *     çünkü cutover öncesi abonelik kayıtları o değerle duruyor.
+             * @enum {string}
+             */
             payment_mode: "account" | "prepaid_monthly";
             /** @enum {string} */
             menu_mode: "fixed_list" | "daily_menu";
             lines: components["schemas"]["SubscriptionLine"][];
             delivery_points: components["schemas"]["SubscriptionDeliveryPoint"][];
+            /**
+             * @description Aboneliğin **tek-günlük istisnaları**: atlanan günler ve adedi
+             *     değiştirilen günler.
+             *
+             *     **16.08.2026'da eklendi ve bir açığı kapatıyor:**
+             *     `POST /subscriptions/{id}/exceptions` istisnayı yazıyordu ama
+             *     hiçbir uç geri okumuyordu — abone bir günü atladıktan sonra
+             *     atladığını ekranda göremiyor, emin olmak için aynı günü tekrar
+             *     tekrar atlıyordu.
+             *
+             *     Yalnız **bugün ve sonrası** için girilmiş istisnalar döner.
+             *     Geçmiş istisnalar da tabloda durur (append-only) ama listeye
+             *     girmez: abonenin ekranında üç aylık atlama geçmişi işe yaramaz
+             *     ve yanıtı gereksiz büyütür.
+             */
+            exceptions?: components["schemas"]["SubscriptionException"][];
+            /**
+             * @description **Yürürlükteki dönemin** ödeme durumu; henüz fiyatlanmamış
+             *     talepte `null`.
+             *
+             *     Ödemenin geçmişi burada değildir — bu alan "şu an ne
+             *     bekleniyor" sorusunu yanıtlar. Tek bir dönem yerine listeyi
+             *     gömseydik, abonelik listesi ekranı her satır için aylarca
+             *     geriye giden bir dizi taşırdı.
+             */
+            payment?: components["schemas"]["SubscriptionPaymentSummary"] | null;
+            /**
+             * @description Abonelik sözleşmesinin durumu; sözleşme henüz üretilmediyse
+             *     `null`. Sözleşme metninin kendisi burada **yoktur**, imzalı
+             *     bağlantının arkasındadır (`GET /contracts/{token}`) — metin
+             *     sayfalarca sürüyor ve abonelik listesinde taşınacak bir şey
+             *     değil.
+             */
+            contract?: components["schemas"]["SubscriptionContractSummary"] | null;
             /** Format: date-time */
             created_at: string;
         };
@@ -1916,6 +2938,13 @@ export interface components {
             delivery_time_from?: string;
             /** @example 13:00 */
             delivery_time_to?: string;
+            /**
+             * @description Porsiyonun içeriği nereden gelir. `fixed_list` aboneliğin kendi `lines` satırlarını kullanır; `daily_menu` o günün yayınlanmış menüsünü kullanır ve `lines` GÖNDERİLEMEZ (gönderilirse 422). Her iki modda da fiyat aboneliğin anlaşmalı porsiyon fiyatıdır.
+             * @default fixed_list
+             * @enum {string}
+             */
+            menu_mode: "fixed_list" | "daily_menu";
+            /** @description Yalnız `menu_mode = fixed_list` içindir. */
             lines?: {
                 /** Format: int64 */
                 menu_id: number;
@@ -1935,6 +2964,194 @@ export interface components {
             service_date: string;
             skip?: boolean;
             quantity_override?: number;
+        };
+        /**
+         * @description Aboneliğin tek bir servis günü için geçerli istisnası. Kuralın
+         *     kendisini değiştirmez; yalnız o günü etkiler.
+         */
+        SubscriptionException: {
+            /**
+             * Format: date
+             * @description İstisnanın geçerli olduğu servis günü (Europe/Istanbul).
+             */
+            service_date: string;
+            /**
+             * @description `true` ise o gün sipariş **üretilmez**. `false` ise gün
+             *     üretilir ve varsa `quantity_override` uygulanır.
+             */
+            skip: boolean;
+            /**
+             * @description O güne özel porsiyon adedi; verilmemişse `null` ve aboneliğin
+             *     `default_quantity` değeri geçerlidir. `skip` doğruyken
+             *     anlamsızdır ve `null` döner.
+             */
+            quantity_override?: number | null;
+            /**
+             * Format: date-time
+             * @description İstisnanın girildiği an. Ekranda "12 Ağustos'ta atladınız"
+             *     diyebilmek için var: aynı gün için iki kez işlem yapıldığında
+             *     abone hangisinin geçerli olduğunu ancak zamana bakarak anlar.
+             */
+            created_at?: string | null;
+        };
+        /**
+         * @description Aboneliğin yürürlükteki dönem ödemesinin özeti. Ayrıntı ve akış
+         *     `GET /subscriptions/{id}/payments/{paymentId}` ucundadır.
+         */
+        SubscriptionPaymentSummary: {
+            /**
+             * Format: int64
+             * @description Ödeme kaydının kimliği; henüz ödeme başlatılmadıysa `null`.
+             *     `null` ile `0` karıştırılmamalıdır — `0` diye bir kayıt yoktur.
+             */
+            payment_id?: number | null;
+            /**
+             * @description Ödeme dönemi, `YYYY-AA` (Europe/Istanbul takvim ayı). Gün
+             *     taşımaz: dönem bir aydır, bir tarih değil.
+             * @example 2026-09
+             */
+            period: string;
+            /**
+             * @description Dönem tutarı (kuruş). **Sunucu hesaplar**: o ayın servis günü
+             *     sayısı × porsiyon × anlaşmalı birim fiyat, atlanan günler
+             *     düşülmüş hâlde. İstemci bu çarpımı tekrarlamaz — atlanan gün
+             *     kuralını iki yerde tutmak, iki farklı tutar göstermenin en
+             *     kısa yoludur.
+             */
+            amount: components["schemas"]["Money"];
+            currency: components["schemas"]["Currency"];
+            status: components["schemas"]["PaymentStatus"];
+            /**
+             * Format: date
+             * @description Son ödeme günü (Europe/Istanbul); tanımlı değilse `null`.
+             *     Tarih olarak veriliyor, an olarak değil: "ayın 5'i" bir gün
+             *     adıdır ve saat dilimi tartışması yaratmaz.
+             */
+            due_date?: string | null;
+        };
+        /** @description Abonelik sözleşmesinin özeti. Metin imzalı bağlantının arkasındadır. */
+        SubscriptionContractSummary: {
+            status: components["schemas"]["ContractStatus"];
+            /**
+             * @description Sözleşme metninin sürümü. Fiyat ya da koşul değişince yeni bir
+             *     sürüm üretilir ve **yeniden onay** istenir; onaylanan sürümün
+             *     numarası burada durur.
+             */
+            version?: number | null;
+            /**
+             * Format: date-time
+             * @description Sözleşme bağlantısının SMS ile gönderildiği an.
+             */
+            sent_at?: string | null;
+            /**
+             * Format: date-time
+             * @description Abonenin SMS koduyla onayladığı an; onaylanmadıysa `null`.
+             */
+            approved_at?: string | null;
+        };
+        /**
+         * @description | Değer | Anlamı |
+         *     |---|---|
+         *     | `draft` | Metin üretildi, bağlantı henüz gönderilmedi. |
+         *     | `sent` | Bağlantı gönderildi, onay bekleniyor. |
+         *     | `approved` | Abone SMS koduyla onayladı (terminal). |
+         *     | `expired` | Bağlantının süresi doldu; yeni bağlantı gerekir. |
+         *     | `cancelled` | Sözleşme geçersiz kılındı (yeni sürüm ya da iptal). |
+         *
+         *     `expired` ile `cancelled` ayrı: birinde abonenin yapacağı iş yeni
+         *     bağlantı istemek, öbüründe hiçbir şey yapmamak. Tek değere
+         *     sıkıştırılsalardı ekran ikisine de aynı düğmeyi çizerdi.
+         * @enum {string}
+         */
+        ContractStatus: "draft" | "sent" | "approved" | "expired" | "cancelled";
+        /**
+         * @description İmzalı bağlantının arkasındaki sözleşme görünümü.
+         *
+         *     **Kimlik gerektirmeyen bir uçtan döndüğü için bilinçli olarak
+         *     dardır:** abonenin adresleri, e-postası, sipariş geçmişi ve müşteri
+         *     kimliği burada **yoktur**. Bağlantıyı ele geçiren biri yalnız
+         *     sözleşmenin kendisini ve maskeli telefonu görür — onay için SMS
+         *     kodu ayrıca gerekir.
+         */
+        SubscriptionContract: {
+            status: components["schemas"]["ContractStatus"];
+            version: number;
+            title?: string | null;
+            /** @description Sözleşme metninin tamamı. */
+            body: string;
+            /**
+             * @description Metnin biçimi. Sunucudan **HTML gönderilmez**: metin panelde
+             *     yazılıyor ve doğrudan HTML gömmek, sözleşme sayfasına script
+             *     sokabilecek bir kapı açardı.
+             * @enum {string}
+             */
+            body_format: "markdown" | "plain";
+            /**
+             * @description Sözleşmenin karşı tarafı — kurum unvanı ya da ad soyad.
+             *     Onaylayan kişi doğru sözleşmeye baktığını buradan anlar.
+             */
+            customer_label?: string | null;
+            /**
+             * @description SMS kodunun gideceği numaranın maskeli hâli. Tamamı
+             *     gösterilmez: bağlantı kimlik istemiyor ve tam numarayı basmak,
+             *     bağlantıyı ele geçirene doğrulanmış bir telefon numarası
+             *     hediye etmek olurdu.
+             * @example 0555 *** ** 33
+             */
+            masked_phone?: string | null;
+            /** Format: date */
+            start_date?: string;
+            /** Format: date */
+            end_date?: string | null;
+            /** @description ISO hafta günleri (1 Pazartesi .. 7 Pazar). */
+            service_days: number[];
+            default_quantity?: number;
+            /** @description Porsiyon başı anlaşmalı fiyat (kuruş). */
+            unit_price: components["schemas"]["Money"];
+            /**
+             * @description Tipik bir ayın tahmini tutarı (kuruş). Onaylayan kişi neyi
+             *     imzaladığını porsiyon fiyatından zihninde çarparak değil,
+             *     yazılı bir rakamla görmelidir.
+             */
+            monthly_estimate?: components["schemas"]["Money"] | null;
+            currency: components["schemas"]["Currency"];
+            /**
+             * Format: date-time
+             * @description Bağlantının geçerlilik sonu; süresizse `null`.
+             */
+            expires_at?: string | null;
+            /** Format: date-time */
+            approved_at?: string | null;
+        };
+        /** @description Bir abonelik dönem ödemesinin tam hâli. */
+        SubscriptionPayment: {
+            /** Format: int64 */
+            payment_id: number;
+            /** Format: int64 */
+            subscription_id: number;
+            /** @example 2026-09 */
+            period: string;
+            amount: components["schemas"]["Money"];
+            currency: components["schemas"]["Currency"];
+            status: components["schemas"]["PaymentStatus"];
+            next_action: components["schemas"]["PaymentNextAction"];
+            /**
+             * Format: uri
+             * @description Yalnız `next_action = three_ds` iken dolu. Ödeme kesinleştikten
+             *     sonra `null` döner — kullanıcı ikinci kez ödeme sayfasına
+             *     gönderilmemelidir.
+             */
+            redirect_url?: string | null;
+            /**
+             * @description Başarısız denemenin kullanıcıya gösterilebilir Türkçe sebebi
+             *     ("Kart limiti yetersiz."). Sağlayıcının ham hata kodu
+             *     **dönmez**: müşteriye bir şey anlatmıyor ve teşhis günlükte.
+             */
+            failure_reason?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            paid_at?: string | null;
         };
         Location: {
             /** Format: int64 */
@@ -1973,15 +3190,47 @@ export interface components {
              */
             daily_menu_enabled: boolean;
             /**
+             * @description Menü çıkan haftanın günleri, ISO numaralarıyla (1 Pazartesi ..
+             *     7 Pazar). Bugün `[1,2,3,4,5]` — hafta sonu menü yok.
+             *
+             *     **Yalnız görüntüleme içindir.** Gün seçici, menüsü hiç
+             *     olmayacak günleri baştan soluk çizsin diye veriliyor; kararı
+             *     veren alan yine `MenuCalendarDay.is_orderable` /
+             *     `DailyMenu.is_orderable`'dır. İstemci bu diziden kendi
+             *     "sipariş verilebilir mi" hesabını çıkarmamalıdır.
+             *
+             *     **Hafta sonu menü yoktur ama satış kanalı AÇIKTIR:** cumartesi
+             *     günü pazartesiye sipariş verilebilir. Bu yüzden listede olmayan
+             *     bir gün, "o gün sipariş alınmıyor" değil, "o gün için servis
+             *     yok" demektir.
+             */
+            service_weekdays?: number[];
+            /**
              * @description Bugünden itibaren kaç gün sonrasına sipariş alınabileceği.
              *     Gün seçici takvimi bu kadar ileriye çizer; sunucu aynı sınırı
              *     `POST /orders` üzerinde yeniden uygular.
+             *
+             *     **Sunucunun bugün döndürdüğü değer `7`'dir** (16.08.2026 —
+             *     günlük menü satış modeli). Şemadaki `default: 30`, katalog
+             *     dönemine ait tarihsel bir annotasyondur ve **korunuyor**;
+             *     istemci bu varsayılana değil, yanıttaki gerçek değere bakar.
+             *     İki uygulamada iki farklı sabit gömülü kalmasın diye alan zaten
+             *     sözleşmede.
              * @default 30
+             * @example 7
              */
             max_lookahead_days: number;
             /**
-             * @description Günlük son sipariş saati (Europe/Istanbul) veya `null`.
-             * @example 16:00
+             * @description Vitrinin **varsayılan** günlük kesim saati (Europe/Istanbul)
+             *     veya `null`.
+             *
+             *     **ARTIK BAĞLAYICI DEĞİL (16.08.2026).** Her servis günü kendi
+             *     sabah kesim saatinde kapanır ve o saat Kontrol Merkezi'nden gün
+             *     gün ayarlanır; bağlayıcı olan `DailyMenu.cutoff_at` /
+             *     `MenuCalendarDay.cutoff_at` alanlarındaki **mutlak andır**. Bu
+             *     alan panelde girilen varsayılanı gösterir ve "genelde saat
+             *     kaçta kapanıyor" cümlesini kurmaya yarar.
+             * @example 08:00
              */
             order_cutoff?: string | null;
             /** @description Altında sipariş `422 VALIDATION_FAILED`. */
@@ -2003,6 +3252,13 @@ export interface components {
             /**
              * @description Bu vitrinde **açık** olan ödeme yöntemleri. İstemci ödeme ekranında yalnızca
              *     bunları gösterir. Listede olmayan yöntemle sipariş → `422 VALIDATION_FAILED`.
+             *
+             *     Cari hesap kaldırıldığından bu liste **hiçbir zaman `account`
+             *     içermez** (16.08.2026).
+             * @example [
+             *       "online",
+             *       "cash"
+             *     ]
              */
             payment_methods: components["schemas"]["PaymentMethod"][];
             /**
@@ -2163,6 +3419,62 @@ export interface components {
              *     açılır.
              */
             touch_mode?: boolean | null;
+            /**
+             * @description Kasadaki **ayarlar ekranının tamamı** açılabilir mi?
+             *
+             *     **`null` = yönetici dokunmadı = SERBEST.** Üç hâlin üçü de
+             *     ayrı: `null` "kimse karar vermedi", `true` "yönetici açıkça
+             *     izin verdi", `false` "kilitli". `null`'ı `true` ile
+             *     birleştirmek ileride varsayılanı sıkılaştırmayı imkânsız
+             *     kılardı. Aynı semantik aşağıdaki altı alanın hepsinde geçerli.
+             *
+             *     **Kilit ancak açıkça `false` yazılınca doğar.** Sütunlara
+             *     `false` varsayılanı konsaydı göç koştuğu saniyede sahadaki
+             *     bütün kasalar kilitlenir, mutfak ayar ekranına giremez ve
+             *     kimse sebebini anlamazdı.
+             *
+             *     Kasa tarafında düğme **gizlenmez, pasifleşir**
+             *     (`docs/05-mutfakapp.md` §8): gizlenen düğme personeli
+             *     "bozuldu" sanısına iter ve destek çağrısı üretir.
+             */
+            allow_settings?: boolean | null;
+            /**
+             * @description Sunucu adresini değiştirme ve eşlemeyi sıfırlama.
+             *     **En yıkıcı olanı:** yanlış adres yazılan kasa hiçbir sipariş
+             *     göremez ve geri dönüş yolu yine aynı ekrandan geçer.
+             */
+            allow_server_change?: boolean | null;
+            /**
+             * @description Tam ekrandan çıkma / pencereyi küçültme. Kiosk kipinin tek
+             *     kaçış kapısı.
+             */
+            allow_window_controls?: boolean | null;
+            /**
+             * @description Kasadan sipariş düzenleme (K-12 revizyonu). **Para hareketi
+             *     üretir:** iade ve ek tahsilat buradan doğuyor.
+             */
+            allow_order_edit?: boolean | null;
+            /** @description Karttan ya da ayarlardan elle yeniden fiş bastırma. */
+            allow_manual_reprint?: boolean | null;
+            /**
+             * @description Satış şalteri ve "bugün tükendi" işaretleri (K-11).
+             *     **Ciroyu kapatan tuş.**
+             */
+            allow_sales_control?: boolean | null;
+            /**
+             * @description Kilitli bir düğmeye basınca kasada gösterilecek metin.
+             *
+             *     Neden ayrı bir alan: metin kasaya gömülseydi ("Bu işlem
+             *     yönetici tarafından kapatılmıştır") mutfak **kime
+             *     başvuracağını** bilemezdi. Yöneticinin "Kapatıldı — Ahmet
+             *     Bey'i arayın, 0532..." yazabilmesi gerekiyor.
+             *
+             *     160 karakter: kasa bunu tek satırlık bir uyarı şeridinde
+             *     gösteriyor, paragraf değil. Boş dize `null`'a düşer —
+             *     `audio_sink`'in aksine burada "boş metin" diye anlamlı bir
+             *     değer yok; metin yoksa kasa kendi genel uyarısını gösterir.
+             */
+            lock_message?: string | null;
             /** Format: date-time */
             updated_at?: string | null;
         };
@@ -2299,6 +3611,23 @@ export interface components {
                 name: string;
                 quantity: number;
                 options?: string[];
+                /**
+                 * @description Kalemde seçili seçenek değerlerinin kimlikleri. `options`
+                 *     aynı seçeneklerin insana gösterilen adlarıdır; ikisi
+                 *     eşleniktir. İstemci düzenlemede bunu revizyon gövdesindeki
+                 *     `items[].option_value_ids` alanına **AYNEN geri
+                 *     göndermelidir** — göndermezse sunucu satırı seçeneksiz
+                 *     yeniden fiyatlar ve seçenek sessizce kaybolur. Kimlik
+                 *     kaydı bulunmayan eski satırlarda **boş dizi** döner.
+                 *
+                 *     Adları kimliğe geri çevirmek seçenek değildir: aynı adı
+                 *     taşıyan iki değer (iki ayrı grupta "Bol") yanlış eşleşir
+                 *     ve sessiz kaybın yerini sessiz **yanlışlık** alırdı.
+                 *
+                 *     `required` listesinde **yoktur**: alan K-21 ile eklendi
+                 *     ve ondan önce yazılmış istemciler onu hiç görmüyor.
+                 */
+                option_value_ids?: number[];
                 note?: string | null;
             }[];
         };
@@ -2568,6 +3897,23 @@ export interface components {
             /** Format: uri */
             image_url?: string | null;
             /**
+             * @description Menünün **ilk dört kaleminin** görselleri, yöneticinin verdiği
+             *     sırada. İstemci bunları 2x2 bir ızgarada dizer; dörtten az
+             *     görsel varsa ızgara o kadar hücreyle çizilir.
+             *
+             *     Görseli olmayan kalem listeye **girmez** — dizide boş yer
+             *     tutulmaz. Aksi hâlde istemci `null` hücreyi kendi kararıyla
+             *     doldurmak zorunda kalır ve üç uygulamada üç farklı yer tutucu
+             *     çıkardı.
+             *
+             *     `image_url` (tekil) **kalıyor**: yöneticinin o güne elle
+             *     yüklediği kapak görselidir ve varsa ızgaraya tercih edilir.
+             *     Bu dizi, kapak yüklenmemiş günlerin boş kart görünmesini
+             *     engellemek için var — menü listesinde günlerin çoğunun kapağı
+             *     yok ve boş kart tıklanmıyor.
+             */
+            image_urls?: string[];
+            /**
              * @description Menünün bütün olarak satılan hâli. O gün paket satılmıyorsa
              *     (yönetici paket fiyatı girmediyse) `null` — kalemler yine tek
              *     tek satılabilir.
@@ -2590,17 +3936,76 @@ export interface components {
             /**
              * @description Bu güne **şu anda** sipariş verilebilir mi? Menünün yayında
              *     olmasını, günün kapalı olmamasını, kesim saatinin geçmemiş
-             *     olmasını ve azami ileri görüş penceresinin aşılmamasını birlikte
-             *     özetler. Bağlayıcı olan yine `POST /orders` anındaki denetimdir.
+             *     olmasını, stokun tükenmemiş olmasını ve azami ileri görüş
+             *     penceresinin aşılmamasını birlikte özetler. Bağlayıcı olan yine
+             *     `POST /orders` anındaki denetimdir.
+             *
+             *     **Karar kapısı her zaman budur.** İstemci `cutoff_at` ile
+             *     `remaining_portions`'ı kendi başına yorumlayıp "bu gün
+             *     kapanmıştır" sonucuna varmamalıdır; o iki alan yalnız geri
+             *     sayım ve stok bandı çizmek içindir.
              */
             is_orderable: boolean;
+            /**
+             * Format: date-time
+             * @description Bu güne sipariş kabulünün **bittiği mutlak an** (UTC). Gün
+             *     kapandıysa ya da kesim tanımlı değilse `null`.
+             *
+             *     **Neden saat değil de mutlak an:** kesim kuralını üç dilde
+             *     yeniden hesaplamak (TS `Intl`, Dart'ta sabit UTC+3, PHP'de
+             *     `Europe/Istanbul`) sapmanın kaynağıdır — yaz saati, telefonun
+             *     yanlış saat dilimi, sunucunun UTC'si üç ayrı sonuç üretir.
+             *     Üstüne cihaz saatleri yalan söyler. Sunucu tek bir an
+             *     gönderir, istemci onunla **yalnız geri sayım gösterir**.
+             *
+             *     Geri sayım sıfırlandığında istemci ekranı kilitlemez; menüyü
+             *     yeniden çeker ve `is_orderable`'a bakar. Cihaz saati beş dakika
+             *     ileriyse müşteriye hâlâ açık olan bir günü kapalı göstermek,
+             *     saati geri olan cihazda kapalı günü açık göstermekten daha
+             *     pahalıdır — biri satış kaybı, öbürü sunucunun zaten
+             *     reddedeceği bir istek.
+             */
+            cutoff_at?: string | null;
+            /**
+             * @description O gün için **toplam** kalan porsiyon (gün tavanı). `null`
+             *     **sınırsız** demektir; `0` tükendi demektir. İkisi asla
+             *     karıştırılmamalıdır — `null`'ı `0` sayan istemci, tavanı hiç
+             *     konmamış bir günü tükenmiş gösterir.
+             *
+             *     Kalem bazlı tavan ayrıca `items[].remaining_portions` ve
+             *     `package.remaining_portions` alanlarındadır. Hangisi önce
+             *     dolarsa satışı o kapatır; sepete eklenebilecek azami adet
+             *     ikisinin `min()`'idir. Aritmetiğin normatif vaka tablosu:
+             *     `docs/contract/sales-rules.cases.json`.
+             */
+            remaining_portions?: number | null;
             /**
              * @description `is_orderable` yanlışken sebebin makine okunur hâli. Kullanıcıya
              *     gösterilecek metni istemci kendi diliyle yazar — sunucudan gelen
              *     cümleyi ekrana basmak, arayüz metnini sunucu sürümüne bağlar.
+             *
+             *     | Değer | Anlamı |
+             *     |---|---|
+             *     | `closed_day` | İşletme o gün kapalı (tatil, özel gün). |
+             *     | `not_published` | Menü henüz yayınlanmamış (taslak). |
+             *     | `cutoff_passed` | O günün kesim saati geçti. |
+             *     | `past` | Gün geçmişte. |
+             *     | `too_far` | `max_lookahead_days` penceresinin dışında. |
+             *     | `no_service_day` | O gün servis yok (hafta sonu). |
+             *     | `sold_out` | Stok tükendi (gün tavanı ya da tüm kalemler). |
+             *
+             *     Son iki değer 16.08.2026'da **eklendi**. `no_service_day` ile
+             *     `closed_day` ayrı tutuldu çünkü müşteriye kurulacak cümle ayrı:
+             *     biri "hafta sonu servisimiz yok", öbürü "o gün kapalıyız". Aynı
+             *     değere sıkıştırılsalardı istemci her hafta sonunu tatil gibi
+             *     anlatırdı.
+             *
+             *     **Bilinmeyen değer çökertmemelidir**: enum'a ileride yeni sebep
+             *     eklenebilir ve istemci tanımadığı sebebi genel bir "bu güne
+             *     sipariş verilemiyor" metniyle karşılamalıdır.
              * @enum {string|null}
              */
-            unavailable_reason?: null | "closed_day" | "not_published" | "cutoff_passed" | "past" | "too_far";
+            unavailable_reason?: null | "closed_day" | "not_published" | "cutoff_passed" | "past" | "too_far" | "no_service_day" | "sold_out";
             /**
              * @description Menüyü oluşturan kalemler, yöneticinin verdiği sırada.
              *     `price` **o gün için geçerli** birim fiyattır (ürünün kendi
@@ -2626,6 +4031,19 @@ export interface components {
              */
             is_available: boolean;
             sold_out_reason?: string | null;
+            /**
+             * @description Paketten kalan porsiyon sayısı. `null` **sınırsız**, `0`
+             *     tükendi. Günün toplam tavanı (`DailyMenu.remaining_portions`)
+             *     ile birlikte değerlendirilir: sepete eklenebilecek azami adet
+             *     ikisinin `min()`'idir.
+             *
+             *     Aboneliklerin rezervasyonu bu sayıdan **önceden düşülmüştür** —
+             *     abone sabah siparişini garanti eder, tek seferlik satış artandan
+             *     yürür. Tersi olsaydı bir günü aboneler için ayırmak elle iş
+             *     olurdu.
+             * @example 12
+             */
+            remaining_portions?: number | null;
             /** @description Paketin içindekiler — mutfağın pişireceği yemekler. */
             components: {
                 /** Format: int64 */
@@ -2644,6 +4062,46 @@ export interface components {
             has_menu: boolean;
             closed: boolean;
             is_orderable: boolean;
+            /**
+             * Format: date-time
+             * @description O günün sipariş kabulünün bittiği **mutlak an** (UTC); kesim
+             *     yoksa ya da gün kapandıysa `null`. `DailyMenu.cutoff_at` ile
+             *     aynı değerdir ve aynı gerekçeyle mutlak andır (bkz. orası).
+             *
+             *     Takvimde veriliyor ki gün seçici, her günü ayrı ayrı
+             *     sorgulamadan "bugün 08:00'e kadar" bandını çizebilsin.
+             */
+            cutoff_at?: string | null;
+            /**
+             * @description O günün stoku tükendi mi? Menüsü olan ama satılacak porsiyonu
+             *     kalmayan gün takvimde **görünmeye devam eder**: müşteri o günün
+             *     menüsünü yine okuyabilmeli, yalnız sipariş verememelidir.
+             *     Günü listeden düşürseydik "menü girilmemiş" ile "kapış kapış
+             *     gitti" aynı boşluğa düşerdi.
+             *
+             *     Kalan porsiyonun **sayısı** takvimde verilmez; takvim
+             *     doksan güne kadar çizilir ve her gün için stok sayısı okumak
+             *     listenin maliyetini gereksiz yere büyütürdü. Sayı gün
+             *     açıldığında `GET /locations/{id}/daily-menu` ile gelir.
+             * @default false
+             */
+            sold_out: boolean;
+            /**
+             * @description Bu gün servis günü **dışında** mı? (`Location.service_weekdays`
+             *     listesinde yok.)
+             *
+             *     Adı "weekend" ama anlamı "servis yok": bugün servis dışı günler
+             *     cumartesi ve pazar. Ayrı bir alan olması, istemcinin haftanın
+             *     gününü kendi hesaplayıp yorumlamasını gereksiz kılar —
+             *     takvimdeki her hücre kendi durumunu taşır.
+             *
+             *     **Hafta sonu sipariş kanalı kapalı DEĞİLDİR:** cumartesi günü
+             *     pazartesiye sipariş verilebilir. Bu alan yalnız o hücrenin
+             *     kendi servis gününü anlatır ve `is_orderable` zaten `false`
+             *     olur (`unavailable_reason: no_service_day`).
+             * @default false
+             */
+            weekend: boolean;
             title?: string | null;
             package_price?: components["schemas"]["Money"] | null;
             /** @description Kapalı günün açıklaması ("Kurban Bayramı") ya da `null`. */
@@ -2681,6 +4139,22 @@ export interface components {
             sold_out_today: boolean;
             /** @description `sold_out_today` doğruyken mutfağın yazdığı sebep. */
             sold_out_reason?: string | null;
+            /**
+             * @description Bu kalemden servis günü için kalan porsiyon (kalem tavanı).
+             *     `null` **sınırsız**, `0` tükendi — `null`'ı `0` saymak, tavanı
+             *     hiç konmamış bir ürünü satıştan düşürür.
+             *
+             *     Yalnız günün menüsü yanıtında (`DailyMenu.items[]`) doludur;
+             *     katalog ucunda (`/locations/{id}/menu`) `null` döner çünkü stok
+             *     **güne** bağlıdır, ürüne değil.
+             *
+             *     Gün toplamı (`DailyMenu.remaining_portions`) ile birlikte
+             *     değerlendirilir: hangisi önce dolarsa satışı o kapatır.
+             *     Aritmetiğin normatif vaka tablosu
+             *     `docs/contract/sales-rules.cases.json`.
+             * @example 4
+             */
+            remaining_portions?: number | null;
             allergens?: string[];
             options?: components["schemas"]["MenuOption"][];
         };
@@ -2799,12 +4273,34 @@ export interface components {
              * @description İstenen teslim zamanı. `order_cutoff` kuralına takılırsa `LOCATION_CLOSED`.
              */
             requested_at?: string | null;
+            /**
+             * @description Yalnız vitrinin `payment_methods` listesindeki bir değer kabul
+             *     edilir. `account` (cari hesap) **kaldırıldı** ve gönderilirse
+             *     `422 VALIDATION_FAILED` döner — enum'da yalnız tarihsel
+             *     siparişleri ayrıştırabilmek için duruyor.
+             */
             payment_method: components["schemas"]["PaymentMethod"];
             customer_note?: string | null;
         };
         Payment: {
             method: components["schemas"]["PaymentMethod"];
             status: components["schemas"]["PaymentStatus"];
+            /**
+             * Format: int64
+             * @description Tahsilat kaydının kimliği. `cash` siparişte ve ödeme geçidine
+             *     hiç uğramamış siparişte `null`.
+             *
+             *     Sipariş kimliğinden **ayrı** bir kimliktir: başarısız bir
+             *     denemeden sonra ikinci kez ödenen sipariş aynı `id` altında iki
+             *     tahsilat kaydı taşır ve sağlayıcıya sorarken kullanılacak olan
+             *     budur. `null` ile `0` karıştırılmamalıdır.
+             */
+            payment_id?: number | null;
+            /**
+             * @description Ödemenin kesinleşmesi için sıradaki adım. `cash` siparişte ve
+             *     ödeme akışı olmayan durumda `null`.
+             */
+            next_action?: components["schemas"]["PaymentNextAction"] | null;
             /**
              * Format: uri
              * @description Yalnızca `online` yönteminde ve sipariş **henüz ödenmemişken**
@@ -3513,6 +5009,508 @@ export interface components {
              */
             submitted_at?: string | null;
         };
+        /**
+         * @description Uygulama-içi duyuru. **Push (FCM) yoktur**: duyuru yalnız istemci
+         *     açıkken çekilir. Bu, "duyuru okundu mu" sorusunun cevabını da
+         *     değiştirir — görüldü işareti bildirimin tesliminden değil,
+         *     duyurunun ekranda çizilmesinden doğar.
+         */
+        Announcement: {
+            /** Format: int64 */
+            id: number;
+            /**
+             * @description Duyurunun gösterileceği yer. Bilinen değerler: `home`
+             *     (ana sayfa bandı), `menu` (gün seçicinin üstü), `cart`
+             *     (sepet), `checkout` (ödeme adımı), `orders` (siparişlerim),
+             *     `subscription` (abonelik ekranı).
+             *
+             *     **Kapalı enum DEĞİLDİR.** Yerleşimler panelde tanımlanıyor ve
+             *     yeni bir ekran açıldığında sözleşmeyi beklemek, duyurunun
+             *     haftalarca yayınlanamaması demek olurdu. **İstemci tanımadığı
+             *     yerleşimi hiç çizmez** — bilmediği bir yeri "ana sayfa" sayıp
+             *     duyuruyu yanlış ekrana koymak, sessizce atlamaktan kötüdür.
+             * @example home
+             */
+            placement: string;
+            /**
+             * @description Duyurunun tonu. İstemci rengi ve ikonu buna göre seçer; metni
+             *     sunucudan gelen `title`/`body` verir.
+             *
+             *     `critical` bir **kapanmaz** bant demek değildir; kapanabilirliği
+             *     `dismissible` söyler. İkisi ayrı çünkü kritik ama bir kez
+             *     okunması yeten duyurular var ("yarın servis yok").
+             * @default info
+             * @enum {string}
+             */
+            severity: "info" | "warning" | "critical";
+            title?: string | null;
+            /** @description Duyuru metni (düz metin). Biçimlendirme istemcinindir. */
+            body: string;
+            action_label?: string | null;
+            /**
+             * Format: uri
+             * @description Duyurunun düğmesi. `action_label` boşsa düğme çizilmez.
+             *     Adresin **uygulama içi** bir yola işaret etmesi beklenir;
+             *     istemci tanımadığı adresi tarayıcıda açar.
+             */
+            action_url?: string | null;
+            /** Format: uri */
+            image_url?: string | null;
+            /**
+             * @description Kullanıcı bu duyuruyu kapatabilir mi? `false` ise duyuru
+             *     yayın penceresi boyunca ekranda kalır — hizmet kesintisi gibi
+             *     duyurular kapatıldıktan sonra bir daha görünmezse müşteri
+             *     aynı soruyu telefonla sorar.
+             */
+            dismissible: boolean;
+            /** Format: date-time */
+            starts_at?: string | null;
+            /**
+             * Format: date-time
+             * @description Yayın penceresinin sonu; süresizse `null`. İstemci **kendi
+             *     saatine göre eleme yapmaz**: pencere dışına çıkmış duyuru
+             *     listeye zaten girmez. Alan yalnız "şu tarihe kadar geçerli"
+             *     cümlesini kurmak için var.
+             */
+            ends_at?: string | null;
+            /** @description Bu müşteri duyuruyu daha önce gördü mü? */
+            seen: boolean;
+            /**
+             * @description Bu müşteri duyuruyu kapattı mı? Kapatılan duyuru listeye
+             *     **girmez**; alan, aynı yanıtta hem kapatılan hem kapatılmayanı
+             *     gösteren yönetim görünümleri için ve istemcinin iyimser
+             *     güncellemesini geri alabilmesi için duruyor.
+             */
+            dismissed: boolean;
+            /** Format: date-time */
+            created_at?: string | null;
+        };
+        /**
+         * @description İstemcinin yakalayamadığı bir hatanın raporu.
+         *
+         *     **`source` alanı BULUNMAZ ve gönderilirse yok sayılır.** Raporun
+         *     hangi uygulamadan geldiğini sunucu `X-App-Id` başlığından türetir.
+         *     Gövdeye bırakılsaydı web sitesi `mutfakapp` yazan bir rapor
+         *     üretebilir, mutfağın güvendiği hata monitörüne sahte KDS alarmı
+         *     düşürebilirdi — o monitör sahada "kasada bir sorun var mı"
+         *     sorusunun tek cevabı ve zehirlenmesi mutfağı kör eder.
+         *
+         *     Bilinmeyen alanlar da aynı sebeple sessizce yok sayılır, istek
+         *     reddedilmez: bu ucun başarısızlığı kaybedilmiş teşhis bilgisidir
+         *     (bkz. `POST /client-errors`).
+         */
+        ClientErrorReport: {
+            /** @description Hatanın tek satırlık özeti. Sınırı aşan metin **kesilir**, reddedilmez. */
+            message: string;
+            /**
+             * @description Hatanın türü — istemcinin kendi sınıflandırması. Bilinen
+             *     değerler: `unhandled` (yakalanmamış istisna), `network`
+             *     (istek başarısız), `render` (arayüz çizilemedi), `parse`
+             *     (yanıt ayrıştırılamadı), `manual` (kullanıcı bildirdi).
+             *     Kapalı enum değildir; bilinmeyen tür olduğu gibi saklanır.
+             * @example unhandled
+             */
+            kind?: string;
+            /**
+             * @description Yığın izi. Sınırı aşan kısım **kesilir**. Sekiz bin karakter,
+             *     Flutter'ın uzun izlerini de alan ama tek bir döngüye giren
+             *     istemcinin diski doldurmasını engelleyen bir orta yol.
+             */
+            stack?: string | null;
+            /**
+             * @description Hatanın oluştuğu ekran/rota (`/siparislerim/1234` gibi).
+             *     **Sorgu dizesi olmadan** gönderilmelidir: adres çubuğundaki
+             *     parametreler zaman zaman kişisel veri taşır ve hata kaydı
+             *     onları saklamak için yanlış yerdir.
+             */
+            route?: string | null;
+            /**
+             * Format: date-time
+             * @description Hatanın istemcide oluştuğu an. Sunucu kendi alış anını ayrıca
+             *     yazar; ikisi arasındaki fark, çevrimdışıyken biriktirilip
+             *     sonra gönderilen raporları ayırt eder.
+             */
+            occurred_at?: string | null;
+            /**
+             * @description Sürüm numarasının altındaki yapı kimliği (build number, commit
+             *     kısaltması). `X-App-Version` semver'i aynı kalırken yeniden
+             *     yayınlanan bir yapıyı ayırmanın tek yolu budur.
+             */
+            app_build?: string | null;
+            /**
+             * @description Cihaz/işletim sistemi/tarayıcı özeti. Serbest metin: üç
+             *     uygulamanın üç farklı kaynağı var ve tek bir yapıya
+             *     sıkıştırmak hiçbirine uymuyordu.
+             */
+            device?: string | null;
+            /**
+             * @description Ek bağlam (ekrandaki kayıt kimliği, deneme sayısı gibi).
+             *     **Kişisel veri ve sır konmaz** — token, parola, kart bilgisi
+             *     ya da tam adres gönderen istemci hata raporunu bir sızıntı
+             *     kanalına çevirir.
+             */
+            context?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * @description **Her yazma ucunun taşımak zorunda olduğu üç alan.** Okuma uçları
+         *     bunları istemez.
+         *
+         *     Gövde eksikse istek `422` alır ve **denetim satırı yazılmaz** —
+         *     geçerli bir istek hiç oluşmadı.
+         */
+        ControlIntent: {
+            /**
+             * @description İşlemi yapan kişi — **serbest metin**. BLD'de bir hesaba
+             *     bağlanmıyor ve bağlanmayacak: Kontrol Merkezi ayrı bir depo,
+             *     ayrı bir kullanıcı tablosu. Yabancı anahtar vermek iki sistemi
+             *     birbirine bağlardı. Doğruluğu Kontrol Merkezi'nin
+             *     sorumluluğundadır; imza zaten isteğin oradan geldiğini
+             *     kanıtlıyor.
+             * @example Ayşe Yönetici
+             */
+            actor: string;
+            /**
+             * @description Gerekçe — `veykemtu_control_audit.reason` sütununa yazılır.
+             *
+             *     **En az 10 karakter.** Sınır olmasaydı "ok" yazıp geçmek
+             *     serbest olurdu ve denetim izi, doldurulmuş ama hiçbir şey
+             *     anlatmayan bir sütuna dönerdi. On karakter bir cümlenin
+             *     başlangıcını zorluyor.
+             * @example Sahada denetim için yapıldı
+             */
+            reason: string;
+            /**
+             * @description **Kuru prova.** `true` ise **hiçbir yazma yapılmaz**; yanıt
+             *     `would` nesnesiyle "ne olurdu"yu döner. Ön denetimler yine
+             *     çalışır (iptal edilmiş kasa, düzenlenemez sipariş, geçersiz
+             *     durum geçişi hâlâ `422` verir).
+             *
+             *     **Denetim satırı YİNE YAZILIR**, `result = "dry_run"` ile.
+             *     "Denedim ama uygulamadım" bir eylemdir ve yanlış kasaya kilit
+             *     uygulamaya çalışan birinin ilk adımı çoğu zaman odur.
+             * @default false
+             */
+            dry_run: boolean;
+        };
+        /**
+         * @description `ControlIntent` ile aynı, tek farkla: **`reason` en fazla 160
+         *     karakter.**
+         *
+         *     `veykemtu_order_revisions.reason` 160 karakterlik bir sütun ve aynı
+         *     metin oraya da yazılıyor. Kabuğun 500'lük sınırı sipariş uçlarında
+         *     160'a daralıyor; taşan gerekçe **sessizce kırpılmak yerine `422`**
+         *     alıyor.
+         */
+        ControlOrderIntent: {
+            actor: string;
+            reason: string;
+            /** @default false */
+            dry_run: boolean;
+        };
+        /**
+         * @description **Her yazma ucunun ortak yanıt zarfı.** Eyleme özgü alanlar
+         *     (`device`, `order`, `revision`, `command`, `would`) bu zarfın
+         *     **yanına**, kökte durur.
+         */
+        ControlWriteEnvelope: {
+            /** @constant */
+            ok: true;
+            /** @description İsteğin kuru prova olarak işlenip işlenmediği. */
+            dry_run: boolean;
+            /**
+             * Format: int64
+             * @description Bu istek için açılan `veykemtu_control_audit` satırının kimliği.
+             *     **Kuru provada da doludur.** Satır işlemden **önce** açılıyor:
+             *     sonra açılsaydı yarıda kalan bir yazma (veritabanı hatası,
+             *     zaman aşımı) hiçbir iz bırakmazdı — oysa "denendi ve olmadı"
+             *     tam da soruşturulması gereken hâldir.
+             */
+            audit_id: number;
+            /**
+             * @description **Yalnız `dry_run: true` iken vardır.** Uygulansaydı ne olacağı.
+             *     Gerçek gönderimde bu anahtar hiç gelmez; onun yerine eylemin
+             *     kendi sonucu (`device` / `order` / `revision` / `command`)
+             *     döner.
+             */
+            would?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * @description Kontrol Merkezi'nin gördüğü kasa. Admin panelindeki kasa ekranının
+         *     makine okunur karşılığı; **davranış birebir aynı** — iki yüzey aynı
+         *     modeli ve aynı servisi çağırıyor.
+         */
+        ControlDevice: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            /**
+             * @description `last_seen_at` son **3 dakika** içinde **VE** kasa iptal
+             *     edilmemiş. İptal edilmiş bir kasa dakikalar önce görülmüş
+             *     olabilir ama artık hiçbir uca giremez; onu "çevrimiçi"
+             *     göstermek yöneticiye çalışan bir mutfak ekranı olduğunu
+             *     düşündürürdü.
+             */
+            online: boolean;
+            /** Format: date-time */
+            last_seen_at?: string | null;
+            /** Format: date-time */
+            created_at?: string | null;
+            /**
+             * Format: date-time
+             * @description Dolu ise kasa iptal edilmiştir. **Satır silinmez**; ikinci bir
+             *     iptal isteği bu damgayı oynatmaz.
+             */
+            revoked_at?: string | null;
+            pairing: {
+                /**
+                 * @description Eşleme kodu, biçim `XXXX-XXXX` (**9 karakter**; sütun
+                 *     `varchar(16)`). Karıştırılması kolay karakterler (`0`/`O`,
+                 *     `1`/`I`) alfabede yoktur.
+                 *
+                 *     **YALNIZ İKİ YERDE AÇILIR:** kodu üreten uçların
+                 *     yanıtlarında (`POST /control/kds/devices`,
+                 *     `POST /control/kds/devices/{id}/pairing-code`) ve listede
+                 *     kod hâlâ **kullanılabilirken**. Kullanılmış ya da süresi
+                 *     dolmuş bir kodu göstermek yöneticiye çalışmayan bir kod
+                 *     okutur ve "kod yanlış" diye destek çağrısı üretirdi.
+                 * @example K7QP-3MXR
+                 */
+                code?: string | null;
+                /** Format: date-time */
+                expires_at?: string | null;
+                /** @description Kod var, süresi geçmemiş ve kasa iptal edilmemiş. */
+                usable: boolean;
+            };
+            /**
+             * @description **Kasanın BEYAN ettiği** sağlık. Sunucu hiçbirini doğrulayamaz;
+             *     fiş kuyruğu kasanın diskinde ve sunucuda karşılığı yok.
+             */
+            health: {
+                /** Format: date-time */
+                reported_at?: string | null;
+                /**
+                 * @description **Üç hâl ayrıdır:** `null` "kasa hiç bildirmedi", `false`
+                 *     "arızalı", `true` "sağlam". `null` ile `false`'u
+                 *     birleştirmek, yeni kurulan her kasa için var olmayan bir
+                 *     yazıcı arızası aratırdı.
+                 */
+                printer_ok?: boolean | null;
+                print_queue_pending?: number | null;
+                print_queue_failed?: number | null;
+                app_version?: string | null;
+            };
+            /**
+             * @description Yönetilen ayarlar **ve kilitler**. `updated_at` anahtarı burada
+             *     **yoktur**; damga nesnenin kendi `settings_updated_at` alanında
+             *     duruyor ve iki yerde taşımak sözleşmedeki anahtar listesine
+             *     yazılamayan bir anahtar daha eklerdi.
+             */
+            settings: components["schemas"]["KitchenSettings"];
+            /** Format: date-time */
+            settings_updated_at?: string | null;
+            /**
+             * @description Kasaya henüz teslim edilmemiş komut sayısı. Sonucu gelmeyen
+             *     komut 10 dakika sonra yeniden gönderilir.
+             */
+            pending_command_count: number;
+        };
+        /**
+         * @description Komut geçmişi satırı. `KitchenCommand` şeması kasaya **giden**
+         *     komuttur; bu ise Kontrol Merkezi'nin gördüğü **kayıttır** ve üç
+         *     damgayı da taşır.
+         */
+        ControlCommandLog: {
+            /** Format: int64 */
+            id: number;
+            /** @enum {string} */
+            command: "test_receipt" | "reprint" | "clear_failed" | "silence_alarm" | "restart";
+            /** @description `reprint` için `order_id` ve `type`; diğerlerinde boş. */
+            payload: {
+                [key: string]: unknown;
+            };
+            /**
+             * Format: date-time
+             * @description **Gönderildi mi?** — komut kuyruğa girdiği an.
+             */
+            created_at?: string | null;
+            /**
+             * Format: date-time
+             * @description **Kasaya ulaştı mı?** — sağlık yanıtına bindiği an.
+             */
+            delivered_at?: string | null;
+            /**
+             * Format: date-time
+             * @description **Çalıştı mı?** — kasanın sonucu bildirdiği an.
+             */
+            executed_at?: string | null;
+            /**
+             * @description Sonuç. `null` = kasa henüz bildirmedi. Tek bir "durum" alanı
+             *     "kasa aldı ama çalıştıramadı" hâlini anlatamazdı.
+             */
+            succeeded?: boolean | null;
+            result?: string | null;
+        };
+        /**
+         * @description Fiş **denetim** satırı — kuyruk değil (bkz. `GET /control/kds/print-jobs`).
+         *     Tekillik `(order_id, type, revision)` üçlüsüdür.
+         */
+        ControlPrintJob: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            order_id: number;
+            /**
+             * @description Sipariş silinmişse (`veykemtu:siparis-temizle`) **`null`**;
+             *     denetim satırı yerinde kalır, numara boşalır.
+             */
+            order_number?: string | null;
+            type: components["schemas"]["ReceiptType"];
+            /** @description K-20 öncesi satırlarda `0`: düzenlenmemiş siparişin ilk basımı. */
+            revision: number;
+            /** Format: date-time */
+            printed_at?: string | null;
+            /** Format: int64 */
+            device_id?: number | null;
+            device_name?: string | null;
+        };
+        /** @description Panel açılış özeti. **Sayılar tanımdır, tahmin değil.** */
+        ControlOverview: {
+            devices: {
+                /** @description Bütün kasalar — iptal edilmişler **dâhil**. */
+                total: number;
+                /** @description İptal edilmemiş ve son 3 dakika içinde görülmüş kasalar. */
+                online: number;
+                revoked: number;
+                /**
+                 * @description `printer_ok === false` olan **iptal edilmemiş** kasalar.
+                 *     **`null` SAYILMAZ:** hiç sağlık bildirmemiş bir kasa arızalı
+                 *     değil, sessizdir. İkisini toplamak yeni kurulan her kasayı
+                 *     arıza sayacına yazardı.
+                 */
+                printer_fault: number;
+                /**
+                 * @description Kasaların **beyan ettiği** bekleyen fiş sayısının toplamı.
+                 *     Sunucu doğrulayamaz — fiş kuyruğu kasanın diskinde.
+                 */
+                queue_pending: number;
+                queue_failed: number;
+            };
+            orders: {
+                /** @description Terminal olmayan siparişler. `by_status` toplamına eşittir. */
+                active: number;
+                /**
+                 * @description Aktif siparişlerin durum dağılımı.
+                 *
+                 *     **TERMİNAL KODLAR ANAHTAR OLARAK BULUNMAZ:**
+                 *     `teslim_edildi` ve `iptal` zaten aktif kümenin dışında ve
+                 *     her seferinde `0` dönerlerdi. Kalan beş kod ise sipariş
+                 *     yokken bile `0` ile durur — istemcinin eksik anahtar için
+                 *     savunma yazmasına gerek kalmasın.
+                 */
+                by_status: {
+                    yeni: number;
+                    onaylandi: number;
+                    hazirlaniyor: number;
+                    hazir: number;
+                    yolda: number;
+                };
+                /**
+                 * @description Bugün oluşturulan sipariş sayısı — **iptaller hariç**. Gün
+                 *     sınırı Europe/Istanbul: UTC gece yarısı kullanılsaydı
+                 *     00:00–03:00 arası siparişler "dün" sayılırdı ve catering'de
+                 *     gece siparişi olağan.
+                 */
+                today: number;
+                /**
+                 * @description **Planlanan teslim saati geçmiş ve hâlâ teslim edilmemiş**
+                 *     aktif sipariş. Sunucunun kendi başına bilebileceği tek
+                 *     dürüst tanım bu.
+                 *
+                 *     **Kasanın `late_after_minutes` eşiği KULLANILMAZ:** o eşik
+                 *     cihaz başına ayarlanıyor ve `null` bırakıldığında kasanın
+                 *     kendi derleme varsayılanı geçerli oluyor — sunucu o
+                 *     varsayılanı bilmiyor. İki kasanın farklı eşiği olduğunda
+                 *     "hangi kasanın gecikmesi" diye bir soru doğardı; oysa
+                 *     buradaki sayı **işletmenin tamamına** ait.
+                 *
+                 *     **"En kısa sürede" siparişler SAYILMAZ.** Planlanmış bir
+                 *     saati yoktur; onları saymak için bir bekleme eşiği uydurmak
+                 *     gerekirdi ve uydurulan her eşik yanlış bir alarm üretirdi.
+                 */
+                late: number;
+            };
+            print_jobs: {
+                /** @description İşletme günü içinde basıldığı bildirilen fiş sayısı. */
+                today: number;
+            };
+            /** Format: date-time */
+            server_time: string;
+        };
+        /** @description `OrderRevision` ile aynı, üstüne `created_by_device_id`. */
+        ControlOrderRevision: {
+            revision_no: number;
+            reason: string;
+            /**
+             * @description Merkezden yapılan revizyonlarda **ilk satır**
+             *     `Kontrol Merkezi · <actor>` etiketidir; personelin notu varsa
+             *     alt satıra yazılır.
+             */
+            note?: string | null;
+            refund_kurus?: components["schemas"]["Money"];
+            extra_charge_kurus?: components["schemas"]["Money"];
+            /**
+             * Format: int64
+             * @description Revizyonu yazan kasa. **`null` = Kontrol Merkezi'nden yapıldı**
+             *     (kasa yok). "Kasadan mı merkezden mi" ayrımı hem bu alandan hem
+             *     `note` etiketinden okunabilir.
+             */
+            created_by_device_id?: number | null;
+            /** Format: date-time */
+            created_at?: string | null;
+        };
+        /**
+         * @description Düzenleme ekranının ürün seçicisindeki kalem. `KitchenMenuItem`'in
+         *     aksine **fiyat ve seçenek kimlikleri taşır** — gerekçesi
+         *     `GET /control/kds/menu` açıklamasında.
+         */
+        ControlMenuItem: {
+            /** Format: int64 */
+            menu_id: number;
+            name: string;
+            price_kurus: components["schemas"]["Money"];
+            /** @description Mutfağın günlük kararı. Tükenmiş ürün listede kalır, işaretlenir. */
+            sold_out: boolean;
+            options: components["schemas"]["ControlMenuOption"][];
+        };
+        ControlMenuOption: {
+            /**
+             * Format: int64
+             * @description `menu_option_id`.
+             */
+            id: number;
+            name: string;
+            /** @description Görüntüleme tipi (`radio`, `checkbox`, `select`, `quantity`…). */
+            type?: string;
+            required?: boolean;
+            values: {
+                /**
+                 * Format: int64
+                 * @description `menu_option_value_id` — revizyon gövdesindeki
+                 *     `items[].option_value_ids` alanına **doğrudan
+                 *     konabilecek** kimlik (`LineResolver::resolve`). Yalnız adı
+                 *     döndürmek, seçeneğin kaydedilirken sessizce düşmesine yol
+                 *     açardı.
+                 */
+                id: number;
+                name: string;
+                /** @description Seçeneğin birim fiyata eklediği fark. */
+                price_delta_kurus: components["schemas"]["Money"];
+            }[];
+        };
     };
     responses: {
         /** @description Token yok veya geçersiz (`UNAUTHENTICATED`) */
@@ -3583,11 +5581,46 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /**
+         * @description Kontrol Merkezi imzası kabul edilmedi (`UNAUTHENTICATED`). Beş ayrı
+         *     sebep aynı kodu döner, ayrımı yalnız `message` taşır:
+         *
+         *     | `message` | Sebep |
+         *     |---|---|
+         *     | `İmza başlıkları eksik.` | Üç başlıktan biri yok |
+         *     | `İstek zaman penceresinin dışında.` | \|şimdi − timestamp\| > 300 sn |
+         *     | `Bu istek daha önce işlendi.` | Nonce tekrar kullanıldı |
+         *     | `İmza doğrulanamadı.` | HMAC tutmadı, timestamp rakam değil ya da nonce 16–128 aralığı dışında |
+         *     | `Kontrol Merkezi entegrasyonu yapılandırılmamış.` | `BLD_CONTROL_SECRET` boş |
+         *
+         *     **Denetim satırı YAZILMAZ** — istek kapıdan hiç geçmedi.
+         */
+        ControlUnauthenticated: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
     };
     parameters: {
         AppId: "website" | "musteriapp" | "mutfakapp";
         AppVersion: components["schemas"]["SemVer"];
         AcceptLanguage: string;
+        /**
+         * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+         *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+         *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+         */
+        ControlTimestamp: string;
+        /**
+         * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+         *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+         *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+         *     önbelleği şişiren bir istemciye kapı açardı.
+         */
+        ControlNonce: string;
         Page: number;
         PerPage: number;
     };
@@ -3602,6 +5635,7 @@ export type SchemaOrderStatus = components['schemas']['OrderStatus'];
 export type SchemaDeliveryType = components['schemas']['DeliveryType'];
 export type SchemaPaymentMethod = components['schemas']['PaymentMethod'];
 export type SchemaPaymentStatus = components['schemas']['PaymentStatus'];
+export type SchemaPaymentNextAction = components['schemas']['PaymentNextAction'];
 export type SchemaReceiptType = components['schemas']['ReceiptType'];
 export type SchemaErrorCode = components['schemas']['ErrorCode'];
 export type SchemaError = components['schemas']['Error'];
@@ -3609,14 +5643,17 @@ export type SchemaPaginationMeta = components['schemas']['PaginationMeta'];
 export type SchemaRegisterRequest = components['schemas']['RegisterRequest'];
 export type SchemaAuthResponse = components['schemas']['AuthResponse'];
 export type SchemaCustomer = components['schemas']['Customer'];
-export type SchemaAccountSummary = components['schemas']['AccountSummary'];
-export type SchemaAccountEntry = components['schemas']['AccountEntry'];
-export type SchemaAccountStatement = components['schemas']['AccountStatement'];
 export type SchemaSubscription = components['schemas']['Subscription'];
 export type SchemaSubscriptionLine = components['schemas']['SubscriptionLine'];
 export type SchemaSubscriptionDeliveryPoint = components['schemas']['SubscriptionDeliveryPoint'];
 export type SchemaSubscriptionCreate = components['schemas']['SubscriptionCreate'];
 export type SchemaSubscriptionExceptionInput = components['schemas']['SubscriptionExceptionInput'];
+export type SchemaSubscriptionException = components['schemas']['SubscriptionException'];
+export type SchemaSubscriptionPaymentSummary = components['schemas']['SubscriptionPaymentSummary'];
+export type SchemaSubscriptionContractSummary = components['schemas']['SubscriptionContractSummary'];
+export type SchemaContractStatus = components['schemas']['ContractStatus'];
+export type SchemaSubscriptionContract = components['schemas']['SubscriptionContract'];
+export type SchemaSubscriptionPayment = components['schemas']['SubscriptionPayment'];
 export type SchemaLocation = components['schemas']['Location'];
 export type SchemaLocationEta = components['schemas']['LocationEta'];
 export type SchemaEtaWindow = components['schemas']['EtaWindow'];
@@ -3664,6 +5701,18 @@ export type SchemaSitePost = components['schemas']['SitePost'];
 export type SchemaSiteContent = components['schemas']['SiteContent'];
 export type SchemaQuoteStatus = components['schemas']['QuoteStatus'];
 export type SchemaQuoteRequestInput = components['schemas']['QuoteRequestInput'];
+export type SchemaAnnouncement = components['schemas']['Announcement'];
+export type SchemaClientErrorReport = components['schemas']['ClientErrorReport'];
+export type SchemaControlIntent = components['schemas']['ControlIntent'];
+export type SchemaControlOrderIntent = components['schemas']['ControlOrderIntent'];
+export type SchemaControlWriteEnvelope = components['schemas']['ControlWriteEnvelope'];
+export type SchemaControlDevice = components['schemas']['ControlDevice'];
+export type SchemaControlCommandLog = components['schemas']['ControlCommandLog'];
+export type SchemaControlPrintJob = components['schemas']['ControlPrintJob'];
+export type SchemaControlOverview = components['schemas']['ControlOverview'];
+export type SchemaControlOrderRevision = components['schemas']['ControlOrderRevision'];
+export type SchemaControlMenuItem = components['schemas']['ControlMenuItem'];
+export type SchemaControlMenuOption = components['schemas']['ControlMenuOption'];
 export type ResponseUnauthenticated = components['responses']['Unauthenticated'];
 export type ResponseForbiddenOrRevoked = components['responses']['ForbiddenOrRevoked'];
 export type ResponseForbidden = components['responses']['Forbidden'];
@@ -3671,9 +5720,12 @@ export type ResponseNotFound = components['responses']['NotFound'];
 export type ResponseValidationFailed = components['responses']['ValidationFailed'];
 export type ResponseInvalidTransition = components['responses']['InvalidTransition'];
 export type ResponseRateLimited = components['responses']['RateLimited'];
+export type ResponseControlUnauthenticated = components['responses']['ControlUnauthenticated'];
 export type ParameterAppId = components['parameters']['AppId'];
 export type ParameterAppVersion = components['parameters']['AppVersion'];
 export type ParameterAcceptLanguage = components['parameters']['AcceptLanguage'];
+export type ParameterControlTimestamp = components['parameters']['ControlTimestamp'];
+export type ParameterControlNonce = components['parameters']['ControlNonce'];
 export type ParameterPage = components['parameters']['Page'];
 export type ParameterPerPage = components['parameters']['PerPage'];
 export type $defs = Record<string, never>;
@@ -4518,109 +6570,6 @@ export interface operations {
             422: components["responses"]["InvalidTransition"];
         };
     };
-    getAccountSummary: {
-        parameters: {
-            query?: never;
-            header: {
-                "X-App-Id": components["parameters"]["AppId"];
-                "X-App-Version": components["parameters"]["AppVersion"];
-                "Accept-Language": components["parameters"]["AcceptLanguage"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Güncel bakiye */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AccountSummary"];
-                };
-            };
-            401: components["responses"]["Unauthenticated"];
-        };
-    };
-    getAccountStatement: {
-        parameters: {
-            query?: {
-                /** @description Başlangıç tarihi (varsayılan 3 ay önce). */
-                from?: string;
-                /** @description Bitiş tarihi (varsayılan bugün). */
-                to?: string;
-            };
-            header: {
-                "X-App-Id": components["parameters"]["AppId"];
-                "X-App-Version": components["parameters"]["AppVersion"];
-                "Accept-Language": components["parameters"]["AcceptLanguage"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Ekstre */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AccountStatement"];
-                };
-            };
-            401: components["responses"]["Unauthenticated"];
-        };
-    };
-    startAccountPayment: {
-        parameters: {
-            query?: never;
-            header: {
-                "X-App-Id": components["parameters"]["AppId"];
-                "X-App-Version": components["parameters"]["AppVersion"];
-                "Accept-Language": components["parameters"]["AcceptLanguage"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description Ödenecek tutar (kuruş). `full` true ise yok sayılır. */
-                    amount?: number;
-                    /** @description true ise o anki borcun tamamı ödenir. */
-                    full?: boolean;
-                };
-            };
-        };
-        responses: {
-            /** @description Ödeme başlatıldı */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        payment_id: number;
-                        /** @description Ödenecek tutar (kuruş). */
-                        amount: number;
-                        /** @description İşlem başlatıldığı andaki borç (kuruş). */
-                        balance: number;
-                        /** @example TRY */
-                        currency: string;
-                        /** @enum {string} */
-                        status: "pending";
-                        /** Format: uri */
-                        redirect_url: string;
-                    };
-                };
-            };
-            401: components["responses"]["Unauthenticated"];
-            422: components["responses"]["ValidationFailed"];
-            429: components["responses"]["RateLimited"];
-        };
-    };
     listSubscriptions: {
         parameters: {
             query?: never;
@@ -4824,6 +6773,416 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["ValidationFailed"];
+        };
+    };
+    startSubscriptionPayment: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /**
+             * @description Aynı dönem için **zaten açık bir ödeme vardı**; yenisi
+             *     yaratılmadı, mevcut kayıt döndü.
+             *
+             *     İkinci bir kayıt açsaydık geri dönüp tekrar deneyen abone iki
+             *     ödeme kaydı bırakır, ikisi de sağlayıcıda ayrı ayrı yaşar ve
+             *     biri gecikmeli başarıya dönerse aynı dönem iki kez tahsil
+             *     edilirdi.
+             */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionPayment"];
+                };
+            };
+            /** @description Ödeme başlatıldı */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionPayment"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+            /**
+             * @description Abonelik ödemeye hazır değil — fiyatı girilmemiş, sözleşmesi
+             *     onaylanmamış (`awaiting_contract`), iptal edilmiş, ya da dönem
+             *     zaten ödenmiş.
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    getSubscriptionPayment: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+                paymentId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ödeme */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionPayment"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    confirmSubscriptionPayment: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+                paymentId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example 482913 */
+                    code: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Onaylandı ya da sonuç güncellendi */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionPayment"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+            /** @description Kod hatalı, süresi dolmuş ya da ödeme onay bekleyen durumda değil. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    getContract: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                /**
+                 * @description İmzalı, süreli sözleşme bağlantısının belirteci. Aboneye SMS ile
+                 *     gider. Tahmin edilemez ve **kayıt kimliği taşımaz** — sıralı bir
+                 *     kimlik olsaydı bir bağlantıyı eline geçiren, komşu numaraları
+                 *     deneyerek başkalarının sözleşmelerini okuyabilirdi.
+                 */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sözleşme */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SubscriptionContract"];
+                    };
+                };
+            };
+            /**
+             * @description Belirteç tanınmadı. **Süresi dolmuş bağlantıdan ayrıdır** —
+             *     burada gerçekten böyle bir sözleşme yok.
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    requestContractOtp: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description İstek alındı (sözleşme onaya uygunsa SMS gönderildi) */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message: string;
+                        /**
+                         * @description Kodun ömrü (saniye).
+                         * @example 300
+                         */
+                        expires_in: number;
+                        /**
+                         * @description Yeni kod için beklenecek süre (saniye).
+                         * @example 60
+                         */
+                        resend_after: number;
+                    };
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description Sözleşme onaya uygun durumda değil (`approved`, `expired`, `cancelled`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    approveContract: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example 482913 */
+                    code: string;
+                    /**
+                     * @description Onaylayan kişinin beyan ettiği ad soyad. Zorunlu
+                     *     değildir; onayın kimin elinden geçtiğini belgeye
+                     *     yazmak için alınır, doğrulanmaz.
+                     */
+                    full_name?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Onaylandı */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SubscriptionContract"];
+                    };
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description Kod hatalı/süresi dolmuş ya da sözleşme onaya uygun durumda değil. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    listAnnouncements: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Yalnız bu yerleşimdeki duyuruları döndür. Verilmezse müşterinin
+                 *     o an görmesi gereken **tüm** duyurular döner.
+                 *
+                 *     Yerleşim kümesi panelde büyüyor; bilinmeyen bir değer `422`
+                 *     değil, **boş liste** döndürür. Sözleşmede olmayan bir yerleşimi
+                 *     soran istemcinin ekranı hata vermek yerine duyurusuz açılmalıdır.
+                 */
+                placement?: string;
+            };
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Duyurular */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Announcement"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    markAnnouncementSeen: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description İşaretlendi */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    dismissAnnouncement: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Kapatıldı */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+            /** @description Duyuru kapatılabilir değil (`dismissible` yanlış). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    reportClientError: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-App-Id": components["parameters"]["AppId"];
+                "X-App-Version": components["parameters"]["AppVersion"];
+                "Accept-Language": components["parameters"]["AcceptLanguage"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientErrorReport"];
+            };
+        };
+        responses: {
+            /**
+             * @description Alındı. Gövde dönmez — istemcinin okuyacağı bir şey yok ve
+             *     hata yolunda ek ayrıştırma yapmaması gerekir.
+             */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["RateLimited"];
         };
     };
     registerPushToken: {
@@ -5399,6 +7758,25 @@ export interface operations {
                         /** Format: int64 */
                         menu_id: number;
                         quantity: number;
+                        /**
+                         * @description Kalemde seçili seçenek değerlerinin kimlikleri.
+                         *     `options` aynı seçeneklerin insana gösterilen
+                         *     adlarıdır; ikisi eşleniktir. İstemci düzenlemede
+                         *     bunu `GET .../editable` yanıtındaki
+                         *     `items[].option_value_ids` alanından **AYNEN geri
+                         *     göndermelidir** — göndermezse sunucu satırı
+                         *     seçeneksiz yeniden fiyatlar ve seçenek sessizce
+                         *     kaybolur. Kimlik kaydı bulunmayan eski satırlarda
+                         *     `editable` **boş dizi** döner.
+                         *
+                         *     Değerler `menu_option_value_id`'dir
+                         *     (`LineResolver::resolve`); ürün seçicideki
+                         *     `options[].values[].id` alanı da aynı kimliği
+                         *     taşır.
+                         *
+                         *     `required` listesinde **yoktur**: alan sonradan
+                         *     eklendi ve seçeneksiz ürünlerde hiç gönderilmez.
+                         */
                         option_value_ids?: number[];
                         note?: string | null;
                     }[];
@@ -5827,6 +8205,13 @@ export interface operations {
                          * @description Yalnızca `mutfakapp` için dolu (`.deb` adresi).
                          */
                         download_url?: string | null;
+                        /** @description İndirilen `.deb`'in beklenen SHA-256 özeti. Kasa paketi kurmadan önce bununla doğrular; tutmazsa kurulum yapılmaz ve eski sürümde kalınır. Boşsa doğrulama atlanır — özeti girilmemiş bir kayıt, sahadaki kasayı kilitlememeli. */
+                        sha256?: string | null;
+                        /**
+                         * Format: int64
+                         * @description Paketin beklenen boyutu; yarım inen indirme için ucuz eleme.
+                         */
+                        size_bytes?: number | null;
                         notes?: string | null;
                     };
                 };
@@ -5844,6 +8229,895 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+        };
+    };
+    controlKdsOverview: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Özet */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlOverview"];
+                };
+            };
+            401: components["responses"]["ControlUnauthenticated"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    controlKdsListDevices: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Kasalar */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ControlDevice"][];
+                        /** Format: date-time */
+                        server_time: string;
+                    };
+                };
+            };
+            401: components["responses"]["ControlUnauthenticated"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    controlKdsCreateDevice: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ControlIntent"] & {
+                    name: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Kasa açıldı (ya da kuru prova sonucu) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlWriteEnvelope"] & {
+                        device?: components["schemas"]["ControlDevice"];
+                        would?: {
+                            /** @constant */
+                            action?: "device.create";
+                            name?: string;
+                            /** @example 10 */
+                            pairing_ttl_minutes?: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["ControlUnauthenticated"];
+            422: components["responses"]["ValidationFailed"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    controlKdsRenameDevice: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ControlIntent"] & {
+                    name: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Ad değişti (ya da kuru prova sonucu) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlWriteEnvelope"] & {
+                        device?: components["schemas"]["ControlDevice"];
+                        would?: {
+                            /** @constant */
+                            action?: "device.rename";
+                            from?: string;
+                            to?: string;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["ControlUnauthenticated"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    controlKdsRefreshPairingCode: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ControlIntent"];
+            };
+        };
+        responses: {
+            /** @description Yeni kod (ya da kuru prova sonucu) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlWriteEnvelope"] & {
+                        device?: components["schemas"]["ControlDevice"];
+                        would?: {
+                            /** @constant */
+                            action?: "device.pairing_code";
+                            /** Format: int64 */
+                            device_id?: number;
+                            /** @example 10 */
+                            pairing_ttl_minutes?: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["ControlUnauthenticated"];
+            404: components["responses"]["NotFound"];
+            /**
+             * @description Doğrulama hatası ya da kasa **iptal edilmiş**. Denetim satırı
+             *     yine yazılır: gerçek gönderimde `result = "failed"`, kuru
+             *     provada `result = "dry_run"` kalır ve sebep
+             *     `payload_json.error` alanına düşer.
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    controlKdsRevokeDevice: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ControlIntent"];
+            };
+        };
+        responses: {
+            /** @description İptal edildi (ya da kuru prova sonucu) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlWriteEnvelope"] & {
+                        device?: components["schemas"]["ControlDevice"];
+                        would?: {
+                            /** @constant */
+                            action?: "device.revoke";
+                            /** Format: int64 */
+                            device_id?: number;
+                            already_revoked?: boolean;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["ControlUnauthenticated"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    controlKdsUpdateDeviceSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ControlIntent"] & {
+                    settings: components["schemas"]["KitchenSettings"] & Record<string, never>;
+                };
+            };
+        };
+        responses: {
+            /** @description Ayarlar yazıldı (ya da kuru prova sonucu) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlWriteEnvelope"] & {
+                        device?: components["schemas"]["ControlDevice"];
+                        would?: {
+                            /** @constant */
+                            action?: "device.settings";
+                            /** Format: int64 */
+                            device_id?: number;
+                            /**
+                             * @description İsteğin **tanınan** anahtarları, ham hâliyle.
+                             *     Kırpma burada uygulanmaz; kırpılacak bir değer
+                             *     zaten `422` alırdı.
+                             */
+                            settings?: {
+                                [key: string]: unknown;
+                            };
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["ControlUnauthenticated"];
+            404: components["responses"]["NotFound"];
+            /**
+             * @description Tanınmayan anahtar, boş `settings` nesnesi, sınır dışı değer ya
+             *     da tip hatası (`VALIDATION_FAILED`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    controlKdsListDeviceCommands: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Komutlar */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ControlCommandLog"][];
+                        /** Format: date-time */
+                        server_time: string;
+                    };
+                };
+            };
+            401: components["responses"]["ControlUnauthenticated"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    controlKdsSendDeviceCommand: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ControlIntent"] & {
+                    /** @enum {string} */
+                    command: "test_receipt" | "reprint" | "clear_failed" | "silence_alarm" | "restart";
+                    /** @description Yalnız `reprint` için zorunlu. */
+                    payload?: {
+                        /** Format: int64 */
+                        order_id?: number;
+                        type?: components["schemas"]["ReceiptType"];
+                    } | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Komut kuyruğa girdi (ya da kuru prova sonucu) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlWriteEnvelope"] & {
+                        command?: {
+                            /** Format: int64 */
+                            id: number;
+                            command: string;
+                            payload: {
+                                [key: string]: unknown;
+                            };
+                            /** Format: date-time */
+                            created_at?: string | null;
+                        };
+                        /**
+                         * @description Komutun kasaya en geç ne kadar sürede varacağı —
+                         *     cihazın `health_seconds` ayarı.
+                         */
+                        arrives_within_seconds?: number;
+                        would?: {
+                            /** @constant */
+                            action?: "device.command";
+                            /** Format: int64 */
+                            device_id?: number;
+                            command?: string;
+                            payload?: {
+                                [key: string]: unknown;
+                            } | null;
+                            arrives_within_seconds?: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["ControlUnauthenticated"];
+            404: components["responses"]["NotFound"];
+            /** @description Tanımsız komut, yüksüz `reprint` ya da **iptal edilmiş kasa**. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    controlKdsListPrintJobs: {
+        parameters: {
+            query?: {
+                device_id?: number;
+                order_id?: number;
+                /**
+                 * @description Tavan **200**: denetim ekranı sayfalıyor ve sınırsız bir liste yıl
+                 *     sonunda on binlerce satır döndürürdü.
+                 */
+                limit?: number;
+            };
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Fiş kayıtları */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ControlPrintJob"][];
+                        /** Format: date-time */
+                        server_time: string;
+                    };
+                };
+            };
+            401: components["responses"]["ControlUnauthenticated"];
+            422: components["responses"]["ValidationFailed"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    controlKdsListOrders: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Artımlı imleç. **Durum değişimlerini de yakalar** (`updated_at`
+                 *     üzerinden); yalnız yeni siparişleri isteyen bir imleç, düzenlenmiş
+                 *     bir siparişi kaçırırdı.
+                 */
+                since?: string;
+                /**
+                 * @description Terminal siparişleri de getir. **`boolean` değil `string` enum:**
+                 *     sorgu dizesinde boolean ancak metin olarak ifade edilebilir ve
+                 *     Laravel'in `boolean` kuralı `"true"` dizgesini reddeder. Aynı hata
+                 *     mutfak ucunda KDS'i kör etmişti.
+                 */
+                include_completed?: "1" | "0" | "true" | "false";
+            };
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Siparişler */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["KitchenOrder"][];
+                        /** Format: date-time */
+                        server_time: string;
+                    };
+                };
+            };
+            401: components["responses"]["ControlUnauthenticated"];
+            422: components["responses"]["ValidationFailed"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    controlKdsShowOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sipariş */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EditableOrder"];
+                        /** Format: date-time */
+                        server_time: string;
+                    };
+                };
+            };
+            401: components["responses"]["ControlUnauthenticated"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    controlKdsListOrderRevisions: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revizyonlar */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ControlOrderRevision"][];
+                    };
+                };
+            };
+            401: components["responses"]["ControlUnauthenticated"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    controlKdsCreateOrderRevision: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ControlOrderIntent"] & {
+                    note?: string | null;
+                    items: {
+                        /** Format: int64 */
+                        menu_id: number;
+                        quantity: number;
+                        /**
+                         * @description `GET /control/kds/orders/{id}` yanıtındaki
+                         *     `items[].option_value_ids` **aynen geri
+                         *     gönderilir**; gönderilmezse sunucu satırı
+                         *     seçeneksiz yeniden fiyatlar ve seçenek
+                         *     sessizce kaybolur. Kimlikler ürün seçicideki
+                         *     `options[].values[].id` ile aynı uzaydadır.
+                         */
+                        option_value_ids?: number[];
+                        note?: string | null;
+                    }[];
+                    /** Format: date-time */
+                    requested_at?: string | null;
+                    customer_note?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Revizyon uygulandı (ya da kuru prova sonucu) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlWriteEnvelope"] & {
+                        order?: components["schemas"]["KitchenOrder"];
+                        revision?: components["schemas"]["OrderRevisionResult"];
+                        would?: {
+                            /** @constant */
+                            action?: "order.revise";
+                            /** Format: int64 */
+                            order_id?: number;
+                            next_revision_no?: number;
+                            items?: {
+                                [key: string]: unknown;
+                            }[];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["ControlUnauthenticated"];
+            404: components["responses"]["NotFound"];
+            /**
+             * @description Düzenlenemez sipariş (teslim edilmiş / iptal), boş kalem listesi,
+             *     160 karakteri aşan gerekçe ya da doğrulama hatası.
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    controlKdsSetOrderStatus: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ControlOrderIntent"] & {
+                    status: components["schemas"]["OrderStatus"];
+                };
+            };
+        };
+        responses: {
+            /** @description Durum değişti (ya da kuru prova sonucu) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlWriteEnvelope"] & {
+                        order?: components["schemas"]["KitchenOrder"];
+                        would?: {
+                            /** @constant */
+                            action?: "order.status";
+                            /** Format: int64 */
+                            order_id?: number;
+                            from?: components["schemas"]["OrderStatus"];
+                            to?: components["schemas"]["OrderStatus"];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["ControlUnauthenticated"];
+            404: components["responses"]["NotFound"];
+            /**
+             * @description Geçersiz geçiş (`INVALID_TRANSITION`) ya da doğrulama hatası
+             *     (`VALIDATION_FAILED`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    controlKdsMenu: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description İsteğin imzalandığı an, **UNIX saniye** (yalnız rakam). Sunucu
+                 *     saatinden ±300 saniyeden fazla sapan istek `401` alır. Kanonik
+                 *     yükün üçüncü satırıdır — bkz. `ControlSignature`.
+                 */
+                "X-Control-Timestamp": components["parameters"]["ControlTimestamp"];
+                /**
+                 * @description İsteğe özgü rastgele dize. **Aynı nonce ikinci kez kabul edilmez**
+                 *     (600 saniye hatırlanır) — tekrar saldırısına karşı tek gerçek
+                 *     koruma budur. Uzunluk sınırı 16–128 karakter: sınırsız bir nonce,
+                 *     önbelleği şişiren bir istemciye kapı açardı.
+                 */
+                "X-Control-Nonce": components["parameters"]["ControlNonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ürünler */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ControlMenuItem"][];
+                        /** Format: date-time */
+                        server_time: string;
+                    };
+                };
+            };
+            401: components["responses"]["ControlUnauthenticated"];
+            429: components["responses"]["RateLimited"];
         };
     };
 }
