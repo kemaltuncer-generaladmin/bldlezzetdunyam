@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
+use Veykemtu\BridgeApi\Models\AppRelease;
 
 /**
  * Sürüm ucu — `docs/openapi.yaml` §Sürüm.
@@ -34,14 +35,13 @@ class AppVersionController extends ApiController
 
         $appId = $data['app_id'];
 
+        // Göç henüz koşmamış bir kurulumda uç 500 vermemeli: burası kimlik
+        // istemeyen genel bir uç ve her istemci açılışta çağırıyor.
         if (!DB::getSchemaBuilder()->hasTable('veykemtu_app_releases')) {
             return $this->json($this->fallback($appId));
         }
 
-        $release = DB::table('veykemtu_app_releases')
-            ->where('app_id', $appId)
-            ->orderByDesc('released_at')
-            ->first();
+        $release = AppRelease::latestFor($appId);
 
         if ($release === null) {
             return $this->json($this->fallback($appId));
@@ -54,6 +54,13 @@ class AppVersionController extends ApiController
             'download_url' => $release->download_url !== null
                 ? (string) $release->download_url
                 : null,
+            // Kasa indirdiği `.deb`'i bununla doğruluyor (`AppUpdater`).
+            // Boş kalabilir: sürüm kaydında özet girilmemişse kasa
+            // doğrulamayı atlar ama kurulumu reddetmez — özeti olmayan eski
+            // bir kaydın sahadaki kasayı kilitlemesi, çözdüğünden çok sorun
+            // çıkarırdı.
+            'sha256' => $release->sha256 !== null ? (string) $release->sha256 : null,
+            'size_bytes' => $release->size_bytes,
             'notes' => $release->notes !== null ? (string) $release->notes : null,
         ]);
     }
@@ -66,6 +73,10 @@ class AppVersionController extends ApiController
             'latest' => self::FALLBACK_VERSION,
             'min_supported' => self::FALLBACK_VERSION,
             'download_url' => null,
+            // Yanıtın BİÇİMİ her dalda aynı olmalı: istemci "alan yok" ile
+            // "alan boş" arasında ayrım yapmak zorunda kalmasın.
+            'sha256' => null,
+            'size_bytes' => null,
             'notes' => 'Sürüm kaydı henüz girilmedi.',
         ];
     }

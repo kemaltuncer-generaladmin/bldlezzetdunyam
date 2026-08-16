@@ -12,6 +12,7 @@ import 'package:mutfakapp/src/sound/alarm_player.dart';
 import 'package:mutfakapp/src/printing/print_queue.dart';
 
 import 'fake_unlock_store.dart';
+import 'fake_update_check.dart';
 import 'unlock_helper.dart';
 import 'fake_device_session_store.dart';
 import 'fake_kitchen_service.dart';
@@ -60,6 +61,9 @@ Future<FakeDeviceSessionStore> pumpPairing(
         // gerçek oynatıcı alt süreç açar ve asılı zamanlayıcı bırakır.
         connectionAlarmPlayerProvider.overrideWithValue(SilentAlarmPlayer()),
         unlockStoreProvider.overrideWithValue(FakeUnlockStore()),
+        // Saatlik sürüm denetimi ağ isteği açıyor ve HTTP zaman aşımı
+        // zamanlayıcısı test bittikten sonra asılı kalıyor.
+        updateCheckProvider.overrideWith(FakeUpdateCheck.new),
       ],
       child: const MutfakApp(),
     ),

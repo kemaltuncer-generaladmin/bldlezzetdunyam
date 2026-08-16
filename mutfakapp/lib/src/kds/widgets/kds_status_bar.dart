@@ -15,6 +15,7 @@ import '../../data/providers.dart';
 import '../../l10n/app_localizations.dart';
 import '../../settings/lock_ui.dart';
 import '../../settings/settings_screen.dart';
+import '../../update/update_badge.dart';
 import '../../window/kiosk_window.dart';
 import '../kds_screen.dart';
 import 'actions_sheet.dart';
@@ -95,6 +96,9 @@ class KdsStatusBar extends ConsumerWidget {
           // Kilit rozeti: personel neden bazı düğmelerin kapalı olduğunu
           // tek bakışta anlasın. Kilit yoksa hiç çizilmez.
           const LockBadge(),
+          // Güncelleme rozeti: saatlik denetim yeni sürüm bulduğunda çıkar,
+          // kurulumu başlatmaz (docs/05 §9). Güncelleme yoksa çizilmez.
+          const UpdateBadge(),
           const _BusyToggle(),
           const SizedBox(width: BldSpacing.lg),
           const _Clock(),

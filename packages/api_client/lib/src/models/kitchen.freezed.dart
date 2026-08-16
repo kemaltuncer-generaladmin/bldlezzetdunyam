@@ -4491,7 +4491,14 @@ as DateTime,
 mixin _$AppVersionInfo {
 
  String get appId; String get latest; String get minSupported;/// Yalnızca `mutfakapp` için dolu (`.deb` adresi).
- String? get downloadUrl; String? get notes;
+ String? get downloadUrl;/// İndirilen `.deb`'in beklenen SHA-256 özeti.
+///
+/// Kasa paketi kurmadan önce bununla doğrular (`AppUpdater`); tutmazsa
+/// kurulum yapılmaz ve eski sürümde kalınır. `null` ise doğrulama
+/// ATLANIR, kurulum reddedilmez: özeti girilmemiş bir sürüm kaydının
+/// sahadaki kasayı kilitlemesi, çözdüğünden çok sorun çıkarırdı.
+ String? get sha256;/// Paketin beklenen boyutu — yarım inen indirme için ucuz eleme.
+ int? get sizeBytes; String? get notes;
 /// Create a copy of AppVersionInfo
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -4504,16 +4511,16 @@ $AppVersionInfoCopyWith<AppVersionInfo> get copyWith => _$AppVersionInfoCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppVersionInfo&&(identical(other.appId, appId) || other.appId == appId)&&(identical(other.latest, latest) || other.latest == latest)&&(identical(other.minSupported, minSupported) || other.minSupported == minSupported)&&(identical(other.downloadUrl, downloadUrl) || other.downloadUrl == downloadUrl)&&(identical(other.notes, notes) || other.notes == notes));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppVersionInfo&&(identical(other.appId, appId) || other.appId == appId)&&(identical(other.latest, latest) || other.latest == latest)&&(identical(other.minSupported, minSupported) || other.minSupported == minSupported)&&(identical(other.downloadUrl, downloadUrl) || other.downloadUrl == downloadUrl)&&(identical(other.sha256, sha256) || other.sha256 == sha256)&&(identical(other.sizeBytes, sizeBytes) || other.sizeBytes == sizeBytes)&&(identical(other.notes, notes) || other.notes == notes));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,appId,latest,minSupported,downloadUrl,notes);
+int get hashCode => Object.hash(runtimeType,appId,latest,minSupported,downloadUrl,sha256,sizeBytes,notes);
 
 @override
 String toString() {
-  return 'AppVersionInfo(appId: $appId, latest: $latest, minSupported: $minSupported, downloadUrl: $downloadUrl, notes: $notes)';
+  return 'AppVersionInfo(appId: $appId, latest: $latest, minSupported: $minSupported, downloadUrl: $downloadUrl, sha256: $sha256, sizeBytes: $sizeBytes, notes: $notes)';
 }
 
 
@@ -4524,7 +4531,7 @@ abstract mixin class $AppVersionInfoCopyWith<$Res>  {
   factory $AppVersionInfoCopyWith(AppVersionInfo value, $Res Function(AppVersionInfo) _then) = _$AppVersionInfoCopyWithImpl;
 @useResult
 $Res call({
- String appId, String latest, String minSupported, String? downloadUrl, String? notes
+ String appId, String latest, String minSupported, String? downloadUrl, String? sha256, int? sizeBytes, String? notes
 });
 
 
@@ -4541,13 +4548,15 @@ class _$AppVersionInfoCopyWithImpl<$Res>
 
 /// Create a copy of AppVersionInfo
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? appId = null,Object? latest = null,Object? minSupported = null,Object? downloadUrl = freezed,Object? notes = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? appId = null,Object? latest = null,Object? minSupported = null,Object? downloadUrl = freezed,Object? sha256 = freezed,Object? sizeBytes = freezed,Object? notes = freezed,}) {
   return _then(_self.copyWith(
 appId: null == appId ? _self.appId : appId // ignore: cast_nullable_to_non_nullable
 as String,latest: null == latest ? _self.latest : latest // ignore: cast_nullable_to_non_nullable
 as String,minSupported: null == minSupported ? _self.minSupported : minSupported // ignore: cast_nullable_to_non_nullable
 as String,downloadUrl: freezed == downloadUrl ? _self.downloadUrl : downloadUrl // ignore: cast_nullable_to_non_nullable
-as String?,notes: freezed == notes ? _self.notes : notes // ignore: cast_nullable_to_non_nullable
+as String?,sha256: freezed == sha256 ? _self.sha256 : sha256 // ignore: cast_nullable_to_non_nullable
+as String?,sizeBytes: freezed == sizeBytes ? _self.sizeBytes : sizeBytes // ignore: cast_nullable_to_non_nullable
+as int?,notes: freezed == notes ? _self.notes : notes // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }
@@ -4633,10 +4642,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String appId,  String latest,  String minSupported,  String? downloadUrl,  String? notes)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String appId,  String latest,  String minSupported,  String? downloadUrl,  String? sha256,  int? sizeBytes,  String? notes)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AppVersionInfo() when $default != null:
-return $default(_that.appId,_that.latest,_that.minSupported,_that.downloadUrl,_that.notes);case _:
+return $default(_that.appId,_that.latest,_that.minSupported,_that.downloadUrl,_that.sha256,_that.sizeBytes,_that.notes);case _:
   return orElse();
 
 }
@@ -4654,10 +4663,10 @@ return $default(_that.appId,_that.latest,_that.minSupported,_that.downloadUrl,_t
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String appId,  String latest,  String minSupported,  String? downloadUrl,  String? notes)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String appId,  String latest,  String minSupported,  String? downloadUrl,  String? sha256,  int? sizeBytes,  String? notes)  $default,) {final _that = this;
 switch (_that) {
 case _AppVersionInfo():
-return $default(_that.appId,_that.latest,_that.minSupported,_that.downloadUrl,_that.notes);case _:
+return $default(_that.appId,_that.latest,_that.minSupported,_that.downloadUrl,_that.sha256,_that.sizeBytes,_that.notes);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -4674,10 +4683,10 @@ return $default(_that.appId,_that.latest,_that.minSupported,_that.downloadUrl,_t
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String appId,  String latest,  String minSupported,  String? downloadUrl,  String? notes)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String appId,  String latest,  String minSupported,  String? downloadUrl,  String? sha256,  int? sizeBytes,  String? notes)?  $default,) {final _that = this;
 switch (_that) {
 case _AppVersionInfo() when $default != null:
-return $default(_that.appId,_that.latest,_that.minSupported,_that.downloadUrl,_that.notes);case _:
+return $default(_that.appId,_that.latest,_that.minSupported,_that.downloadUrl,_that.sha256,_that.sizeBytes,_that.notes);case _:
   return null;
 
 }
@@ -4689,7 +4698,7 @@ return $default(_that.appId,_that.latest,_that.minSupported,_that.downloadUrl,_t
 @JsonSerializable()
 
 class _AppVersionInfo implements AppVersionInfo {
-  const _AppVersionInfo({required this.appId, required this.latest, required this.minSupported, this.downloadUrl, this.notes});
+  const _AppVersionInfo({required this.appId, required this.latest, required this.minSupported, this.downloadUrl, this.sha256, this.sizeBytes, this.notes});
   factory _AppVersionInfo.fromJson(Map<String, dynamic> json) => _$AppVersionInfoFromJson(json);
 
 @override final  String appId;
@@ -4697,6 +4706,15 @@ class _AppVersionInfo implements AppVersionInfo {
 @override final  String minSupported;
 /// Yalnızca `mutfakapp` için dolu (`.deb` adresi).
 @override final  String? downloadUrl;
+/// İndirilen `.deb`'in beklenen SHA-256 özeti.
+///
+/// Kasa paketi kurmadan önce bununla doğrular (`AppUpdater`); tutmazsa
+/// kurulum yapılmaz ve eski sürümde kalınır. `null` ise doğrulama
+/// ATLANIR, kurulum reddedilmez: özeti girilmemiş bir sürüm kaydının
+/// sahadaki kasayı kilitlemesi, çözdüğünden çok sorun çıkarırdı.
+@override final  String? sha256;
+/// Paketin beklenen boyutu — yarım inen indirme için ucuz eleme.
+@override final  int? sizeBytes;
 @override final  String? notes;
 
 /// Create a copy of AppVersionInfo
@@ -4712,16 +4730,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppVersionInfo&&(identical(other.appId, appId) || other.appId == appId)&&(identical(other.latest, latest) || other.latest == latest)&&(identical(other.minSupported, minSupported) || other.minSupported == minSupported)&&(identical(other.downloadUrl, downloadUrl) || other.downloadUrl == downloadUrl)&&(identical(other.notes, notes) || other.notes == notes));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppVersionInfo&&(identical(other.appId, appId) || other.appId == appId)&&(identical(other.latest, latest) || other.latest == latest)&&(identical(other.minSupported, minSupported) || other.minSupported == minSupported)&&(identical(other.downloadUrl, downloadUrl) || other.downloadUrl == downloadUrl)&&(identical(other.sha256, sha256) || other.sha256 == sha256)&&(identical(other.sizeBytes, sizeBytes) || other.sizeBytes == sizeBytes)&&(identical(other.notes, notes) || other.notes == notes));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,appId,latest,minSupported,downloadUrl,notes);
+int get hashCode => Object.hash(runtimeType,appId,latest,minSupported,downloadUrl,sha256,sizeBytes,notes);
 
 @override
 String toString() {
-  return 'AppVersionInfo(appId: $appId, latest: $latest, minSupported: $minSupported, downloadUrl: $downloadUrl, notes: $notes)';
+  return 'AppVersionInfo(appId: $appId, latest: $latest, minSupported: $minSupported, downloadUrl: $downloadUrl, sha256: $sha256, sizeBytes: $sizeBytes, notes: $notes)';
 }
 
 
@@ -4732,7 +4750,7 @@ abstract mixin class _$AppVersionInfoCopyWith<$Res> implements $AppVersionInfoCo
   factory _$AppVersionInfoCopyWith(_AppVersionInfo value, $Res Function(_AppVersionInfo) _then) = __$AppVersionInfoCopyWithImpl;
 @override @useResult
 $Res call({
- String appId, String latest, String minSupported, String? downloadUrl, String? notes
+ String appId, String latest, String minSupported, String? downloadUrl, String? sha256, int? sizeBytes, String? notes
 });
 
 
@@ -4749,13 +4767,15 @@ class __$AppVersionInfoCopyWithImpl<$Res>
 
 /// Create a copy of AppVersionInfo
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? appId = null,Object? latest = null,Object? minSupported = null,Object? downloadUrl = freezed,Object? notes = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? appId = null,Object? latest = null,Object? minSupported = null,Object? downloadUrl = freezed,Object? sha256 = freezed,Object? sizeBytes = freezed,Object? notes = freezed,}) {
   return _then(_AppVersionInfo(
 appId: null == appId ? _self.appId : appId // ignore: cast_nullable_to_non_nullable
 as String,latest: null == latest ? _self.latest : latest // ignore: cast_nullable_to_non_nullable
 as String,minSupported: null == minSupported ? _self.minSupported : minSupported // ignore: cast_nullable_to_non_nullable
 as String,downloadUrl: freezed == downloadUrl ? _self.downloadUrl : downloadUrl // ignore: cast_nullable_to_non_nullable
-as String?,notes: freezed == notes ? _self.notes : notes // ignore: cast_nullable_to_non_nullable
+as String?,sha256: freezed == sha256 ? _self.sha256 : sha256 // ignore: cast_nullable_to_non_nullable
+as String?,sizeBytes: freezed == sizeBytes ? _self.sizeBytes : sizeBytes // ignore: cast_nullable_to_non_nullable
+as int?,notes: freezed == notes ? _self.notes : notes // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }

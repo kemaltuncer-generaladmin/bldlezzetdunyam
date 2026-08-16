@@ -28,6 +28,7 @@ import 'package:mutfakapp/src/sound/tts_announcer.dart';
 
 import 'fake_kds_settings_store.dart';
 import 'fake_unlock_store.dart';
+import 'fake_update_check.dart';
 import 'unlock_helper.dart';
 import 'fake_device_session_store.dart';
 import 'fake_kitchen_service.dart';
@@ -111,6 +112,9 @@ Future<void> pumpKds(
         // gerçek oynatıcı alt süreç açar ve asılı zamanlayıcı bırakır.
         connectionAlarmPlayerProvider.overrideWithValue(SilentAlarmPlayer()),
         unlockStoreProvider.overrideWithValue(store ?? FakeUnlockStore()),
+        // Saatlik sürüm denetimi ağ isteği açıyor ve HTTP zaman aşımı
+        // zamanlayıcısı test bittikten sonra asılı kalıyor.
+        updateCheckProvider.overrideWith(FakeUpdateCheck.new),
         printerDeviceProvider.overrideWithValue(_NullPrinter()),
         kitchenServiceProvider.overrideWithValue(kitchenService),
         // Ayar deposu her testte sahtedir: gerçek `shared_preferences`

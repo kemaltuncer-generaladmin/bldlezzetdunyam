@@ -33,6 +33,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:bld_api_client/bld_api_client.dart';
+import 'package:crypto/crypto.dart';
 
 /// Bir dış sürecin sonucu — testte sahtelenir.
 class ProcessResultLite {
@@ -135,7 +136,7 @@ class AppUpdater {
       scratch = await workDir.createTemp('mutfakapp-guncelleme-');
 
       final bytes = await _download(uri);
-      final gecersiz = _verify(bytes);
+      final gecersiz = _verify(bytes, info);
       if (gecersiz != null) return gecersiz;
 
       final deb = File('${scratch.path}/paket.deb');
@@ -182,8 +183,12 @@ class AppUpdater {
     return null;
   }
 
-  /// İndirilen baytların bir `.deb` olduğunu sınar. Sorun varsa gerekçe.
-  String? _verify(Uint8List bytes) {
+  /// İndirilen baytları sınar. Sorun varsa gerekçe, temizse `null`.
+  ///
+  /// SIRA UCUZDAN PAHALIYA: boyut ve imza kontrolü birkaç bayta bakar,
+  /// SHA-256 ise paketin tamamını okur. Bozuk bir indirmede özet
+  /// hesaplamaya hiç gerek kalmadan çıkılır.
+  String? _verify(Uint8List bytes, AppVersionInfo info) {
     if (bytes.isEmpty) {
       return 'Kurulum dosyası boş indi.';
     }
@@ -197,6 +202,34 @@ class AppUpdater {
       // Sahada en olası hâli: adres bir giriş sayfasına ya da 404 HTML'ine
       // yönleniyor ve indirme "başarılı" görünüyor.
       return 'İndirilen dosya .deb değil (imza tutmadı).';
+    }
+
+    // Beklenen boyut — kesilmiş indirmenin en ucuz kanıtı. Sunucu boyutu
+    // vermediyse (`null`) atlanır.
+    final beklenenBoyut = info.sizeBytes;
+    if (beklenenBoyut != null && beklenenBoyut > 0 && bytes.length != beklenenBoyut) {
+      return 'Kurulum dosyası eksik indi: ${bytes.length}/$beklenenBoyut bayt.';
+    }
+
+    final beklenenOzet = info.sha256?.trim().toLowerCase();
+
+    // ÖZET YOKSA DOĞRULAMA ATLANIR, KURULUM REDDEDİLMEZ.
+    //
+    // Sürüm kaydına özet girilmemiş olabilir (`veykemtu:surum` uyarır ama
+    // zorlamaz). Bu durumda kurulumu reddetmek, yöneticinin acil bir yamayı
+    // sahaya indirmesini engellerdi; elde kalan `.deb` imzası ve boyut
+    // kontrolü hâlâ yürürlükte.
+    if (beklenenOzet == null || beklenenOzet.isEmpty) {
+      return null;
+    }
+
+    final hesaplanan = sha256.convert(bytes).toString();
+    if (hesaplanan != beklenenOzet) {
+      // Tel üzerinde bozulma ya da yanlış dosyanın yayınlanması. İkisinde de
+      // yapılacak tek doğru şey kurulumu HİÇ BAŞLATMAMAK: `dpkg-deb` bozuk
+      // arşivi zaten reddeder ama doğru biçimli yanlış bir paketi memnuniyetle
+      // açar ve kasaya başka bir uygulamayı kurardı.
+      return 'Paket doğrulanamadı (sha256 tutmadı); kurulum yapılmadı.';
     }
 
     return null;

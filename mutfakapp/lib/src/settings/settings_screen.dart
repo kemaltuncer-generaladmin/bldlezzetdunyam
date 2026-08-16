@@ -1080,40 +1080,91 @@ class _UpdateCheckButton extends ConsumerStatefulWidget {
 }
 
 class _UpdateCheckButtonState extends ConsumerState<_UpdateCheckButton> {
-  bool _checking = false;
+  bool _installing = false;
 
   @override
-  Widget build(BuildContext context) => FilledButton.tonalIcon(
-    onPressed: _checking ? null : () => unawaited(_check()),
-    icon: const Icon(Icons.system_update_alt),
-    label: Text(AppL10n.of(context).settingsCheckUpdate),
-  );
+  Widget build(BuildContext context) {
+    // Denetim durumu SAĞLAYICIDA, burada değil: aynı durumu saatlik
+    // zamanlayıcı da yazıyor ve durum çubuğundaki rozet de okuyor. Yerel
+    // bir `_checking` bayrağı, elle denetimle saatlik denetimin birbirinden
+    // habersiz çalışması demek olurdu.
+    final status = ref.watch(updateCheckProvider);
+    final busy = status.checking || _installing;
+
+    return FilledButton.tonalIcon(
+      onPressed: busy ? null : () => unawaited(_check()),
+      icon: const Icon(Icons.system_update_alt),
+      label: Text(AppL10n.of(context).settingsCheckUpdate),
+    );
+  }
 
   Future<void> _check() async {
-    setState(() => _checking = true);
     final l10n = AppL10n.of(context);
     final messenger = ScaffoldMessenger.of(context);
 
-    try {
-      final info = await ref
-          .read(bldApiProvider)
-          .appVersion
-          .check(AppConfig.appId);
+    await ref.read(updateCheckProvider.notifier).check();
+    if (!mounted) return;
+
+    final status = ref.read(updateCheckProvider);
+
+    if (status.error != null) {
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            info.latest == AppConfig.appVersion
-                ? l10n.settingsUpdateLatest(info.latest)
-                : l10n.settingsUpdateAvailable(info.latest),
-          ),
+        SnackBar(content: Text(l10n.settingsUpdateFailed(status.error!))),
+      );
+
+      return;
+    }
+
+    final latest = status.latest ?? AppConfig.appVersion;
+
+    if (!status.updateAvailable) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.settingsUpdateLatest(latest))),
+      );
+
+      return;
+    }
+
+    // KURULUM YALNIZCA BURADAN, ELLE. Saatlik denetim bulduğunu kurmuyor
+    // (`update_checker.dart` başlığı): kurulum uygulamayı yeniden başlatır
+    // ve mutfağın ne zaman müsait olduğunu bilen tek şey, o an ekranın
+    // başındaki insandır. Bu düğmeye basan da odur.
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(l10n.settingsUpdateAvailable(latest)),
+        duration: const Duration(seconds: 10),
+        action: SnackBarAction(
+          label: l10n.settingsUpdateInstall,
+          onPressed: () => unawaited(_install()),
         ),
+      ),
+    );
+  }
+
+  Future<void> _install() async {
+    if (_installing) return;
+    setState(() => _installing = true);
+
+    final l10n = AppL10n.of(context);
+    final messenger = ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(l10n.settingsUpdateInstalling)),
       );
-    } on ApiException catch (error) {
+
+    // `null` = başarı; bu durumda `AppUpdater` servisi birkaç saniye içinde
+    // yeniden başlatıyor ve buradaki hiçbir kod artık görünmüyor. Metin
+    // yalnızca BAŞARISIZLIKTA anlamlı — kasa eski sürümde kalır ve
+    // yöneticinin gerekçeyi görmesi gerekir.
+    final hata = await ref.read(appUpdaterProvider).install();
+
+    if (!mounted) return;
+    setState(() => _installing = false);
+
+    if (hata != null) {
       messenger.showSnackBar(
-        SnackBar(content: Text(l10n.settingsUpdateFailed(error.message))),
+        SnackBar(content: Text(l10n.settingsUpdateInstallFailed(hata))),
       );
-    } finally {
-      if (mounted) setState(() => _checking = false);
     }
   }
 }

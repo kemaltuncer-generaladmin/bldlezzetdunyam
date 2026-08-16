@@ -25,6 +25,7 @@ use Veykemtu\BridgeApi\Admin\NavigationTrimmer;
 use Veykemtu\BridgeApi\Console\AccountEntryCommand;
 use Veykemtu\BridgeApi\Console\AccountPeriodCommand;
 use Veykemtu\BridgeApi\Console\AdminUserCommand;
+use Veykemtu\BridgeApi\Console\AppReleaseCommand;
 use Veykemtu\BridgeApi\Console\DemoMenuCommand;
 use Veykemtu\BridgeApi\Console\KitchenDeviceCommand;
 use Veykemtu\BridgeApi\Console\MenuImageCommand;
@@ -102,6 +103,7 @@ class Extension extends BaseExtension
         $this->registerConsoleCommand('veykemtu.cariHareket', AccountEntryCommand::class);
         $this->registerConsoleCommand('veykemtu.cariDonemOzeti', AccountPeriodCommand::class);
         $this->registerConsoleCommand('veykemtu.abonelikUret', SubscriptionGenerateCommand::class);
+        $this->registerConsoleCommand('veykemtu.surum', AppReleaseCommand::class);
     }
 
     /**

@@ -384,6 +384,17 @@ abstract class AppVersionInfo with _$AppVersionInfo {
 
     /// Yalnızca `mutfakapp` için dolu (`.deb` adresi).
     String? downloadUrl,
+
+    /// İndirilen `.deb`'in beklenen SHA-256 özeti.
+    ///
+    /// Kasa paketi kurmadan önce bununla doğrular (`AppUpdater`); tutmazsa
+    /// kurulum yapılmaz ve eski sürümde kalınır. `null` ise doğrulama
+    /// ATLANIR, kurulum reddedilmez: özeti girilmemiş bir sürüm kaydının
+    /// sahadaki kasayı kilitlemesi, çözdüğünden çok sorun çıkarırdı.
+    String? sha256,
+
+    /// Paketin beklenen boyutu — yarım inen indirme için ucuz eleme.
+    int? sizeBytes,
     String? notes,
   }) = _AppVersionInfo;
 

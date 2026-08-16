@@ -10,6 +10,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:bld_api_client/bld_api_client.dart';
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mutfakapp/src/update/app_updater.dart';
 
@@ -288,5 +289,108 @@ void main() {
 
     expect(hata, isNull);
     expect(File('${kurulum.path}/mutfakapp').readAsStringSync(), 'ilk');
+  });
+
+  // ── Bütünlük doğrulaması ────────────────────────────────────────────────
+  //
+  // `.deb` imzası tek başına yetmiyordu: yarım inmiş ama doğru başlayan bir
+  // dosya o kontrolü geçiyor ve bozuk paket `dpkg-deb`'e kadar gidiyordu.
+  // Asıl tehlike ise doğru BİÇİMLİ yanlış paket — `dpkg-deb` onu memnuniyetle
+  // açar ve kasaya başka bir uygulamayı kurar.
+  group('sha256 doğrulaması', () {
+    /// Paketin özetini gerçekten hesaplayan yardımcı; testin beklediği değer
+    /// elle yazılmış bir sabit olsaydı, `_verify` bozulduğunda da geçerdi.
+    String ozet(Uint8List bytes) => sha256.convert(bytes).toString();
+
+    AppVersionInfo surumOzetli(String? hash, {int? boyut}) => AppVersionInfo(
+      appId: 'mutfakapp',
+      latest: '1.1.0',
+      minSupported: '1.0.0',
+      downloadUrl: 'https://ornek/mutfakapp_1.1.0.deb',
+      sha256: hash,
+      sizeBytes: boyut,
+    );
+
+    test('ÖZET TUTMAZSA kurulum hiç başlamaz', () async {
+      final kurulum = await kurulumYap(kok, 'eski');
+      final surec = sahteSurec();
+
+      final hata = await build(
+        run: surec.run,
+        installDir: kurulum,
+        info: surumOzetli('0' * 64),
+      ).install();
+
+      expect(hata, contains('sha256'));
+      expect(
+        surec.cagrilar,
+        isEmpty,
+        reason: 'Doğrulama düştüyse dpkg-deb hiç çağrılmamalı.',
+      );
+      expect(File('${kurulum.path}/mutfakapp').readAsStringSync(), 'eski');
+    });
+
+    test('ÖZET TUTARSA kurulur', () async {
+      final paket = gecerliDeb();
+      final kurulum = await kurulumYap(kok, 'eski');
+
+      final surec = sahteSurec(
+        cikarken: (hedef) async {
+          await Directory('$hedef/opt/mutfakapp/lib').create(recursive: true);
+          await File('$hedef/opt/mutfakapp/mutfakapp').writeAsString('yeni');
+        },
+      );
+
+      final hata = await build(
+        run: surec.run,
+        installDir: kurulum,
+        bytes: paket,
+        info: surumOzetli(ozet(paket)),
+      ).install();
+
+      expect(hata, isNull);
+      expect(File('${kurulum.path}/mutfakapp').readAsStringSync(), 'yeni');
+    });
+
+    /// Özet girilmemiş bir sürüm kaydı, sahadaki kasayı KİLİTLEMEMELİ.
+    /// Yönetici acil bir yamayı özet yüzünden indiremez duruma düşmemeli;
+    /// elde kalan `.deb` imzası ve boyut kontrolü hâlâ yürürlükte.
+    test('ÖZET YOKSA doğrulama atlanır ama kurulum yapılır', () async {
+      final kurulum = await kurulumYap(kok, 'eski');
+
+      final surec = sahteSurec(
+        cikarken: (hedef) async {
+          await Directory('$hedef/opt/mutfakapp/lib').create(recursive: true);
+          await File('$hedef/opt/mutfakapp/mutfakapp').writeAsString('yeni');
+        },
+      );
+
+      final hata = await build(
+        run: surec.run,
+        installDir: kurulum,
+        info: surumOzetli(null),
+      ).install();
+
+      expect(hata, isNull);
+      expect(File('${kurulum.path}/mutfakapp').readAsStringSync(), 'yeni');
+    });
+
+    test('BOYUT TUTMAZSA özet hesaplanmadan reddedilir', () async {
+      final paket = gecerliDeb();
+      final kurulum = await kurulumYap(kok, 'eski');
+      final surec = sahteSurec();
+
+      final hata = await build(
+        run: surec.run,
+        installDir: kurulum,
+        bytes: paket,
+        // Doğru özet ama yanlış boyut: kesilmiş indirmenin tarifi.
+        info: surumOzetli(ozet(paket), boyut: paket.length + 100),
+      ).install();
+
+      expect(hata, contains('eksik indi'));
+      expect(surec.cagrilar, isEmpty);
+      expect(File('${kurulum.path}/mutfakapp').readAsStringSync(), 'eski');
+    });
   });
 }

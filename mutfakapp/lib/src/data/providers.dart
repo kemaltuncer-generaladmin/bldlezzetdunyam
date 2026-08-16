@@ -29,6 +29,7 @@ import '../printing/printer_device.dart';
 import '../settings/kds_settings.dart';
 import '../settings/kds_settings_store.dart';
 import '../update/app_updater.dart';
+import '../update/update_checker.dart';
 import '../lock/unlock_password.dart';
 import 'command_runner.dart';
 import 'managed_settings.dart';
@@ -251,6 +252,58 @@ final appUpdaterProvider = Provider<AppUpdater>((ref) {
     currentVersion: AppConfig.appVersion,
   );
 });
+
+/// Saatlik sürüm denetimi (`docs/05-mutfakapp.md` §9).
+///
+/// YALNIZ HABER VERİR. Kurulum ayarlar ekranındaki düğmeyle ya da Kontrol
+/// Merkezi'nin `update` komutuyla, yani bilinçli olarak başlar; gerekçesi
+/// `update_checker.dart` başlığında.
+final updateCheckProvider =
+    NotifierProvider<UpdateCheckController, UpdateStatus>(
+      UpdateCheckController.new,
+    );
+
+class UpdateCheckController extends Notifier<UpdateStatus> {
+  @override
+  UpdateStatus build() {
+    final timer = Timer.periodic(
+      updateCheckInterval,
+      (_) => unawaited(check()),
+    );
+    ref.onDispose(timer.cancel);
+
+    // İLK DENETİM AÇILIŞTA: kasa elektrik kesintisinden sonra açıldığında
+    // bir saat beklemeden durumu öğrenmeli.
+    //
+    // `unawaited(check())` DEĞİL, MİKROGÖREV. `check()` ilk satırında
+    // `state` okuyor ve o satır, `await`'e gelmeden ÖNCE senkron çalışıyor;
+    // `build` henüz dönmediği için sağlayıcının durumu daha atanmamış olur
+    // ve Riverpod "uninitialized provider" ile patlar. Mikrogörev, içinde
+    // bulunduğumuz senkron akış (yani `build`) bittikten sonra koşar.
+    Future.microtask(check);
+
+    return const UpdateStatus();
+  }
+
+  /// Bir denetim turu. Ayarlar ekranındaki düğme de bunu çağırır.
+  Future<void> check() async {
+    if (state.checking) return;
+
+    state = state.copyWith(checking: true);
+
+    final checker = UpdateChecker(
+      check: () => ref.read(bldApiProvider).appVersion.check(AppConfig.appId),
+      currentVersion: AppConfig.appVersion,
+    );
+
+    final sonuc = await checker.run(state);
+
+    // Denetim sürerken ekran kapanmış olabilir (ayarlardan çıkış, kapanış).
+    if (!ref.mounted) return;
+
+    state = sonuc;
+  }
+}
 
 /// Açılış kilidinin hatırlandığı depo.
 final unlockStoreProvider = Provider<UnlockStore>(

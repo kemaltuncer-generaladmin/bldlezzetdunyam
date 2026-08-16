@@ -2354,6 +2354,18 @@ paths:
                     type: [string, 'null']
                     format: uri
                     description: Yalnızca `mutfakapp` için dolu (`.deb` adresi).
+                  sha256:
+                    type: [string, 'null']
+                    pattern: '^[0-9a-f]{64}$'
+                    description: >-
+                      İndirilen `.deb`'in beklenen SHA-256 özeti. Kasa paketi
+                      kurmadan önce bununla doğrular; tutmazsa kurulum yapılmaz
+                      ve eski sürümde kalınır. Boşsa doğrulama atlanır — özeti
+                      girilmemiş bir kayıt, sahadaki kasayı kilitlememeli.
+                  size_bytes:
+                    type: [integer, 'null']
+                    format: int64
+                    description: Paketin beklenen boyutu; yarım inen indirme için ucuz eleme.
                   notes: { type: [string, 'null'] }
         '422':
           description: |

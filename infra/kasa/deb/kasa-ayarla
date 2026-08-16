@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Kasayı kullanıcı oturumunda hazırlar — `.deb` kurulumunun ikinci yarısı.
+#
+# NEDEN postinst DEĞİL DE KULLANICI SERVİSİ:
+#
+# `.deb`'in `postinst`'i root olarak ve oturum DIŞINDA koşar. Burada
+# yapılması gerekenlerin üçü de bunu kaldırmıyor:
+#
+#   1. Uygulama `~/.local/opt/mutfakapp` altına kurulmalı ve KULLANICIYA ait
+#      olmalı. root'un kullanıcının ev dizinine yazdığı dosyalar root'a ait
+#      olur; sonra uzaktan güncelleme (kullanıcı olarak koşuyor) onları
+#      değiştiremez ve kurulum sessizce bozulur.
+#   2. `gsettings` bir D-Bus oturumu ister. postinst'te oturum yoktur.
+#   3. `systemctl --user` çağrıları kullanıcının systemd örneğini ister.
+#
+# Kullanıcı servisi olarak koşunca üçü de kendiliğinden doğru: oturum var,
+# kimlik doğru, ortam hazır. `postinst` yalnızca gerçekten root gerektiren
+# işleri yapıyor (udev, otomatik giriş).
+#
+# İDEMPOTENT: her açılışta koşar, ikinci koşum hiçbir şeyi bozmaz.
+set -uo pipefail
+
+KAYNAK=/opt/mutfakapp
+HEDEF="$HOME/.local/opt/mutfakapp"
+SERVIS_KAYNAK=/usr/share/mutfakapp/mutfakapp.service
+SERVIS_HEDEF="$HOME/.config/systemd/user/mutfakapp.service"
+
+[ -x "$KAYNAK/mutfakapp" ] || { echo "kasa-ayarla: $KAYNAK yok, atlanıyor"; exit 0; }
+
+# ── 1. Uygulamayı kullanıcının dizinine al ───────────────────────────────
+#
+# KOPYALAMA KOŞULU MTIME, "her açılışta kopyala" DEĞİL.
+#
+# Uzaktan güncelleme (`AppUpdater`) yeni sürümü doğrudan `$HEDEF`'e koyuyor
+# ve `/opt` eski sürümde kalıyor. Koşulsuz kopyalasaydık her yeniden
+# başlatma, uzaktan kurulan güncellemeyi paketteki eski sürüme GERİ
+# ALIRDI — ve kimse sebebini anlamazdı.
+#
+# `.deb`'ten çıkan dosyalar paketin derlenme zamanını taşır; dolayısıyla
+# "kaynak hedeften yeniyse kopyala" kuralı iki yönde de doğru çalışır:
+# yeni bir paket kurulduğunda kopyalar, uzaktan güncellemeden sonra
+# kopyalamaz.
+if [ ! -x "$HEDEF/mutfakapp" ] || [ "$KAYNAK/mutfakapp" -nt "$HEDEF/mutfakapp" ]; then
+    echo "kasa-ayarla: uygulama $HEDEF altına kuruluyor"
+    mkdir -p "$(dirname "$HEDEF")"
+    rm -rf "$HEDEF.yeni"
+    cp -a "$KAYNAK" "$HEDEF.yeni"
+
+    # Takas iki `rename` ile: kopyalama yarıda kalırsa çalışan kurulum
+    # bozulmasın (`AppUpdater._swapIn` ile aynı gerekçe).
+    rm -rf "$HEDEF.eski"
+    [ -d "$HEDEF" ] && mv "$HEDEF" "$HEDEF.eski"
+    mv "$HEDEF.yeni" "$HEDEF"
+    rm -rf "$HEDEF.eski"
+fi
+
+# ── 2. systemd kullanıcı servisi ─────────────────────────────────────────
+mkdir -p "$(dirname "$SERVIS_HEDEF")"
+if [ -f "$SERVIS_KAYNAK" ]; then
+    cmp -s "$SERVIS_KAYNAK" "$SERVIS_HEDEF" || cp "$SERVIS_KAYNAK" "$SERVIS_HEDEF"
+fi
+
+systemctl --user daemon-reload 2>/dev/null || true
+systemctl --user enable mutfakapp.service 2>/dev/null || true
+
+# ── 3. Ekran ve güç ──────────────────────────────────────────────────────
+#
+# Mutfak ekranı asla kararmamalı: aşçı ekrana bakıp sipariş görecek, fare
+# oynatmak için elini yıkamak zorunda kalmamalı.
+if command -v gsettings >/dev/null 2>&1; then
+    gsettings set org.gnome.desktop.session idle-delay 0
+    gsettings set org.gnome.desktop.screensaver lock-enabled false
+    gsettings set org.gnome.desktop.screensaver idle-activation-enabled false
+    gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type nothing
+    gsettings set org.gnome.settings-daemon.plugins.power lid-close-ac-action nothing
+
+    # DİZÜSTÜNE ÖZEL: pil tarafı da kapatılmalı. Elektrik kesildiğinde makine
+    # pille çalışmaya devam eder; bu iki ayar olmadan kapak hareketiyle ya da
+    # boşta kalınca uyur ve mutfak tam da en kritik anda ekransız kalır.
+    gsettings set org.gnome.settings-daemon.plugins.power lid-close-battery-action nothing
+    gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type nothing
+fi
+
+# ── 4. Servisi başlat ────────────────────────────────────────────────────
+#
+# `restart`, `start` DEĞİL: paket güncellendiğinde uygulama zaten çalışıyor
+# olabilir ve yeni baytlarla gelmesi gerekir.
+systemctl --user restart mutfakapp.service 2>/dev/null || true
+
+echo "kasa-ayarla: hazır"

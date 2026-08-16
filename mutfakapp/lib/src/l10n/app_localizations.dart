@@ -1892,6 +1892,36 @@ abstract class AppL10n {
   /// In tr, this message translates to:
   /// **'Bazı işlemler Kontrol Merkezi\'nden kilitlendi.'**
   String get lockedBadgeTooltip;
+
+  /// Yeni sürüm bildiriminde kurulumu başlatan eylem düğmesi
+  ///
+  /// In tr, this message translates to:
+  /// **'Şimdi kur'**
+  String get settingsUpdateInstall;
+
+  /// Kurulum başladığında gösterilen bilgi
+  ///
+  /// In tr, this message translates to:
+  /// **'Yeni sürüm kuruluyor; uygulama birazdan yeniden başlayacak.'**
+  String get settingsUpdateInstalling;
+
+  /// Kurulum başarısız olduğunda gösterilen gerekçe; kasa eski sürümde kalır
+  ///
+  /// In tr, this message translates to:
+  /// **'Kurulum yapılamadı: {message}'**
+  String settingsUpdateInstallFailed(String message);
+
+  /// Yeni sürüm olduğunda durum çubuğunda çıkan rozet
+  ///
+  /// In tr, this message translates to:
+  /// **'GÜNCELLEME'**
+  String get updateBadge;
+
+  /// Güncelleme rozetinin ipucu
+  ///
+  /// In tr, this message translates to:
+  /// **'Yeni sürüm var: {version}. Ayarlar ekranından kurabilirsiniz.'**
+  String updateBadgeTooltip(String version);
 }
 
 class _AppL10nDelegate extends LocalizationsDelegate<AppL10n> {

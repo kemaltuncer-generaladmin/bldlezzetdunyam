@@ -1045,4 +1045,24 @@ class AppL10nTr extends AppL10n {
   @override
   String get lockedBadgeTooltip =>
       'Bazı işlemler Kontrol Merkezi\'nden kilitlendi.';
+
+  @override
+  String get settingsUpdateInstall => 'Şimdi kur';
+
+  @override
+  String get settingsUpdateInstalling =>
+      'Yeni sürüm kuruluyor; uygulama birazdan yeniden başlayacak.';
+
+  @override
+  String settingsUpdateInstallFailed(String message) {
+    return 'Kurulum yapılamadı: $message';
+  }
+
+  @override
+  String get updateBadge => 'GÜNCELLEME';
+
+  @override
+  String updateBadgeTooltip(String version) {
+    return 'Yeni sürüm var: $version. Ayarlar ekranından kurabilirsiniz.';
+  }
 }

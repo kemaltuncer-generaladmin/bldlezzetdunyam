@@ -1496,5 +1496,35 @@
   "lockedBadgeTooltip": "Bazı işlemler Kontrol Merkezi'nden kilitlendi.",
   "@lockedBadgeTooltip": {
     "description": "Kilit rozetinin ipucu"
+  },
+  "settingsUpdateInstall": "Şimdi kur",
+  "@settingsUpdateInstall": {
+    "description": "Yeni sürüm bildiriminde kurulumu başlatan eylem düğmesi"
+  },
+  "settingsUpdateInstalling": "Yeni sürüm kuruluyor; uygulama birazdan yeniden başlayacak.",
+  "@settingsUpdateInstalling": {
+    "description": "Kurulum başladığında gösterilen bilgi"
+  },
+  "settingsUpdateInstallFailed": "Kurulum yapılamadı: {message}",
+  "@settingsUpdateInstallFailed": {
+    "description": "Kurulum başarısız olduğunda gösterilen gerekçe; kasa eski sürümde kalır",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "updateBadge": "GÜNCELLEME",
+  "@updateBadge": {
+    "description": "Yeni sürüm olduğunda durum çubuğunda çıkan rozet"
+  },
+  "updateBadgeTooltip": "Yeni sürüm var: {version}. Ayarlar ekranından kurabilirsiniz.",
+  "@updateBadgeTooltip": {
+    "description": "Güncelleme rozetinin ipucu",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
   }
 }

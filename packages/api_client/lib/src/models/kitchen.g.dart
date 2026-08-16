@@ -387,6 +387,8 @@ _AppVersionInfo _$AppVersionInfoFromJson(Map<String, dynamic> json) =>
       latest: json['latest'] as String,
       minSupported: json['min_supported'] as String,
       downloadUrl: json['download_url'] as String?,
+      sha256: json['sha256'] as String?,
+      sizeBytes: (json['size_bytes'] as num?)?.toInt(),
       notes: json['notes'] as String?,
     );
 
@@ -396,5 +398,7 @@ Map<String, dynamic> _$AppVersionInfoToJson(_AppVersionInfo instance) =>
       'latest': instance.latest,
       'min_supported': instance.minSupported,
       'download_url': ?instance.downloadUrl,
+      'sha256': ?instance.sha256,
+      'size_bytes': ?instance.sizeBytes,
       'notes': ?instance.notes,
     };

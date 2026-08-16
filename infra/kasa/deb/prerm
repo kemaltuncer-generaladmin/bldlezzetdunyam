@@ -1,0 +1,17 @@
+#!/bin/sh
+# Paket kaldırılmadan önce hazırlık servisini kapat.
+#
+# Kullanıcının ev dizinindeki kurulum (`~/.local/opt/mutfakapp`) ve orada
+# saklanan cihaz token'ı BİLEREK SİLİNMEZ: paketi kaldırmak, kasanın
+# kimliğini kaybetmesi anlamına gelmemeli. Aynı sürüm tekrar kurulduğunda
+# kasa hiçbir şey sorulmadan çalışmaya devam eder.
+#
+# Gerçekten temizlemek gerekirse (kasa başka bir mutfağa gidiyor):
+#   systemctl --user disable --now mutfakapp
+#   rm -rf ~/.local/opt/mutfakapp ~/.config/systemd/user/mutfakapp.service
+# ve sunucudan cihazı iptal edin.
+set -e
+
+systemctl --global disable mutfakapp-kurulum.service >/dev/null 2>&1 || true
+
+exit 0

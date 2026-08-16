@@ -1,0 +1,29 @@
+# Kasa hazırlığı — her kullanıcı oturumunda bir kez koşar.
+#
+# `.deb`'in `postinst`'i bunu `systemctl --global enable` ile açıyor; yani
+# her kullanıcı oturumunda systemd bu birimi kendiliğinden başlatıyor.
+# Gerekçesi `kasa-ayarla` başlığında: root ve oturumsuz bir postinst,
+# kullanıcının ev dizinine kurulum yapamaz, `gsettings` çağıramaz ve
+# `systemctl --user` kullanamaz.
+#
+# `Type=oneshot` + `RemainAfterExit=yes`: iş bir kez yapılır ve birim
+# "tamamlandı" olarak kalır; systemd onu tekrar tekrar başlatmaz.
+
+[Unit]
+Description=Mutfak kasası hazırlığı
+# Masaüstü hazır olmadan `gsettings` yazmak sessizce kaybolur.
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/lib/mutfakapp/kasa-ayarla
+
+# Hazırlık düşerse oturum açılışı engellenmemeli: uygulama zaten
+# `mutfakapp.service` ile ayrı geliyor ve mutfağın ekranı, bir ayar
+# yazılamadı diye kararmamalı.
+SuccessExitStatus=0 1
+
+[Install]
+WantedBy=graphical-session.target

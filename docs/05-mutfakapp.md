@@ -994,6 +994,65 @@ Kurulum: `.deb` indirilir, doğrulanır, `dpkg-deb -x` ile açılır ve
 `~/.local/opt/mutfakapp` yerine geçer; ardından `systemctl --user restart`.
 Kontrol Merkezi bunu `update` komutuyla uzaktan tetikleyebilir.
 
+### 9.1 Denetim saatlik, kurulum değil
+
+Kasa sürümü **saatte bir** ve ayarlar ekranındaki düğmeyle denetler
+(`update_checker.dart`). Denetim bulduğunu **kurmaz**: durum çubuğunda bir
+rozet çıkarır ve orada durur.
+
+> **Kendiliğinden kurulmamasının sebebi kurulumun uygulamayı yeniden
+> başlatması.** Mutfak yoğun saatte ekranını birkaç saniyeliğine kaybeder ve o
+> an ekranda duran sipariş görünmez olur. Güncellemenin ne zaman uygulanacağı,
+> mutfağın ne zaman müsait olduğunu bilen insanın kararıdır.
+
+Kurulumu başlatan iki bilinçli yol var: ayarlar ekranındaki **Şimdi kur**
+düğmesi ve Kontrol Merkezi'nden gönderilen `update` komutu.
+
+Rozet yalnızca sunucudaki sürüm **daha yeniyse** çıkar (sıralı karşılaştırma,
+eşitlik değil): bir kayıt düzeltilip eski sürüme dönülmüşse kasa sonsuza kadar
+"yeni sürüm var" demesin.
+
+### 9.2 Bütünlük: `sha256`
+
+Sürüm yanıtı `sha256` ve `size_bytes` taşır; kasa `.deb`'i **kurmadan önce**
+doğrular, tutmazsa hiç açmaz ve eski sürümde kalır.
+
+> `.deb`'in ilk sekiz baytı (`!<arch>\n`) tek başına yetmiyordu: yarım inmiş
+> ama doğru başlayan bir dosya o kontrolü geçiyordu. Asıl tehlike ise doğru
+> **biçimli** yanlış paket — `dpkg-deb` onu memnuniyetle açar ve kasaya başka
+> bir uygulamayı kurar.
+
+Özet **boş bırakılabilir** ve o zaman doğrulama atlanır, kurulum reddedilmez:
+özeti girilmemiş bir kaydın sahadaki kasayı kilitlemesi, çözdüğünden çok sorun
+çıkarırdı.
+
+### 9.3 Yayınlama akışı
+
+```bash
+./infra/kasa/paketle.sh 1.1.0 --yayinla        # derle + .deb + GitHub Releases
+php artisan veykemtu:surum --publish --app=mutfakapp --version=1.1.0 \
+    --url=<varlık adresi> --sha256=<özet>       # sunucuda kayda geç
+```
+
+Paket **GitHub Releases**'te durur. `veykemtu_app_releases` tablosu yalnızca
+sürüm, adres ve özeti tutar; dosyayı taşımaz.
+
+İki adımın **ayrı olması bilinçli**: paketi üretmek geri alınabilir,
+`veykemtu:surum` ise sahadaki tüm kasaları etkileyen bir yayındır. Tek komutta
+birleştirmek, yanlış paketi tek tuşla mutfağa göndermek olurdu.
+
+> **Yayınlanan pakete cihaz token'ı gömülmez.** `derle.sh` tek bir kasayı
+> hazırlarken `BLD_KITCHEN_TOKEN`'ı ikiliye gömer; `paketle.sh` gömmez.
+> Gömseydi paket, canlı API'de mutfak yetkisi olan bir kimlik bilgisini
+> indirilebilir bir dosyanın içinde taşırdı ve paketi kuran **her** kasa aynı
+> cihaz kimliğine bürünürdü. Gerek de yok: kasa token'ını ilk kurulumda
+> deposuna yazdı ve `provisionedToken` boş gelince onu korur.
+
+Sürüm üç yerde birden güncellenir ve `paketle.sh` tutmuyorsa **derlemeyi
+reddeder**: `pubspec.yaml`, `AppConfig.appVersion`, `--version` argümanı.
+Paket 1.1.0 diye yayınlanıp ikili hâlâ "1.0.0" derse kasa güncellemeyi kurar,
+sonra kendini eski sürüm sanar ve rozet sonsuza kadar ekranda kalır.
+
 > **`pkexec dpkg -i` KULLANILMAZ.** Bu belge uzun süre öyle diyordu; gerekçesi
 > ve yerine ne yapıldığı §8.6'da. Kısaca: `pkexec` kasada parola kutusu açar,
 > kutuyu kapatacak kimse yoktur ve kutu tam ekran KDS'in üstünü kapatır.
