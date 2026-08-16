@@ -11,7 +11,25 @@
 set -uo pipefail
 
 KOK="$(cd "$(dirname "$0")/../.." && pwd)"
-KURULUM_DIZINI=/opt/mutfakapp
+
+# `$HOME/.local/opt`, `/opt` DEĞİL.
+#
+# BURASI UZUN SÜRE `/opt/mutfakapp` YAZIYORDU ve sessizce bozuktu: betik
+# uygulamayı `/opt`'a kopyalıyor, sonra `%h/.local/opt/mutfakapp/mutfakapp`
+# çalıştıran servisi etkinleştiriyordu. Servis `203/EXEC` ile ölürdü —
+# üstelik 6. adımdaki varlık kontrolü `/opt`'a baktığı için betik
+# "servis etkinleştirildi ✓" diye YEŞİL RAPOR VERİYORDU. Hata ancak
+# mutfakta ekran boş kalınca fark edilirdi.
+#
+# Gözden kaçmasının sebebi `derle.sh`'ın da ayrıca `~/.local/opt`'a
+# kurması: ikisi birlikte koşunca tesadüfen çalışıyordu.
+#
+# Doğru yol `mutfakapp.service` içinde gerekçesiyle savunuluyor: kurulum bir
+# systemd KULLANICI servisi, root gerekmiyor ve sudo istemeyen bir kurulum
+# sahada güncelleme yapmayı kolaylaştırıyor. `derle.sh:15` ve
+# `AppUpdater.installDir` de aynı yolu kullanıyor; dördü ayrışırsa kurulum
+# yine sessizce hiçbir işe yaramaz.
+KURULUM_DIZINI="$HOME/.local/opt/mutfakapp"
 SERVIS_ADI=mutfakapp
 KONTROL_MODU=0
 [ "${1:-}" = "--kontrol" ] && KONTROL_MODU=1
@@ -131,9 +149,11 @@ fi
 baslik "5. Uygulama"
 PAKET="$KOK/mutfakapp/build/linux/x64/release/bundle"
 if [ -d "$PAKET" ]; then
-  yap "kurulum dizini oluşturuldu" sudo mkdir -p "$KURULUM_DIZINI"
-  yap "uygulama kopyalandı" sudo cp -r "$PAKET/." "$KURULUM_DIZINI/"
-  yap "çalıştırma izni verildi" sudo chmod +x "$KURULUM_DIZINI/mutfakapp"
+  # SUDO YOK: hedef kullanıcının kendi dizini. Root istemek, kurulumun
+  # yapabileceği hasarı büyütmekten başka bir şey kazandırmazdı.
+  yap "kurulum dizini oluşturuldu" mkdir -p "$KURULUM_DIZINI"
+  yap "uygulama kopyalandı" cp -r "$PAKET/." "$KURULUM_DIZINI/"
+  yap "çalıştırma izni verildi" chmod +x "$KURULUM_DIZINI/mutfakapp"
 else
   uyar "derleme çıktısı yok — önce: cd mutfakapp && flutter build linux --release"
 fi
