@@ -3,7 +3,7 @@ description: >
   Benim Lezzet Dünyam mutfak ekranı (KDS). Hedef platform yalnızca Linux
   desktop (Ubuntu) — Android hedefi ADR-04 ile iptal edilmiştir.
 publish_to: none
-version: 1.0.0+1
+version: 1.0.1+1
 resolution: workspace
 
 environment:
