@@ -121,7 +121,7 @@ class AppReleaseTest extends KitchenTestCase
         $this->artisan('veykemtu:surum', [
             '--publish' => true,
             '--app' => 'mutfakapp',
-            '--version' => '1.2.0',
+            '--surum' => '1.2.0',
             '--url' => 'https://ornek.test/paket.deb',
             '--sha256' => str_repeat('b', 64),
         ])->assertSuccessful();
@@ -144,7 +144,7 @@ class AppReleaseTest extends KitchenTestCase
         $this->artisan('veykemtu:surum', [
             '--publish' => true,
             '--app' => 'mutfakapp',
-            '--version' => '1.3.0',
+            '--surum' => '1.3.0',
             '--url' => 'https://ornek.test/paket.deb',
             '--sha256' => str_repeat('c', 64),
         ])->assertFailed();
@@ -159,7 +159,7 @@ class AppReleaseTest extends KitchenTestCase
         $this->artisan('veykemtu:surum', [
             '--publish' => true,
             '--app' => 'mutfakapp',
-            '--version' => '1.4.0',
+            '--surum' => '1.4.0',
             '--url' => 'http://ornek.test/paket.deb',
             '--sha256' => str_repeat('d', 64),
         ])->assertFailed();
@@ -175,7 +175,7 @@ class AppReleaseTest extends KitchenTestCase
         $this->artisan('veykemtu:surum', [
             '--publish' => true,
             '--app' => 'mutfakapp',
-            '--version' => '1.5.0',
+            '--surum' => '1.5.0',
             '--sha256' => str_repeat('e', 64),
         ])->assertFailed();
     }
@@ -193,7 +193,7 @@ class AppReleaseTest extends KitchenTestCase
         $this->artisan('veykemtu:surum', [
             '--publish' => true,
             '--app' => 'mutfakapp',
-            '--version' => '1.7.0',
+            '--surum' => '1.7.0',
             '--url' => 'https://ornek.test/paket.deb',
             '--sha256' => str_repeat('f', 64),
         ])->assertSuccessful();

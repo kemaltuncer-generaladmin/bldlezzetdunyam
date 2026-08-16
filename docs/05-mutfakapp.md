@@ -1030,7 +1030,7 @@ doğrular, tutmazsa hiç açmaz ve eski sürümde kalır.
 
 ```bash
 ./infra/kasa/paketle.sh 1.1.0 --yayinla        # derle + .deb + GitHub Releases
-php artisan veykemtu:surum --publish --app=mutfakapp --version=1.1.0 \
+php artisan veykemtu:surum --publish --app=mutfakapp --surum=1.1.0 \
     --url=<varlık adresi> --sha256=<özet>       # sunucuda kayda geç
 ```
 
@@ -1049,7 +1049,7 @@ birleştirmek, yanlış paketi tek tuşla mutfağa göndermek olurdu.
 > deposuna yazdı ve `provisionedToken` boş gelince onu korur.
 
 Sürüm üç yerde birden güncellenir ve `paketle.sh` tutmuyorsa **derlemeyi
-reddeder**: `pubspec.yaml`, `AppConfig.appVersion`, `--version` argümanı.
+reddeder**: `pubspec.yaml`, `AppConfig.appVersion`, `--surum` argümanı.
 Paket 1.1.0 diye yayınlanıp ikili hâlâ "1.0.0" derse kasa güncellemeyi kurar,
 sonra kendini eski sürüm sanar ve rozet sonsuza kadar ekranda kalır.
 

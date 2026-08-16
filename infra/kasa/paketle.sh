@@ -226,7 +226,7 @@ fi
 cat <<SON
 
 == Yayınlamak için (sunucuda) ==
-  php artisan veykemtu:surum --publish --app=mutfakapp --version=$SURUM \\
+  php artisan veykemtu:surum --publish --app=mutfakapp --surum=$SURUM \\
       --url="$ADRES" \\
       --sha256=$OZET \\
       --notes="..."

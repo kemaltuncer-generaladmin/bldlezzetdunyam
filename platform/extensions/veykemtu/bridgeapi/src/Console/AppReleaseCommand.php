@@ -16,7 +16,7 @@ use Veykemtu\BridgeApi\Models\AppRelease;
  * `download_url: null` döner ve hiçbir kasa güncellenemez.
  *
  *   php artisan veykemtu:surum
- *   php artisan veykemtu:surum --publish --app=mutfakapp --version=1.1.0 \
+ *   php artisan veykemtu:surum --publish --app=mutfakapp --surum=1.1.0 \
  *       --url=https://github.com/.../mutfakapp_1.1.0_amd64.deb \
  *       --file=build/mutfakapp_1.1.0_amd64.deb \
  *       --notes="Fiş kod sayfası düzeltmesi"
@@ -29,10 +29,19 @@ use Veykemtu\BridgeApi\Models\AppRelease;
  */
 class AppReleaseCommand extends Command
 {
+    /**
+     * SEÇENEK ADI `--surum`, `--version` DEĞİL.
+     *
+     * `--version` Symfony Console'un AYRILMIŞ genel seçeneğidir (`-V` ile
+     * eş). Komut onu kendi adına tanımlasa bile konsol katmanı isteği önce
+     * yakalıyor ve çerçevenin sürümünü yazdırıp çıkıyor: komut hiç
+     * çalışmıyor, hata da vermiyor. Sahada "Laravel Framework 12.64.0"
+     * yazıp sessizce dönüyordu (16.08.2026).
+     */
     protected $signature = 'veykemtu:surum
         {--publish : Yeni sürüm yayınla (aşağıdaki seçenekler bununla anlamlı)}
         {--app=mutfakapp : Uygulama: mutfakapp veya musteriapp}
-        {--version= : Yayınlanan sürüm, örn. 1.1.0}
+        {--surum= : Yayınlanan sürüm, örn. 1.1.0}
         {--url= : .deb adresi (mutfakapp için zorunlu)}
         {--file= : Yerel .deb yolu — sha256 ve boyut buradan hesaplanır}
         {--sha256= : Özeti elle ver (--file yoksa)}
@@ -94,9 +103,9 @@ class AppReleaseCommand extends Command
             return self::FAILURE;
         }
 
-        $version = trim((string) $this->option('version'));
+        $version = trim((string) $this->option('surum'));
         if (!$this->isSemVer($version)) {
-            $this->components->error('--version geçerli bir sürüm olmalı, örn. 1.1.0');
+            $this->components->error('--surum geçerli bir sürüm olmalı, örn. 1.1.0');
 
             return self::FAILURE;
         }
