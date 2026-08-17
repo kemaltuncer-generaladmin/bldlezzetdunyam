@@ -4,13 +4,20 @@ declare(strict_types=1);
 
 namespace Veykemtu\BridgeApi\Http\Controllers;
 
+use Igniter\Cart\Models\Order;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
 use Veykemtu\BridgeApi\Models\Subscription;
+use Veykemtu\BridgeApi\Models\SubscriptionPayment;
+use Veykemtu\BridgeApi\Services\DailyStock;
+use Veykemtu\BridgeApi\Services\OrderStatusTransition;
+use Veykemtu\BridgeApi\Services\SubscriptionLifecycle;
+use Veykemtu\BridgeApi\Support\BusinessTime;
 
 /**
  * Müşteri abonelik uçları — `docs/openapi.yaml` §Abonelik.
@@ -186,16 +193,99 @@ class SubscriptionController extends ApiController
             'quantity_override' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:9999'],
         ]);
 
-        // Tek-günlük istisna: aynı gün için tek satır (idempotent).
-        DB::table('veykemtu_subscription_exceptions')->updateOrInsert(
-            ['subscription_id' => $model->id, 'service_date' => $data['service_date']],
-            [
-                'skip' => (bool) ($data['skip'] ?? false),
-                'quantity_override' => $data['quantity_override'] ?? null,
-            ],
-        );
+        $date = Carbon::parse((string) $data['service_date'])->startOfDay();
+        $skip = (bool) ($data['skip'] ?? false);
+
+        DB::transaction(function () use ($model, $data, $date, $skip): void {
+            // Tek-günlük istisna: aynı gün için tek satır (idempotent).
+            DB::table('veykemtu_subscription_exceptions')->updateOrInsert(
+                ['subscription_id' => $model->id, 'service_date' => $data['service_date']],
+                [
+                    'skip' => $skip,
+                    'quantity_override' => $data['quantity_override'] ?? null,
+                ],
+            );
+
+            /*
+             * STOK, İSTİSNA YAZILDIKTAN SONRA HESAPLANIR ve aynı işlemin
+             * içindedir. Hesap abonelikleri veritabanından yeniden okuyor
+             * (`DailyStock::syncReservedFor`), yani az önce yazılan istisnayı
+             * görür — aynı bağlantıdaki işlemin içinden. Sıra ters olsaydı
+             * atlanan gün stokta ayrılmış kalırdı; işlem ayrı olsaydı
+             * istisnası yazılmış ama rezervasyonu düşmemiş bir gün kalabilirdi.
+             */
+            $this->applyExceptionToStock($model, $date, $skip);
+        });
 
         return $this->json($this->present($model->refresh()));
+    }
+
+    /**
+     * Gün atlamanın stok karşılığı — ÜRETİMDEN ÖNCE Mİ, SONRA MI.
+     *
+     * ÖNCE: ortada sipariş yok, yalnız bir rezervasyon var. Gün yeniden
+     * hesaplanınca o abonelik artık `runsOnDate()` değil, rezervasyon
+     * düşer ve porsiyon SERBEST SATIŞA döner — abonenin atladığı gün
+     * kapasitenin kilitli kalması, mutfağın boş yere pişirmesi ya da
+     * satılabilecek porsiyonun satılamaması demekti.
+     *
+     * SONRA: rezervasyon çoktan satışa çevrildi ve mutfakta gerçek bir
+     * sipariş var. Porsiyon ancak o siparişin İPTALİYLE geri döner ve
+     * iptal NORMAL YOLUNDAN geçer (`OrderStatusTransition::apply`):
+     * stok kredisi, iade kaydı, `status_history` ve abonelik defteri
+     * kancası orada birlikte yürüyor. Burada elle `release()` çağırmak,
+     * mutfakta duran bir siparişi görünmez biçimde yok saymak olurdu.
+     *
+     * GEÇMİŞ GÜN DOKUNULMAZ: ne rezervasyonu ne de pişmiş bir siparişi
+     * geri almanın anlamı var; müşteri geçmişe istisna girerse kayıt
+     * yazılır, stok kımıldamaz.
+     */
+    private function applyExceptionToStock(Subscription $model, Carbon $date, bool $skip): void
+    {
+        if ($date->lt(BusinessTime::now()->startOfDay())) {
+            return;
+        }
+
+        if ($skip) {
+            $this->cancelGeneratedOrders($model, $date);
+        }
+
+        // Atlama da, atlamanın geri alınması da, adet değişikliği de aynı
+        // cevabı istiyor: "o günün rezervasyonu artık başka". Üçü için üç
+        // ayrı delta yazmak yerine gün sıfırdan hesaplanıyor — gecelik
+        // uzlaştırmayla BİREBİR aynı kod yolu.
+        app(DailyStock::class)->syncReservedFor((int) $model->location_id, $date);
+    }
+
+    /** Bu abonelikten o gün için ÜRETİLMİŞ siparişleri iptal eder. */
+    private function cancelGeneratedOrders(Subscription $model, Carbon $date): void
+    {
+        $transitions = app(OrderStatusTransition::class);
+
+        $orders = Order::query()
+            ->where('bld_subscription_id', $model->id)
+            ->whereDate('bld_service_date', $date->toDateString())
+            ->get();
+
+        foreach ($orders as $order) {
+            // Teslim edilmiş ya da zaten iptal edilmiş siparişte geri
+            // alınacak porsiyon yok; matris kararı tek yerde kalsın diye
+            // durum listesi burada yeniden yazılmıyor.
+            if (!in_array(
+                OrderStatusTransition::CANCELLED,
+                $transitions->allowedFrom($order),
+                true,
+            )) {
+                continue;
+            }
+
+            $transitions->apply(
+                $order,
+                OrderStatusTransition::CANCELLED,
+                null,
+                'Abone bu günü atladı.',
+            );
+        }
     }
 
     /**
@@ -260,7 +350,69 @@ class SubscriptionController extends ApiController
                 'quantity' => $p->quantity !== null ? (int) $p->quantity : null,
                 'note' => $p->note,
             ])->all(),
+            'payment' => $this->paymentSummary($subscription),
             'created_at' => self::ts($subscription->created_at),
+        ];
+    }
+
+    /**
+     * Yürürlükteki dönemin ödeme özeti — `docs/openapi.yaml`
+     * `SubscriptionPaymentSummary`.
+     *
+     * TEK DÖNEM, LİSTE DEĞİL: bu alan "şu an ne bekleniyor" sorusunu
+     * yanıtlar. Ödemelerin geçmişini gömseydik abonelik listesi ekranı her
+     * satır için aylarca geriye giden bir dizi taşırdı.
+     *
+     * FİYATLANMAMIŞ TALEPTE `null`: ödenecek bir tutar henüz yok ve sıfır
+     * göstermek "bedava" demek olurdu.
+     *
+     * TUTAR KAYITLI ÖDEMEDEN OKUNUR, YENİDEN HESAPLANMAZ (ödeme varsa):
+     * abone 4.500 TL'lik bir niyet açtıktan sonra bir gün atlarsa, ödeme
+     * sayfasındaki tutar ile listedeki tutar ayrışmamalı. Henüz niyet yoksa
+     * sıradaki dönemin önizlemesi hesaplanır.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function paymentSummary(Subscription $subscription): ?array
+    {
+        if ($subscription->agreed_unit_price_kurus === null) {
+            return null;
+        }
+
+        /** @var SubscriptionPayment|null $payment */
+        $payment = SubscriptionPayment::query()
+            ->where('subscription_id', $subscription->id)
+            ->orderByDesc('period_start')
+            ->first();
+
+        // Açık niyet ya da BUGÜNÜ KAPSAYAN ödenmiş dönem: yürürlükte olan
+        // budur. Kapsamı geçmiş bir ödeme "şu an ne bekleniyor" sorusunu
+        // yanıtlamaz; onun yerine sıradaki dönemin önizlemesi dönüyor.
+        if ($payment !== null
+            && ($payment->isPending() || ($payment->isSucceeded() && $payment->covers(BusinessTime::now())))
+        ) {
+            return [
+                'payment_id' => (int) $payment->id,
+                'period' => $payment->period(),
+                'amount' => (int) $payment->amount_kurus,
+                'currency' => 'TRY',
+                'status' => SubscriptionPaymentController::wireStatus((string) $payment->status),
+                'due_date' => $payment->period_start->toDateString(),
+            ];
+        }
+
+        // Henüz açılmamış dönem: `payment_id` NULL. Sözleşme `null` ile `0`'ı
+        // ayırmayı özellikle şart koşuyor — `0` diye bir kayıt yoktur.
+        $lifecycle = app(SubscriptionLifecycle::class);
+        $quote = $lifecycle->quote($subscription, $lifecycle->nextPeriodStart($subscription));
+
+        return [
+            'payment_id' => null,
+            'period' => $quote['start']->format('Y-m'),
+            'amount' => $quote['amount'],
+            'currency' => 'TRY',
+            'status' => SubscriptionPayment::STATUS_PENDING,
+            'due_date' => $quote['start']->toDateString(),
         ];
     }
 

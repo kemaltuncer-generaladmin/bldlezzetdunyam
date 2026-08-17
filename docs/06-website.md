@@ -13,30 +13,56 @@
 
 | Yol | Render | İçerik |
 |---|---|---|
-| `/` | SSR/ISR | Ana sayfa: tanıtım, öne çıkan ürünler, "Sipariş Ver" |
-| `/menu` | SSR/ISR (60 sn) | Catering menüsü, kategori filtreleri |
-| `/urun/[slug]` | SSR | Ürün detayı, seçenekler, sepete ekle |
+| `/` | SSR/ISR | Ana sayfa: tanıtım, hizmetler, "Sipariş Ver" |
+| `/menu` | **`force-dynamic`** | **Günün menüsü** — gün seçici, paket + kalem kartları, stok rozeti, kesim geri sayımı |
 | `/sepet` | Client | Sepet, adet düzenleme, tutar |
-| `/odeme` | Client + korumalı | Teslimat bilgisi, saat, ödeme yöntemi |
-| `/siparis/[id]` | Client + korumalı | Sipariş takip (canlı durum) |
-| `/siparislerim` | SSR + korumalı | Sipariş geçmişi |
-| `/giris`, `/kayit` | Client | Kimlik |
-| `/hesabim` | Korumalı | Profil, adresler |
-| `/kvkk`, `/mesafeli-satis`, `/iletisim` | Statik | Yasal metinler |
+| `/odeme` | Client + korumalı | Teslimat bilgisi, saat, ödeme yöntemi, kayıtlı adresler, harita |
+| `/siparis/[id]` | `force-dynamic` + korumalı | Sipariş takip (canlı durum) |
+| `/siparislerim` | `force-dynamic` + korumalı | Sipariş geçmişi |
+| `/takip/[id]` | `force-dynamic` | Fişteki **imzalı** QR ile açılan, giriş istemeyen takip |
+| `/giris`, `/kurumsal-kayit` | Client | Kimlik (telefon OTP + e-posta) |
+| `/hesabim` | Korumalı, `force-dynamic` | Profil + kısayollar (siparişler, abonelikler, adresler) |
+| `/hesabim/abonelikler` | Korumalı, `force-dynamic` | Abonelik kartları: duraklat/devam/iptal, gün atlama, adet istisnası |
+| `/hesabim/adresler` | Korumalı, `force-dynamic` | Adres defteri + harita iğnesi |
+| `/sozlesme/[token]` | `force-dynamic` | **İmzalı sözleşme bağlantısı** — donmuş metin + SMS OTP onayı |
+| `/kurumsal`, `/iletisim`, `/teklif-al` | SSR/ISR | Tanıtım |
+| `/bilgi-merkezi`, `/bilgi-merkezi/[slug]` | ISR (300 sn) | **Blog** — panelden yönetilen yazılar |
+| `/kvkk`, `/gizlilik`, `/cerez-politikasi`, `/mesafeli-satis`, `/sozlesme` | Statik | Yasal metinler |
 
-**SEO zorunlu:** `/`, `/menu`, `/urun/[slug]` sunucuda render edilir, `metadata` export'u vardır, `sitemap.xml` ve `robots.txt` üretilir, ürün sayfalarında JSON-LD (`Product`, `Restaurant`) yapılandırılmış verisi bulunur.
+**SEO zorunlu:** `/`, `/menu` ve tanıtım sayfaları sunucuda render edilir,
+`metadata` export'u vardır, `sitemap.xml` ve `robots.txt` üretilir, JSON-LD
+(`Restaurant`, menü için `Offer`) bulunur.
+
+> **`/urun/[slug]` KALDIRILDI ve `/menu`'ye 308'lendi (B-19).** Satış artık
+> güne bağlı: bir yemek yalnızca menüsünde yer aldığı gün ve o günün fiyatıyla
+> satılıyor. Güne bağlı olmayan bir ürün sayfası, sepete eklenemeyen bir fiyat
+> gösterirdi. Ürün KAYITLARI duruyor (menünün kalemleri onlar), müşteriye
+> açılan ADRES kalkıyor. Kalıcı yönlendirme çünkü o adresler site
+> haritasındaydı ve dizinde; geçici yönlendirme biriken değeri `/menu`'ye
+> aktarmaz.
 
 ## 3. Sipariş akışı
 
 ```
-/menu → ürün seç → /sepet → giriş (yoksa) → /odeme → POST /api/orders
+/menu → gün seç → paket ya da kalem ekle → /sepet → giriş (yoksa)
+   → /odeme → POST /api/orders
    → online ödeme ise redirect_url'e git → dönüşte /siparis/[id]
    → durum takibi (5 sn polling, Faz 1.5'te WebSocket)
 ```
 
 **Sepet:** İstemci tarafında `localStorage` yerine **cookie + server action** ile tutulur (SSR uyumu için).
 
-**Ödeme yöntemleri:** `/odeme` ekranı yalnızca vitrinin `payment_methods` listesindeki yöntemleri gösterir. Faz 1'de bu liste `["cash","account"]` gelir — arayüz `online` için de yazılır ama sunucu göndermediği sürece görünmez.
+**Ödeme yöntemleri:** `/odeme` ekranı yalnızca vitrinin `payment_methods`
+listesindeki yöntemleri gösterir. Liste bugün `online` ve `cash` ile sınırlı;
+**`account` (cari hesap) kaldırıldı** ve sunucu gönderilirse `422` veriyor
+(`docs/03` §12.2).
+
+> **Sitede ödeme hâlâ `redirect_url` ile dış sayfaya gidiyor** — mobil
+> uygulama bunu bıraktı (`docs/07` §3), site bırakmadı ve bu bir tutarsızlık
+> değil: tarayıcıda "geri dönüş" zaten çalışıyor (aynı sekme, aynı oturum,
+> `FRONTEND_URL`'e dönüş), oysa mobilde sistem tarayıcısından uygulamaya
+> dönecek bir yol yoktu. `next_action` alanı sitede de okunabilir hâle
+> geldiğinde karar tek yere taşınır; bugün gerek yok.
 
 **Sipariş alımı kapalıysa:** `ordering_enabled=false` veya `is_open=false` ise menü **görünmeye devam eder** (SEO), sepete ekleme ve `/odeme` engellenir, sayfada açıklayıcı bir bant gösterilir.
 
@@ -97,11 +123,20 @@ ile yapılır. `next/image` izin listesine API konağı `next.config.ts` içinde
 
 ## 8. Testler (Playwright)
 
-1. Menü → ürün seç → sepete ekle → sepet doğru tutar
-2. Kayıt → giriş → sipariş oluştur → sipariş numarası döner
-3. Gel-al siparişi → teslimat adresi adımı atlanır, teslimat ücreti eklenmez
-4. Sipariş takip sayfası durum değişimini yansıtır (API mock ile)
-5. `ordering_enabled=false` iken sipariş denemesi → uygun hata mesajı, menü hâlâ görünür
+Dosyalar `website/e2e/` altında; `docs/10` §2 Website satırıyla birlikte
+okunur.
+
+| Dosya | Kapsadığı |
+|---|---|
+| `siparis.spec.ts` | Menü → sepet → ödeme kapısı; fişteki takip bağlantısı **giriş istemiyor**, imzasız bağlantı sipariş göstermiyor; kurumsal kayıt sonrası sipariş verilebiliyor, eksik vergi bilgisi kaydı durduruyor |
+| `giris.spec.ts` | Telefon OTP: kod alma, yazım biçiminden bağımsızlık, yanlış kod, **kayıtlı olmayan numaranın da aynı ekrana geçmesi** (numara sayımına karşı) |
+| `hesap.spec.ts` | Adres defteri (ekle/seç/sil) ve abonelik self-servisi (duraklat/devam, gün atlama, fiyatsız talep) |
+| `kurallar.spec.ts` | **Stok aritmetiğinin altın veri kümesi** — `docs/contract/sales-rules.cases.json` üç dilde aynı sonucu vermeli; eksik alan (`undefined`) da sınırsız sayılmalı |
+| `navigasyon.spec.ts` | Mobil menü davranışı; `/kayit` → `/kurumsal-kayit` yönlendirmesi; **site haritası kaldırılan sayfaları ilan etmiyor** |
+
+Hâlâ yazılmamış olanlar: gel-al siparişinde teslimat adımının atlanması,
+takip sayfasının durum değişimini yansıtması ve `ordering_enabled=false`
+altında menünün görünmeye devam etmesi.
 
 ## Hizmet alanı
 
@@ -115,12 +150,74 @@ sunucu kuralı yeniden uygular. Gerekçe ve kutu kenarları:
 > harita ile nokta seçimi yoktur, bu yüzden web siparişlerinin fişinde konum
 > QR'ı basılmaz" diyordu. Artık var — bkz. §Adres defteri ve harita.
 
+## Satış ekranı: günün menüsü (B-19 ve sonrası)
+
+`/menu` sitenin **tek satış ekranıdır** ve `force-dynamic` çiziliyor. İki
+sebeple ISR bırakıldı: seçili gün adreste (`?gun=`), yani içerik zaten isteğe
+bağlı; ve **sipariş kararı burada veriliyor** — yönetici menüyü yayından
+kaldırdığında ya da kesim saati geçtiğinde altmış saniye boyunca "sepete ekle"
+düğmesi çalışmaya devam edemez. SEO kaybı yok: sayfa yine sunucuda tam
+içerikle üretiliyor.
+
+Kategori gezgini, arama ve ürün detay bağlantıları kaldırıldı: satılan şey bir
+katalog değil, o günün menüsü.
+
+### Kalan porsiyon rozeti
+
+Kartlar `remaining_portions` alanını **kendileri yorumlamıyor**; bandı
+`lib/stock-policy.ts` hesaplıyor ve o dosya mobil uygulamayla ortak kuralı
+uyguluyor (`docs/contract/sales-rules.cases.json`). Rozet yalnız `low` ve
+`soldOut` bandında çiziliyor: "Son 40 porsiyon" yazan bir etiket aciliyet
+değil gürültü üretir.
+
+**`null` SINIRSIZ demektir, sıfır değil.** Tavanı hiç konmamış bir günü
+tükenmiş göstermek, satışı kapatmanın en sessiz yoludur.
+
+### Kesim geri sayımı
+
+`components/menu/order-cutoff-countdown.tsx`. Sözleşme kesimi `cutoff_at`
+alanında **mutlak an** olarak veriyor ve sayaç yalnızca çıkarma yapıyor —
+kesim kuralını üç dilde yeniden hesaplamak (TS `Intl`, Dart'ta sabit UTC+3,
+PHP'de `Europe/Istanbul`) yaz saatinde ve yanlış saat dilimli cihazlarda üç
+ayrı sonuç üretir.
+
+- **KARAR KAPISI BURASI DEĞİL.** Sayaç sıfırlandığında ekran kilitlenmiyor;
+  sayfa yeniden çekiliyor ve karar yine sunucunun `is_orderable` alanından
+  geliyor. Sayacın kendi başına "sepete ekle"yi kapatması, saati iki dakika
+  ileri olan bir cihazda hâlâ açık bir günü kapatmak olurdu.
+- **İlk geçişte hiç çizilmiyor.** `now` sunucuda okunsaydı iki taraf farklı
+  dakikayı yazar ve React sitenin en önemli sayfasında hidratlama uyuşmazlığı
+  bildirirdi.
+- **Cihaz saati yalan söyler.** Sunucunun çizim anı ile cihazın anı arasındaki
+  fark on dakikayı geçiyorsa geri sayım **hiç gösterilmiyor**: yanlış bir
+  "son 3 dakika" uyarısı, hiç uyarı olmamasından kötüdür.
+
+### Hafta sonu bandı
+
+`components/menu/service-days-banner.tsx`. Servis günü olmadığını anlatan
+metin bugüne kadar yalnız hafta sonu bir güne **tıklayınca** görünüyordu;
+cumartesi siteye giren biri o tıklamayı yapmadan da "bugün yemek var mı"
+sorusunun cevabını görmeli, göremeyince siteyi kapalı sanıp çıkıyor.
+
+**Bant satış kanalını KAPATMAZ ve bunu açıkça söyler:** cumartesi pazartesinin
+menüsü sipariş edilebiliyor. "Kapalıyız" deyip bırakmak, açık olan bir kanalı
+kapalı göstermek olurdu; sipariş alımının gerçekten durduğu hâli
+`OrderingClosedBanner` anlatıyor ve ikisi ayrı sorulardır.
+
+Günler `Location.service_weekdays`'ten (ISO 1–7) geliyor; `6` ve `7` koda
+**gömülmüyor** — hafta sonu servise açılırsa metin kendiliğinden doğrulanır.
+Sunucu alanı hiç göndermiyorsa bant susuyor: uydurulmuş bir "hafta içi
+çalışıyoruz" cümlesi, cumartesi servis veren bir işletmede müşteriyi geri
+çevirirdi.
+
 ## B2B (kurumsal) geçiş
 
-Sistem tamamen kurumsala döndü: yalnız `can_order = true` (kurumsal onaylı)
-hesaplar sipariş verebilir. Menü/keşif herkese açık kalır; kapı sepet ve
-ödemeye konur (`docs/03` §12.1). Sunucu bayrağı esastır — iş kuralı istemciye
-gömülmez.
+Sistem tamamen kurumsala döndü, ama **sipariş kapısı kaldırıldı**: `can_order`
+her zaman `true` dönüyor ve site bu bayrağa bakmıyor. Siparişin
+verilebilirliği vitrinin (`is_open`, `ordering_enabled`) ve günün
+(`DailyMenu.is_orderable`) durumundan okunur; bağlayıcı olan
+`POST /api/orders`'ın kendisidir (`docs/03` §12.1). İş kuralı yine istemciye
+gömülmez — değişen, kuralın hangi alandan okunduğu.
 
 Kayıt akışı additive kurumsal alanlar toplar (`company_name`, `contact_person`
 ve opsiyonel vergi bilgileri; `docs/03` §12.1). Alanlar SUNUCUDA hâlâ
@@ -128,38 +225,71 @@ opsiyonel — eski istemciler kırılmasın diye. Sitedeki `/kurumsal-kayit`
 formu ise unvan, vergi dairesi ve vergi numarasını ZORUNLU tutar: unvanı
 olmayan bir "kurumsal" kayıt, faturalandırılamayan bir müşteri demek.
 
-### v2.0 değişikliği: abonelik ve cari self-servisi web'e açıldı (12.08.2026)
+### v2.0 değişikliği: abonelik self-servisi web'e açıldı (12.08.2026)
 
-Önceki karar bu ikisini **mobil uygulamaya** özgü kılıyordu. Değişti.
+Önceki karar bunu **mobil uygulamaya** özgü kılıyordu. Değişti.
 
-**Gerekçe:** kurumsal müşterinin çoğu siparişi masaüstünden veriyor ve
-borcunu görmek için telefon uygulaması indirmek zorunda kalması anlamsızdı.
-Sözleşmede uçlar zaten vardı (`/account/*`, `/subscriptions/*`); iş yalnızca
+**Gerekçe:** kurumsal müşterinin çoğu işini masaüstünden yapıyor ve
+aboneliğini yönetmek için telefon uygulaması indirmek zorunda kalması
+anlamsızdı. Sözleşmede uçlar zaten vardı (`/subscriptions/*`); iş yalnızca
 arayüz tarafındaydı.
 
 | Sayfa | İçerik |
 |---|---|
-| `/hesabim` | Profil + üç kısayol (siparişler, cari, abonelik). Borç varsa kart uyarı renginde |
-| `/hesabim/cari` | Bakiye, 90 günlük ekstre, ödeme (tamamı ya da istenen tutar) |
+| `/hesabim` | Profil + kısayollar (siparişler, abonelikler, adresler) |
 | `/hesabim/abonelikler` | Abonelik kartları: duraklat/devam/iptal, gün atlama ve adet istisnası |
+| `/sozlesme/[token]` | İmzalı sözleşme bağlantısı: donmuş metin + SMS OTP onayı |
 
-Üçü de `force-dynamic`: ödeme yaptıktan sonra eski bakiyeyi görmek, ikinci
-kez ödemeye kalkmak demekti.
+Hepsi `force-dynamic`: bir işlem yaptıktan sonra eski durumu görmek, aynı
+işlemi ikinci kez denemek demekti.
+
+> **`/hesabim/cari` KALDIRILDI (17.08.2026).** Cari hesap iş modelinden çıktı;
+> bakiye, ekstre ve borç ödeme sayfası diye bir şey yok, arkasındaki
+> `/api/account/*` uçları da kalktı (`docs/02` §7.2, `docs/03` §12.2).
+> **Yayın sırası bağlayıcıydı ve tutuldu: site sunucudan ÖNCE yayınlandı.**
+> Ters olsaydı sahadaki sürüm hâlâ çizdiği ekranı doldurmak için o üç yolu
+> çağırır ve ziyaretçi sebebini anlayamayacağı boş bir hata ekranı görürdü.
+> `/hesabim` kartındaki "borç varsa uyarı rengi" kuralı da bununla birlikte
+> gitti — gösterecek borç yok.
 
 **Yeni abonelik BU EKRANDAN açılmıyor.** `POST /subscriptions` bir talep
 açıyor ama talebin içeriği (ürünler, günler, adres, porsiyon) telefonla
 konuşulan bir anlaşma; formda toplamaya çalışmak yarım bir sözleşme
 üretirdi. Talep "Teklif Al" üzerinden geliyor, aboneliği yönetici kuruyor.
 
-### v2.0 bilgi mimarisi (W-08)
+### v2.0 bilgi mimarisi (W-08) ve bilgi merkezinin geri dönüşü (M4)
 
 Tanıtım sayfaları 10+ adetten dörde indi: `/`, `/kurumsal`, `/iletisim`,
 `/teklif-al`. Kaldırılanlar (`/hizmetler`, `/hizmetler/[slug]`,
-`/menu-cozumleri`, `/kalite-hijyen`, `/calistigimiz-alanlar`,
-`/bilgi-merkezi`) **308 ile kalıcı olarak yönlendiriliyor** — o adresler
-arama motorlarında kayıtlı ve müşterilere e-postayla gönderildi.
-Yönlendirme tablosu `website/next.config.ts` içinde; `/hizmetler/:slug`
-kuralı `/hizmetler`'den ÖNCE gelmek zorunda, yoksa alt sayfaları da yutar.
+`/menu-cozumleri`, `/kalite-hijyen`, `/calistigimiz-alanlar`) **308 ile kalıcı
+olarak yönlendiriliyor** — o adresler arama motorlarında kayıtlı ve
+müşterilere e-postayla gönderildi. Yönlendirme tablosu
+`website/next.config.ts` içinde; `/hizmetler/:slug` kuralı `/hizmetler`'den
+ÖNCE gelmek zorunda, yoksa alt sayfaları da yutar. `/urun/:slug` de aynı
+tabloda (§2).
+
+**`/bilgi-merkezi` geri geldi (M4).** Blog v2.0'da kaldırılmış ve
+`/bilgi-merkezi` ile `/bilgi-merkezi/:slug` `/kurumsal`'a 308'leniyordu;
+yönlendirmeler silindi, sayfalar yeniden yayında ve içerik panelden
+yönetiliyor (`fetchSiteContent`, ISR 300 sn).
+
+> **308 GERİ ALINAMAZ ve bu maddenin tamamı o yüzden var.** Kalıcı
+> yönlendirmeyi tarayıcı **kalıcı önbelleğe alır**: adresi yönlendirme
+> yürürlükteyken bir kez açmış bir tarayıcı, bundan sonra sunucuya HİÇ
+> SORMADAN `/kurumsal`'a gider. Aynı yola yeniden yayın yapmak bunu geri
+> almıyor ve önbelleği uzaktan temizlemenin bir yolu yok — kullanıcının kendi
+> tarayıcı verisini silmesi gerekir. Bu yüzden `/kurumsal` sayfasında bilgi
+> merkezine **belirgin bir bağlantı** duruyor: etkilenen ziyaretçi tam olarak
+> oraya düşüyor ve geri dönüş yolu o bağlantı. Arama motorları ise yeni 200
+> yanıtını bir sonraki taramada görüp dizini düzeltir.
+>
+> **Ders:** bir adresi 308'lemek, o adresi geri getirme hakkından vazgeçmektir.
+> Geri gelmesi ihtimali olan bir sayfa için 307/302 doğru araçtır.
+
+**Boş yazı listesi bir arıza değildir.** Yedek içerik (`content/posts.ts`)
+bilerek boş: panelde silinmiş bir yazıyı repodan yeniden yayınlamak içerik
+yalanı olurdu. Hem "panelde henüz yazı yok" hem "API kapalı" durumunda sayfa
+dürüst bir boş durum çiziyor — uydurma bir arşiv değil.
 
 ### v2.0 giriş akışı (W-11)
 

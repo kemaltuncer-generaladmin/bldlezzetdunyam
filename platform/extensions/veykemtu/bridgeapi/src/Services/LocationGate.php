@@ -323,6 +323,18 @@ class LocationGate
         $this->setOption($location, self::KEY_LOOKAHEAD, max(0, $days));
     }
 
+    /*
+     * SERBEST BIRAKMA SAATİ ARTIK BURADA YAŞAMIYOR (17.08.2026).
+     *
+     * `bld_subscription_release_time` (varsayılan 07:00) kaldırıldı. Siparişin
+     * mutfağa açıldığı an artık o servis gününün KESİM ANI ve tek kaynağı
+     * `OrderingWindow::cutoffFor()`. İkinci bir saat ayarı iki doğru kaynak
+     * demekti: yönetici kesimi 09:00'a çekip serbest bırakmayı 07:00'de
+     * unutursa mutfak, satış hâlâ açıkken eksik bir listeyi tam sanırdı.
+     *
+     * Damgayı atan `OrderFactory::releaseAtFor()`, okuyan `KitchenController`.
+     */
+
     /**
      * "Günün Menüsü" paket ürününün kimliği; yapılandırılmamışsa `null`.
      *

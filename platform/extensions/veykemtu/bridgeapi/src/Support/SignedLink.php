@@ -41,6 +41,21 @@ final class SignedLink
     public const string PURPOSE_DELIVER = 'd';
 
     /**
+     * Abonelik sözleşmesi bağlantısı (iş kararı 9).
+     *
+     * AMAÇ HMAC'İN İÇİNDE OLDUĞU İÇİN bir takip bağlantısı sözleşme onayı
+     * olarak yeniden oynatılamaz: aynı kimlik ve aynı süre için üretilseler
+     * bile imzaları farklı çıkar. Bu, sınıfın en başından beri taşıdığı
+     * özellik; sözleşme onun üçüncü kullanıcısı.
+     *
+     * DİKKAT — kimlik alanı burada SİPARİŞ DEĞİL SÖZLEŞME kimliğidir.
+     * `sign()` ilkel bir tam sayı aldığı için tip bunu ayırt etmez; ayrımı
+     * yapan tek şey amaç sabitidir. Sipariş 7'nin takip bağlantısı ile
+     * sözleşme 7'nin bağlantısı bu yüzden birbirine çözülmez.
+     */
+    public const string PURPOSE_CONTRACT = 'c';
+
+    /**
      * Takip bağlantısı 14 gün yaşar.
      *
      * VARSAYIM: müşteri fişi buzdolabı kapağında kalıyor ve sipariş
@@ -56,6 +71,16 @@ final class SignedLink
      * çıkarılan bir fişin siparişi kapatabildiği pencereyi daraltıyor.
      */
     public const int DELIVER_TTL_DAYS = 2;
+
+    /**
+     * Sözleşme bağlantısı 7 gün yaşar.
+     *
+     * `docs/control/subscriptions.md` → `POST /{id}/contracts`:
+     * `expires_in_days` 1–30, varsayılan 7. Süresiz bir imza bağlantısı bir
+     * yıl sonra ele geçtiğinde hâlâ geçerli olurdu; bir hafta ise kurumsal
+     * onayın elden ele dolaşmasına yetiyor.
+     */
+    public const int CONTRACT_TTL_DAYS = 7;
 
     private function __construct() {}
 

@@ -16,6 +16,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
@@ -36,6 +37,7 @@ use Veykemtu\BridgeApi\Console\SubscriptionGenerateCommand;
 use Veykemtu\BridgeApi\Console\TranslationAuditCommand;
 use Veykemtu\BridgeApi\Exceptions\ApiExceptionRenderer;
 use Veykemtu\BridgeApi\Http\Middleware\AuthenticateToken;
+use Veykemtu\BridgeApi\Http\Middleware\RequireAdminPanel;
 use Veykemtu\BridgeApi\Http\Middleware\RequireAppHeaders;
 use Veykemtu\BridgeApi\Http\Middleware\RequireScope;
 use Veykemtu\BridgeApi\Http\Controllers\Admin\DailyMenus;
@@ -89,6 +91,7 @@ class Extension extends BaseExtension
     public function register(): void
     {
         $this->disableStorefrontTheme();
+        $this->closeAdminPanel();
         $this->registerSmsSender();
         $this->registerGeocoder();
 
@@ -106,6 +109,45 @@ class Extension extends BaseExtension
         $this->registerConsoleCommand('veykemtu.cariArsivle', AccountArchiveCommand::class);
         $this->registerConsoleCommand('veykemtu.abonelikUret', SubscriptionGenerateCommand::class);
         $this->registerConsoleCommand('veykemtu.surum', AppReleaseCommand::class);
+
+        $this->registerPendingConsoleCommands();
+    }
+
+    /**
+     * Sınıfları paralel yazılan konsol komutları.
+     *
+     * SINIF YOKSA KAYIT HİÇ YAPILMAZ ve bu, rota dosyasındaki
+     * `class_exists()` denetiminin konsol karşılığıdır — ama sebebi DAHA
+     * SERT: `registerConsoleCommand()` bağlamayı `$this->commands()` ile
+     * Artisan'a veriyor ve Artisan açılırken her komutu KONTEYNERDEN
+     * ÇÖZÜYOR. Var olmayan bir sınıf orada `BindingResolutionException`
+     * ile patlar; yani tek bir eksik dosya `php artisan`'ın tamamını —
+     * `migrate` dahil — kullanılamaz hâle getirirdi.
+     *
+     * ZAMANLAMA BUNA BAKMAZ (`registerSchedule()`): orada yalnız bir dize
+     * duruyor ve gerekçesi o metodun yorumunda.
+     *
+     * Anahtarlar `veykemtu.<deveKasası>` kalıbını, komut adları
+     * `veykemtu:<türkçe-tire>` kalıbını izliyor — ikisi de yukarıdaki
+     * listeden geliyor.
+     */
+    private function registerPendingConsoleCommands(): void
+    {
+        /** @var array<string, class-string> $commands */
+        $commands = [
+            // Yarının stok tablosunu hazırlar; 21:30'da koşar.
+            'veykemtu.stokTazele' => Console\StockReconcileCommand::class,
+            // Eskimiş/çözülmüş hata olaylarını kapatır; 03:30'da koşar.
+            'veykemtu.hataTemizle' => Console\MonitorPurgeCommand::class,
+            // Günün menüsünü SMS ile duyurur; ayarlanabilir saatte koşar.
+            'veykemtu.menuDuyur' => Console\MenuAnnounceCommand::class,
+        ];
+
+        foreach ($commands as $key => $class) {
+            if (class_exists($class)) {
+                $this->registerConsoleCommand($key, $class);
+            }
+        }
     }
 
     /**
@@ -131,6 +173,82 @@ class Extension extends BaseExtension
     private function disableStorefrontTheme(): void
     {
         Igniter::disableThemeRoutes(true);
+    }
+
+    /**
+     * TastyIgniter admin panelini kapatır — varsayılan KAPALI (F4).
+     *
+     * Sahip Kontrol Merkezi'ni tek yönetim yüzeyi yaptı. Panel artık ne
+     * kullanılıyor ne bakımı yapılıyor; ayakta durduğu sürece iki şey
+     * getiriyor: parola denemesine açık bir giriş formu ve KM ile
+     * çelişebilecek ikinci bir yazma yolu (aynı ayarı iki yerden
+     * değiştirmek, hangisinin doğru olduğunu kimsenin bilmediği bir
+     * durum üretir).
+     *
+     * ── KOD SİLİNMEDİ, YOL KAPATILDI ────────────────────────────────────
+     *
+     * Üç sebep:
+     *
+     *   1. **Geri alınabilirlik.** KM çöktüğünde ya da imza anahtarı
+     *      kaybolduğunda yönetim yüzeyi tek bir ortam değişkeniyle geri
+     *      gelmeli. Silinmiş bir panel için tek yol yeni bir sürüm
+     *      yayınlamaktır ve o an, tam da yayın yapılamayan andır.
+     *   2. **Ölçülemeyen cerrahi.** 13 admin denetleyicisini silmek
+     *      `AdminRegistrar`, izinler, blade'ler ve dil dosyalarında geniş
+     *      bir kazımaya dönüşür; bu turda sonucu ölçülemez.
+     *   3. **Çekirdeğe bağlılık.** Admin sınıfları TastyIgniter'ın kayıt
+     *      akışına (`Igniter::loadControllersFrom`, izin sağlayıcısı,
+     *      gösterge paneli parçacıkları) bağlı; yarısını silmek açılışı
+     *      kırabilir.
+     *
+     * ── NEDEN İKİ LİSTE ─────────────────────────────────────────────────
+     *
+     * Panel tek bir rota kümesi değil. `adminMiddleware` yalnızca admin
+     * DENETLEYİCİLERİNİ taşıyor; **giriş, çıkış ve parola sıfırlama**
+     * (`Igniter\User\Classes\RouteRegistrar`) ile varlık birleştiricisi
+     * (`Admin\Classes\RouteRegistrar::forAssets`) genel `middleware`
+     * listesini kullanıyor. Yalnız birincisi kapatılsaydı bütün ekranlar
+     * `404` döner ama `/admin/login` açık kalırdı — yani kapattığımızı
+     * sandığımız hâlde asıl saldırı yüzeyi ayakta kalırdı.
+     *
+     * Genel liste storefront tarafında da kullanılıyor; ara katman bu
+     * yüzden isteğin YOLUNA bakıyor ve yalnız yönetim önekinin altını
+     * kapatıyor (gerekçe `RequireAdminPanel` sınıf yorumunda).
+     *
+     * ── NEDEN `register()`, `boot()` DEĞİL ──────────────────────────────
+     *
+     * `disableStorefrontTheme()` ile aynı gerekçe, aynı zamanlama: iki
+     * liste de rotalar kurulurken okunuyor
+     * (`Igniter\Admin\ServiceProvider::boot()`), eklentiler ise çekirdeğin
+     * `boot()`'undan ÖNCE `register()` ediliyor
+     * (`Igniter\System\ServiceProvider::register()` sırası: eklentiler,
+     * sonra `Igniter\Admin\ServiceProvider`). `boot()`'a yazsaydık ara
+     * katmanı rotalar kurulduktan sonra eklemiş olurduk ve hiçbir etkisi
+     * olmazdı.
+     *
+     * ── NEDEN LİSTENİN BAŞINA ───────────────────────────────────────────
+     *
+     * `array_unshift`, yani `web` grubundan da önce. Sonuna eklenseydi
+     * oturum ve CSRF ara katmanları önce koşardı ve token'sız bir
+     * `POST /admin/login` `404` yerine `419` alırdı — panelin varlığını
+     * yanıt kodundan ele veren tam olarak budur.
+     */
+    private function closeAdminPanel(): void
+    {
+        config()->set(
+            RequireAdminPanel::CONFIG_KEY,
+            RequireAdminPanel::enabledByEnvironment(),
+        );
+
+        foreach (['igniter-routes.middleware', 'igniter-routes.adminMiddleware'] as $key) {
+            /** @var list<string> $stack */
+            $stack = (array) config($key, []);
+
+            if (!in_array(RequireAdminPanel::class, $stack, strict: true)) {
+                array_unshift($stack, RequireAdminPanel::class);
+                config()->set($key, $stack);
+            }
+        }
     }
 
     /**
@@ -167,22 +285,119 @@ class Extension extends BaseExtension
     /**
      * Zamanlanmış işler — sunucudaki `schedule:run` cron'u tetikler.
      *
-     * Gece üretim işi kesim saatinden ÖNCE (22:00) koşar; müşteriye sabaha
-     * kadar adet değiştirme payı kalır. `withoutOverlapping` — uzun süren
-     * bir koşum bir sonrakiyle üst üste binmez. Saat dilimi
-     * `BusinessTime::ZONE` (Istanbul); sunucu UTC olsa da iş yerel saatle.
+     * SIRA ANLAMLIDIR, saatler rastgele seçilmedi:
+     *
+     *   21:30  `veykemtu:stok-tazele`   yarının stok tablosunu hazırlar
+     *   22:00  `veykemtu:abonelik-uret` abonelik siparişlerini üretir
+     *   03:30  `veykemtu:hata-temizle`  eskimiş hata olaylarını kapatır
+     *   09:00  `veykemtu:menu-duyur`    günün menüsünü SMS ile duyurur
+     *
+     * STOK TAZELEME ÜRETİMDEN ÖNCE OLMAK ZORUNDA. Abonelikler stoku ÖNCE
+     * REZERVE EDİYOR (iş kuralı); rezervasyonun yazılacağı gün satırı
+     * üretim koştuğunda hazır değilse abonelik siparişleri stoksuz bir güne
+     * düşer ve o günün serbest satış kapasitesi olduğundan büyük görünür.
+     * Yarım saatlik ara, uzun süren bir tazelemenin üretimin başlangıcına
+     * taşmasına pay bırakıyor.
+     *
+     * HATA TEMİZLİĞİ 03:30'DA: gecenin iki iş yükünden de sonra, sabah
+     * duyurusundan da önce. Panelde "bir şey çalışmıyor" diye bakılan ekran
+     * (`docs/control/monitor.md`) mesai başlarken temizlenmiş olmalı.
+     *
+     * `withoutOverlapping` — uzun süren bir koşum bir sonrakiyle üst üste
+     * binmez. Saat dilimi `BusinessTime::ZONE` (Istanbul); sunucu UTC olsa
+     * da iş yerel saatle.
+     *
+     * KOMUT SINIFLARI BAŞKA AJANLARIN KULVARINDA. Zamanlama, sınıf var
+     * olmasa bile kaydedilir ve bu bilinçli: `$schedule->command()` yalnız
+     * bir dize taşıyor, çözümlemeyi `schedule:run` yapıyor. Eksik bir komut
+     * o dakikada bir hata satırı yazar; koşullu kayıt ise komut eklendiği
+     * gün zamanlamanın sessizce yokluğu demek olurdu — çok daha sinsi bir
+     * arıza.
      *
      * Ay-sonu cari özeti işi kaldırıldı: cari hesap iş modelinden çıktı.
      */
     #[Override]
     public function registerSchedule(Schedule $schedule): void
     {
+        $schedule->command('veykemtu:stok-tazele')
+            ->name('BLD stok tazeleme')
+            ->dailyAt('21:30')
+            ->timezone(BusinessTime::ZONE)
+            ->withoutOverlapping()
+            ->runInBackground();
+
         $schedule->command('veykemtu:abonelik-uret')
             ->name('BLD abonelik üretim')
             ->dailyAt('22:00')
             ->timezone(BusinessTime::ZONE)
             ->withoutOverlapping()
             ->runInBackground();
+
+        $schedule->command('veykemtu:hata-temizle')
+            ->name('BLD hata temizliği')
+            ->dailyAt('03:30')
+            ->timezone(BusinessTime::ZONE)
+            ->withoutOverlapping()
+            ->runInBackground();
+
+        /*
+         * GÜNÜN MENÜSÜ DUYURUSU — saati panelden ayarlanabilir.
+         *
+         * Sabit bir saat yeterli değildi: duyuru SMS'i müşterinin sipariş
+         * verebileceği saatten önce gitmeli ve kesim saati
+         * (`bld_order_cutoff`) panelden değiştirilebiliyor. İkisi elle
+         * eşitlenseydi kesim öne alındığı gün duyuru kapanmış bir gün için
+         * gitmeye devam ederdi.
+         *
+         * ŞABLON VARSAYILAN KAPALI DOĞUYOR (iş kuralı): iş her gün koşar
+         * ama duyuru şablonu kapalıyken komut hiçbir şey göndermez. Kapalı
+         * bir şablonu zamanlamanın da kapalı olmasıyla ifade etseydik,
+         * şablonu açan yönetici ertesi gün hiçbir şey gelmediğini görür ve
+         * sebebini başka yerde arardı.
+         */
+        $schedule->command('veykemtu:menu-duyur')
+            ->name('BLD günün menüsü duyurusu')
+            ->dailyAt(self::menuAnnounceTime())
+            ->timezone(BusinessTime::ZONE)
+            ->withoutOverlapping()
+            ->runInBackground();
+    }
+
+    /**
+     * Menü duyurusunun `HH:mm` saati — `location_options`'tan.
+     *
+     * VARSAYIM: anahtar `bld_menu_announce_time`, biçim `HH:mm`, varsayılan
+     * `09:00`. `docs/control/sms.md` duyuru taslağının üç anahtarını
+     * donduruyor ama zamanlama saatini adlandırmıyor; ad `bld_*` kalıbını
+     * ve komşu anahtarların (`bld_order_cutoff`,
+     * `bld_subscription_release_time`) biçimini izliyor.
+     *
+     * VİTRİN AYRIMI YOK: `Schedule` tek bir saat kabul ediyor ve sistemde
+     * bugün tek vitrin var. Birden çok vitrin gelirse doğru çözüm burada
+     * dallanmak değil, komutun kendi içinde vitrin vitrin dolaşmasıdır.
+     *
+     * OKUMA HER TÜRLÜ HATAYI YUTAR ve varsayılana düşer. Bu metot konsol
+     * açılışında koşuyor; kurulmamış bir veritabanında (`migrate` öncesi,
+     * ilk `composer install` sonrası) bir istisna `php artisan`'ın TAMAMINI
+     * kullanılamaz hâle getirirdi — göç koşturmak dahil.
+     */
+    private static function menuAnnounceTime(): string
+    {
+        $default = '09:00';
+
+        try {
+            $raw = DB::table('location_options')
+                ->where('item', 'bld_menu_announce_time')
+                ->value('value');
+        } catch (Throwable) {
+            return $default;
+        }
+
+        $value = $raw !== null ? json_decode((string) $raw, true) : null;
+
+        return is_string($value) && preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $value) === 1
+            ? $value
+            : $default;
     }
 
     #[Override]
@@ -621,6 +836,135 @@ class Extension extends BaseExtension
          */
         RateLimiter::for('bld-teslimat', static fn(Request $request): Limit => Limit::perMinute(10)
             ->by('teslimat:'.(string) $request->route('order')));
+
+        /*
+         * ABONELİK SÖZLEŞMESİ — 10/dk, SÖZLEŞME BAŞINA (`bld-teslimat` emsali).
+         *
+         * Aynı kova iki yüzeyi birden koruyor ve sayacı bağladığı kimlik
+         * yüzeye göre değişiyor:
+         *
+         *   - `/sozlesme/{contract}/{expires}/{signature}` (web sayfası) →
+         *     `{contract}`, yani kayıt kimliği.
+         *   - `/api/contracts/{token}/*` (sözleşme uçları) → `{token}`,
+         *     yani imzalı bağlantının kendisi.
+         *
+         * İKİSİ DE IP BAŞINA DEĞİL, iki ayrı sebeple. Web sayfasında sebep
+         * `bld-track` ile aynı: bağlantıyı bir kısaltıcı ya da önizleme
+         * getirici açtığında herkes tek IP'den görünür. API tarafında sebep
+         * `docs/openapi.yaml` §Oran sınırlarında yazılı: uç kimlik istemez,
+         * aynı ofisten bakan iki abone birbirini kilitlemesin ve henüz
+         * oturum yokken sayacın bağlanabileceği tek kimlik bağlantıdır.
+         *
+         * IP'YE DÜŞME YALNIZ SAVUNMA AMAÇLI: yol parçası beklenen kalıba
+         * bağlı olduğu için ikisinden biri her zaman dolu. Boş bir sayaç
+         * anahtarı bütün trafiği tek kovaya toplar ve sınırı herkesi birden
+         * kilitleyen bir şeye çevirirdi.
+         */
+        RateLimiter::for('bld-sozlesme', static fn(Request $request): Limit => Limit::perMinute(10)
+            ->by('sozlesme:'.(string) (
+                $request->route('contract')
+                ?? $request->route('token')
+                ?? $request->ip()
+                ?? 'bilinmeyen'
+            )));
+
+        /*
+         * SÖZLEŞME ONAY KODU — 5/SAAT, BELİRTEÇ BAŞINA.
+         *
+         * Sözleşmeden birebir gelir (`docs/openapi.yaml` §Oran sınırları) ve
+         * `bld-sozlesme`'nin İÇİNDE ikinci bir kapıdır: o kova kaba kuvveti
+         * yavaşlatmak için dakikalık, bu kova SMS ısmarlamayı durdurmak için
+         * saatlik. Tek kova olsaydı dakikada 10 SMS meşru sayılırdı ve bir
+         * sözleşme bağlantısına sınırsız SMS ısmarlanabilmesi DOĞRUDAN PARA
+         * KAYBIDIR — gönderilen her mesajın faturası bize çıkıyor.
+         *
+         * `bld-auth` (60/dk) yeniden kullanılmadı: o sınır IP başına ve
+         * parola denemesini yavaşlatmak için ölçüldü; buradaki kaynak para,
+         * zaman değil.
+         */
+        RateLimiter::for('bld-sozlesme-otp', static fn(Request $request): Limit => Limit::perHour(5)
+            ->by('sozlesme-otp:'.(string) ($request->route('token') ?? $request->ip() ?? 'bilinmeyen')));
+
+        /*
+         * İSTEMCİ HATA BİLDİRİMİ — 60 İSTEK/DAKİKA/IP. KARAR VERİLDİ (F4).
+         *
+         * ── ÇELİŞKİ KAPANDI ─────────────────────────────────────────────
+         *
+         * Bir faz notu 60/SAAT diyordu, sözleşme 60/DAKİKA. Tek doğru
+         * kaynak `docs/openapi.yaml` §Oran sınırlarıdır (AGENTS.md §2.3:
+         * normatif biçim odur) ve bu satır oradan birebir gelir. Değer
+         * DEĞİŞTİRİLECEKSE ÖNCE SÖZLEŞME değişir; buradaki sayıyı tek
+         * başına oynatmak, iki kaynağı yeniden ayırmak demektir.
+         *
+         * ── DAKİKALIK KOVA NEDEN SEÇİLDİ ────────────────────────────────
+         *
+         * Saatlik kova (60/saat = 1/dakika) ölçüldü ve REDDEDİLDİ:
+         *
+         *   - Uç bir HATA BOŞALTMA YERİ. Değerinin tamamı, bir çökme
+         *     dalgasının ilk dakikalarında yazdığı satırlarda. Saatlik bir
+         *     kova tam o dakikada kapanır ve elde yalnızca dalganın ilk
+         *     kaydı kalır — hangi sürümde, kaç cihazda, hangi ekranda
+         *     olduğu sorularının cevabı kaybolur.
+         *   - Sınır IP BAŞINA ve ÜÇ YÜZEYDE DE IP PAYLAŞILIYOR: web
+         *     raporlarının bir kısmını Next.js SUNUCUSU gönderiyor
+         *     (`instrumentation.ts` → `onRequestError`, yani tek çıkış
+         *     IP'si), mutfak kasası ile yönetici aynı ağdan çıkıyor,
+         *     kurumsal müşteri tek NAT arkasında. Saatlik bir kovada
+         *     döngüye giren TEK bir istemci, aynı IP'nin arkasındaki
+         *     herkesin raporunu bir saat boyunca susturur.
+         *
+         * ── ASIL KORUMA SUNUCUDA DEĞİL, İSTEMCİDE ───────────────────────
+         *
+         * Bu kova bir sel kapağı değil, tavan. Sel istemcide durduruluyor
+         * ve dört kemer var (`musteriapp/lib/src/data/crash_reporter.dart`,
+         * `website/lib/report-error.ts`): parmak izi tekilleştirme,
+         * açılışlar arası 6 saatlik soğuma (KALICI — açılışta çöken bir
+         * yapının her yeniden başlayışta yeniden rapor yollamasını bu
+         * durduruyor), oturum başına 5 jetonluk kova + en az 10 saniye ara
+         * ve örnekleme. Bir istemcinin dakikada üretebileceği rapor
+         * gerçekte ~5; 60'a ulaşmak için aynı IP'nin arkasında aynı anda
+         * onlarca istemcinin çökmesi gerekir — yani bozuk bir sürüm
+         * yayınladığımız an, raporlara en çok ihtiyaç duyduğumuz an.
+         *
+         * Sunucu kovasının işi bu yüzden "hızı kesmek" değil, İSTEMCİ
+         * KEMERLERİ ÇALIŞMAZSA (eski bir sürüm, elle yazılmış bir istemci,
+         * kasıtlı gürültü) tabloyu sınırsız büyümekten korumak.
+         *
+         * BİRİM İSTEK, OLAY DEĞİL: uç toplu gönderim kabul ediyor ve tek
+         * istekte en çok 20 olay alıyor (`ClientErrorController::MAX_EVENTS`).
+         * Yani gerçek tavan IP başına 1200 olay/dakika. Bu sayı bilinçli
+         * olarak yüksek: çevrimdışı kalmış bir istemcinin biriktirdiklerini
+         * tek seferde boşaltabilmesi için toplu gönderim var ve onu istek
+         * sayısıyla cezalandırmak, toplu göndermenin sebebini ortadan
+         * kaldırırdı. Tablonun sınırsız büyümesini oran sınırı değil, gece
+         * koşan `veykemtu:hata-temizle` engelliyor.
+         *
+         * Sınır IP başına: uçta kimlik opsiyonel ve raporların önemli bir
+         * kısmı tam da oturum açılamadığı için doğuyor.
+         *
+         * DİKKAT — sınıra takılan istek İSTEMCİ TARAFINDA SESSİZCE DÜŞMELİ.
+         * Uç `429` döndüğünde istemci bunu yeni bir hata sayarsa hata
+         * bildirimi kendi kendini besleyen bir döngüye girer.
+         */
+        RateLimiter::for('bld-hata', static fn(Request $request): Limit => Limit::perMinute(60)
+            ->by('hata:'.(string) ($request->ip() ?? 'bilinmeyen')));
+
+        /*
+         * ABONELİK ÖDEMESİ DÖNÜŞ SAYFASI — 20/dk, ÖDEME BAŞINA.
+         *
+         * `bld-teslimat` ve `bld-track` ile aynı aile: imzalı/tahmin
+         * edilemez bir adresi olan, oturumsuz bir sayfa. Sınır ödeme
+         * kaydına bağlı, IP'ye değil — sağlayıcıdan dönen kullanıcı çoğu
+         * zaman operatör NAT'ı arkasından geliyor ve IP başına bir sınır
+         * yoğun saatte birbirini tanımayan abonelere sonuç sayfasını
+         * kapatırdı.
+         *
+         * Teslim onayından (10/dk) cömert olmasının sebebi: sonuç sayfası
+         * "ödemem geçti mi" diye yenilenen sayfadır ve yenileme burada
+         * beklenen davranıştır.
+         */
+        RateLimiter::for('bld-odeme-donus', static fn(Request $request): Limit => Limit::perMinute(20)
+            ->by('odeme-donus:'.(string) ($request->route('hash') ?? $request->ip() ?? 'bilinmeyen')));
     }
 
     /**
@@ -659,6 +1003,66 @@ class Extension extends BaseExtension
                 }
 
                 return ApiExceptionRenderer::render($e, $request);
+            });
+
+        $this->registerExceptionReporter();
+    }
+
+    /**
+     * Sunucu istisnalarını hata monitörüne yazar — `docs/control/monitor.md`.
+     *
+     * `renderable` KARDEŞİ AMA AYNI ŞEY DEĞİL. O, istemciye DÖNEN gövdeyi
+     * biçimlendiriyor ve yalnız bir HTTP isteği varken çalışıyor. Monitörün
+     * beslenmesi gereken hatalar ise çoğunlukla oradan geçmiyor: gece
+     * koşan abonelik üretimi, stok tazeleme, SMS duyurusu ve kuyruk işleri
+     * kimseye yanıt döndürmüyor. `reportable` bunların hepsini görüyor.
+     *
+     * `source = server` SABİT. Monitör dört kaynağı ayırıyor (kasa, mobil,
+     * web, sunucu) ve buradan yazılan her satır tanım gereği sunucunun
+     * kendi hatası.
+     *
+     * ÖZYİNELEME KORUMASI — BU METODUN VAR OLMA SEBEBİ KADAR ÖNEMLİ.
+     * Hata satırını yazmak bir VERİTABANI YAZMASIDIR. Veritabanı düştüğünde
+     * ilk istisna buraya gelir, yazma denemesi ikinci bir istisna atar, o da
+     * buraya gelir — tek bir DB kesintisi sonsuz döngüye ve dolan bir
+     * yığına dönerdi. İki katman birden var:
+     *
+     *   1. `$writing` bayrağı: yazma sırasında doğan istisna geri
+     *      girdiğinde hemen çıkılır. Sarmalayıcı `try/catch` tek başına
+     *      yetmez — `MonitorRecorder` içindeki bir hata `report()`
+     *      üzerinden yeniden buraya girebilir ve `catch` bloğu o iç içe
+     *      girişi görmez.
+     *   2. Sarmalayıcı `catch (Throwable)`: yazma hatası SESSİZCE YUTULUR.
+     *      Yerine bir şey günlüğe düşürmek de aynı riski taşıyor; hata
+     *      bildirmenin kendisi hata üretmemeli.
+     *
+     * `class_exists()` NÖBETÇİSİ KALDIRILDI — bir daha konmayacak.
+     * Kanca uzun süre "kayıt sınıfı başka ajanın kulvarında" gerekçesiyle
+     * o nöbetçinin arkasında durdu; sınıf depoya hiç girmedi ve metot her
+     * açılışta sessizce erken döndü. Sonuç: monitörün dört kaynağından biri
+     * — sunucu — hiç yazmadı, ekran çalıştığı için de kimse fark etmedi.
+     * Sınıf artık burada; koruma yok ki yeniden kaybolursa açılışta
+     * patlasın, sessizce boş bir ekran bırakmasın.
+     */
+    private function registerExceptionReporter(): void
+    {
+        $writing = false;
+
+        $this->app->make(\Illuminate\Contracts\Debug\ExceptionHandler::class)
+            ->reportable(function (Throwable $e) use (&$writing): void {
+                if ($writing) {
+                    return;
+                }
+
+                $writing = true;
+
+                try {
+                    $this->app->make(Services\MonitorRecorder::class)->recordServerException($e);
+                } catch (Throwable) {
+                    // Bilerek boş — yukarıdaki sınıf yorumuna bakın.
+                } finally {
+                    $writing = false;
+                }
             });
     }
 }

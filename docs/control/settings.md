@@ -44,7 +44,6 @@ parametresi orada yok sayılır.
 
     "order_cutoff": "08:00",
     "max_lookahead_days": 7,
-    "subscription_release_time": "07:00",
 
     "min_order_total_kurus": 15000,
     "delivery_fee_kurus": 2500,
@@ -68,8 +67,7 @@ parametresi orada yok sayılır.
       "max_lookahead_days": 7,
       "prep_minutes": 40,
       "delivery_minutes": 20,
-      "busy_extra_minutes": 15,
-      "subscription_release_time": "07:00"
+      "busy_extra_minutes": 15
     }
   },
   "server_time": "2026-08-16T09:00:00Z"
@@ -91,7 +89,6 @@ varsayılanını gömmesi, sunucu varsayılanı değiştiğinde iki farklı ger�
 | `is_open` | bool | *türetilir* | Çalışma saatlerinden; **yazılamaz** |
 | `order_cutoff` | `HH:mm`\|null | `bld_order_cutoff` | **Genel** sabah kesim saati |
 | `max_lookahead_days` | int | `bld_max_lookahead_days` | 0–7 |
-| `subscription_release_time` | `HH:mm` | `bld_subscription_release_time` **(yeni)** | Abonelik siparişlerinin KDS'e düşme saati |
 | `min_order_total_kurus` | int | `bld_min_order_total` | Kuruş |
 | `delivery_fee_kurus` | int | `bld_delivery_fee` | Kuruş; gel-al'da uygulanmaz |
 | `payment_methods` | list\<string\> | `bld_payment_methods` | Yalnız `online` ve `cash` |
@@ -104,20 +101,91 @@ varsayılanını gömmesi, sunucu varsayılanı değiştiğinde iki farklı ger�
 | `daily_package_menu_id` | int\|null | `bld_daily_package_menu_id` | **Salt okunur**; göç yazar |
 | `auto_invoice` | bool | `bld_auto_invoice` **(yeni)** | Teslimde fatura belgesi otomatik üretilsin mi |
 
-> **BAŞKA AJANIN KULVARI.** İki yeni `location_options` anahtarı ve
-> `LocationGate` erişimcileri gerekiyor: `bld_subscription_release_time`
-> (`HH:mm`, varsayılan `"07:00"`) ve `bld_auto_invoice` (bool, varsayılan
-> `false`).
+> **BAŞKA AJANIN KULVARI.** Bir yeni `location_options` anahtarı ve
+> `LocationGate` erişimcisi gerekiyor: `bld_auto_invoice` (bool, varsayılan
+> `false`). Erişimci gelene kadar alan OKUNABİLİR (sözleşmedeki varsayılanla)
+> ama YAZILAMAZ: yazmayı sessizce yutmak, yöneticinin kaydettiğini sandığı bir
+> ayarın hiç uygulanmaması demekti — panel `422` ile açıkça öğreniyor
+> (`SettingsRepository::pendingGateFields()`).
 
-> **BAŞKA AJANIN KULVARI.** `LocationGate::ALL_PAYMENT_METHODS` bugün
-> `['online','cash','account']`. Cari hesap kalktığı için (iş kararı 1) liste
-> `['online','cash']` olmalı ve `DEFAULT_PAYMENT_METHODS` `['cash']`'e
-> düşmeli. Bu sözleşme `account` değerini **kabul etmez**; gönderilirse `422`.
+### `bld_menu_announce_time` — bu uçta YOK, ama `location_options`'ta VAR
 
-> KARAR: `max_lookahead_days` tavanı **7**'dir (iş kararı 3). `LocationGate`
-> bugün 30 varsayıyor; bu uç 7'nin üstünü `422` ile reddeder ve varsayılanı 7
-> bildirir. Sunucu sabitini değiştirmek başka ajanın kulvarı, ama sözleşme
-> bugünden 7 diyor — daha büyük bir değerin panelden girilebilmesi, kararın
+| Anahtar | Tip | Varsayılan | Kim okuyor |
+|---|---|---|---|
+| `bld_menu_announce_time` | `HH:mm` | `09:00` | `Extension::menuAnnounceTime()` → `veykemtu:menu-duyur` zamanlaması |
+
+**Bu bir açıktır ve bilerek yazılıyor.** Anahtar `GET /sales` gövdesinde
+yayınlanmıyor, `PUT /sales` ile yazılamıyor ve `LocationGate`'te erişimcisi
+yok. Bugün onu **yazan hiçbir yol yoktur**: değeri değiştirmenin tek yolu
+`location_options` satırına elle dokunmak. Yani duyuru saati pratikte
+`09:00`'a sabitlenmiş durumda.
+
+**Adı bir VARSAYIMDIR.** `docs/control/sms.md` duyuru taslağının üç anahtarını
+donduruyor ama **zamanlama saatini adlandırmıyor**; ad, `bld_*` kalıbını ve
+komşu anahtarların (`bld_order_cutoff`) biçimini izleyerek kodda seçildi
+(`Extension.php`, `// VARSAYIM:`). Burada belgelenmesinin sebebi tam olarak
+bu: kodda tek başına duran bir varsayım, ikinci bir ajan aynı işi başka bir
+adla yaptığında sessizce ikiye bölünür ve iki anahtardan hangisinin okunduğu
+yalnız zamanlayıcı koştuğunda anlaşılır.
+
+**Neden sabit bir saat yetmedi:** duyuru SMS'i müşterinin sipariş
+verebileceği saatten ÖNCE gitmeli ve kesim saati (`order_cutoff`) panelden
+değiştirilebiliyor. İkisi elle hizalanmazsa duyuru, sipariş alınamayan bir
+güne davet olur.
+
+**Okuma her türlü hatayı yutup varsayılana düşer.** Bu metot konsol açılışında
+koşuyor; kurulmamış bir veritabanında (`migrate` öncesi) bir istisna
+`php artisan`'ın TAMAMINI kullanılamaz hâle getirirdi — göç koşturmak dahil.
+
+**Vitrin ayrımı yok:** `Schedule` tek bir saat kabul ediyor ve bugün tek vitrin
+var. Birden çok vitrin gelirse doğru çözüm burada dallanmak değil, komutun
+kendi içinde vitrin vitrin dolaşmasıdır.
+
+> **Kapatılacak iş:** alanı bu uca `menu_announce_time` adıyla eklemek
+> (`HH:mm`, `null` kabul etmez), `LocationGate` erişimcisini yazmak ve
+> `meta.defaults` içine `"09:00"` koymak. Sözleşmeye eklenene kadar panelde
+> **görünmemesi doğrudur** — yazılamayan bir alanı göstermek, yöneticiye
+> olmayan bir düğme sunmaktır.
+
+> **KALDIRILDI: `subscription_release_time` (17.08.2026).** Anahtar
+> (`bld_subscription_release_time`, varsayılan `07:00`), `LocationGate`
+> erişimcileri ve TastyIgniter panelindeki kutusu silindi. Gerekçe aşağıda,
+> "Sipariş mutfağa ne zaman düşer" başlığında.
+>
+> **SUNUCU TARAFI KAPANDI (17.08.2026).** Alan `toControlData()`,
+> `controlDefaults()`, `controlWritableFields()` ve `SettingsController`
+> doğrulamasından çıktı; `GET /sales` artık onu **hiç yayınlamıyor**.
+> `PUT /sales` gönderilirse `SettingsController::rejectRemovedFields()`
+> **kaldırıldığını söyleyen** bir `422` veriyor — `pendingGateFields()` ile
+> karıştırılmamalı: orası "henüz gelmedi", burası "bir daha gelmeyecek" diyor.
+> `Control\SubscriptionController::scheduledReleaseAt()` de planlanan düşme
+> anını o günün kesim anından hesaplıyor.
+>
+> **AYRIŞMANIN YÖNÜ DEĞİŞTİ, SONRA O DA KAPANDI.** Bu not önce "sunucu geride"
+> diyordu; sunucu temizlenince geride kalan taraf **Kontrol Merkezi paneli**
+> oldu ve arıza ilk hâlinden pahalıya patladı: `bld_sales_settings` paneli alanı
+> `required: true` ile çizmeyi sürdürdü, alan sunucudan hiç gelmediği için form
+> doğrulamadan geçmedi ve ekran **yalnız o alanı değil, hiçbir ayarı**
+> kaydedemedi. Panel tarafı da kapatıldı: alan formdan, `WRITABLE_FIELDS`
+> listesinden ve etiket sözlüğünden çıktı; gönderilirse kural katmanı sunucuyla
+> aynı gerekçeyle reddediyor. **Ders bu satırda duruyor:** kaldırılan bir alanın
+> zorunlu çizilmesi, o alanı değil bütün formu kilitler.
+
+> **KAPANDI (17.08.2026).** `LocationGate::ALL_PAYMENT_METHODS` artık
+> `['online','cash']`, `DEFAULT_PAYMENT_METHODS` ise `['cash']`. Bu sözleşme
+> `account` değerini **kabul etmez**; gönderilirse `422`.
+>
+> Veri göçü gerekmedi ve sebebi şu: hem `paymentMethods()` hem
+> `setPaymentMethods()` okuduğu listeyi bu sabitle `array_intersect` ediyor.
+> Kayıtlı `['cash','account']` değeri ilk okumada `['cash']`'e düşüyor, ilk
+> kaydetmede de öyle yazılıyor — **ayar kendini onarıyor.** Kolonları elle
+> temizleyen bir göç, çalışan bir eleme mekanizmasının üstüne ikinci bir
+> doğruluk kaynağı koymak olurdu.
+
+> **KAPANDI (17.08.2026).** `max_lookahead_days` tavanı **7**'dir (iş kararı
+> 3) ve artık iki tarafta da öyle: uç 7'nin üstünü `422` ile reddediyor,
+> `LocationGate::DEFAULT_LOOKAHEAD_DAYS` de 30'dan 7'ye indi. Sunucu
+> varsayılanının 30 kalması, ayara hiç dokunulmamış bir kurulumda kararın
 > sessizce delinmesi olurdu.
 
 ### İki kesim saati vardır ve karıştırılmamalı
@@ -131,6 +199,40 @@ varsayılanını gömmesi, sunucu varsayılanı değiştiğinde iki farklı ger�
 bazlı alan bunu mümkün kılar, genel alan ise her güne tek tek saat girmek
 zorunda kalmamak içindir. Sunucu tarafında birleştirme kuralı tektir:
 `gün.cutoff_time ?? ayar.order_cutoff`.
+
+### Sipariş mutfağa ne zaman düşer
+
+Kesim saatinin İKİNCİ bir işi var: siparişin KDS panosunda görünür olduğu anı
+da o belirliyor (`orders.bld_released_at`). Kural kanaldan bağımsızdır —
+web, mobil, panel ve abonelik üretimi aynı yoldan geçer:
+
+| Durum | Damga | Sonuç |
+|---|---|---|
+| Servis günü **bugün** | `null` | Anında görünür |
+| Servis günü **ileride** | o günün kesim anı | Kesimde görünür |
+| Kesim saati tanımsız (`order_cutoff` `null` ve güne özel saat yok) | `null` | Anında görünür |
+
+**Neden kesim anı:** sipariş alımı kapandığı an mutfak o günün TAM listesini
+bir kerede görür. Ön siparişler damla damla düşseydi vardiya, sabah baktığı
+listenin tamamlanmış olduğunu hiçbir zaman bilemez ve arkadan gelen bir kartı
+kaçırabilirdi.
+
+**Neden bugün istisna:** servis günü bugünse mutfak zaten o günün içinde
+çalışıyor; siparişi bekletmenin karşılığı yok. Bugünün kesimi ister ileride
+olsun (satış saatleri içinde verilmiş normal sipariş) ister geçmiş (kesimden
+sonra panelden telefonla girilen sipariş), cevap aynı: anında. Geçmiş bir ana
+damga atmak, artımlı yoklama yapan KDS'in siparişi hiç görmemesi riskini
+taşırdı.
+
+**Planlama görünümleri kapıyı bilerek yok sayar** (`kitchen/subscription-plan`,
+`kitchen/subscription-orders`): mutfak yarınki yükü, üretimin koştuğu gece
+görmelidir.
+
+**Eskiden ayrı bir ayar vardı** (`subscription_release_time`, `07:00`) ve
+yalnız abonelik siparişlerine uygulanıyordu. Kaldırıldı: kesim saati zaten "o
+günün satışı kapandı" anını tanımlıyor, ikincisi iki doğru kaynak demekti.
+Kesimi `09:00`'a çekip düşme saatini `07:00`'de unutan yönetici, mutfağa satış
+hâlâ açıkken eksik bir listeyi tam diye gösterirdi.
 
 ---
 
@@ -160,10 +262,8 @@ yanlış bir kimlik günün menüsünü sıfır liraya sattırır.
 Doğrulama:
 
 - `order_cutoff`: `HH:mm` (`^([01]\d|2[0-3]):[0-5]\d$`) ya da `null` (kesim
-  saati yok). Başka biçim → `422`.
-- `subscription_release_time`: aynı biçim, `null` **kabul edilmez** — abonelik
-  siparişlerinin KDS'e düşmediği bir yapılandırma, mutfağın sabah boş ekrana
-  bakması demektir.
+  saati yok). Başka biçim → `422`. **Bu alan aynı zamanda siparişin mutfağa
+  düşme anını belirler** — bkz. "Sipariş mutfağa ne zaman düşer".
 - `max_lookahead_days`: `0`–`7`. Sıfır geçerlidir ("yalnız bugüne sipariş").
 - `payment_methods`: boş olamaz; yalnız `online` ve `cash`; tekrar yok.
   Boş liste, hiçbir ödeme yöntemi olmayan bir satış kanalı demekti.

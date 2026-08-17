@@ -17,6 +17,7 @@ use ReflectionClass;
 use ReflectionMethod;
 use Tests\KitchenTestCase;
 use Veykemtu\BridgeApi\Http\Controllers\Admin\DailyMenus;
+use Veykemtu\BridgeApi\Http\Middleware\RequireAdminPanel;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
 use Veykemtu\BridgeApi\Models\ClosedDay;
 use Veykemtu\BridgeApi\Models\DailyMenu;
@@ -56,6 +57,15 @@ class AdminDailyMenuTest extends KitchenTestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        /*
+         * Panel şalteri TEST İÇİN AÇILIYOR — F4. `/admin/*` üretimde kapalı
+         * (`RequireAdminPanel`, varsayılan kapalı): tek yönetim yüzeyi
+         * Kontrol Merkezi. Panel yedek olarak duruyor ve yedeğin değeri,
+         * ihtiyaç anında çalıştığının bilinmesinde. Kapatmanın kendi testi
+         * `AdminPanelClosedTest`.
+         */
+        config([RequireAdminPanel::CONFIG_KEY => true]);
 
         /*
          * Sipariş açan testler için iki kapı: günün menüsü şalteri kapalı

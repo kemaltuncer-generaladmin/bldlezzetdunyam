@@ -9,6 +9,7 @@ use Igniter\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use Veykemtu\BridgeApi\Admin\NavigationTrimmer;
+use Veykemtu\BridgeApi\Http\Middleware\RequireAdminPanel;
 
 /**
  * Panel giydirmesi ve menü sadeleştirmesi — B-11 / B-12.
@@ -46,6 +47,22 @@ class AdminBrandingTest extends TestCase
      * ilgisiz bir sebeple kırmızı yanan bir test demekti.
      */
     private const string ADMIN_PAGE = '/admin/veykemtu/bridgeapi/refunds';
+
+    /**
+     * Panel şalteri TEST İÇİN AÇILIYOR — F4.
+     *
+     * `/admin/*` üretimde kapalı (`RequireAdminPanel`, varsayılan kapalı):
+     * tek yönetim yüzeyi Kontrol Merkezi. Panel bir YEDEK olarak duruyor ve
+     * yedeğin değeri, ihtiyaç anında çalıştığının bilinmesinde — bu yüzden
+     * testler silinmedi, şalteri açıp koşuyorlar. Kapatmanın kendi testi
+     * `AdminPanelClosedTest`.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config([RequireAdminPanel::CONFIG_KEY => true]);
+    }
 
     /**
      * Marka CSS'i panelin HTML'ine giriyor.

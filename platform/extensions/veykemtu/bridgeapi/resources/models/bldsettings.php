@@ -72,10 +72,9 @@ return [
                 'attributes' => ['inputmode' => 'decimal'],
             ],
             /*
-             * İLERİ SİPARİŞ PENCERESİ VE ABONELİK DÜŞME SAATİ — bu iki alan
-             * asıl olarak Kontrol Merkezi'nden yönetiliyor
-             * (`docs/control/settings.md`). Panelde de duruyorlar çünkü
-             * ikisi de `location_options`'ta yaşıyor ve yalnız uzaktaki bir
+             * İLERİ SİPARİŞ PENCERESİ — asıl olarak Kontrol Merkezi'nden
+             * yönetiliyor (`docs/control/settings.md`). Panelde de duruyor
+             * çünkü `location_options`'ta yaşıyor ve yalnız uzaktaki bir
              * ekrandan görülebilen bir ayar, sunucuya giren yöneticinin
              * "burada niye yok" diye aramasıyla sonuçlanır.
              *
@@ -98,16 +97,15 @@ return [
                     'step' => 1,
                 ],
             ],
-            SettingsRepository::FIELD_SUBSCRIPTION_RELEASE => [
-                'label' => 'Abonelik siparişlerinin düşme saati',
-                'type' => 'text',
-                'span' => 'left',
-                'placeholder' => SettingsRepository::DEFAULT_SUBSCRIPTION_RELEASE_TIME,
-                'comment' => 'Gece üretilen abonelik siparişleri mutfak ekranına bu saatte düşer.'
-                    .' SS:DD biçiminde. Boş bırakılamaz: siparişlerin hiç düşmediği bir'
-                    .' yapılandırma, mutfağın sabah boş ekrana bakması demektir.',
-                'attributes' => ['inputmode' => 'numeric', 'maxlength' => 5],
-            ],
+            /*
+             * "Abonelik siparişlerinin düşme saati" alanı KALDIRILDI
+             * (17.08.2026). İleri tarihli her sipariş — abonelik olsun ya da
+             * olmasın — servis gününün KESİM SAATİNDE mutfak ekranına düşüyor;
+             * kesim saati zaten yukarıdaki alanda tanımlı. İkinci bir saat
+             * kutusu iki doğru kaynak demekti: kesimi 09:00'a çekip düşme
+             * saatini 07:00'de unutan yönetici, mutfağa satış hâlâ açıkken
+             * eksik bir listeyi tam diye gösterirdi.
+             */
             SettingsRepository::FIELD_DELIVERY_FEE => [
                 'label' => 'lang:veykemtu.bridgeapi::default.label_delivery_fee',
                 'type' => 'text',
@@ -214,11 +212,6 @@ return [
                 SettingsRepository::FIELD_LOOKAHEAD,
                 'İleri sipariş penceresi (gün)',
                 'required|integer|min:0|max:'.SettingsRepository::MAX_LOOKAHEAD_DAYS,
-            ],
-            [
-                SettingsRepository::FIELD_SUBSCRIPTION_RELEASE,
-                'Abonelik siparişlerinin düşme saati',
-                'required|date_format:H:i',
             ],
             [
                 SettingsRepository::FIELD_PAYMENTS,

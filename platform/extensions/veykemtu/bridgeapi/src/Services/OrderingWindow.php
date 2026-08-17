@@ -35,6 +35,13 @@ use Veykemtu\BridgeApi\Support\BusinessTime;
  * anlatıyor (şalter, ödeme yöntemi, asgari tutar) ve bir servis gününü hiç
  * tanımıyor. Pencere ise her zaman BİR GÜN hakkında konuşur ve o günün kendi
  * kaydından (`veykemtu_daily_menus.cutoff_time`) besleniyor.
+ *
+ * KESİM ANININ İKİNCİ İŞİ (17.08.2026): siparişin mutfak panosunda görünür
+ * olduğu an da buradan geliyor. `OrderFactory::releaseAtFor()` ileri tarihli
+ * her siparişi `cutoffFor()` sonucuna damgalıyor (`orders.bld_released_at`),
+ * böylece satış kapandığı an mutfak günün TAM listesini bir kerede görüyor.
+ * Eskiden bunun `bld_subscription_release_time` adında AYRI bir ayarı vardı;
+ * kaldırıldı, çünkü ikinci bir saat ikinci bir doğruluk kaynağı demekti.
  */
 class OrderingWindow
 {

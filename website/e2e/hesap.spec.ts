@@ -63,13 +63,44 @@ test.describe('Adres defteri (W-15)', () => {
      * Sepete ASGARİ TUTARI AŞACAK kadar ürün koy. Tek ürünle 210 ₺'de
      * kalıyordu ve ödeme adımı formu hiç çizmeyip "minimum sipariş tutarı"
      * uyarısını gösteriyordu — testin aradığı seçici de doğal olarak yoktu.
+     *
+     * BAŞLANGIÇ DURUMU VARSAYILMIYOR, KURULUYOR. Sayaç 1→2 diye okunuyor,
+     * yani test iki şeye sessizce güveniyordu: sepet BOŞ başlıyor ve menüde
+     * eklenebilir bir kalem VAR. İkisi de hiçbir yerde yazılı değildi ve
+     * bozulduklarında test kendi satırında değil, yirmi satır sonra
+     * "adres önceden seçili değil" diye düşüyordu — hatanın gösterdiği yer
+     * ile sebebi arasında hiçbir bağ yoktu. Artık ikisi de burada kuruluyor
+     * ve doğrulanıyor; kırılırsa sebebini söyleyerek kırılır.
      */
     await page.goto('/menu');
+
+    // Sepet çerezleri SİLİNİYOR, oturum çerezine dokunulmadan. `bld_cart`
+    // `httpOnly` olduğu için testin onu görmesinin başka yolu yok; adlar
+    // `lib/cart.ts`ten geliyor ama o modül `server-only`, bu yüzden burada
+    // sabit olarak duruyorlar (`components/header-actions.tsx` de öyle).
+    await page.context().clearCookies({ name: 'bld_cart' });
+    await page.context().clearCookies({ name: 'bld_cart_n' });
+    await page.reload();
+
+    const cartBadge = (count: number) =>
+      page.getByRole('link', { name: new RegExp(`Sepette ${count} ürün var`) });
+
+    // Sepet gerçekten boş: sipariş rotalarında rozet sepet boşken de duruyor
+    // ama üstünde "Sepetiniz boş" yazıyor, adet cümlesi hiç geçmiyor.
+    await expect(page.getByRole('link', { name: /Sepette \d+ ürün var/ })).toHaveCount(0);
+
+    /*
+     * Menüde SATILABİLİR bir kalem var. Kapalı düğmenin etiketi sebebine
+     * dönüşüyor ("Tükendi", "Sipariş kapalı"), yani bayat bir menü
+     * önbelleği ya da kapalı bir gün burada, ilk tıklamadan önce görünür.
+     */
     const add = page.getByRole('button', { name: /Sepete ekle/ }).first();
+    await expect(add).toBeEnabled();
+
     await add.click();
-    await expect(page.getByRole('link', { name: /Sepette 1 ürün var/ })).toBeVisible();
+    await expect(cartBadge(1)).toBeVisible();
     await add.click();
-    await expect(page.getByRole('link', { name: /Sepette 2 ürün var/ })).toBeVisible();
+    await expect(cartBadge(2)).toBeVisible();
 
     await page.goto('/odeme');
 

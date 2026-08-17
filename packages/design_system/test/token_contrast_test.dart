@@ -56,10 +56,15 @@ double? relativeLuminance(String hex) {
 
   final List<double> channels = <double>[];
   for (final int offset in <int>[0, 2, 4]) {
-    final double raw = int.parse(value.substring(offset, offset + 2), radix: 16) / 255;
+    final double raw =
+        int.parse(value.substring(offset, offset + 2), radix: 16) / 255;
     // 0,03928 eşiği bilinçli: WCAG 2.1 metni bu sayıyı yazıyor (sRGB
     // spesifikasyonundaki 0,04045 değil) ve PHP sürümü de onu kullanıyor.
-    channels.add(raw <= 0.03928 ? raw / 12.92 : math.pow((raw + 0.055) / 1.055, 2.4).toDouble());
+    channels.add(
+      raw <= 0.03928
+          ? raw / 12.92
+          : math.pow((raw + 0.055) / 1.055, 2.4).toDouble(),
+    );
   }
   return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
 }
@@ -89,8 +94,11 @@ String hexOf(int argb) =>
 double oklchHue(String hex) {
   final String value = hex.startsWith('#') ? hex.substring(1) : hex;
   double lin(int start) {
-    final double c = int.parse(value.substring(start, start + 2), radix: 16) / 255;
-    return c <= 0.04045 ? c / 12.92 : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
+    final double c =
+        int.parse(value.substring(start, start + 2), radix: 16) / 255;
+    return c <= 0.04045
+        ? c / 12.92
+        : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
   }
 
   final double r = lin(0);
@@ -158,7 +166,8 @@ Map<String, String> flatPrimitives(Map<String, dynamic> tokens) {
     dynamic shades,
   ) {
     (shades as Map<String, dynamic>).forEach((String shade, dynamic entry) {
-      out['$family.$shade'] = (entry as Map<String, dynamic>)['value'] as String;
+      out['$family.$shade'] =
+          (entry as Map<String, dynamic>)['value'] as String;
     });
   });
   return out;
@@ -193,10 +202,7 @@ void main() {
     test('beyaz metin taşıyan her marka tonu AA geçer', () {
       final List<String> carriers = primitives.keys
           .where((String key) => key.startsWith('brand.'))
-          .where(
-            (String key) =>
-                int.parse(key.split('.')[1]) >= whiteTextFrom,
-          )
+          .where((String key) => int.parse(key.split('.')[1]) >= whiteTextFrom)
           .toList();
 
       // Rampanın kuyruğu boşalırsa test sessizce hiçbir şey doğrulamaz.
@@ -239,8 +245,14 @@ void main() {
         hexOf(BldColors.neutral400),
         primitives['neutral.400']!.toUpperCase(),
       );
-      expect(hexOf(BldLightColors.primary), primitives['brand.700']!.toUpperCase());
-      expect(hexOf(BldDarkColors.primary), primitives['brand.300']!.toUpperCase());
+      expect(
+        hexOf(BldLightColors.primary),
+        primitives['brand.700']!.toUpperCase(),
+      );
+      expect(
+        hexOf(BldDarkColors.primary),
+        primitives['brand.300']!.toUpperCase(),
+      );
     });
   });
 
@@ -251,7 +263,8 @@ void main() {
         expect(
           contrast(border, primitives[surface]!),
           greaterThanOrEqualTo(kUiContrastMin),
-          reason: 'neutral400, $surface üstünde kontrol kenarlığı olarak yetersiz',
+          reason:
+              'neutral400, $surface üstünde kontrol kenarlığı olarak yetersiz',
         );
       }
     });
@@ -263,8 +276,14 @@ void main() {
         contrast(primitives['neutral.200']!, primitives['neutral.0']!),
         lessThan(kUiContrastMin),
       );
-      expect(hexOf(BldLightColors.input), primitives['neutral.400']!.toUpperCase());
-      expect(hexOf(BldLightColors.border), primitives['neutral.200']!.toUpperCase());
+      expect(
+        hexOf(BldLightColors.input),
+        primitives['neutral.400']!.toUpperCase(),
+      );
+      expect(
+        hexOf(BldLightColors.border),
+        primitives['neutral.200']!.toUpperCase(),
+      );
     });
   });
 
@@ -273,10 +292,12 @@ void main() {
       final double minDistance =
           (invariants['minDangerBrandHueDistanceDeg'] as num).toDouble();
 
-      final Iterable<String> brands =
-          primitives.keys.where((String k) => k.startsWith('brand.'));
-      final Iterable<String> dangers =
-          primitives.keys.where((String k) => k.startsWith('danger.'));
+      final Iterable<String> brands = primitives.keys.where(
+        (String k) => k.startsWith('brand.'),
+      );
+      final Iterable<String> dangers = primitives.keys.where(
+        (String k) => k.startsWith('danger.'),
+      );
 
       for (final String brand in brands) {
         for (final String danger in dangers) {

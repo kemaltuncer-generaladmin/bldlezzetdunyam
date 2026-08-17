@@ -813,5 +813,204 @@
   "dailyMenuNoServiceShort": "Servis yok",
   "@dailyMenuNoServiceShort": {
     "description": "Kısa pencerenin gün listesinde servis günü olmayan gün (`MenuCalendarDay.weekend`). 'Kapalıyız' DEĞİL: satış kanalı açık, yalnız o gün servis yok."
-  }
+  },
+
+  "subscriptionPaymentTitle": "Abonelik ödemesi",
+  "subscriptionPaymentPeriod": "Dönem",
+  "subscriptionPaymentAmount": "Dönem tutarı",
+  "subscriptionPaymentServerCalculates": "Tutarı sunucu hesaplar; atladığınız günler düşülür.",
+  "@subscriptionPaymentServerCalculates": {
+    "description": "Tutarın altındaki açıklama. İstemci porsiyon × fiyat çarpımını tekrarlamıyor; kullanıcıya da rakamın nereden geldiği söyleniyor."
+  },
+  "subscriptionPaymentDueDate": "Son ödeme: {date}",
+  "@subscriptionPaymentDueDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "subscriptionPaymentNumber": "Ödeme no",
+  "subscriptionPaymentIntro": "Dönem tutarı peşin tahsil edilir. Ödemeyi başlattığınızda bankanız ek bir doğrulama isteyebilir.",
+  "subscriptionPaymentStart": "Ödemeyi başlat",
+  "subscriptionPaymentRetry": "Ödemeyi yeniden dene",
+  "@subscriptionPaymentRetry": {
+    "description": "Açık bir ödeme varsa sunucu YENİSİNİ açmaz, mevcut kaydı döner; bu yüzden düğme aynı dönemi iki kez tahsil etme riski taşımaz."
+  },
+  "subscriptionPaymentStarting": "Ödeme başlatılıyor…",
+  "subscriptionPaymentNotReady": "Bu abonelik henüz ödemeye hazır değil. Fiyat girildikten sonra dönem tutarı burada görünecek.",
+  "subscriptionPaymentCancelled": "İptal edilmiş abonelik için ödeme alınmaz.",
+  "subscriptionPaymentAlreadyPaid": "Bu dönem ödendi.",
+  "subscriptionPaymentOtpTitle": "SMS kodunu girin",
+  "subscriptionPaymentOtpBody": "Bankanız kayıtlı telefonunuza bir doğrulama kodu gönderdi. Kodu biz üretmiyoruz, yalnızca iletiyoruz.",
+  "subscriptionPaymentOtpLabel": "Doğrulama kodu",
+  "subscriptionPaymentOtpLength": "Kod 4 ile 8 hane arasında olmalı.",
+  "@subscriptionPaymentOtpLength": {
+    "description": "Sunucuya boş ya da kısa kod göndermemek için istemci tarafı denetim; sınır `docs/openapi.yaml` confirmSubscriptionPayment gövdesinden."
+  },
+  "subscriptionPaymentOtpSubmit": "Onayla",
+  "subscriptionPaymentOtpAttemptWarning": "Her yanlış deneme hakkınızdan düşer.",
+  "subscriptionPaymentVerifying": "Kod doğrulanıyor…",
+  "subscriptionPaymentThreeDsTitle": "3-D Secure bu sürümde açık değil",
+  "@subscriptionPaymentThreeDsTitle": {
+    "description": "Sözleşmede ilan edilmiş ama gövdesi olmayan dal. Kullanıcıya AÇIKÇA kapalı olduğu söyleniyor; sessizce atlanmıyor."
+  },
+  "subscriptionPaymentThreeDsBody": "Bankanızın doğrulama sayfası, ödeme sağlayıcısı bağlandığında bu ekranda açılacak. Ödeme kaydınız duruyor; sonucunu izliyoruz.",
+  "subscriptionPaymentWatching": "Sonuç izleniyor…",
+  "subscriptionPaymentPollProgress": "Sonuç soruluyor ({attempt}/{total})",
+  "@subscriptionPaymentPollProgress": {
+    "description": "Sınırlı yoklamanın kaçıncı denemede olduğu. Sonsuz bir bekleme çubuğu, ne kadar süreceğini söylemezdi.",
+    "placeholders": {
+      "attempt": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "subscriptionPaymentPollExhausted": "Sonuç bu sürede gelmedi. Ekranı aşağı çekerek yenileyebilirsiniz.",
+  "subscriptionPaymentUnsettled": "Ödeme kesinleşmedi. Ekranı aşağı çekerek yenileyin.",
+  "@subscriptionPaymentUnsettled": {
+    "description": "Sunucu ek adım istemedi (`next_action = none`) ama ödeme de `paid` değil. Sessizce başarılı saymak, ödenmemiş bir dönemi ödenmiş göstermek olurdu."
+  },
+  "subscriptionPaymentUnsupportedStep": "Bu ödeme adımı için uygulamayı güncellemeniz gerekiyor.",
+  "subscriptionPaymentDeclined": "Ödeme tamamlanamadı.",
+  "@subscriptionPaymentDeclined": {
+    "description": "Sunucu Türkçe bir gerekçe gönderdiyse onun yerine o gösterilir; bu metin gerekçesiz kalan durumun karşılığı."
+  },
+  "subscriptionPaymentSucceededTitle": "Ödeme alındı",
+  "subscriptionPaymentSucceededBody": "Bu dönemin tutarı tahsil edildi. Aboneliğiniz kaldığı yerden sürüyor.",
+  "subscriptionPaymentPaidAt": "Ödeme anı",
+  "subscriptionPaymentReceipt": "Makbuz",
+  "subscriptionPaymentReceiptNote": "Bu makbuzun mali değeri yoktur; fatura ayrıca düzenlenir.",
+  "subscriptionPaymentBack": "Aboneliğe dön",
+  "subscriptionPaymentRefresh": "Durumu yenile",
+  "checkoutPaymentStepOtp": "Ödemeniz banka doğrulaması bekliyor. Siparişiniz oluştu; ödeme durumunu bu ekrandan izleyebilirsiniz.",
+  "@checkoutPaymentStepOtp": {
+    "description": "Tekil siparişte `next_action = otp`. Sözleşmede siparişe ait bir kod onay ucu YOK (yalnız abonelik ödemesinde var), bu yüzden kullanıcıya takip ekranı gösteriliyor."
+  },
+  "checkoutPaymentStepThreeDs": "Ödemeniz için banka doğrulaması gerekiyor. Doğrulama sayfası bu sürümde açılmıyor; siparişiniz oluştu ve ödeme durumunu bu ekrandan izleyebilirsiniz.",
+  "checkoutPaymentStepUnsupported": "Ödeme bir sonraki adımı bekliyor. Uygulamayı güncelledikten sonra ödemeyi tamamlayabilirsiniz.",
+  "otpFieldLabel": "Onay kodu",
+  "@otpFieldLabel": {
+    "description": "SMS ile gelen tek kullanımlık kodun alan etiketi. Ortak `OtpField` bileşeninin varsayılanı."
+  },
+  "validationOtpCode": "Onay kodu 6 rakamdan oluşur.",
+  "@validationOtpCode": {
+    "description": "Kod alanının doğrulama hatası. Uzunluk sözleşmeden geliyor (`code` minLength/maxLength 6)."
+  },
+  "contractTitle": "Abonelik sözleşmesi",
+  "contractVersion": "Sürüm {version}",
+  "@contractVersion": {
+    "description": "Sözleşme metninin sürümü. Fiyat ya da koşul değişince yeni sürüm üretilir ve yeniden onay istenir; abone hangi sürümü onayladığını görmelidir.",
+    "placeholders": {
+      "version": {
+        "type": "int"
+      }
+    }
+  },
+  "contractStatusAwaiting": "Onay bekliyor",
+  "contractStatusApproved": "Onaylandı",
+  "contractStatusExpired": "Süresi doldu",
+  "contractStatusCancelled": "Geçersiz",
+  "contractNotFoundTitle": "Sözleşme bulunamadı",
+  "contractNotFoundBody": "Bu bağlantı tanınmadı. SMS ile gelen bağlantıyı olduğu gibi açtığınızdan emin olun.",
+  "@contractNotFoundBody": {
+    "description": "Belirteç tanınmadı (404). SÜRESİ DOLMUŞ bağlantıdan ayrıdır — o `200` + `expired` ile gelir ve kendi cümlesini kurar."
+  },
+  "contractApprovedTitle": "Bu sözleşme onaylandı",
+  "contractApprovedBody": "Onayınız kayıtlara geçti. Yeniden onaylamanız gerekmiyor.",
+  "contractApprovedAt": "Onayınız {moment} tarihinde kayıtlara geçti. Yeniden onaylamanız gerekmiyor.",
+  "@contractApprovedAt": {
+    "description": "Onay anı biliniyorsa gösterilir; hukuki bir izdir ve silinmez.",
+    "placeholders": {
+      "moment": {
+        "type": "String"
+      }
+    }
+  },
+  "contractExpiredTitle": "Bağlantının süresi doldu",
+  "contractExpiredBody": "Sözleşmeyi bu bağlantıdan onaylayamazsınız. Bizimle iletişime geçip yeni bir onay bağlantısı isteyin.",
+  "@contractExpiredBody": {
+    "description": "Abonenin yapacağı iş YENİ BAĞLANTI İSTEMEK. `cancelled` metninden ayrı: orada yapacak bir şey yok."
+  },
+  "contractCancelledTitle": "Bu sözleşme geçersiz",
+  "contractCancelledBody": "Sözleşme iptal edildi ya da yerine yeni bir sürüm hazırlandı. Geçerli sürüm için gönderilen son bağlantıyı kullanın.",
+  "contractMonthlyEstimate": "Aylık tahmini tutar",
+  "@contractMonthlyEstimate": {
+    "description": "Onaylayan kişi neyi imzaladığını porsiyon fiyatından zihninde çarparak değil, yazılı bir rakamla görmelidir."
+  },
+  "contractQuantity": "Günlük porsiyon",
+  "contractBodyTitle": "Sözleşme metni",
+  "contractEmptyBody": "Sözleşme metni boş görünüyor.",
+  "contractApproveTitle": "Sözleşmeyi onaylayın",
+  "contractCodeToPhone": "Onay kodunu {phone} numarasına göndereceğiz.",
+  "@contractCodeToPhone": {
+    "description": "Numara MASKELİ gelir ve değiştirilemez: kod sözleşmenin kayıtlı numarasına gider, istemciden numara alınmaz.",
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "contractCodeToRegisteredPhone": "Onay kodunu sözleşmede kayıtlı cep telefonunuza göndereceğiz.",
+  "contractCodeSent": "Onay kodunu gönderdik.",
+  "contractSendCode": "Onay kodu gönder",
+  "contractApprove": "Sözleşmeyi onayla",
+  "contractResend": "Kodu yeniden gönder",
+  "contractIrreversible": "Onaylamak, sözleşmeyi kabul ettiğiniz anlamına gelir ve geri alınamaz. Vazgeçmek isterseniz aboneliğinizi iptal edebilirsiniz.",
+  "@contractIrreversible": {
+    "description": "Düğmeden ÖNCE yazılır: onaydan sonra söylenseydi kullanıcı bunu iş bittikten sonra öğrenirdi."
+  },
+  "contractExpiresAt": "Bu bağlantı {moment} tarihine kadar geçerli.",
+  "@contractExpiresAt": {
+    "description": "Bağlantının geçerlilik sonu; süresizse hiç gösterilmez.",
+    "placeholders": {
+      "moment": {
+        "type": "String"
+      }
+    }
+  },
+  "subscriptionSkipTitle": "Gün atlama",
+  "subscriptionSkipHelp": "Gelmeyeceğiniz günü kapatın; o günün porsiyonu serbest satışa döner. Kesim saati geçen gün değiştirilemez.",
+  "@subscriptionSkipHelp": {
+    "description": "Şeridin altındaki tek cümlelik açıklama. Kesim kuralı BURADA yazılı: kilitli hücreye dokunup tepki alamayan abone sebebini başka yerde arayamaz."
+  },
+  "subscriptionSkipStateScheduled": "Teslimat var",
+  "subscriptionSkipStateSkipped": "Atlandı",
+  "subscriptionSkipStateLocked": "Kesim geçti",
+  "subscriptionSkipStateOffDay": "Servis yok",
+  "@subscriptionSkipStateOffDay": {
+    "description": "Aboneliğin servis günlerinde olmayan gün. Kapalı DEĞİL: mutfak açık, o gün bu aboneliğe teslimat yok."
+  },
+  "subscriptionSkipStateOutside": "Dönem dışı",
+  "@subscriptionSkipStateOutside": {
+    "description": "Aboneliğin başlangıcından önce ya da bitişinden sonra kalan gün."
+  },
+  "subscriptionSkipDone": "{date} atlandı. Porsiyon serbest satışa döndü.",
+  "@subscriptionSkipDone": {
+    "description": "Atlamanın karşılığı AÇIKÇA söyleniyor: abone porsiyonun kaybolmadığını, satışa döndüğünü bilmeli.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "subscriptionSkipUndone": "{date} yeniden teslim edilecek.",
+  "@subscriptionSkipUndone": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "announcementSeverityInfo": "Bilgi",
+  "announcementSeverityWarning": "Uyarı",
+  "announcementSeverityCritical": "Önemli",
+  "@announcementSeverityCritical": {
+    "description": "Duyurunun tonu ekran okuyucuya YAZIYLA gidiyor; rengi ve ikonu görmeyen kullanıcı uyarı ile bilgiyi başka türlü ayıramaz. Kritik değil Önemli: ton kapatılabilirlikten bağımsızdır ve kritik kelimesi kullanıcıya arıza duygusu veriyor."
+  },
+  "announcementDismiss": "Duyuruyu kapat",
+  "announcementLinkFailed": "Bağlantı açılamadı."
 }

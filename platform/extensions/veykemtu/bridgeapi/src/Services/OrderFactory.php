@@ -149,11 +149,13 @@ class OrderFactory
          * değişmeden doğru kalmasının tek şartı.
          */
         $serviceDay = $day?->menu_date->copy()->startOfDay() ?? $date;
+        // Mutfak kapısı — kanal farkı yok, karar yalnız servis gününe bakar.
+        $releaseAt = $this->releaseAtFor($location, $serviceDay);
 
         return DB::transaction(function () use (
             $customer, $location, $deliveryType, $lines, $address,
             $requestedAt, $paymentMethod, $customerNote, $subtotal, $deliveryFee,
-            $subscriptionId, $serviceDay, $adminContext,
+            $subscriptionId, $serviceDay, $adminContext, $releaseAt,
         ): Order {
             $addressId = $deliveryType === Order::DELIVERY
                 ? $this->storeAddress($customer, $address)
@@ -201,6 +203,9 @@ class OrderFactory
             // üretimiyle aynı alan kullanılıyor ki KDS iki ayrı kaynak
             // ayırt etmek zorunda kalmasın.
             $order->bld_subscription_id = $subscriptionId;
+            // İleri tarihli sipariş servis gününün kesimine kadar bekler;
+            // bugüne verilen sipariş damgasız doğar (`releaseAtFor()`).
+            $order->bld_released_at = $releaseAt;
             $order->status_id = $this->transitions->statusByCode(
                 OrderStatusTransition::NEW,
             )->status_id;
@@ -259,6 +264,11 @@ class OrderFactory
      * menüsünden gelir; menü yoksa metot PATLAR ve çağıran
      * (`SubscriptionGenerateCommand`) hatayı sayar — böylece menü
      * yayınlandıktan sonra komut yeniden koşturulduğunda sipariş doğar.
+     *
+     * SİPARİŞ MUTFAĞA HEMEN DÜŞMEZ: `bld_released_at` damgası servis gününün
+     * KESİM ANINA kurulur. Kural aboneliğe özel değil — `create()` de aynı
+     * `releaseAtFor()` metodunu çağırıyor. Gece 22:00'de üretilen yarının
+     * siparişi bu yüzden yarın sabah, satış kapandığı anda düşer.
      */
     public function createForSubscription(
         Subscription $subscription,
@@ -266,6 +276,7 @@ class OrderFactory
         Carbon $serviceDate,
     ): Order {
         $lines = $this->resolveSubscriptionLines($subscription, $serviceDate);
+        $releaseAt = $this->subscriptionReleaseAt($subscription, $serviceDate);
         // Fiyat porsiyon başınadır: toplam = porsiyon × anlaşmalı porsiyon
         // fiyatı (yemekler bileşen olduğundan satır fiyatları 0'dır).
         $subtotal = max(1, $subscription->quantityForDate($serviceDate))
@@ -286,7 +297,8 @@ class OrderFactory
         $paymentMethod = 'cash';
 
         return DB::transaction(function () use (
-            $subscription, $point, $serviceDate, $lines, $subtotal, $deliveryType, $paymentMethod,
+            $subscription, $point, $serviceDate, $lines, $subtotal, $deliveryType,
+            $paymentMethod, $releaseAt,
         ): Order {
             /** @var ApiCustomer $customer */
             $customer = $subscription->customer;
@@ -320,6 +332,9 @@ class OrderFactory
             $order->comment = $point?->note;
             $order->cart = serialize([]);
             $order->bld_subscription_id = $subscription->id;
+            // Mutfak kapısı. `null` bırakılsaydı gece 22:00'de üretilen kırk
+            // kart sabah 05:00'te panoyu doldururdu.
+            $order->bld_released_at = $releaseAt;
             $order->status_id = $this->transitions->statusByCode(
                 OrderStatusTransition::NEW,
             )->status_id;
@@ -331,6 +346,80 @@ class OrderFactory
 
             return $order->refresh();
         });
+    }
+
+    /**
+     * Abonelik siparişinin vitrinini bulup kapıyı `releaseAtFor()`'a sorar.
+     *
+     * Vitrin bulunamazsa ANINDA SERBEST (`null`): sipariş üretimini bir
+     * kayıt okumasının başarısızlığı yüzünden durdurmak ya da siparişi
+     * süresiz görünmez bırakmak, gecikmeli düşmenin çözdüğü sorundan çok
+     * daha pahalı olurdu. Kapının şüpheye düştüğü yerde AÇIK kalması,
+     * `NULL = SERBEST` değişmeziyle de aynı yönde.
+     */
+    private function subscriptionReleaseAt(Subscription $subscription, Carbon $serviceDate): ?Carbon
+    {
+        $location = Location::query()
+            ->where('location_id', $subscription->location_id)
+            ->first();
+
+        return $location !== null
+            ? $this->releaseAtFor($location, $serviceDate)
+            : null;
+    }
+
+    /**
+     * Siparişin mutfağa açılacağı an; `null` = ANINDA serbest.
+     *
+     * TEK KURAL, HER KANALA AYNI — web, mobil, panel ve gece üretimi bu
+     * metottan geçiyor (iş kararı güncellendi, 17.08.2026). Eski
+     * model `bld_subscription_release_time` (07:00) adında İKİNCİ bir ayar
+     * taşıyordu ve yalnız aboneliğe uygulanıyordu. Kesim saati zaten "o günün
+     * satışı kapandı" anını tanımlıyor; ikinci bir ayar iki doğru kaynak
+     * demekti ve biri değiştiğinde diğeri sessizce ayrışırdı. Anahtar
+     * KALDIRILDI, karar `OrderingWindow::cutoffFor()`'a bağlandı.
+     *
+     * NEDEN KESİM ANI: sipariş alımı kapandığı an mutfak o günün TAM
+     * listesini bir kerede görür. Arkadan sipariş damlamaz, gözden kaçan
+     * olmaz — ileri tarihli siparişler tek bir yığın hâlinde açılır.
+     *
+     * NEDEN BUGÜN İSTİSNA: servis günü bugünse mutfak zaten o günün içinde
+     * çalışıyor ve siparişi bekletmenin karşılığı yok. Bugünün kesimi ister
+     * ileride olsun (satış saatleri içinde verilen normal sipariş) ister
+     * geçmiş (panelden telefonla girilen sipariş), cevap aynı: anında.
+     * İki durumun aynı cevabı vermesi sayesinde "satış saatleri içinde mi"
+     * diye AYRI bir denetim yok — olsaydı `OrderingWindow` ile ikinci bir
+     * kesim tanımı üretirdi.
+     *
+     * GÜN KARŞILAŞTIRMASI `toDateString()` ÜZERİNDEN. `$serviceDay` çağırana
+     * göre UTC de olabilir işletme saati de; `order_date` de aynı dizeden
+     * yazılıyor ve mutfak panosu `whereDate('order_date', bugün)` ile
+     * süzüyor. Aynı diziden karşılaştırmak, kapının panonun gün tanımıyla
+     * ayrışamamasını garanti eder.
+     *
+     * KESİM YOKSA KAPI DA YOK: `order_cutoff` `null` olabilir ("kesim saati
+     * yok") ve o kurulumda sipariş hiç açılmadan sonsuza kadar görünmez
+     * kalırdı. Geçmiş bir kesim de aynı şekilde `null` döner — geçmiş bir ana
+     * damga atmak, `[since, now]` aralığını tarayan artımlı yoklamanın
+     * siparişi hiç görmemesi riskini taşırdı.
+     *
+     * Dönen an İŞLETME SAATİNDE hesaplanıp `forStorage()` ile veritabanının
+     * zaman dilimine çevriliyor (`BusinessTime` docblock'undaki 3 saatlik
+     * kayma tuzağı).
+     */
+    private function releaseAtFor(Location $location, Carbon $serviceDay): ?Carbon
+    {
+        if ($serviceDay->toDateString() === BusinessTime::today()) {
+            return null;
+        }
+
+        $cutoff = $this->window->cutoffFor($location, $serviceDay);
+
+        if ($cutoff === null || $this->window->hasPassed($cutoff)) {
+            return null;
+        }
+
+        return BusinessTime::forStorage($cutoff);
     }
 
     /**

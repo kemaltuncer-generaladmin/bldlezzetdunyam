@@ -36,6 +36,11 @@ export const MAIN_NAV: readonly NavItem[] = [
    */
   { href: '/menu', label: 'Menü' },
   { href: '/kurumsal', label: 'Kurumsal' },
+  /*
+   * BİLGİ MERKEZİ GERİ GELDİ — M4. Dört başlık 1280 px'te rahat sığıyor;
+   * taşmayı yapan eski yedi başlık + sekiz alt sayfalık açılır menüydü.
+   */
+  { href: '/bilgi-merkezi', label: 'Bilgi Merkezi' },
   { href: '/iletisim', label: 'İletişim' },
 ];
 
@@ -96,6 +101,9 @@ export const FOOTER_NAV: readonly {
       { href: '/kurumsal', label: 'Biz kimiz' },
       { href: '/kurumsal#kalite', label: 'Kalite ve hijyen' },
       { href: '/kurumsal#alanlar', label: 'Çalıştığımız alanlar' },
+      // Altbilgideki bağlantı, eski 308 yönlendirmesini önbelleğine almış
+      // tarayıcılar için ikinci bir giriş kapısı (bkz. `next.config.ts`).
+      { href: '/bilgi-merkezi', label: 'Bilgi merkezi' },
       { href: '/teklif-al', label: 'Teklif al' },
     ],
   },

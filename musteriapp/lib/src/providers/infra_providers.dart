@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/app_config.dart';
 import '../core/api_error_text.dart';
+import '../data/crash_reporter.dart';
 import '../data/local_cache.dart';
 import '../data/token_store.dart';
 
@@ -70,4 +71,22 @@ class ConnectivityNotifier extends Notifier<bool> {
 /// `true` ise cihaz sunucuya ulaşamıyor.
 final connectivityProvider = NotifierProvider<ConnectivityNotifier, bool>(
   ConnectivityNotifier.new,
+);
+
+/// Yakalanmamış hataların tek çıkış noktası (`data/crash_reporter.dart`).
+///
+/// `main()` bunu üç kancaya birden bağlıyor: `FlutterError.onError`,
+/// `PlatformDispatcher.instance.onError` ve `runZonedGuarded`. Üçü tek
+/// raportöre gidiyor, çünkü jeton kovası ve soğuma sayacı ortak olmalı —
+/// kanca başına ayrı raportör, sınırların üçle çarpılması demekti.
+///
+/// `ref.read` KULLANILIYOR, `watch` DEĞİL: raportör hata anında çağrılıyor ve
+/// o an bir sağlayıcının yeniden kurulmasını tetiklemek, hata yolunu
+/// uygulamanın en kırılgan noktasına bağlamak olurdu.
+final crashReporterProvider = Provider<CrashReporter>(
+  (ref) => CrashReporter(
+    cache: ref.watch(localCacheProvider),
+    send: (report) => ref.read(apiProvider).diagnostics.reportError(report),
+    isOffline: () => ref.read(connectivityProvider),
+  ),
 );

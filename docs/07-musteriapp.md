@@ -9,7 +9,7 @@
 - State: Riverpod
 - Model: freezed + json_serializable
 - API: `packages/api_client`
-- Push: Firebase Cloud Messaging
+- Push: **YOK.** Firebase Cloud Messaging kapsam dışı — gerekçe §4.
 - Yerel: `shared_preferences` (token), `sqflite` (sepet)
 
 ## 2. Ekranlar
@@ -20,19 +20,25 @@ Alt gezinme **5 sekme**: Ana Sayfa (keşif) · Menü · Aboneliklerim · Sipari�
 |---|---|
 | Açılış | Token kontrolü, sürüm kontrolü (`/api/app-version`) |
 | Giriş / Kayıt | **Kurumsal kayıt** (firma bilgileri + giriş bilgileri), KVKK onay kutusu, **"Beni hatırla"** |
-| Ana Sayfa (keşif) | Hero + **aktif abonelik** ve **cari bakiye** kısayolu (girişliyken) + son sipariş + kategori/öne çıkan şeritleri |
-| Menü | Kategori sekmeleri, ürün listesi, arama |
-| Ürün detayı | Görsel, açıklama, seçenekler, adet, not, sepete ekle |
-| Sepet | Kalemler, adet düzenleme, tutar özeti |
+| Ana Sayfa (keşif) | Duyuru bandı + hero + **aktif abonelik** kısayolu (girişliyken) + son sipariş + günün menüsü şeridi |
+| Menü | Gün seçici, günün menüsü kartları, kalan porsiyon rozeti, kesim geri sayımı |
+| Günün kalemi detayı | Görsel, açıklama, alerjenler, seçenekler, adet, not, sepete ekle |
+| Sepet | Kalemler, adet düzenleme (stok tavanı denetimli), tutar özeti |
 | Ödeme | Teslimat tipi/adres, istenen saat, ödeme yöntemi |
-| Ödeme sayfası | Sanal POS `redirect_url` **sistem tarayıcısında** açılır |
-| Sipariş takip | Adım çubuğu, canlı durum |
+| Sipariş takip | Adım çubuğu, canlı durum, **ödeme adımı** (§3) |
 | Siparişlerim | Geçmiş liste, detay |
-| **Aboneliklerim** | Abonelik listesi, detay (duraklat/devam/iptal), yeni talep |
-| **Cari hesabım** | Güncel bakiye + hareket ekstresi (Hesabım'dan kısayol) |
-| Hesabım | Firma + yetkili profil, kısayollar (Aboneliklerim/Cari/Adres), bildirim ayarı, çıkış |
-| Sipariş kapalı | `can_order = false` kullanıcının sepet/ödemeye girişinde bilgi ekranı |
+| **Aboneliklerim** | Abonelik listesi, detay (duraklat/devam/iptal/gün atlama), yeni talep, **sözleşme onayı ve dönem ödemesi** |
+| Hesabım | Firma + yetkili profil, kısayollar (Aboneliklerim/Adres), bildirim ayarı, çıkış |
 | Zorunlu güncelleme | `min_supported` altındaysa engelleyici ekran |
+
+> **Değişen ve kaldırılan ekranlar (Faz 0–1).** *Katalog ürün detayı* yerini
+> **günün kalemi detayına** bıraktı: kalem artık o GÜNÜN menüsünden çözülüyor,
+> çünkü fiyatı o güne özel olabiliyor (`DailyMenuItem.effective_unit_price`) ve
+> günden bağımsız açılan bir ekran hangi günün fiyatını gösterdiğini
+> söyleyemezdi. *Ayrı ödeme sayfası* kalktı — ödeme uygulama içinde yürüyor
+> (§3). *Cari hesabım* kalktı: bakiye/ekstre diye bir kavram yok
+> (`docs/02` §7.2). *Sipariş kapalı* bilgi ekranı da kalktı — sipariş kapısı
+> yok (§8).
 
 ## 3. Sunucu neyi belirler
 
@@ -61,13 +67,39 @@ siparişte yeniden değil. Deftere yazılan değerler formdaki metinler değil,
 kayıtlı adresin kendi alanlarıdır — o sipariş için yapılan düzeltme deftere
 sızmaz.
 
-### Neden WebView değil?
+### Ödeme: ne WebView, ne dış tarayıcı — `next_action` durum makinesi
 
-Spesifikasyonun ilk hâli uygulama içi WebView diyordu. Üç sebeple sistem
-tarayıcısına geçildi: 3-D Secure akışında bankalar uygulama içi WebView'ları
-giderek daha çok reddediyor; kullanıcı adres çubuğundaki alan adını görüp
-doğrulayamıyor; `webview_flutter` web hedefini desteklemiyor ve tek kod yolu
-kalmıyordu.
+Bu bölüm iki kez değişti ve ikisinin de gerekçesi duruyor.
+
+**Önce WebView bırakıldı.** Spesifikasyonun ilk hâli uygulama içi WebView
+diyordu. Üç sebeple vazgeçildi: 3-D Secure akışında bankalar uygulama içi
+WebView'ları giderek daha çok reddediyor; kullanıcı adres çubuğundaki alan
+adını görüp doğrulayamıyor; `webview_flutter` web hedefini desteklemiyor ve
+tek kod yolu kalmıyordu.
+
+**Sonra dış tarayıcı da bırakıldı** ve ödeme uygulamanın içine alındı. Bu
+turun kararı bu:
+
+- **Müşteri uygulamadan ÇIKIYOR ve dönmüyordu.** `redirect_url`
+  `url_launcher` ile sistem tarayıcısına gönderiliyordu; sayfa bittiğinde
+  uygulamaya geri dönecek bir yol yoktu. Müşteri ödemesinin ne olduğunu ancak
+  siparişlerim ekranını kendisi açarsa görüyordu.
+- **Karar noktası yanlış alandaydı.** `redirect_url` bir ARAÇ, `next_action`
+  ise sunucunun KARARI. Sıradaki adım artık tek yerden okunuyor ve tekil
+  sipariş ile abonelik ödemesi aynı sözlüğü paylaşıyor.
+
+Sözlük gevşek bir enum'dur (`docs/03` §15.2): `none` \| `otp` \| `three_ds` ve
+tanınmayan her değer `unknown`. **`unknown` bilerek `none` sayılmıyor:**
+atlanmış bir doğrulamayı "bitti" göstermek, ödenmemiş bir siparişi ödenmiş
+saymaktır. Sunucu yeni bir adım eklediğinde eski uygulama onu sessizce
+yutmuyor, açıkça "bu sürüm bu adımı yürütemiyor" diyor.
+
+**Tekil siparişte adımın GÖVDESİ henüz yok:** sözleşmede siparişe ait bir
+kod-onay ya da ödeme-yoklama ucu bulunmuyor (yalnız
+`/subscriptions/{id}/payments…` var). Bu yüzden uygulama adımı kullanıcıya
+AÇIKÇA söylüyor ve onu, ödeme durumunu beş saniyede bir tazeleyen takip
+ekranına bırakıyor. Abonelik ödemesinde ise akış tam: kod ekranı, doğrulama ve
+sonuç aynı ekranda yürüyor.
 
 ## 4. Bildirimler
 
@@ -85,9 +117,14 @@ kalmıyordu.
 - Aynı durum iki kez bildirilmez: hangi durumun bildirildiği cihazda tutulur
   (yoklama beş saniyede bir çalışıyor).
 - Bildirime dokunulunca ilgili sipariş takip ekranı açılır.
-- **Push (FCM):** token kaydı hazır (`POST /api/me/push-token`) ama token'ı
-  Firebase üretir; Firebase projesi ve imzalama bilgileri repoda yoktur ve
-  uydurulamaz. Bunlar girildiğinde sözleşme değişmeden devreye girer.
+- **Push (FCM) KAPSAM DIŞI.** `POST /api/me/push-token` sözleşmede duruyor ve
+  silinmedi (uyum kuralı §1.4), ama **hiçbir bildirim göndermiyor**: token'ı
+  Firebase üretir, Firebase projesi ve imzalama bilgileri repoda yoktur ve
+  uydurulamaz. Müşteriye ulaşmanın bugünkü iki yolu **SMS** ve **uygulama-içi
+  duyuru**'dur. Duyuru yalnız uygulama açıkken çekilir; "teslim edildi" diye
+  bir kavram yoktur, "ekranda çizildi" vardır — kapatma işareti sunucuda
+  tutuluyor ki aynı bant her açılışta, her cihazda yeniden çıkmasın
+  (`docs/02` §10.8).
 
 Zaman dilimi veritabanı yüklenmez: Türkiye sabit UTC+3 ve `packages/core`
 aynı kararı zaten vermiş durumda (~1 MB IANA verisi taşımaya değmiyor).
@@ -110,19 +147,39 @@ Sipariş vermek internet gerektirir. İnternet yoksa:
 
 ## 7. Testler
 
+Bu liste **bir zorunluluk listesidir**, dosya envanteri değil: bir davranışın
+testi varsa adı burada geçer, çünkü test adıyla zorunlu kılınan şey silindiğinde
+doküman yalan söylemeye başlar (aşağıdaki kutuya bakın).
+
 - Sepet hesaplama (adet, seçenek fiyat farkı, ara toplam) unit test
+  (`cart_calculation_test.dart`)
+- **Stok tavanı** (`bld_core` `maxAddable` → sepet) unit test
+  (`cart_stock_cap_test.dart`) — altın veri kümesi
+  `docs/contract/sales-rules.cases.json`
 - API hata durumlarının kullanıcı mesajına çevrilmesi unit test
+  (`api_error_message_test.dart`)
 - Zorunlu güncelleme mantığı (`version < min_supported`) unit test
-- Giriş → sipariş akışı widget test (API mock)
-- **Stok tavanı** (`bld_core` `maxAddable` → sepet) unit test (`cart_stock_cap_test.dart`)
-- **Abonelik/cari sözleşme örnekleri** `packages/api_client` contract test'te ayrıştırılır
+  (`version_check_test.dart`)
+- Günün menüsü ekranı: gün seçici, kesim geri sayımı, tükenmiş kalem
+  (`daily_menu_screen_test.dart`)
+- **Abonelik dönem ödemesi**: `next_action` sözlüğü, `unknown` adımın "bitti"
+  sayılmaması, yoklama (`subscription_payment_test.dart`)
+- Abonelikte gün atlama (`subscription_skip_day_test.dart`)
+- Uygulama-içi duyuru: gösterim, kapatma, eylem düğmesi
+  (`announcement_test.dart`)
+- Bildirim zamanlaması ve izin reddi (`notifications_test.dart`)
+- Çevrimdışı önbellek (`local_cache_test.dart`)
+- Abonelik/sözleşme yanıt örnekleri `packages/api_client` contract test'inde
+  ayrıştırılır
 
 > **Sipariş kapısı testi kaldırıldı (Faz 0).** `Session.canOrder` ve
-> `session_gating_test.dart` yok; cari hesapla birlikte "yalnız onaylı hesap
-> sipariş verir" kuralı düştü ve test adıyla zorunlu kıldığı kod artık
-> bulunmuyor. Yerine sepetin stok tavanı denetimi geldi.
+> `session_gating_test.dart` **yok**; cari hesapla birlikte "yalnız onaylı
+> hesap sipariş verir" kuralı düştü ve testin adıyla zorunlu kıldığı kod artık
+> bulunmuyor. Bu satır silinmiyor: adı geçen bir testi arayıp bulamayan kişi,
+> testin mi yoksa dokümanın mı eskidiğini bilemez. Yerine sepetin stok tavanı
+> denetimi geldi.
 
-## 8. B2B: abonelik ve cari hesap self-servisi (Faz 2 — UYGULANDI)
+## 8. B2B: abonelik self-servisi (Faz 2 — UYGULANDI, cari kısmı kaldırıldı)
 
 Sistem tamamen kurumsal. İş kuralı istemcide değil sunucuda; uygulama yalnız
 sunucu bayraklarını uygular.
@@ -137,9 +194,17 @@ sunucu bayraklarını uygular.
   **zorunlu**, vergi opsiyonel) ve "Giriş bilgileri". `account_type` gönderilmez;
   sunucu `corporate` yazar.
 - **Aboneliklerim:** liste + detay. Detayda `active` iken duraklat, `paused` iken
-  devam ettir, her durumda iptal (onay diyaloğuyla). "Yeni abonelik talebi" günleri,
-  günlük adedi, başlangıcı ve teslimat tipini toplar; **fiyat alanı yoktur** — talep
-  `pending` doğar, admin fiyatlandırır.
-- **Cari hesabım:** güncel bakiye (pozitif = borç) + hareket ekstresi. Tutarların
-  hiçbiri istemcide hesaplanmaz; `Money.format` ile gösterilir.
-- Ana sayfada girişliyken aktif abonelik ve cari bakiye kısayolu görünür.
+  devam ettir, ileri bir günü atla, her durumda iptal (onay diyaloğuyla).
+  "Yeni abonelik talebi" günleri, günlük adedi, başlangıcı ve teslimat tipini
+  toplar; **fiyat alanı yoktur** — talep `pending` doğar, admin fiyatlandırır.
+- **Sözleşme onayı:** abonelik `awaiting_contract` durumundayken uygulama
+  sözleşme metnini **kayıttan** çizer (şablondan değil — metin onay anında
+  donmuştur) ve SMS koduyla onaylatır. Onaylanmış bir sözleşme daha sonra
+  açıldığında **aynı metni** gösterir.
+- **Dönem ödemesi:** `awaiting_payment` durumunda 30 günlük peşin dönem
+  ödeniyor. Adım `next_action` ile yürüyor (§3) ve tutar **istemcide
+  hesaplanmaz** — `porsiyon × birim fiyat` çarpımını sunucu yapar, uygulama
+  `Money.format` ile yalnız gösterir.
+- ~~**Cari hesabım:**~~ **KALDIRILDI.** Bakiye/ekstre diye bir kavram yok;
+  `/api/account/*` uçları da kalktı (`docs/03` §12.2).
+- Ana sayfada girişliyken aktif abonelik kısayolu ve **duyuru bandı** görünür.

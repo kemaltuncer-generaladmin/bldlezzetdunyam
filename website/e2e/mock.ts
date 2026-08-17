@@ -1,5 +1,7 @@
 import { expect, type APIRequestContext } from '@playwright/test';
 
+import { openOrdering } from './open-ordering.mjs';
+
 /**
  * Mock API'nin test kancaları — W-14.
  *
@@ -8,10 +10,15 @@ import { expect, type APIRequestContext } from '@playwright/test';
  * kurmak. Bunlar olmadan testler ya sabit kodlara bel bağlar ya da hiç
  * kurulamayan durumları atlardı.
  */
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:4010/api').replace(
-  /\/api\/?$/,
+
+/** Sözleşme uçlarının kökü (`/api` dahil) — `GET /locations` gibi. */
+const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:4010/api').replace(
+  /\/+$/,
   '',
 );
+
+/** Sunucunun kökü. `/__mock/*` kancaları `/api` ALTINDA DEĞİL, kökte duruyor. */
+const API_BASE = API_URL.replace(/\/api$/, '');
 
 /** Mock'un beklediği istemci başlıkları (`RequireAppHeaders` karşılığı). */
 export const API_HEADERS = {
@@ -29,9 +36,26 @@ export const SEED_CUSTOMER = {
   firstName: 'Ayşe',
 } as const;
 
+/**
+ * Mock'u süitin yazıldığı BAŞLANGIÇ DURUMUNA getirir.
+ *
+ * İki iş yapıyor ve ikincisi tercih değil zorunluluk: seed'i geri yüklemek ve
+ * BUGÜNE SİPARİŞ VERİLEBİLİR OLMASINI kurmak (`openOrdering`).
+ *
+ * ## Neden ikisi de HER testte, sadece sipariş testlerinde değil
+ *
+ * Ana sayfadaki menü bandı `'isr'` okuyor, yani sunucuda bir dakika
+ * önbelleklenmiş kalıyor. Sipariş vermeyen bir test bile (`/` açan bir giriş
+ * testi gibi) mock kapalı durumdayken ana sayfayı ısıtırsa, o önbellek bir
+ * dakika boyunca "Bugüne sipariş alınmıyor" diyen bir bant sunuyor ve SONRAKİ
+ * testler kırılıyor. Yani "kapalı gün" durumunun süit boyunca hiç OLUŞMAMASI
+ * gerekiyor; tek tek testlere kurulum eklemek yetmiyor.
+ */
 export async function resetMock(request: APIRequestContext): Promise<void> {
   const response = await request.post(`${API_BASE}/__mock/reset`, { headers: API_HEADERS });
   expect(response.ok(), 'Mock sıfırlanamadı — API ayakta mı?').toBeTruthy();
+
+  await openOrdering();
 }
 
 /**

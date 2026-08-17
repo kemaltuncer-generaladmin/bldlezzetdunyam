@@ -21,6 +21,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api_error_text.dart';
 import '../../core/eta_text.dart';
 import '../../l10n/app_localizations.dart';
+import '../../providers/announcement_providers.dart';
 import '../../providers/catalog_providers.dart';
 import '../../providers/infra_providers.dart';
 import '../../providers/order_providers.dart';
@@ -29,6 +30,7 @@ import '../../providers/subscription_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/bld_semantic_colors.dart';
 import '../../theme/bld_theme.dart';
+import '../../widgets/announcement_banner.dart';
 import '../../widgets/bld_card.dart';
 import '../../widgets/menu_photo_grid.dart';
 import '../../widgets/money_text.dart';
@@ -50,13 +52,25 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.appTitle)),
-      body: locationAsync.when(
-        loading: () => const LoadingView(),
-        error: (error, _) => ErrorView(
-          error: error,
-          onRetry: () => ref.invalidate(locationProvider),
-        ),
-        data: (snapshot) => _Body(location: snapshot.location),
+      // Bant listenin İÇİNDE değil ÜSTÜNDE: bakım ve kapanış duyuruları
+      // vitrin yüklenemediğinde de görünmeli — hata ekranıyla karşılaşan
+      // müşteriye sebebi söyleyen tek yüzey bu. Listenin ilk elemanı olsaydı
+      // hem vitrin hatasında kaybolur hem de aşağı kaydırınca ekrandan
+      // çıkardı.
+      body: Column(
+        children: [
+          const AnnouncementBanner(),
+          Expanded(
+            child: locationAsync.when(
+              loading: () => const LoadingView(),
+              error: (error, _) => ErrorView(
+                error: error,
+                onRetry: () => ref.invalidate(locationProvider),
+              ),
+              data: (snapshot) => _Body(location: snapshot.location),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -77,6 +91,9 @@ class _Body extends ConsumerWidget {
       onRefresh: () async {
         ref.invalidate(dailyMenuProvider(today));
         ref.invalidate(ordersProvider);
+        // Duyurunun tazelenmesinin tek yolu bu: push yok, duyuru ancak
+        // sorulunca geliyor ve aşağı çekme kullanıcının "yenile" dediği an.
+        ref.invalidate(announcementsProvider(AnnouncementPlacement.home));
       },
       child: ListView(
         padding: const EdgeInsets.only(bottom: BldSpacing.xl),
@@ -102,10 +119,8 @@ class _Body extends ConsumerWidget {
                 onRetry: () => ref.invalidate(dailyMenuProvider(today)),
               ),
             ),
-            data: (snapshot) => _TodaysMenuCard(
-              menu: snapshot.menu,
-              location: location,
-            ),
+            data: (snapshot) =>
+                _TodaysMenuCard(menu: snapshot.menu, location: location),
           ),
         ],
       ),
@@ -142,6 +157,14 @@ class _Hero extends StatelessWidget {
         padding: const EdgeInsets.all(BldSpacing.lg),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(BldRadius.lg),
+          // KARŞILAMA ŞERİDİ TEMADAN BAĞIMSIZ MARKA YÜZEYİDİR — bilerek.
+          //
+          // Gradyan iki temada da brand600→brand500 kalır ve üstündeki her şey
+          // beyaz çizilir. Buradaki `neutral0`, "tema beyazı" değil "marka
+          // turuncusunun üstündeki beyaz"tır: zemin temayla değişmediği için
+          // kontrast da değişmiyor (brand500 üstünde 4,58). Rolleri
+          // (`onPrimary`) kullanmak burayı BOZARDI — koyu temada o rol koyu
+          // metne dönüyor ve turuncu zeminde okunmaz oluyor.
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -268,10 +291,7 @@ class _SubscriptionShortcut extends ConsumerWidget {
         ),
         child: Row(
           children: [
-            Icon(
-              Icons.event_repeat_outlined,
-              color: theme.colorScheme.primary,
-            ),
+            Icon(Icons.event_repeat_outlined, color: theme.colorScheme.primary),
             const SizedBox(width: BldSpacing.md),
             Expanded(
               child: Column(
@@ -382,7 +402,9 @@ class _LastOrderCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final textTheme = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
+    final colorScheme = theme.colorScheme;
     final ordersAsync = ref.watch(ordersProvider);
     final locationId = ref.watch(locationProvider).valueOrNull?.location.id;
 
@@ -407,13 +429,15 @@ class _LastOrderCard extends ConsumerWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: bldColor(BldColors.brand50),
+                    // Tonal yüzey + etiketi: ikisi tek rol çiftinden gelir,
+                    // yoksa koyu temada açık zeminde açık ikon kalırdı.
+                    color: colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(BldRadius.md),
                   ),
                   child: Icon(
                     Icons.receipt_long_outlined,
                     size: 22,
-                    color: bldColor(BldColors.brand700),
+                    color: colorScheme.onPrimaryContainer,
                   ),
                 ),
                 const SizedBox(width: BldSpacing.md),
@@ -452,7 +476,6 @@ class _LastOrderCard extends ConsumerWidget {
     );
   }
 }
-
 
 /// Bugünün menüsü — ana sayfadaki tek satış yüzeyi.
 ///

@@ -14,7 +14,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api_error_text.dart';
 import '../../core/eta_text.dart';
@@ -86,6 +85,24 @@ class CheckoutScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Sipariş oluştuktan sonra kullanıcıya söylenecek ödeme adımı; adım yoksa
+/// `null`.
+///
+/// Karar `next_action` üzerinden veriliyor, `redirect_url` üzerinden değil:
+/// adres bir araç, adım ise sunucunun kararı. `unknown` bilerek [none]
+/// sayılmıyor — atlanmış bir doğrulamayı "bitti" göstermek, ödenmemiş bir
+/// siparişi ödenmiş sanmaktır (`converters.dart` `PaymentNextAction`).
+String? _paymentStepMessage(Payment payment, AppLocalizations l10n) {
+  if (payment.status == PaymentStatus.paid) return null;
+
+  return switch (payment.nextAction) {
+    PaymentNextAction.none => null,
+    PaymentNextAction.otp => l10n.checkoutPaymentStepOtp,
+    PaymentNextAction.threeDs => l10n.checkoutPaymentStepThreeDs,
+    PaymentNextAction.unknown => l10n.checkoutPaymentStepUnsupported,
+  };
 }
 
 class _CheckoutForm extends ConsumerStatefulWidget {
@@ -331,29 +348,29 @@ class _CheckoutFormState extends ConsumerState<_CheckoutForm> {
         SnackBar(content: Text(l10n.orderPlacedBody(created.orderNumber))),
       );
       /*
-       * Online ödemede sunucu bir ödeme sayfası adresi döner. Sayfa uygulama
-       * İÇİNDE bir WebView'da değil, sistem tarayıcısında açılıyor
-       * (`docs/07-musteriapp.md` §2 WebView diyordu):
+       * ÖDEME SAYFASI ARTIK DIŞ TARAYICIDA AÇILMIYOR.
        *
-       * - 3-D Secure akışında banka sayfası uygulama içi WebView'ları giderek
-       *   daha çok reddediyor; tarayıcı hem çalışıyor hem de kullanıcı adres
-       *   çubuğundaki alan adını görüp doğrulayabiliyor.
-       * - `webview_flutter` web hedefini desteklemiyor; tek kod yolu kalıyor.
+       * Eskiden `redirect_url` `url_launcher` ile sistem tarayıcısına
+       * gönderiliyordu. İki sebeple bırakıldı:
        *
-       * Açılamazsa sipariş yine oluşmuş durumda — kullanıcıya siparişin
-       * durduğu, ödemeyi sonra tamamlayabileceği söyleniyor.
+       * - Müşteri uygulamadan ÇIKIYOR ve dönmüyordu. Tarayıcıdaki simülasyon
+       *   sayfası bittiğinde uygulamaya geri dönecek bir yol yok; müşteri
+       *   ödemesinin ne olduğunu ancak siparişlerim ekranını kendisi açarsa
+       *   görüyordu.
+       * - Karar noktası yanlış alandaydı: `redirect_url` bir ARAÇ,
+       *   `next_action` ise sunucunun kararı. Sıradaki adım artık tek yerden
+       *   okunuyor ve abonelik ödemesiyle aynı sözlüğü paylaşıyor
+       *   (`subscription_payment_controller.dart`).
+       *
+       * Tekil siparişte adımın GÖVDESİ henüz yok: sözleşmede siparişe ait bir
+       * kod-onay ya da ödeme-yoklama ucu bulunmuyor (`docs/openapi.yaml` —
+       * yalnız `/subscriptions/{id}/payments...` var). Bu yüzden burada
+       * yapılan iş, adımı kullanıcıya AÇIKÇA söyleyip onu siparişin ödeme
+       * durumunu 5 saniyede bir tazeleyen takip ekranına bırakmak.
        */
-      final redirectUrl = created.payment.redirectUrl;
-      if (created.payment.requiresRedirect && redirectUrl != null) {
-        final opened = await launchUrl(
-          Uri.parse(redirectUrl),
-          mode: LaunchMode.externalApplication,
-        ).catchError((_) => false);
-        if (!opened) {
-          messenger.showSnackBar(
-            SnackBar(content: Text(l10n.checkoutPaymentPageFailed)),
-          );
-        }
+      final step = _paymentStepMessage(created.payment, l10n);
+      if (step != null) {
+        messenger.showSnackBar(SnackBar(content: Text(step)));
       }
       if (!mounted) return;
       context.go(Routes.orderTracking(created.id));

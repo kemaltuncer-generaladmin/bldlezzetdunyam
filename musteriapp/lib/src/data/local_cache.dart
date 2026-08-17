@@ -45,6 +45,27 @@ class LocalCache {
   static const String _reminderHourKey = 'bld.bildirim.gunluk.saat';
   static const String _reminderMinuteKey = 'bld.bildirim.gunluk.dakika';
   static const String _seenStatusPrefix = 'bld.siparis.gorulen.';
+  static const String _errorFingerprintsKey = 'bld.hata.izleri';
+  static const String _fingerprintSentField = 'at';
+  static const String _fingerprintCountField = 'n';
+
+  /// Kalıcı tutulan en fazla hata parmak izi.
+  ///
+  /// Yirmi, "bu cihazda son zamanlarda neler bozuldu" sorusunu cevaplamaya
+  /// yetiyor. Sınırsız bırakılsaydı defter, hatası çok olan bir cihazda —
+  /// yani tam da yerin dar olduğu cihazda — sürekli büyürdü.
+  static const int maxErrorFingerprints = 20;
+  static const String _dismissedAnnouncementsKey = 'bld.duyuru.kapatilan';
+
+  /// Cihazda tutulan kapatılmış duyuru kimliği sayısının tavanı.
+  ///
+  /// **NEDEN TAVAN VAR:** duyuru kapatma işareti yalnız burada duruyor ve
+  /// hiçbir zaman silinmiyor; sınırsız bırakılsaydı liste uygulamanın ömrü
+  /// boyunca büyür, her açılışta okunan bir çöp yığınına dönerdi. Elli kimlik,
+  /// sunucunun aynı anda yayında tutabileceği duyuru sayısının kat kat
+  /// üstünde: taşan kayıt zaten yayından kalkmış bir duyuruya ait olur ve
+  /// düşmesi görünür bir şey değiştirmez.
+  static const int dismissedAnnouncementLimit = 50;
 
   final SharedPreferences _prefs;
 
@@ -275,4 +296,102 @@ class LocalCache {
 
   Future<void> writeNotifiedStatus(int orderId, String status) =>
       _prefs.setString('$_seenStatusPrefix$orderId', status);
+
+  // ── Kapatılan duyurular ─────────────────────────────────────────────────
+
+  /// Kullanıcının kapattığı duyuru kimlikleri; **en eskisi başta**.
+  ///
+  /// Sıra korunuyor çünkü tavan aşıldığında düşecek olan en eski kayıttır
+  /// ([dismissedAnnouncementLimit]); sırasız bir küme hangisinin atılacağını
+  /// söyleyemezdi. Okuma tarafı yalnız üyelik soruyor, sıra ona görünmez.
+  ///
+  /// Bozuk kayıt (sayıya çevrilemeyen giriş) sessizce atlanır: kapatma işareti
+  /// bir kolaylık, doğruluk kaynağı değil — bozulduğunda duyuru bir kez daha
+  /// görünür, uygulama çökmez.
+  List<int> readDismissedAnnouncements() {
+    final raw = _prefs.getStringList(_dismissedAnnouncementsKey);
+    if (raw == null) return <int>[];
+    return [for (final entry in raw) ?int.tryParse(entry)];
+  }
+
+  /// [id]'yi kapatılanlara ekler ve **tavana budanmış** güncel listeyi döner.
+  ///
+  /// Zaten listede olan kimlik sona taşınır: kapatma tekrar edildiğinde o
+  /// duyuru en taze işaret olur ve budanma sırasında ilk düşen o olmaz.
+  Future<List<int>> writeDismissedAnnouncement(int id) async {
+    final next = readDismissedAnnouncements()
+      ..remove(id)
+      ..add(id);
+    final pruned = next.length <= dismissedAnnouncementLimit
+        ? next
+        : next.sublist(next.length - dismissedAnnouncementLimit);
+
+    await _prefs.setStringList(_dismissedAnnouncementsKey, [
+      for (final entry in pruned) '$entry',
+    ]);
+    return pruned;
+  }
+
+  // ── Hata parmak izleri ──────────────────────────────────────────────────
+
+  /// Gönderilmiş hata raporlarının defteri: parmak izi → son gönderim anı ve
+  /// toplam görülme sayısı.
+  ///
+  /// **NEDEN KALICI:** çökme döngüsü korumasının en kritik parçası bu
+  /// (`data/crash_reporter.dart`). Açılışta çöken bir hata süreci yeniden
+  /// başlatır ve raportörün bellekteki jeton kovasını sıfırlar; koruma
+  /// yalnızca bellekte olsaydı kurulu tabandaki her cihaz her açılışta tam
+  /// kapasiteyle rapor yollar, durum monitörü kendi müşterilerimiz
+  /// tarafından yıkılırdı. Defter diskte olduğu için "bu izi altı saat önce
+  /// gönderdim" bilgisi açılışı aşıyor.
+  ///
+  /// Bozuk kayıtta çökmek yerine boş defter dönülüyor: en kötü sonuç bir
+  /// raporun fazladan gitmesi.
+  Map<String, ({int lastSentEpoch, int count})> readErrorFingerprints() {
+    final raw = _prefs.getString(_errorFingerprintsKey);
+    if (raw == null) return {};
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return {};
+
+      final records = <String, ({int lastSentEpoch, int count})>{};
+      for (final entry in decoded.entries) {
+        final value = entry.value;
+        if (value is! Map) continue;
+        final at = value[_fingerprintSentField];
+        final count = value[_fingerprintCountField];
+        if (at is! int || count is! int) continue;
+        records['${entry.key}'] = (lastSentEpoch: at, count: count);
+      }
+      return records;
+    } on Object {
+      return {};
+    }
+  }
+
+  /// Defteri yazar; [maxErrorFingerprints] sınırını aşarsa **en eski**
+  /// kayıtlar atılır.
+  ///
+  /// Budama ölçütü "en eski gönderim": soğuma penceresi zaten zamana bağlı,
+  /// yani en eski kayıt bir sonraki gönderimde nasılsa serbest kalacak olan
+  /// kayıttır. Görülme sayısına göre budamak sık tekrar eden hatayı defterde
+  /// tutup nadir olanı atardı — oysa seli üretenler sık olanlar.
+  Future<void> writeErrorFingerprints(
+    Map<String, ({int lastSentEpoch, int count})> records,
+  ) async {
+    final entries = records.entries.toList()
+      ..sort((a, b) => b.value.lastSentEpoch.compareTo(a.value.lastSentEpoch));
+
+    await _prefs.setString(
+      _errorFingerprintsKey,
+      jsonEncode({
+        for (final entry in entries.take(maxErrorFingerprints))
+          entry.key: {
+            _fingerprintSentField: entry.value.lastSentEpoch,
+            _fingerprintCountField: entry.value.count,
+          },
+      }),
+    );
+  }
 }

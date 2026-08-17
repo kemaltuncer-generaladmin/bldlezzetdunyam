@@ -12,7 +12,9 @@ use Throwable;
 use Veykemtu\BridgeApi\Models\ClosedDay;
 use Veykemtu\BridgeApi\Models\DailyMenu;
 use Veykemtu\BridgeApi\Models\Subscription;
+use Veykemtu\BridgeApi\Services\DailyStock;
 use Veykemtu\BridgeApi\Services\OrderFactory;
+use Veykemtu\BridgeApi\Services\SubscriptionLifecycle;
 use Veykemtu\BridgeApi\Support\BusinessTime;
 
 /**
@@ -31,6 +33,12 @@ use Veykemtu\BridgeApi\Support\BusinessTime;
  * tek bir hata satırı basılır ve o abonelikler üretime hiç sokulmaz. Koşum
  * satırı yazılmadığı için menü yayınlandıktan sonra komut yeniden
  * koşturulunca sipariş doğar — başarısızlık bir sonraki denemeyi engellemez.
+ *
+ * STOK: bu iş porsiyon SATMAZ, önceden ayrılmış porsiyonu SATIŞA ÇEVİRİR
+ * (`DailyStock::sellReserved`). Rezervasyonu gece boyunca ileriye dönük
+ * tutan `veykemtu:stok-tazele` yarım saat önce koşuyor; buradaki çevrim,
+ * siparişin ve koşum satırının yazıldığı İŞLEMİN İÇİNDE olmak zorunda —
+ * dışarıda kalsaydı işlem geri alındığında porsiyon satılmış görünürdü.
  */
 class SubscriptionGenerateCommand extends Command
 {
@@ -40,7 +48,7 @@ class SubscriptionGenerateCommand extends Command
 
     protected $description = 'Aboneliklerden o günün siparişlerini üretir (idempotent).';
 
-    public function handle(OrderFactory $factory): int
+    public function handle(OrderFactory $factory, DailyStock $stock): int
     {
         $serviceDate = ($this->option('date') !== null
             ? Carbon::parse((string) $this->option('date'))
@@ -60,6 +68,14 @@ class SubscriptionGenerateCommand extends Command
             ->with(['lines', 'delivery_points', 'pauses', 'exceptions', 'customer'])
             ->get()
             ->filter(static fn(Subscription $s): bool => $s->runsOnDate($serviceDate));
+
+        $lapsed = $this->reportLapsedPeriods($subscriptions, $serviceDate, $dryRun);
+
+        if ($lapsed !== []) {
+            $subscriptions = $subscriptions->reject(
+                static fn(Subscription $s): bool => in_array((int) $s->id, $lapsed, true),
+            );
+        }
 
         $this->components->info(sprintf(
             '%s — %d abonelik bugün üretecek%s',
@@ -123,7 +139,9 @@ class SubscriptionGenerateCommand extends Command
                 }
 
                 try {
-                    DB::transaction(function () use ($factory, $subscription, $point, $pointId, $serviceDate): void {
+                    DB::transaction(function () use (
+                        $factory, $stock, $subscription, $point, $pointId, $serviceDate,
+                    ): void {
                         $order = $factory->createForSubscription($subscription, $point, $serviceDate);
 
                         DB::table('veykemtu_subscription_runs')->insert([
@@ -133,6 +151,23 @@ class SubscriptionGenerateCommand extends Command
                             'order_id' => $order->order_id,
                             'created_at' => BusinessTime::forStorage(BusinessTime::now()),
                         ]);
+
+                        /*
+                         * REZERVASYON SATIŞA DÖNÜYOR — tek atomik ifadeyle.
+                         *
+                         * Talep YAZILMIŞ SATIRLARDAN okunuyor
+                         * (`demandOf`), abonelik kuralından değil: satışa
+                         * çevrilen miktar, mutfağa gerçekten düşen satırların
+                         * ta kendisi olmalı. İptal geldiğinde stoku geri
+                         * veren `releaseOrder()` de aynı kaynağı okuyor;
+                         * ikisi ayrılırsa iptal, satılandan başka bir
+                         * miktarı geri verir ve fark her seferinde birikir.
+                         */
+                        $stock->sellReserved(
+                            (int) $subscription->location_id,
+                            $serviceDate,
+                            $stock->demandOf($order),
+                        );
                     });
                     $created++;
                 } catch (Throwable $e) {
@@ -199,5 +234,70 @@ class SubscriptionGenerateCommand extends Command
         }
 
         return $missing;
+    }
+
+    /**
+     * Ödenmiş dönemi biten abonelikleri duraklatır ve TEK gürültülü satır basar.
+     *
+     * NEDEN BURADA, EKSİK MENÜ KONTROLÜNÜN YANINDA: ikisi de aynı soruyu
+     * soruyor — "bu abonelik bu gece üretime girebilir mi?" — ve ikisinin de
+     * cevabı üretim döngüsünden ÖNCE bilinmeli. Kontrol döngünün içinde
+     * kalsaydı mesaj abonelik sayısı kadar tekrarlanır, gerçek sebep hata
+     * yığınının arasında kaybolurdu.
+     *
+     * NEDEN KOMUT BAŞARISIZ SAYILMIYOR: dönem bitişi bir sistem arızası
+     * değil, bir TAHSİLAT işidir ve normal seyrinde her ay yaşanır. Komutu
+     * FAILURE döndürseydik zamanlayıcının alarmı her dönem sonunda çalar ve
+     * gerçek arızaların (menü yayınlanmamış, `OrderFactory` patlamış)
+     * sinyalini boğardı. Görünürlük satırın kendisinden geliyor.
+     *
+     * @param  Collection<int, Subscription>  $subscriptions
+     * @return list<int>  Duraklatılan aboneliklerin kimlikleri
+     */
+    private function reportLapsedPeriods(
+        Collection $subscriptions,
+        Carbon $serviceDate,
+        bool $dryRun,
+    ): array {
+        /*
+         * KAPSAYICIDAN ÇÖZÜLÜYOR, `handle()` İMZASINA EKLENMİYOR: bu bir ön
+         * kontrol yardımcısı ve komutun ana bağımlılıkları (sipariş üreteci,
+         * stok) ile aynı düzeyde değil.
+         */
+        $lifecycle = app(SubscriptionLifecycle::class);
+
+        $lapsed = [];
+        $portions = 0;
+
+        foreach ($subscriptions as $subscription) {
+            if ($lifecycle->isCovered($subscription, $serviceDate)) {
+                continue;
+            }
+
+            $lapsed[] = (int) $subscription->id;
+            $portions += max(1, $subscription->quantityForDate($serviceDate))
+                * max(1, $subscription->delivery_points->count());
+
+            // Kuru koşumda hiçbir şey YAZILMAZ — `--dry-run` "neyin olacağını
+            // göster" demek; aboneliği gerçekten duraklatsaydı en zararsız
+            // seçenek en yıkıcı olanı olurdu.
+            if (!$dryRun) {
+                $lifecycle->transition($subscription, SubscriptionLifecycle::EVENT_PERIOD_LAPSED);
+            }
+        }
+
+        if ($lapsed !== []) {
+            $this->components->error(sprintf(
+                '%s — ÖDENMİŞ DÖNEMİ BİTEN %d abonelik DURAKLATILDI (#%s): %d porsiyon '
+                    .'üretilmedi. Yeni dönem ödemesi alınana kadar üretim durur.%s',
+                $serviceDate->toDateString(),
+                count($lapsed),
+                implode(', #', $lapsed),
+                $portions,
+                $dryRun ? ' (kuru koşum — durum DEĞİŞTİRİLMEDİ)' : '',
+            ));
+        }
+
+        return $lapsed;
     }
 }

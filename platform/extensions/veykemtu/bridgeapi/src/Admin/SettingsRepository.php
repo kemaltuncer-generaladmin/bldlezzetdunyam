@@ -56,8 +56,20 @@ final class SettingsRepository
     /** Bugünden kaç gün sonrasına sipariş alınır (`docs/control/settings.md`). */
     public const string FIELD_LOOKAHEAD = 'max_lookahead_days';
 
-    /** Abonelik siparişlerinin KDS'e düşme saati. */
-    public const string FIELD_SUBSCRIPTION_RELEASE = 'subscription_release_time';
+    /*
+     * SERBEST BIRAKMA SAATİ DİYE BİR ALAN YOK (17.08.2026).
+     *
+     * `subscription_release_time` (anahtar `bld_subscription_release_time`,
+     * varsayılan 07:00) kaldırıldı; sipariş servis gününün KESİM ANINDA
+     * mutfağa düşüyor ve o anın tek kaynağı `OrderingWindow::cutoffFor()`.
+     * Alan bu sınıfta bir süre `method_exists` koruması ardında yaşamaya
+     * devam etti: gate erişimcisi silinmiş olduğu için okuma sessizce
+     * `"07:00"` dönüyor, yazma sessizce yutuluyordu — yani panel var olmayan
+     * bir ayarı doğru sanıp gösteriyordu. Kalıntının kendisi hatadan daha
+     * tehlikeliydi, çünkü hiçbir yerde patlamıyordu.
+     *
+     * Gerekçe: `docs/control/settings.md` → "Sipariş mutfağa ne zaman düşer".
+     */
 
     /**
      * İleri sipariş penceresinin TAVANI — iş kararı 3, en fazla 7 gün.
@@ -68,9 +80,6 @@ final class SettingsRepository
      * değerin panelden girilebilmesi, kararın sessizce delinmesi olurdu.
      */
     public const int MAX_LOOKAHEAD_DAYS = 7;
-
-    /** Sözleşmedeki varsayılan abonelik düşme saati. */
-    public const string DEFAULT_SUBSCRIPTION_RELEASE_TIME = '07:00';
 
     /** Sözleşmedeki varsayılan: teslimde belge kendiliğinden üretilmez. */
     public const bool DEFAULT_AUTO_INVOICE = false;
@@ -119,11 +128,10 @@ final class SettingsRepository
             self::FIELD_PREP_MINUTES => $this->gate->prepMinutes($location),
             self::FIELD_DELIVERY_MINUTES => $this->gate->deliveryMinutes($location),
             self::FIELD_BUSY_EXTRA_MINUTES => $this->gate->busyExtraMinutes($location),
-            // Kontrol Merkezi'nden yönetilen iki alan panelde de görünür
-            // (görev: "TI admin de görebilsin"). Aynı gate'ten okunuyorlar,
-            // yani iki yüzeyde tek gerçek var.
+            // Kontrol Merkezi'nden yönetilen alan panelde de görünür (görev:
+            // "TI admin de görebilsin"). Aynı gate'ten okunuyor, yani iki
+            // yüzeyde tek gerçek var.
             self::FIELD_LOOKAHEAD => $this->gate->maxLookaheadDays($location),
-            self::FIELD_SUBSCRIPTION_RELEASE => $this->subscriptionReleaseTime($location),
         ];
     }
 
@@ -171,7 +179,6 @@ final class SettingsRepository
             min(self::MAX_LOOKAHEAD_DAYS, max(0, (int) ($data[self::FIELD_LOOKAHEAD] ?? 0))),
         );
 
-        $this->saveSubscriptionReleaseTime($location, $data);
         $this->saveBusy($location, $data);
         $this->saveBusyMessage($location, $data);
     }
@@ -211,33 +218,6 @@ final class SettingsRepository
             ($message === '' || $message === LocationGate::DEFAULT_BUSY_MESSAGE)
                 ? null
                 : $message,
-        );
-    }
-
-    /**
-     * Abonelik düşme saati — gate henüz bu anahtarı tanımıyorsa yazılmaz.
-     *
-     * Gerekçe `pendingGateFields()` içindedir. Sessiz düşürme bilinçli
-     * DEĞİL: form alanı da aynı listeye bakıp devre dışı çiziliyor, yani
-     * yönetici yazamadığı bir kutuya bir şey yazmıyor.
-     *
-     * @param  array<string, mixed>  $data
-     */
-    private function saveSubscriptionReleaseTime(Location $location, array $data): void
-    {
-        if (!array_key_exists(self::FIELD_SUBSCRIPTION_RELEASE, $data)) {
-            return;
-        }
-
-        if (!method_exists($this->gate, 'setSubscriptionReleaseTime')) {
-            return;
-        }
-
-        $value = trim((string) $data[self::FIELD_SUBSCRIPTION_RELEASE]);
-
-        $this->gate->setSubscriptionReleaseTime(
-            $location,
-            $value === '' ? self::DEFAULT_SUBSCRIPTION_RELEASE_TIME : $value,
         );
     }
 
@@ -281,7 +261,6 @@ final class SettingsRepository
             // sorusuna verilecek doğru cevap kayıttaki değerdir, bizim
             // istediğimiz değer değil. Tavan yazma yolunda uygulanıyor.
             'max_lookahead_days' => $this->gate->maxLookaheadDays($location),
-            'subscription_release_time' => $this->subscriptionReleaseTime($location),
 
             'min_order_total_kurus' => $this->gate->minOrderTotal($location),
             'delivery_fee_kurus' => $this->gate->deliveryFee($location),
@@ -320,7 +299,6 @@ final class SettingsRepository
             'prep_minutes' => 40,
             'delivery_minutes' => 20,
             'busy_extra_minutes' => 15,
-            'subscription_release_time' => self::DEFAULT_SUBSCRIPTION_RELEASE_TIME,
         ];
     }
 
@@ -339,7 +317,6 @@ final class SettingsRepository
         return [
             'order_cutoff',
             'max_lookahead_days',
-            'subscription_release_time',
             'min_order_total_kurus',
             'delivery_fee_kurus',
             'payment_methods',
@@ -356,32 +333,26 @@ final class SettingsRepository
     /**
      * Sunucu tarafı henüz hazır olmayan sözleşme alanları.
      *
-     * `bld_subscription_release_time` ve `bld_auto_invoice` anahtarlarının
-     * `LocationGate` erişimcileri BAŞKA BİR KULVARDA yazılıyor
-     * (`docs/control/settings.md` — "BAŞKA AJANIN KULVARI"). Erişimci
-     * gelene kadar bu alanlar OKUNABİLİR (sözleşmedeki varsayılanla) ama
-     * YAZILAMAZ: yazmayı sessizce yutmak, yöneticinin kaydettiğini sandığı
-     * bir saatin hiç uygulanmaması demekti — panel `422` ile açıkça
-     * öğrenir.
+     * `bld_auto_invoice` anahtarının `LocationGate` erişicileri BAŞKA BİR
+     * KULVARDA yazılıyor (`docs/control/settings.md` — "BAŞKA AJANIN
+     * KULVARI"). Erişimci gelene kadar alan OKUNABİLİR (sözleşmedeki
+     * varsayılanla) ama YAZILAMAZ: yazmayı sessizce yutmak, yöneticinin
+     * kaydettiğini sandığı bir ayarın hiç uygulanmaması demekti — panel
+     * `422` ile açıkça öğrenir.
      *
-     * Erişimciler eklendiği gün bu metot boş liste döner ve tek satır bile
+     * "HENÜZ YOK" İLE "ARTIK YOK" AYRI ŞEYLER. Kaldırılmış bir alan buraya
+     * girmez; onun yeri `SettingsController::rejectRemovedFields()`'tir.
+     * İkisini aynı listede toplamak, gelmesi beklenen bir alan ile bir daha
+     * gelmeyecek bir alanı aynı cümleyle reddetmek olurdu.
+     *
+     * Erişimci eklendiği gün bu metot boş liste döner ve tek satır bile
      * değişmeden kendiliğinden devreden çıkar.
      *
      * @return list<string>
      */
     public function pendingGateFields(): array
     {
-        $pending = [];
-
-        if (!method_exists($this->gate, 'setSubscriptionReleaseTime')) {
-            $pending[] = 'subscription_release_time';
-        }
-
-        if (!method_exists($this->gate, 'setAutoInvoice')) {
-            $pending[] = 'auto_invoice';
-        }
-
-        return $pending;
+        return method_exists($this->gate, 'setAutoInvoice') ? [] : ['auto_invoice'];
     }
 
     /**
@@ -440,7 +411,6 @@ final class SettingsRepository
             match ($change['field']) {
                 'order_cutoff' => $this->gate->setOrderCutoff($location, $value),
                 'max_lookahead_days' => $this->gate->setMaxLookaheadDays($location, (int) $value),
-                'subscription_release_time' => $this->writeSubscriptionReleaseTime($location, (string) $value),
                 'min_order_total_kurus' => $this->gate->setMinOrderTotal($location, (int) $value),
                 'delivery_fee_kurus' => $this->gate->setDeliveryFee($location, (int) $value),
                 'payment_methods' => $this->gate->setPaymentMethods($location, (array) $value),
@@ -486,7 +456,6 @@ final class SettingsRepository
     {
         return match ($field) {
             'order_cutoff' => is_string($value) && trim($value) !== '' ? trim($value) : null,
-            'subscription_release_time' => trim((string) $value),
             'max_lookahead_days', 'prep_minutes', 'delivery_minutes', 'busy_extra_minutes' => (int) $value,
             'min_order_total_kurus', 'delivery_fee_kurus' => max(0, (int) $value),
             'payment_methods' => $this->canonicalPaymentMethods(is_array($value) ? $value : []),
@@ -519,38 +488,11 @@ final class SettingsRepository
         ));
     }
 
-    /**
-     * Abonelik düşme saati — gate erişimcisi yoksa sözleşme varsayılanı.
-     *
-     * Gerekçe `pendingGateFields()` içinde.
-     */
-    private function subscriptionReleaseTime(Location $location): string
-    {
-        if (!method_exists($this->gate, 'subscriptionReleaseTime')) {
-            return self::DEFAULT_SUBSCRIPTION_RELEASE_TIME;
-        }
-
-        $value = $this->gate->subscriptionReleaseTime($location);
-
-        return is_string($value) && trim($value) !== ''
-            ? trim($value)
-            : self::DEFAULT_SUBSCRIPTION_RELEASE_TIME;
-    }
-
     private function autoInvoice(Location $location): bool
     {
         return method_exists($this->gate, 'autoInvoice')
             ? (bool) $this->gate->autoInvoice($location)
             : self::DEFAULT_AUTO_INVOICE;
-    }
-
-    private function writeSubscriptionReleaseTime(Location $location, string $value): void
-    {
-        if (!method_exists($this->gate, 'setSubscriptionReleaseTime')) {
-            return;
-        }
-
-        $this->gate->setSubscriptionReleaseTime($location, $value);
     }
 
     private function writeAutoInvoice(Location $location, bool $value): void

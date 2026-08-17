@@ -27,6 +27,15 @@ use Veykemtu\BridgeApi\Support\BusinessTime;
  *      sipariş var" der, oysa üretim hiç çalışmamıştır.
  *
  * Üçüncüsü olmadan ekran, olmayan bir şeyin yokluğunu gösteremez.
+ *
+ * SERBEST BIRAKMA KAPISINI BİLEREK YOK SAYAR (A1). `orders.bld_released_at`
+ * abonelik siparişlerini mutfak panosundan 07:00'e kadar saklıyor
+ * (`KitchenController::orders`, iş kararı 7). Bu servis o süzgeci UYGULAMAZ ve
+ * bu asimetri kasıtlıdır: burası PLANLAMA görünümü, üretim panosu değil.
+ * Mutfak yarınki yükü üretim koştuğu anda — akşam 22:00'de — görmeli, yoksa
+ * hazırlığa başlayamaz ve "ne EKSİK" uyarıları da anlamını yitirir (gece
+ * üretilmemiş bir gün ile 07:00'i beklemekte olan bir gün aynı görünürdü).
+ * Kapıyı buraya eklemek ekranı işe yaramaz hâle getirir. **Düzeltmeyin.**
  */
 class SubscriptionKitchenPlan
 {

@@ -116,6 +116,17 @@ class ControlAudit extends Model
     /** `veykemtu_monitor_events.id` — toplanan hata olayı. */
     public const string TARGET_MONITOR_EVENT = 'monitor_event';
 
+    /**
+     * KVKK okuma eylemi — `readAudit()` varsayılanı.
+     *
+     * Sabit olarak duruyor çünkü değeri iki yerde birden geçiyor: satırı
+     * yazan yardımcı ve denetim ekranının süzgeci (`GET /control/audit`
+     * `action` parametresi). Elle yazılan bir dize, ikisinden birinde
+     * harf farkıyla ayrıştığında ekran KVKK erişimlerini hiç göstermezdi
+     * ve eksiklik ancak bir denetimde fark edilirdi.
+     */
+    public const string ACTION_CUSTOMER_READ = 'customer.read';
+
     protected $table = 'veykemtu_control_audit';
 
     protected $guarded = [];
@@ -161,6 +172,56 @@ class ControlAudit extends Model
         $row->save();
 
         return $row;
+    }
+
+    /**
+     * KVKK okuma izi — `control/customers/*` (`00-genel.md` §9).
+     *
+     * SÖZLEŞMEDEKİ TEK "OKUMA DENETİM SATIRI" BİÇİMİ ve başka hiçbir alanda
+     * tekrarlanmaz. Diğer alanlarda yalnız yazmalar iz bırakır; müşteri
+     * uçları farklıdır çünkü sistemdeki en geniş kişisel veri yüzeyi
+     * oradadır (ad, telefon, e-posta, kurum, adres ve sipariş geçmişi tek
+     * ekranda). Sızıntı çoğu zaman bir yazma değil bir OKUMADIR; yazma izi
+     * tek başına "kim, ne zaman, kimin kaydını açtı" sorusuna cevap
+     * vermiyor.
+     *
+     * `ControlController::write()` KABUĞUNDAN GEÇMEZ ve geçemez: o kabuk
+     * kuru prova, gerekçe zorunluluğu ve `pending` → `applied` geçişi
+     * üzerine kurulu. Okumanın kuru provası yoktur (okumayı "denemek" ile
+     * yapmak aynı şeydir) ve satır ilk hâlinde `applied` doğar.
+     *
+     * GEREKÇE İSTEMCİDEN İSTENMEZ, SUNUCU ÜRETİR. Her müşteri kaydı
+     * açılışında yöneticiden serbest metin istemek, ekranı kullanılamaz
+     * kılar ve doldurulan alan üç günde "-" olurdu. Üretilen metin
+     * `reason` sütununun en az 10 karakter beklentisini kendiliğinden
+     * karşılıyor.
+     *
+     * `payload_json` YALNIZ SÜZGEÇLERİ TAŞIR. Dönen kayıtların kendisi
+     * yazılsaydı denetim izi ikinci bir müşteri veritabanına dönerdi —
+     * yani kişisel veriyi korumak için tutulan defter, korumaya çalıştığı
+     * veriyi çoğaltırdı.
+     *
+     * @param  string    $path      isteğin yolu; gerekçeye ve yüke girer
+     * @param  array<string, mixed>  $filters  liste süzgeçleri (`q`, `page`, …)
+     * @param  int|null  $targetId  tekil kayıtta müşteri kimliği, listede `null`
+     */
+    public static function readAudit(
+        string $actor,
+        string $path,
+        ?int $targetId = null,
+        array $filters = [],
+        string $action = self::ACTION_CUSTOMER_READ,
+        string $targetType = self::TARGET_CUSTOMER,
+    ): self {
+        return self::record(
+            actor: $actor,
+            action: $action,
+            targetType: $targetType,
+            targetId: $targetId,
+            reason: 'Kişisel veri görüntüleme: '.$path,
+            payload: ['path' => $path, 'filters' => $filters],
+            result: self::RESULT_APPLIED,
+        );
     }
 
     public function markApplied(): void

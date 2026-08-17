@@ -12,6 +12,7 @@ use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 use Veykemtu\BridgeApi\Admin\AdminRegistrar;
 use Veykemtu\BridgeApi\Admin\KitchenDevicePanel;
+use Veykemtu\BridgeApi\Http\Middleware\RequireAdminPanel;
 use Veykemtu\BridgeApi\Models\KitchenCommand;
 use Veykemtu\BridgeApi\Models\KitchenDevice;
 use Veykemtu\BridgeApi\Models\PrintJob;
@@ -57,6 +58,22 @@ class AdminKitchenDeviceTest extends TestCase
     private const string ARRAY_NAME = 'KitchenDevice';
 
     private const string BASE_URI = '/admin/veykemtu/bridgeapi/kitchen_devices';
+
+    /**
+     * Panel şalteri TEST İÇİN AÇILIYOR — F4.
+     *
+     * `/admin/*` üretimde kapalı (`RequireAdminPanel`, varsayılan kapalı):
+     * tek yönetim yüzeyi Kontrol Merkezi. Panel bir YEDEK olarak duruyor ve
+     * yedeğin değeri, ihtiyaç anında çalıştığının bilinmesinde — bu yüzden
+     * testler silinmedi, şalteri açıp koşuyorlar. Kapatmanın kendi testi
+     * `AdminPanelClosedTest`.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config([RequireAdminPanel::CONFIG_KEY => true]);
+    }
 
     // ── Durum çözümlemesi (veritabanına dokunmaz) ─────────────────────────
 

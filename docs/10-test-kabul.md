@@ -13,7 +13,7 @@ Her senaryo elle koşulur ve sonuç tabloya işlenir. Hepsi geçmeden canlıya a
 | 1 | Web'den kayıt ol, giriş yap | Hesap oluşur, token alınır |
 | 2 | Menüden 2 ürün sepete ekle | Sepet tutarı doğru (kuruş hesabı) |
 | 3 | Teslimat adresi + saat gir | Teslimat ücreti toplama eklendi |
-| 4 | Ödeme yöntemi seç | Yalnızca `payment_methods`'taki yöntemler görünüyor (Faz 1: kapıda ödeme, cari hesap). Sipariş `yeni`, `payment.status = pending` |
+| 4 | Ödeme yöntemi seç | Yalnızca `payment_methods`'taki yöntemler görünüyor (`online` \| `cash`; `account` gönderilirse `VALIDATION_FAILED`). Sipariş `yeni`, `payment.status = pending` |
 | 5 | KDS ekranını izle | **3 saniye içinde** sipariş kartı görünür + sesli uyarı |
 | 6 | Yazıcıyı kontrol et | Mutfak fişi otomatik basılmış, Türkçe karakterler doğru, fiyat **yok** |
 | 7 | KDS'te "Onayla" | Durum `onaylandi`, müşteriye push gitti |
@@ -41,9 +41,11 @@ Her senaryo elle koşulur ve sonuç tabloya işlenir. Hepsi geçmeden canlıya a
 | 1 | Admin panelden sipariş alımını kapat (`ordering_enabled=false`) | `GET /api/locations` yanıtında `false` |
 | 2 | Web'de menü sayfasını aç | Menü **görünmeye devam ediyor** (SEO), sepete ekleme kapalı, açıklayıcı bant var |
 | 3 | Sipariş göndermeyi zorla (API'ye doğrudan istek) | `422 LOCATION_CLOSED` |
-| 4 | Alımı aç, `order_cutoff` saatini geçmiş bir saate ayarla | Aynı hata: `422 LOCATION_CLOSED` |
-| 5 | Kesim saatini ileri al, sipariş ver | Sipariş oluşuyor |
-| 6 | Üretim listesini kontrol et | Aktif siparişlerin toplamı doğru gösteriliyor |
+| 4 | Alımı aç, `order_cutoff` saatini geçmiş bir saate ayarla | **BUGÜNE** sipariş reddedilir; hata `422 LOCATION_CLOSED` |
+| 5 | Aynı ayarla **yarına** sipariş ver | Sipariş oluşuyor — kesim yalnız kendi gününü kapatır, gelecek günün kesimi tanımı gereği henüz gelmemiştir |
+| 6 | Kesim saatini ileri al, bugüne sipariş ver | Sipariş oluşuyor |
+| 7 | O güne özel `cutoff_time` gir | Genel ayar **ezilir**; birleştirme kuralı `gün.cutoff_time ?? ayar.order_cutoff` ve tek yerde (`OrderingWindow`) |
+| 8 | Üretim listesini kontrol et | Aktif siparişlerin toplamı doğru gösteriliyor |
 
 ### S4 — Dayanıklılık
 
@@ -95,7 +97,7 @@ Her senaryo elle koşulur ve sonuç tabloya işlenir. Hepsi geçmeden canlıya a
 | 9 | Süre dolduktan sonra sipariş dene | Kendiliğinden açılmış olmalı (cron yok) |
 | 10 | Bir ürünü "bugün tükendi" işaretle | Menüde soluk; siparişe eklenemez; **abonelik üretimi etkilenmez** |
 | 11 | Siparişi düzenle (20 → 10), sebep seç, kaydet | 5 sn içinde web takip ekranında adet ve toplam değişir; mobilde bildirim düşer |
-| 12 | Aynı siparişi ikinci kez düzenle | Cari deftere **ikinci** hareket yazılır (birincisi yutulmaz) |
+| 12 | Aynı siparişi ikinci kez düzenle | İkinci revizyon kendi kaydını alır ve bilgilendirme SMS'i **yeniden gider** — idempotans anahtarı siparişe değil revizyona bağlı (`docs/02` §"Referans neden siparişe değil REVİZYONA bağlanır") |
 | 13 | Düzenleme sonrası yazıcı | Basılmış fişler **"GÜNCEL FİŞ / REVİZE #N / ÖNCEKİ FİŞİ ATIN"** bandıyla, 20 sn sessizlikten sonra **bir kez** yeniden basılır (K-20). Ayrı kurye fişi çıkmaz |
 | 14 | Admin panel | Revizyon ve iade kaydı görünür; başarısız iade **açık** durur |
 | 15 | Abonelik ekranı (F8) | Ürün toplamları, teslimat saatleri ve uyarılar görünür |
@@ -137,16 +139,40 @@ Her senaryo elle koşulur ve sonuç tabloya işlenir. Hepsi geçmeden canlıya a
 | 5 | KDS'e bak | Sipariş normal düşer, `is_subscription = true` rozeti |
 | 6 | Uygulamadan duraklat → ertesi gün üret | Sipariş üretilmez; devam ettir → tekrar üretir |
 
-### S9 — Cari hesap (borç/tahsilat/ekstre)
+### S9b — Abonelik sözleşmesi, peşin dönem ve belge (17.08.2026)
+
+> **Eski S9 (cari hesap: borç/tahsilat/ekstre) KALDIRILDI.** Test ettiği
+> tablolar artık yok (`docs/02` §7.2); yerini abonelik parasının kendi akışı
+> aldı. Numara `S9b` çünkü `S9` kimliği mutfak turunda zaten kullanılmış ve
+> geçmiş raporlarda o adla geçiyor.
 
 | # | Adım | Beklenen |
 |---|---|---|
-| 1 | `payment=account` sipariş oluştur | Deftere `debit` yazılır, bakiye artar |
-| 2 | Siparişi iptal et | Ters `credit` yazılır (satır silinmez), bakiye eski değerine döner |
-| 3 | Admin "Tahsilat gir" ile `credit` | Bakiye düşer |
-| 4 | Aynı sipariş borcunu ikinci kez yazmayı dene | Engellenir (`UNIQUE(source, reference_type, reference_id, entry_type)`) |
-| 5 | Uygulamadan ekstre çek | Hareketler + yürüyen bakiye doğru; tutarlar sunucudan |
-| 6 | `veykemtu:cari-donem-ozeti --dry-run` | Açılış/borç/alacak/kapanış doğru; **fatura üretilmez** |
+| 1 | Panelden abonelik sözleşmesi hazırla ve gönder | `draft` → `sent`; müşteriye SMS ile **tek kullanımlık bağlantı** gider, veritabanında ham token DEĞİL `token_hash` durur |
+| 2 | Bağlantıyı aç, SMS kodunu gir, onayla | `approved`; `body_html` ve `terms_json` **o anki hâliyle donar**, `approved_ip`/`approved_at` yazılır |
+| 3 | Şablon metnini değiştir, onaylanmış sözleşmeyi yeniden aç | Metin **DEĞİŞMEZ** — belge kayıttan çizilir, şablondan değil |
+| 4 | Bağlantı süresi dolduktan sonra tekrar aç | Reddedilir; `expires_at`'i elle ileri almak da açmaz (**süre imzanın içinde**) |
+| 5 | İlk dönem ödemesini başlat | `pending` niyet satırı doğar; abonelik `awaiting_payment`'ta bekler, sipariş üretmez |
+| 6 | Ödeme dönüşünü **iki kez** işle | Tek `succeeded`; `UNIQUE(subscription_id, period_start)` ikinci satırı yazdırmaz |
+| 7 | Ödeme yarıda kesilsin (dönüş hiç gelmesin) | Abonelik `active` OLMAZ; niyet `pending` kalır ve yeniden denenebilir |
+| 8 | Ödeme sonrası belge kes | `BLD-2026-000001` gibi **boşluksuz** numara; `snapshot_json` dolu; `pdf_path` **boş** (v1'de PDF yok) |
+| 9 | İki belgeyi eşzamanlı kes | Numaralar ardışık ve tekil — sayaç satırı kilitleniyor, `MAX(sequence)+1` yok |
+| 10 | Belgeyi iptal et | Satır **silinmez**; `status = void`, `void_at`/`void_reason` dolar. Düzeltme yeni belgedir ve `replaces_invoice_id` ile eskisine bağlanır |
+| 11 | Müşteri adını değiştir, eski belgeyi yeniden bas | Belge **aynı** çıkar — canlı tablodan değil `snapshot_json`'dan çiziliyor |
+
+### S9c — Günlük stok tavanı ve kesim saati (17.08.2026)
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Tavan konmamış bir güne sipariş ver | Sınırsız — `remaining_portions` `null` ve satış açık (`null` ≠ `0`) |
+| 2 | Gün toplamına 10 tavan koy, 10 porsiyon sat | 11. porsiyon reddedilir; kalem tavanları boş olsa bile |
+| 3 | Bir kaleme 3 tavan koy, gün toplamı bol | O kalem 4. porsiyonda kapanır, gün açık kalır (**hangisi önce dolarsa**) |
+| 4 | Siparişi iptal et | Porsiyonlar stoka döner, `bld_stock_released_at` damgalanır |
+| 5 | Aynı siparişi **ikinci kez** iptal et | Stok **bir daha artmaz** — kredi bir kez verilir |
+| 6 | Güne özel `cutoff_time` gir, saati geçir | O gün kapanır; genel `bld_order_cutoff` **ezilir** |
+| 7 | Yarına ve öbür güne sipariş dene | Açık — kesim yalnız **kendi gününü** kapatır |
+| 8 | `max_lookahead_days` ötesine sipariş dene | Reddedilir |
+| 9 | Üç istemcide `maxAddable` senaryolarını koştur | `docs/contract/sales-rules.cases.json` altın kümesi üçünde de aynı sonucu verir |
 
 ### S10 — Web + Admin v2.0 (12.08.2026)
 
@@ -173,15 +199,13 @@ Otomatik karşılıkları: PHP tarafında `AdminAccountTest`, `AdminPhoneOrderTe
 | 5 | 60 sn dolmadan yeni kod iste | `422`, kalan süre `retry_after`'da |
 | 6 | `0555 …`, `+90 555 …`, `555 …` | Üçü de aynı hesabı açar |
 
-**S10.3 — Cari hesap self-servisi**
+**S10.3 — ~~Cari hesap self-servisi~~ KALDIRILDI (17.08.2026)**
 
-| # | Adım | Beklenen |
-|---|---|---|
-| 1 | Borçlu müşteri `/hesabim/cari` | Bakiye + 90 günlük ekstre; pozitif = borç |
-| 2 | "Borcun tamamı" ile öde | Sağlayıcıya gider, döner, bakiye sıfırlanır |
-| 3 | Kısmi öde (400 / 1000) | Bakiye 600 kalır |
-| 4 | Borçtan büyük tutar gir | `422`, ödeme başlamaz |
-| 5 | Borcu olmayan müşteri | Ödeme formu hiç çizilmez |
+`/hesabim/cari` sayfası ve arkasındaki `/api/account/*` uçları kalktı; test
+edilecek bir şey kalmadı. **Sıra bağlayıcıydı ve tutuldu:** istemciler
+sunucudan ÖNCE yayınlandı, aksi hâlde sahadaki sürümler hâlâ çizdikleri
+ekranı doldurmak için o üç yolu çağırır ve `404` alırdı (`docs/03` §12.2).
+Yerine geçen abonelik ödemesi S9b'de.
 
 **S10.4 — Abonelik self-servisi**
 
@@ -197,9 +221,9 @@ Otomatik karşılıkları: PHP tarafında `AdminAccountTest`, `AdminPhoneOrderTe
 | # | Adım | Beklenen |
 |---|---|---|
 | 1 | Kayıtlı müşteri + ürün + kaydet | Sipariş `onaylandi` doğar, **mutfak listesinde görünür** |
-| 2 | Kayıtsız müşteri, unvan + telefon | Kurumsal hesap açılır, cari limiti `0` |
+| 2 | Kayıtsız müşteri, unvan + telefon | Kurumsal hesap açılır (borç limiti diye bir alan **yok**, `Services\CreditLimit` kaldırıldı) |
 | 3 | Unvansız yeni müşteri | Reddedilir; ne sipariş ne müşteri oluşur |
-| 4 | Cari limiti aşan sipariş | Reddedilir; sipariş hiç doğmaz |
+| 4 | Kesim saati geçmiş güne sipariş | Reddedilir; sipariş hiç doğmaz (kapı artık **kesim penceresi**, borç limiti değil) |
 | 5 | Başka müşterinin aboneliğine bağla | Reddedilir |
 | 6 | İleri güne ek porsiyon (100 + 10) | İstisna **110** olur, 10 değil |
 | 7 | Bugüne ya da geçmişe ek porsiyon | Reddedilir — o günün üretimi koştu |
@@ -404,12 +428,18 @@ Kapandı.
 ### Müşteri app (`musteriapp/`)
 - [ ] `flutter analyze` sıfır uyarı
 - [ ] Kurumsal kayıt formu ticari unvan + yetkili kişiyi zorunlu tutuyor
-- [ ] `can_order = false` hesap sepet/ödemeye giremiyor, "Sipariş kapalı"
-      ekranına düşüyor; menü/keşif serbest
+- [x] ~~`can_order = false` kapısı~~ **KALDIRILDI.** `Session.canOrder`,
+      `_requiresOrdering` kapısı ve "Sipariş kapalı" bilgi ekranı yok; sepet
+      ve ödeme yalnızca OTURUM istiyor. Kabul ölçütü tersine döndü: bu
+      ekranların **bulunmadığı** doğrulanır
 - [ ] Aboneliklerim: talep oluşturulabiliyor (`pending`), detayda
       duraklat/devam/iptal çalışıyor
-- [ ] Cari hesabım: bakiye ve ekstre sunucudan geliyor, tutar istemcide
-      hesaplanmıyor
+- [x] ~~Cari hesabım ekranı~~ **KALDIRILDI** — bakiye/ekstre diye bir kavram
+      yok (`docs/02` §7.2)
+- [ ] Ödeme **uygulama içinde** yürüyor: `next_action` durum makinesi okunuyor,
+      dış tarayıcıya yönlendirme yok. `unknown` adım **"bitti" sayılmıyor**
+- [ ] Sepet stok tavanını aşamıyor (`maxAddable`); `null` kalan sınırsız
+      demek, sıfır değil
 - [ ] "Beni hatırla" kapalıyken uygulama yeniden açıldığında oturum kapalı;
       açıkken oturum sürüyor
 - [ ] Adres formlarında il değiştirilemiyor, ilçe yalnızca Selçuklu/Karatay
@@ -479,9 +509,43 @@ Kapandı.
 - Termal fiş **bilgi fişidir**, mali belge değildir. e-Arşiv fatura ayrı süreçtir.
 - Tek kasa/tek yazıcı: donanım arızasında operasyon durur; yedek plan admin panelden sipariş görüntülemektir.
 - Faz 1'de gerçek zamanlılık polling ile 5 saniyeye kadar gecikebilir.
-- Stok takibi ve reçete maliyeti bu fazda yoktur.
-- Online ödeme (sanal POS) Faz 1'de **kapalıdır**; tahsilat kapıda ödeme veya cari hesap ile yapılır.
+- **Malzeme stoğu ve reçete maliyeti yoktur.** Sistemin bildiği tek stok
+  **porsiyon tavanıdır** (`veykemtu_daily_menu_stock`): gün toplamı ve ürün
+  bazlı iki tavan, hangisi önce dolarsa satış kapanır. Tavan konmamış gün
+  **sınırsızdır** — `null` sıfır değildir. Un, tavuk, kilogram bu sistemde
+  hiçbir yerde geçmez.
+- **Gerçek sanal POS hâlâ bağlı değil.** Ödeme yöntemi listesi `online` ve
+  `cash` ile sınırlı; `online` arkasındaki geçit bugün simülasyondur ve
+  üretimde yalnız `POS_ALLOW_SIMULATION=true` ile çalışır — o bayrak açık
+  kalırsa **her sipariş bedava olur** (canlıya alma listesine bakın). Abonelik
+  dönem ödemesi de aynı geçidi kullanıyor; niyet satırı, `hash` ile dışa
+  kimlik ve dönem başına tekillik gerçek POS'a hazır (`docs/02` §10.5).
 - Öğrenci ve kurum içi sipariş kanalları **hiç yoktur** (bkz. `docs/00-genel-bakis.md` §4).
-- **Cari hesap muhasebe yazılımı değildir:** sistem borç/alacak hareketi, yürüyen bakiye, ekstre ve ay sonu **özeti** üretir; **fatura / e-Arşiv KESMEZ** (e-Arşiv ayrı, sonraki faz süreci). Tahsilat deftere ayrı `credit` hareketidir; `AccountPayment` geçidi `pending` kalır.
-- Abonelik `daily_menu` modu bu turda **ertelendi**: "günün menüsü" kaynağı olmadığından yalnız `fixed_list` tam desteklenir (bkz. `docs/11` §7.5).
-- Abonelik ve toplu fiyatlama Faz 2'dir; bu fazda ürün fiyatı tekildir.
+- **Cari hesap KALDIRILDI (17.08.2026).** Borç/alacak defteri, kredi limiti,
+  ekstre ve ay sonu özeti diye bir şey yok; tabloları düşürüldü
+  (`docs/02` §7.2). Her sipariş kendi başına ödenir (`online` \| `cash`),
+  abonelik ise 30 günlük **peşin** dönem ödemesiyle yürür. Bu bölümde eskiden
+  duran "cari hesap muhasebe yazılımı değildir" maddesi konusuz kaldı.
+- **Fatura belgesinin MALİ DEĞERİ YOKTUR.** `veykemtu_invoices` e-Fatura
+  değil, e-Arşiv değil; GİB'e gitmez, KDV hesaplamaz, muhasebeye girmez.
+  Müşterinin "bir belge verin" talebini karşılayan, yazdırılabilir bir A4
+  dökümüdür ve v1'de **PDF bile üretmez** — `GET /api/control/invoices/{id}/html`
+  ile basılır. Kabul ölçütü buna göredir: belgenin doğruluğu **numarasının
+  boşluksuzluğu, içeriğinin donmuşluğu ve iptalin silme değil işaretleme
+  olmasıdır**; mali mevzuata uygunluk **ölçülmez, iddia da edilmez**. Gerçek
+  e-Arşiv entegrasyonu ayrı bir süreçtir ve geldiğinde bu numara dizisine
+  takılacağı için boşluksuzluk bugünden zorunludur.
+- **Toplu SMS için alıcı onayı YOK.** Sipariş durum bilgilendirmesi izin
+  gerektirmiyor ve açılabilir; günün menüsü duyurusu ile toplu duyuru ise
+  ticari elektronik iletidir (6563 + KVKK, İYS kaydı ister). Onay akışı iş
+  tarafının imzasını bekliyor, o gelene kadar bu iki şablon **kapalı**.
+  `customers.bld_sms_opt_out` yalnız reddi tutuyor (`docs/02` §10.7).
+- **Push (FCM) yoktur.** Müşteriye ulaşmanın iki yolu var: SMS ve uygulama-içi
+  duyuru. Duyuru yalnız istemci açıkken çekilir; "teslim edildi" ölçülmez,
+  "ekranda çizildi" ölçülür.
+- Abonelik `daily_menu` modu **artık destekleniyor** — günün menüsü modeliyle
+  birlikte kaynağına kavuştu (`OrderFactory`, `docs/02` §8). Ertelenmiş olan
+  şey **günde birden çok menü** (öğle/akşam ayrı vitrin); bugün bir servis
+  gününün bir menüsü vardır.
+- Toplu fiyatlama yoktur: abonelikte porsiyon başı **anlaşmalı fiyat** tek
+  alandır ve `daily_menu` modunda da zorunludur.

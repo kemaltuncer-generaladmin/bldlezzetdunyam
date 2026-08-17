@@ -8,6 +8,7 @@ use Igniter\User\Facades\AdminAuth;
 use Igniter\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use Veykemtu\BridgeApi\Http\Middleware\RequireAdminPanel;
 use Veykemtu\BridgeApi\Models\MenuSoldOut;
 use Veykemtu\BridgeApi\Models\OrderRevision;
 use Veykemtu\BridgeApi\Models\PaymentRefund;
@@ -40,6 +41,22 @@ class AdminRefundTest extends TestCase
     private const string REVISIONS_URI = '/admin/veykemtu/bridgeapi/order_revisions';
 
     private const string SOLDOUT_URI = '/admin/veykemtu/bridgeapi/menu_sold_outs';
+
+    /**
+     * Panel şalteri TEST İÇİN AÇILIYOR — F4.
+     *
+     * `/admin/*` üretimde kapalı (`RequireAdminPanel`, varsayılan kapalı):
+     * tek yönetim yüzeyi Kontrol Merkezi. Panel bir YEDEK olarak duruyor ve
+     * yedeğin değeri, ihtiyaç anında çalıştığının bilinmesinde — bu yüzden
+     * testler silinmedi, şalteri açıp koşuyorlar. Kapatmanın kendi testi
+     * `AdminPanelClosedTest`.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config([RequireAdminPanel::CONFIG_KEY => true]);
+    }
 
     // ── İadeler ───────────────────────────────────────────────────────────
 

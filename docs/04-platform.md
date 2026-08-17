@@ -37,6 +37,11 @@ kabul edilir. Bu yüzden `www.` yazmak, site apex'te duruyorsa hatadır.
 
 ## 2.5 BLD Ayarları sayfası (05.08.2026)
 
+> **Bu ekran bugün erişilemez.** Admin paneli kapatıldı (§2.7); ayarlar
+> Kontrol Merkezi'nden yönetiliyor (`docs/control/settings.md`). Bölüm
+> duruyor çünkü panel bir yedek yüzey ve şalter açıldığında sayfa aynen
+> çalışıyor.
+
 **Ayarlar → Eklentiler → BLD Ayarları** — yan menüde de var
 (Restoran → BLD Ayarları).
 
@@ -103,6 +108,11 @@ dakikada ihlal edilir.
 > gösterir, gate API'yi korur.
 
 ## 2.6 İçerikler bölümü — kurumsal site yönetimi (06.08.2026)
+
+> **Bu ekranlar da bugün erişilemez** (§2.7). İçerik Kontrol Merkezi'nden
+> yönetiliyor (`docs/control/cms.md`); aşağıdaki tablo, alan kuralları ve
+> `body_html` temizliği panelden bağımsız olarak geçerli kalmaya devam
+> ediyor — ikisi de aynı modellere yazıyor.
 
 Kurumsal web sitesinin **tüm** içeriği panelden yönetilir; site metnini
 değiştirmek için kod yazmak gerekmez.
@@ -198,6 +208,83 @@ düzenlemeleri ezmez** (üzerine yazmak için `--force`).
 Paket sunucuda 60 dakika önbelleklenir. Kaydet'e basıldığında önbellek anında
 temizlenir ve siteye tazeleme isteği gider; yönetici değişikliği süre dolmasını
 beklemeden görür.
+
+## 2.7 Admin paneli KAPALIDIR (17.08.2026)
+
+> **Bu bölüm §2.5 ve §2.6'nın önüne geçer.** Orada anlatılan ekranlar hâlâ
+> kodda duruyor ama **normal işletmede erişilemez.** Yönetim yüzeyi
+> Kontrol Merkezi'dir.
+
+`/admin/*` yollarının tamamı — ekranlar, gösterge paneli, **giriş formu,
+çıkış ve parola sıfırlama** dahil — `404` döner. Kapatma
+`Extension::closeAdminPanel()` içinde, uygulama `RequireAdminPanel` ara
+katmanındadır.
+
+### Neden kapatıldı
+
+Kontrol Merkezi tek yönetim yüzeyi oldu. Panel ayakta durduğu sürece iki şey
+getiriyordu:
+
+1. **Parola denemesine açık bir giriş formu.** Kullanılmayan ama internete
+   açık duran bir oturum kapısı, en ucuz saldırı hedefidir.
+2. **İkinci bir yazma yolu.** Aynı ayarın hem panelden hem KM'den
+   değiştirilebilmesi, hangisinin doğru olduğunu kimsenin bilmediği bir
+   durum üretir; KM'nin denetim izi (`veykemtu_control_audit`) panelden
+   yapılan değişikliği görmez.
+
+### Neden kod silinmedi
+
+Panel **yedek yüzey** olarak duruyor: KM çöktüğünde ya da imza anahtarı
+kaybolduğunda yönetim tek bir ortam değişkeniyle geri gelmeli. Silinmiş bir
+panel için tek yol yeni bir sürüm yayınlamaktır ve o an, tam da yayın
+yapılamayan andır. Ayrıca 13 admin denetleyicisini silmek `AdminRegistrar`,
+izinler, blade'ler ve dil dosyalarında geniş bir kazıma demek; admin
+sınıfları TastyIgniter'ın kayıt akışına bağlı olduğu için yarısını silmek
+açılışı kırabilir.
+
+Yedeğin değeri eksiksiz açılmasında olduğu için **admin testleri silinmedi**:
+`AdminSettingsTest`, `AdminDailyMenuTest`, `AdminPhoneOrderTest` ve
+kardeşleri şalteri `setUp()` içinde açıp koşmaya devam ediyor. Kapalı hâlin
+kendi testi `AdminPanelClosedTest`.
+
+### Paneli geçici olarak açma
+
+```bash
+# platform/.env
+BLD_ADMIN_ENABLED=true
+```
+
+```bash
+docker compose restart app        # ya da: php artisan config:clear
+```
+
+- Değişken **açılışta bir kez** okunur; `.env`'e yazmak tek başına yetmez,
+  uygulama yeniden başlatılmalıdır.
+- Kabul edilen değerler: `true`, `1`, `on`, `yes`. **Tanınmayan her değer
+  ve değişkenin hiç yazılmamış olması KAPALI sayılır** — yanlış yazılmış bir
+  satır paneli açmamalı.
+- İş bitince satırı **silin**, `false` yazıp bırakmayın: silinmiş bir satır
+  varsayılana döner, `false` ise "birileri burayı bilerek açtı" izlenimi
+  bırakır.
+- Panel açıkken de girişler `docs/RUNBOOK.md` §9'daki personel rolleriyle
+  yapılır; kapatma yetkileri sıfırlamaz.
+
+### Kapatmanın etkilemediği şeyler
+
+| Yüzey | Durum |
+|---|---|
+| `/api/*` (istemci, KDS, BBD, Kontrol Merkezi) | **Etkilenmez.** Ayrı bir rota yığını (`api`), ayrı ara katman kümesi. `AdminPanelClosedTest` bunu `/api/health` ve imzalı bir `/api/control/*` ucuyla sabitliyor. |
+| Zamanlanmış işler ve konsol komutları | Etkilenmez; hiçbiri HTTP yüzeyinden geçmiyor. |
+| Vitrin teması | Zaten kapalı (`Igniter::disableThemeRoutes(true)`, I-07). |
+| `/admin/_assets/*` birleştiricisi | Panelle birlikte kapanır. Yalnız panelin CSS/JS'ini sunuyordu; şalter açılınca geri gelir. |
+
+### Yeni bir admin ekranı eklenirse
+
+Menü girdisi, yetki kutusu ve gösterge parçacığı `AdminRegistrar`'a **yine
+yazılır.** Panel kapalıyken de bu tanımların doğru kalması şart: eksik
+bırakılırlarsa şalter açıldığında yan menüsü boş, yetkileri personel
+rollerinden düşmüş bir panel açılır — yani "geri alınabilir" dediğimiz şey
+geri alınamaz olur.
 
 ## 3. Eklenti yapısı
 

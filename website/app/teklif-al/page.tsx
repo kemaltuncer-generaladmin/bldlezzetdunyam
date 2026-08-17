@@ -12,7 +12,7 @@ export async function generateMetadata() {
   return pageMetadata({
     title: 'Teklif Al',
     description:
-      'Kurumsal yemek, catering ve organizasyon için teklif isteyin. Kaç kişi, ne zaman, nerede — söyleyin, menü önerisiyle birlikte dönelim.',
+      'Kurumsal yemek, catering ve organizasyon için teklif isteyin. Dört soru; gerisini telefonda konuşalım, menü önerisi ve fiyatla dönelim.',
     path: '/teklif-al',
     brandName: brand.name,
   });
@@ -20,16 +20,24 @@ export async function generateMetadata() {
 
 const CRUMBS: readonly Crumb[] = [{ href: '/teklif-al', label: 'Teklif Al' }];
 
+/*
+ * FORM DÖRT ALANA İNDİ (M4) VE BU LİSTE ONA GÖRE DEĞİŞTİ.
+ *
+ * Eski metin "hizmet türü ve konuma bakıp" diyordu; o alanlar artık formda
+ * yok. Adımlar bu yüzden yeniden yazıldı: sorular telefonda soruluyor.
+ * Kutunun işi beklentiyi doğru kurmak — sayfada söz verilen sıra ile gerçek
+ * sıra ayrışırsa arayan kişi hazırlıksız yakalanıyor.
+ */
 const WHAT_HAPPENS_NEXT = [
   {
     icon: FileText,
-    title: 'Okuyoruz',
-    body: 'Kişi sayısı, hizmet türü ve konuma bakıp ne gerektiğini çıkarıyoruz.',
+    title: 'Talebi görüyoruz',
+    body: 'Kişi sayısına bakıp hangi ekibin ilgileneceğini belirliyoruz.',
   },
   {
     icon: MessageSquare,
-    title: 'Gerekirse arıyoruz',
-    body: 'Eksik bir şey varsa telefonla soruyoruz. Uzun sürmüyor.',
+    title: 'Sizi arıyoruz',
+    body: 'Öğün düzeni, konum ve özel beslenme ihtiyaçları telefonda konuşuluyor. Uzun sürmüyor.',
   },
   {
     icon: Clock,
@@ -49,7 +57,7 @@ export default async function TeklifAlPage() {
         crumbs={CRUMBS}
         eyebrow="Teklif"
         title="Kaç kişisiniz?"
-        description="Fiyat kişi sayısına, öğün düzenine ve mesafeye göre değişiyor. Formu doldurun; menü önerisi ve fiyatla birlikte dönelim."
+        description="Dört soru soruyoruz: adınız, telefonunuz, kurumunuz ve kişi sayısı. Öğün düzeni, konum ve menü ayrıntılarını sizi ararken konuşalım."
         image={PHOTO.izgaraTabak.src}
       />
 

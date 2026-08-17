@@ -19,17 +19,21 @@ Model: `Models\DailyMenu`, `Models\DailyMenuItem`.
 |---|---|---|---|---|---|
 | GET | `/calendar?from=&to=` | Tarih aralığının gün özeti | `bld_menu.view` | — | — |
 | GET | `/days/{date}` | Tek günün tam menüsü | `bld_menu.view` | — | — |
-| POST | `/days` | Yeni gün oluştur (taslak) | `bld_menu.manage` | ✔ | ✔ |
-| PATCH | `/days/{date}` | Gün başlığı/fiyatı/notu | `bld_menu.manage` | ✔ | ✔ |
-| DELETE | `/days/{date}` | Günü sil (yalnız taslak) | `bld_menu.manage` | ✔ | ✔ |
-| POST | `/days/{date}/publish` | Yayınla | `bld_menu.manage` | ✔ | ✔ |
-| POST | `/days/{date}/unpublish` | Taslağa çek | `bld_menu.manage` | ✔ | ✔ |
-| POST | `/days/{date}/items` | Kalem ekle | `bld_menu.manage` | ✔ | ✔ |
-| PATCH | `/days/{date}/items/{item}` | Kalem güncelle | `bld_menu.manage` | ✔ | ✔ |
-| DELETE | `/days/{date}/items/{item}` | Kalem sil | `bld_menu.manage` | ✔ | ✔ |
+| POST | `/days` | Yeni gün oluştur (taslak) | `bld_menu.manage` | ✔ | — |
+| PATCH | `/days/{date}` | Gün başlığı/fiyatı/notu | `bld_menu.manage` | ✔ | — |
+| DELETE | `/days/{date}` | Günü sil (yalnız taslak) | `bld_menu.manage` | ✔ | **✔** |
+| POST | `/days/{date}/publish` | Yayınla | `bld_menu.manage` | ✔ | **✔** |
+| POST | `/days/{date}/unpublish` | Taslağa çek | `bld_menu.manage` | ✔ | **✔** |
+| POST | `/days/{date}/items` | Kalem ekle | `bld_menu.manage` | ✔ | — |
+| PATCH | `/days/{date}/items/{item}` | Kalem güncelle | `bld_menu.manage` | ✔ | — |
+| DELETE | `/days/{date}/items/{item}` | Kalem sil | `bld_menu.manage` | ✔ | — |
 | GET | `/days/{date}/stock` | Gün ve kalem stok durumu | `bld_menu.view` | — | — |
-| PUT | `/days/{date}/stock` | Stok tavanlarını yaz | `bld_menu.manage` | ✔ | ✔ |
-| POST | `/days/{date}/duplicate` | Günü başka güne kopyala | `bld_menu.manage` | ✔ | ✔ |
+| PUT | `/days/{date}/stock` | Stok tavanlarını yaz | `bld_menu.manage` | ✔ | — |
+| POST | `/days/{date}/duplicate` | Günü başka güne kopyala | `bld_menu.manage` | ✔ | **✔** |
+
+**Bu sütun bağlayıcıdır** ve `00-genel.md` §3'ün genel kuralından bilerek
+sapar — gerekçesi hemen aşağıdadır. `actor` **her yazma ucunda zorunludur**;
+gevşeyen tek alan `reason`.
 
 `{date}` yol parçası **her zaman `YYYY-MM-DD`**. Gün kimliği (`id`) yola
 konmaz: yönetici takvimden bir güne tıklıyor, kimliği ezberlemiyor. Ayrıca
@@ -41,6 +45,53 @@ tek başına bir anahtar.
 Hepsinde isteğe bağlı `location_id` (int) vardır; verilmezse **varsayılan
 vitrin** (`Location::getDefault()`) kullanılır. Faz 1 tek vitrindir ama alan
 bugünden sözleşmede: sonradan eklemek her istemciyi kırardı.
+
+---
+
+## Gerekçe politikası — taslak kurmak taahhüt değil, yayınlamak taahhüttür
+
+Gerekçe (`reason`) bu alanda **her yazmada istenmez.** Yalnız iki şartı birden
+taşıyan uçlarda zorunludur:
+
+1. sonucu **müşteriye görünür** hâle gelir,
+2. **geri alınması zordur** — tek tıkla dönülemez.
+
+Bu tanım dört ucu seçer: `publish`, `unpublish`, `DELETE /days/{date}` (gün ve
+bütün kalemleri gider) ve `duplicate` (toplu çalışır, hedefin üzerine
+yazabilir). Geri kalanı gerekçesizdir: gün kurmak, gün düzenlemek, kalem
+eklemek, kalem güncellemek, kalem silmek, tavan yazmak.
+
+**Neden gevşetildi.** Bir güne beş ürün koymak beş kez on karakterlik gerekçe
+demekti; ürettiği metinler "düzeltme", "ok", "asdasd" oldu. Yani sınırın
+kaçınmak için var olduğu şeyin ta kendisi
+(`ControlController::REASON_MIN` yorumu bunu zaten söylüyordu). Taslak bir
+taahhüt değildir: gün `draft` doğar, müşteri onu görmez ve yönetici üzerinde
+istediği kadar oynar. Taahhüt `publish` anındadır ve gerekçe oraya taşındı.
+**Az yerde istenen gerekçe, çok yerde istenenden daha değerlidir** — dört
+satırlık bir denetim izi okunur, dört yüz satırlık bir "düzeltme" listesi
+okunmaz.
+
+**Gevşemeyenler.** `actor` her yazmada zorunludur: "kim yaptı" sorusu hiçbir
+uçta seyrelmez. Denetim satırı da her yazmada açılmaya devam eder — gerekçe
+istenmeyen uçlarda `reason` sütununa boş dize yazılır (sütun `NOT NULL`; bunun
+için göç açılmadı, çünkü "sorulmadı" ile "boş bırakıldı" arasında anlamlı bir
+fark yok ve hangi ucun sorduğu `action` sütunundan okunuyor). Gerekçe istenen
+uçlarda alt sınır hâlâ **10 karakterdir** ve gerekçesiz istek `422` alır,
+**denetim satırı da açılmaz** — geçerli bir istek hiç oluşmamıştır
+(`00-genel.md` §8).
+
+Gerekçe istenmeyen bir uca yine de `reason` gönderilebilir; kabul edilir,
+denetime yazılır ve **alt sınıra takılmaz.** İsteğe bağlı bir notu kısa diye
+geri çevirmek yöneticiye hiçbir şey kazandırmadan kalem eklemeyi durdururdu.
+
+> **Yayınlanmış bir günün kalemini düzenlemek de gerekçesizdir.** Bilinçli bir
+> karar: kapı gerekçede değil, ön denetimlerde duruyor — siparişte kullanılan
+> kalem silinemez (`409`), kesim saati geçmiş günün fiyatı değiştirilemez
+> (`409`), siparişli gün taslağa çekilemez (`409`). Gerekçe metni bu kapıların
+> hiçbirini açıp kapamıyordu; yalnız yazılıyordu.
+
+Kapsam **yalnız `control/menu`'dür.** Diğer alanlar (`orders`, `products`,
+`subscriptions`, `settings`, …) her yazmada gerekçe istemeye devam eder.
 
 ---
 
@@ -244,7 +295,6 @@ görünmemeli.
 ```json
 {
   "actor": "Ayşe Yılmaz",
-  "reason": "17 Ağustos menüsü takvimden kuruldu",
   "dry_run": false,
   "location_id": 1,
   "date": "2026-08-17",
@@ -275,6 +325,7 @@ Doğrulama:
 - `items` boş olabilir (önce günü kur, kalemleri sonra ekle).
 - Aynı `menu_id` iki kez → `422` (`veykemtu_daily_menu_item_essiz`).
 - `cutoff_time` `HH:mm` (00:00–23:59), yerel saat.
+- `reason` **istenmez** — gün `draft` doğuyor, müşteri onu görmüyor.
 
 Yanıt `201`:
 
@@ -324,15 +375,17 @@ eskisini silmektir; durum değişimi kendi uçlarındadır.
 ```json
 {
   "actor": "Ayşe Yılmaz",
-  "reason": "Paket fiyatı 190 TL olarak güncellendi",
   "package_price_kurus": 19000
 }
 ```
 
+`reason` **istenmez.**
+
 Yayınlanmış bir güne `PATCH` **serbesttir**: menü yayındayken fiyat düzeltmek
 gerçek bir ihtiyaç. Ama kesim saati geçmiş bir güne fiyat yazmak `409 CONFLICT`
 alır — o gün için sipariş kapandı ve girmiş siparişler eski fiyattan; fiyatı
-değiştirmek yalnız raporları bozardı.
+değiştirmek yalnız raporları bozardı. Kapı burada: gerekçe metni o kapıyı
+açıp kapamıyordu, yalnız yazılıyordu.
 
 ---
 
@@ -348,6 +401,9 @@ menüsünü silmek, siparişin neye karşılık geldiğini kaybetmektir.
 Kalemler birlikte silinir (`veykemtu_daily_menu_items`). Bunlar bağımsız bir
 varlık değil, günün parçası.
 
+`reason` **zorunludur** (en az 10 karakter): gün ve bütün kalemleri birlikte
+gidiyor ve geri dönüşü yok.
+
 ```json
 { "actor": "Ayşe Yılmaz", "reason": "Yanlış tarihe kurulmuş taslak kaldırıldı" }
 ```
@@ -360,7 +416,12 @@ varlık değil, günün parçası.
 
 ## `POST /days/{date}/publish` · `POST /days/{date}/unpublish`
 
-Gövde yalnız ortak alanları taşır.
+Gövde yalnız ortak alanları taşır. **İkisinde de `reason` zorunludur** (en az
+10 karakter): menüyü müşteriye açan ve müşteriden geri çeken eylemler bunlar.
+
+```json
+{ "actor": "Ayşe Yılmaz", "reason": "17 Ağustos menüsü satışa açıldı" }
+```
 
 `publish` ön denetimleri (kuru provada da koşar):
 
@@ -394,12 +455,14 @@ Kuru prova `would`:
 
 ## Kalem uçları
 
+Üç kalem ucunun **hiçbiri `reason` istemez.** Bir güne beş ürün koymak beş kez
+gerekçe yazmak demekti; kalem listesi taslağın içeriğidir, taahhüt değil.
+
 ### `POST /days/{date}/items`
 
 ```json
 {
   "actor": "Ayşe Yılmaz",
-  "reason": "Menüye ayran eklendi, paket içinde",
   "menu_id": 55,
   "quantity": 1,
   "sort_order": 40,
@@ -432,6 +495,10 @@ kullanılmışsa** `409 CONFLICT` verilir (`details.order_count`). Sipariş sat�
 `order_menus`'ta kendi kopyasını taşıdığı için geçmiş bozulmaz; engel,
 yöneticinin farkında olmadan "mutfağın bugün pişirdiği bir kalemi" listeden
 düşürmesini önlemek içindir.
+
+Gün silmek gerekçe isterken kalem silmenin istememesi kasıtlı: kalem tek bir
+satır ve geri koymak bir tıklama, üstelik siparişte kullanılan kalem zaten
+kilitli. Gün silmek ise günü ve bütün kalemlerini birlikte götürüyor.
 
 Yanıt:
 
@@ -507,10 +574,13 @@ gönderilmeyen kalem tavanı `null`'a düşer. Fark göndermek, iki sekmede aç�
 yöneticinin birbirinin tavanını sessizce koruması demekti — burada niyet
 "bugünün tavan tablosu şudur"dur.
 
+`reason` **istenmez**: tavan gün içinde defalarca değişir (malzeme bitti,
+tedarik geldi) ve geri alınamaz bir şey yapmaz — sayaçlara dokunulmuyor,
+uyarı zaten yanıtta.
+
 ```json
 {
   "actor": "Ayşe Yılmaz",
-  "reason": "Tavuk tedariki azaldı, sote tavanı 60'a çekildi",
   "dry_run": false,
   "capacity_total": 120,
   "items": [
@@ -571,6 +641,10 @@ tek gerçek zaman kazancı budur.
 - `overwrite: false` iken hedefte gün varsa → `409 CONFLICT`.
 - `overwrite: true` iken hedef gün **`draft` olmalı**; yayınlanmış bir günün
   üzerine kopyalamak `409 CONFLICT` verir.
+- `reason` **zorunludur** (en az 10 karakter). Menü alanında toplu çalışan ve
+  hedefin üzerine yazabilen tek uç bu: hedefteki bütün kalemler silinip
+  yeniden yazılıyor. Bir haftalık takvimi yanlış güne kopyalamak, tek tek geri
+  alınacak bir hata değil.
 
 ```json
 {
@@ -583,18 +657,22 @@ tek gerçek zaman kazancı budur.
 
 ## Denetim eylemleri
 
-| `action` | Uç | `target_type` / `target_id` |
-|---|---|---|
-| `menu.day.create` | `POST /days` | `daily_menu` / yeni gün id |
-| `menu.day.update` | `PATCH /days/{date}` | `daily_menu` / gün id |
-| `menu.day.delete` | `DELETE /days/{date}` | `daily_menu` / gün id |
-| `menu.publish` | `POST /days/{date}/publish` | `daily_menu` / gün id |
-| `menu.unpublish` | `POST /days/{date}/unpublish` | `daily_menu` / gün id |
-| `menu.item.create` | `POST /days/{date}/items` | `daily_menu` / gün id |
-| `menu.item.update` | `PATCH .../items/{item}` | `daily_menu` / gün id |
-| `menu.item.delete` | `DELETE .../items/{item}` | `daily_menu` / gün id |
-| `menu.stock` | `PUT /days/{date}/stock` | `daily_menu` / gün id |
-| `menu.duplicate` | `POST /days/{date}/duplicate` | `daily_menu` / **hedef** gün id |
+| `action` | Uç | `target_type` / `target_id` | `reason` |
+|---|---|---|---|
+| `menu.day.create` | `POST /days` | `daily_menu` / yeni gün id | boş |
+| `menu.day.update` | `PATCH /days/{date}` | `daily_menu` / gün id | boş |
+| `menu.day.delete` | `DELETE /days/{date}` | `daily_menu` / gün id | dolu |
+| `menu.publish` | `POST /days/{date}/publish` | `daily_menu` / gün id | dolu |
+| `menu.unpublish` | `POST /days/{date}/unpublish` | `daily_menu` / gün id | dolu |
+| `menu.item.create` | `POST /days/{date}/items` | `daily_menu` / gün id | boş |
+| `menu.item.update` | `PATCH .../items/{item}` | `daily_menu` / gün id | boş |
+| `menu.item.delete` | `DELETE .../items/{item}` | `daily_menu` / gün id | boş |
+| `menu.stock` | `PUT /days/{date}/stock` | `daily_menu` / gün id | boş |
+| `menu.duplicate` | `POST /days/{date}/duplicate` | `daily_menu` / **hedef** gün id | dolu |
+
+**Her satır her zaman açılır** — gerekçe istenmeyen uçlarda da. `actor`,
+`action`, hedef ve `payload_json` her koşulda dolu; "boş" yalnız `reason`
+sütununu anlatır ve istemci alanı yine de gönderirse o metin yazılır.
 
 Kalem eylemlerinin hedefi **gün**dür, kalem değil: "17 Ağustos menüsüne ne
 oldu" sorusu tek bir `target_id` ile cevaplanabilmeli. Kalem kimliği

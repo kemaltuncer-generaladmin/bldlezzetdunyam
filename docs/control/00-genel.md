@@ -127,9 +127,29 @@ Her `POST` / `PATCH` / `PUT` / `DELETE` gövdesinde:
 
 | Alan | Tip | Zorunlu | Sınır |
 |---|---|---|---|
-| `actor` | string | **evet** | 2–120 karakter |
-| `reason` | string | **evet** | en az **10**, en çok **500** karakter |
+| `actor` | string | **evet — her uçta** | 2–120 karakter |
+| `reason` | string | **uç başına** (varsayılan evet) | zorunluysa en az **10**, her hâlde en çok **500** karakter |
 | `dry_run` | bool | hayır | varsayılan `false` |
+
+**`reason` uç başına zorunludur ve alan dosyasındaki "Gerekçe" sütunu
+bağlayıcıdır.** Buradaki varsayılan "evet"tir; bir alan dosyası
+(`docs/control/<alan>.md`) bir uç için "—" yazıyorsa o uçta `reason`
+gönderilmeyebilir. Bugün gevşeyen tek alan **`control/menu`**'dür ve gerekçesi
+o dosyanın "Gerekçe politikası" bölümündedir (özeti: taslak kurmak bir taahhüt
+değil, yayınlamak taahhüttür). Diğer bütün alanlar her yazmada gerekçe ister.
+
+Gerekçe istenmeyen bir uçta:
+
+- doğrulama `nullable`'dır ve **10 karakterlik alt sınır uygulanmaz** (isteğe
+  bağlı bir notu kısa diye reddetmek kimseye bir şey kazandırmaz),
+- **denetim satırı yine açılır**, `reason` sütununa boş dize yazılır
+  (`veykemtu_control_audit.reason` `NOT NULL`; bunun için göç açılmadı),
+- **`actor` yine zorunludur.** Gevşeyen tek alan `reason`; "kim yaptı" sorusu
+  hiçbir uçta seyrelmez.
+
+Sunucu tarafında bu ayrım tek yerdedir: `ControlController::write()`
+`reasonRequired` parametresi (varsayılanı `true`, yani yeni bir uç yazan ajan
+hiçbir şey yapmadan katı davranışı alır).
 
 `reason` üst sınırı **sipariş revizyonu ve durum geçişinde 160'tır**
 (`veykemtu_order_revisions.reason` sütunu 160). Taşan gerekçe kırpılmaz, `422`
@@ -139,9 +159,10 @@ alır.
 bir depo, ayrı bir kullanıcı tablosu. Serbest metindir; doğruluğu Kontrol
 Merkezi'nin sorumluluğundadır, imza yalnız isteğin oradan geldiğini kanıtlar.
 
-`DELETE` uçları da gövde taşır — gerekçesiz silme yoktur. Bu, HTTP açısından
-alışılmadıktır ama sözleşmede bilinçlidir: gerekçeyi sorgu dizesine koymak onu
-imzanın dışında bırakırdı.
+`DELETE` uçları da gövde taşır — gerekçe istenen bir silmede gerekçesiz silme
+yoktur. Bu, HTTP açısından alışılmadıktır ama sözleşmede bilinçlidir: gerekçeyi
+sorgu dizesine koymak onu imzanın dışında bırakırdı. Gövde `actor` için zaten
+her koşulda gerekiyor.
 
 ### 3.1 Yazma yanıtının zarfı
 
@@ -383,12 +404,17 @@ gelen 404 mutlaka `ApiException::notFound()` olmalıdır.
 Her yazma `veykemtu_control_audit`'e bir satır yazar. Kabuk
 `ControlController::write()`'tır ve sırası değişmez:
 
-1. `actor` + `reason` doğrulanır → geçersizse **422 ve denetim satırı YOK**
-   (geçerli bir istek hiç oluşmadı),
+1. `actor` (+ ucun istediği hâllerde `reason`, §3) doğrulanır → geçersizse
+   **422 ve denetim satırı YOK** (geçerli bir istek hiç oluşmadı),
 2. denetim satırı **işlemden önce** açılır (`pending` ya da `dry_run`),
 3. kuru provada `$apply` hiç çağrılmaz,
 4. hata çıkarsa satır `failed` işaretlenir (kuru prova satırı `dry_run` kalır)
    ve istisna yukarı gider.
+
+**Satır gerekçeden bağımsız olarak her yazmada açılır.** Gerekçe istenmeyen
+uçlarda yalnız `reason` sütunu boş kalır; `actor`, `action`, hedef ve
+`payload_json` her koşulda yazılır. Denetim izinin taşıyıcısı gerekçe değil,
+satırın kendisidir.
 
 ### 8.1 Yeni `ControlAudit::TARGET_*` sabitleri
 

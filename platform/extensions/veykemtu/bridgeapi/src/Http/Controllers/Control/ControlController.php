@@ -26,17 +26,27 @@ use Veykemtu\BridgeApi\Services\OrderStatusTransition;
  *
  * BU SINIF İŞ MANTIĞI TAŞIMAZ. Revizyon `OrderEditor`'da, durum geçişi
  * `OrderStatusTransition`'da, ayarlar `KitchenDeviceSettings`'te, eşleme
- * ve iptal `KitchenDevice`'ta kalır. Buradaki tek katman "gerekçe iste,
- * denetime yaz, kuru provada yazma" kabuğudur.
+ * ve iptal `KitchenDevice`'ta kalır. Buradaki tek katman "kim yaptığını
+ * iste, denetime yaz, kuru provada yazma" kabuğudur.
+ *
+ * GEREKÇE UÇ BAŞINA KARARLAŞTIRILIR (`write(..., reasonRequired:)`), tek
+ * bir kural olarak dayatılmaz. Varsayılan `true`; gevşetme yalnız alan
+ * sözleşmesinin (`docs/control/<alan>.md`) "Gerekçe" sütunu öyle diyorsa
+ * yapılır. Bugün gevşeyen tek alan `control/menu`.
  */
 abstract class ControlController extends ApiController
 {
     /**
-     * Gerekçenin en kısa hâli.
+     * Gerekçenin en kısa hâli — İSTENDİĞİ UÇLARDA.
      *
      * On karakter bir cümlenin başlangıcını zorlar. Sınır olmasaydı "ok"
      * yazıp geçmek serbest olurdu ve denetim izi, doldurulmuş ama hiçbir
      * şey anlatmayan bir sütuna dönerdi.
+     *
+     * Sınırın kendisi, gerekçenin NEREDE isteneceğini de belirledi: her
+     * yazmada on karakter dayatmak "düzeltme", "asdasd" gibi metinler
+     * üretiyordu, yani sınırın kaçındığı şeyin ta kendisini. Gerekçe artık
+     * yalnız geri alınması zor uçlarda isteniyor (`$reasonRequired`).
      */
     public const int REASON_MIN = 10;
 
@@ -47,9 +57,10 @@ abstract class ControlController extends ApiController
      * Yazma isteğinin ortak kabuğu.
      *
      * SIRALAMA ÖNEMLİ ve tek yerde duruyor:
-     *   1. `actor` + `reason` doğrulanır (yoksa 422, denetim satırı YOK —
-     *      geçerli bir istek hiç oluşmadı),
-     *   2. denetim satırı İŞLEMDEN ÖNCE açılır,
+     *   1. `actor` (+ `$reasonRequired` ise `reason`) doğrulanır — geçersizse
+     *      422 ve denetim satırı YOK, geçerli bir istek hiç oluşmadı,
+     *   2. denetim satırı İŞLEMDEN ÖNCE açılır — GEREKÇEDEN BAĞIMSIZ olarak
+     *      her yazmada; gerekçe seyreldi, iz seyrelmedi,
      *   3. kuru provada `$apply` HİÇ ÇAĞRILMAZ,
      *   4. hata çıkarsa satır `failed` işaretlenir ve istisna yukarı gider.
      *
@@ -60,6 +71,11 @@ abstract class ControlController extends ApiController
      * @param  array<string, mixed>  $payload  denetime yazılacak istek özeti
      * @param  Closure(array{actor:string, reason:string, dry_run:bool}): array<string, mixed>  $would
      * @param  Closure(array{actor:string, reason:string, dry_run:bool}): array<string, mixed>  $apply
+     * @param  bool  $reasonRequired  gövde `reason` taşımak zorunda mı;
+     *                                VARSAYILAN `true` — yeni bir uç yazan
+     *                                ajan hiçbir şey yapmadan eski davranışı
+     *                                alır, gevşetme her zaman bilinçli bir
+     *                                tercih olarak görünür
      */
     protected function write(
         Request $request,
@@ -69,8 +85,9 @@ abstract class ControlController extends ApiController
         array $payload,
         Closure $would,
         Closure $apply,
+        bool $reasonRequired = true,
     ): JsonResponse {
-        $intent = $this->intent($request);
+        $intent = $this->intent($request, $reasonRequired);
         $dryRun = $intent['dry_run'];
 
         $audit = ControlAudit::record(
@@ -104,27 +121,47 @@ abstract class ControlController extends ApiController
     }
 
     /**
-     * Her yazma isteğinin taşımak zorunda olduğu üç alan.
+     * Her yazma isteğinin taşıdığı üç alan.
      *
+     * `actor` HER KOŞULDA ZORUNLU — gerekçe istenmeyen uçlarda bile. "Kim
+     * yaptı" sorusu hiçbir zaman seyrelmiyor; seyrelen yalnız "neden".
      * `actor` BLD'de bir hesaba bağlanmıyor ve bağlanmayacak: Kontrol
      * Merkezi ayrı bir depo, ayrı bir kullanıcı tablosu. Serbest metin,
      * iki sistemi birbirine bağlamadan "kim yaptı" sorusuna cevap verir.
      * Doğruluğu Kontrol Merkezi'nin sorumluluğundadır ve imza zaten
      * isteğin oradan geldiğini kanıtlıyor.
      *
+     * GEREKÇE İSTENMEYEN UÇTA ALT SINIR DA YOK: alan gönderilirse yalnız
+     * üst sınırı denetleniyor. On karakter kuralı gerekçeyi ZORUNLU kılan
+     * uçlarda anlamlı — orada boş bir cümle denetim izini bozar. İsteğe
+     * bağlı bir notu kısa diye 422 ile geri çevirmek ise yöneticiye hiçbir
+     * şey kazandırmadan kalem eklemeyi durdururdu.
+     *
+     * @param  bool  $reasonRequired  `false` ise `reason` gönderilmeyebilir
+     *                                ve denetim satırına boş dize yazılır
      * @return array{actor:string, reason:string, dry_run:bool}
      */
-    protected function intent(Request $request): array
+    protected function intent(Request $request, bool $reasonRequired = true): array
     {
         $data = $request->validate([
             'actor' => ['required', 'string', 'min:2', 'max:120'],
-            'reason' => ['required', 'string', 'min:'.self::REASON_MIN, 'max:'.self::REASON_MAX],
+            'reason' => $reasonRequired
+                ? ['required', 'string', 'min:'.self::REASON_MIN, 'max:'.self::REASON_MAX]
+                : ['sometimes', 'nullable', 'string', 'max:'.self::REASON_MAX],
             'dry_run' => ['sometimes', 'boolean'],
         ]);
 
         return [
             'actor' => trim((string) $data['actor']),
-            'reason' => trim((string) $data['reason']),
+            /*
+             * `null` DEĞİL BOŞ DİZE: `veykemtu_control_audit.reason` sütunu
+             * `NOT NULL` ve göç açmaya değmez — "gerekçe sorulmadı" ile
+             * "gerekçe sorulup boş bırakıldı" ayrımının bir karşılığı yok,
+             * ikisi de aynı şeyi anlatıyor. Hangi uçların gerekçe istediği
+             * `action` sütununa ve alan sözleşmesine bakılarak zaten
+             * biliniyor.
+             */
+            'reason' => trim((string) ($data['reason'] ?? '')),
             // `boolean()` sorgu dizesindeki `"true"` metnini de doğru okur;
             // Kontrol Merkezi geçidinde varsayılan AÇIK olduğu için bu
             // alan çoğu istekte dolu gelecek.

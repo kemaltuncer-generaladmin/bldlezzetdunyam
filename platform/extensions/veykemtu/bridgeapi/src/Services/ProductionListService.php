@@ -16,6 +16,12 @@ use Veykemtu\BridgeApi\Support\BusinessTime;
  *
  * Dokümandaki özgün sorgu `orders.status_code` kolonunu varsayıyordu; öyle
  * bir kolon yok (B-02 bulgusu). `statuses` üzerinden JOIN ile çözülür.
+ *
+ * SERBEST BIRAKMA KAPISINA UYAR (A1) — abonelik planı ekranlarından ayrıldığı
+ * yer burası. Bu liste ŞU AN pişirilecek işi sayıyor ve mutfak panosuyla
+ * (`KitchenController::orders`) aynı gerçeği göstermek zorunda: pano 07:00'e
+ * kadar boşken şerit "40 tavuk sote" derse mutfak, ekranda karşılığı olmayan
+ * bir yemeği pişirmeye başlar.
  */
 class ProductionListService
 {
@@ -23,6 +29,7 @@ class ProductionListService
     public function today(): array
     {
         $today = BusinessTime::now()->toDateString();
+        $now = BusinessTime::forStorage(BusinessTime::now());
 
         return DB::table('order_menus as om')
             ->join('orders as o', 'o.order_id', '=', 'om.order_id')
@@ -44,6 +51,12 @@ class ProductionListService
             ->where(function ($query): void {
                 $query->whereNull('om.bld_line_role')
                     ->orWhere('om.bld_line_role', '!=', 'package');
+            })
+            // Henüz mutfağa açılmamış sipariş şeride girmez (A1).
+            // `NULL = serbest`: vitrin siparişleri damgasızdır.
+            ->where(function ($query) use ($now): void {
+                $query->whereNull('o.bld_released_at')
+                    ->orWhere('o.bld_released_at', '<=', $now);
             })
             ->groupBy('om.menu_id', 'om.name')
             ->orderByDesc(DB::raw('SUM(om.quantity)'))

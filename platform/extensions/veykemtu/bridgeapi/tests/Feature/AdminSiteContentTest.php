@@ -10,6 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
+use Veykemtu\BridgeApi\Http\Middleware\RequireAdminPanel;
 use Veykemtu\BridgeApi\Models\SitePost;
 use Veykemtu\BridgeApi\Models\SiteService;
 use Veykemtu\BridgeApi\Services\SiteContentRepository;
@@ -58,6 +59,22 @@ class AdminSiteContentTest extends TestCase
     private const string SERVICES_URI = '/admin/veykemtu/bridgeapi/site_services';
 
     private const string POSTS_URI = '/admin/veykemtu/bridgeapi/site_posts';
+
+    /**
+     * Panel şalteri TEST İÇİN AÇILIYOR — F4.
+     *
+     * `/admin/*` üretimde kapalı (`RequireAdminPanel`, varsayılan kapalı):
+     * tek yönetim yüzeyi Kontrol Merkezi. Panel bir YEDEK olarak duruyor ve
+     * yedeğin değeri, ihtiyaç anında çalıştığının bilinmesinde — bu yüzden
+     * testler silinmedi, şalteri açıp koşuyorlar. Kapatmanın kendi testi
+     * `AdminPanelClosedTest`.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config([RequireAdminPanel::CONFIG_KEY => true]);
+    }
 
     // ── Ekranların açılması ───────────────────────────────────────────────
 

@@ -8,6 +8,7 @@ use Igniter\Cart\Models\Order;
 use Igniter\User\Facades\AdminAuth;
 use Igniter\User\Models\User;
 use Tests\KitchenTestCase;
+use Veykemtu\BridgeApi\Http\Middleware\RequireAdminPanel;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
 use Veykemtu\BridgeApi\Models\Subscription;
 use Veykemtu\BridgeApi\Models\SubscriptionException;
@@ -33,6 +34,22 @@ use Veykemtu\BridgeApi\Support\BusinessTime;
 class AdminPhoneOrderTest extends KitchenTestCase
 {
     private const string BASE_URI = '/admin/veykemtu/bridgeapi/phone_orders';
+
+    /**
+     * Panel şalteri TEST İÇİN AÇILIYOR — F4.
+     *
+     * `/admin/*` üretimde kapalı (`RequireAdminPanel`, varsayılan kapalı):
+     * tek yönetim yüzeyi Kontrol Merkezi. Panel bir YEDEK olarak duruyor ve
+     * yedeğin değeri, ihtiyaç anında çalıştığının bilinmesinde — bu yüzden
+     * testler silinmedi, şalteri açıp koşuyorlar. Kapatmanın kendi testi
+     * `AdminPanelClosedTest`.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config([RequireAdminPanel::CONFIG_KEY => true]);
+    }
 
     public function test_ekran_acilir_ve_ham_ceviri_anahtari_sizmaz(): void
     {

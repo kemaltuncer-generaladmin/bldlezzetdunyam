@@ -88,15 +88,12 @@ class SettingsController extends ControlController
         $location = $this->location($request);
 
         $this->rejectReadOnlyFields($request);
+        $this->rejectRemovedFields($request);
         $this->rejectPendingFields($request);
 
         $request->validate([
             // `nullable` = "kesim saati yok"; biçim tutmuyorsa 422.
             'order_cutoff' => ['sometimes', 'nullable', 'string', 'regex:'.self::TIME_PATTERN],
-            // `null` KABUL EDİLMEZ: abonelik siparişlerinin KDS'e hiç
-            // düşmediği bir yapılandırma, mutfağın sabah boş ekrana
-            // bakması demektir.
-            'subscription_release_time' => ['sometimes', 'required', 'string', 'regex:'.self::TIME_PATTERN],
             // Sıfır GEÇERLİ ("yalnız bugüne sipariş"); tavan iş kararı 3.
             'max_lookahead_days' => ['sometimes', 'integer', 'min:0', 'max:'.SettingsRepository::MAX_LOOKAHEAD_DAYS],
             'min_order_total_kurus' => ['sometimes', 'integer', 'min:0'],
@@ -447,6 +444,36 @@ class SettingsController extends ControlController
         ];
 
         foreach ($readOnly as $field => $message) {
+            if ($request->exists($field)) {
+                throw ApiException::validationFailed($message, ['field' => $field]);
+            }
+        }
+    }
+
+    /**
+     * KALDIRILMIŞ alanlara yazma denemesi → 422, sebebiyle birlikte.
+     *
+     * `subscription_release_time` 17.08.2026'da kaldırıldı: sipariş artık
+     * servis gününün kesim anında mutfağa düşüyor (`order_cutoff` ve güne
+     * özel saat). Alanı doğrulama listesinden çıkarmak tek başına YETMEZ —
+     * `planControl()` tanımadığı alanı atlar ve eski bir panel derlemesi
+     * `200` görüp saati kaydettiğini sanardı. Kaldırılmış bir ayarın en
+     * tehlikeli hâli, yazılıyormuş gibi davranmasıdır.
+     *
+     * `pendingGateFields()` İLE KARIŞTIRILMAMALI: orası "henüz gelmedi",
+     * burası "bir daha gelmeyecek" diyor ve yöneticiye söylenecek cümle
+     * ikisinde farklı.
+     *
+     * @throws ApiException
+     */
+    private function rejectRemovedFields(Request $request): void
+    {
+        $removed = [
+            'subscription_release_time' => 'Bu ayar kaldırıldı;'
+                .' sipariş servis gününün kesim saatinde mutfağa düşer.',
+        ];
+
+        foreach ($removed as $field => $message) {
             if ($request->exists($field)) {
                 throw ApiException::validationFailed($message, ['field' => $field]);
             }

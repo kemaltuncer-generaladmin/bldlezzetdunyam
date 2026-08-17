@@ -14,6 +14,7 @@ use Illuminate\Validation\Rule;
 use Veykemtu\BridgeApi\Support\BusinessTime;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
 use Veykemtu\BridgeApi\Models\BbdReceipt;
+use Veykemtu\BridgeApi\Models\ErrorEvent;
 use Veykemtu\BridgeApi\Models\KitchenCommand;
 use Veykemtu\BridgeApi\Models\KitchenDevice;
 use Veykemtu\BridgeApi\Models\PrintJob;
@@ -79,6 +80,11 @@ class KitchenController extends ApiController
      * `since` durum değişimlerini de yakalar (`updated_at` üzerinden);
      * `after` yalnızca yeni siparişleri getirir. KDS `since` kullanmalıdır,
      * yoksa "hazırlanıyor" olan bir siparişin durumu ekranda takılı kalır.
+     *
+     * SERBEST BIRAKMA KAPISI: `bld_released_at` dolu bir sipariş, o an gelene
+     * kadar panoda görünmez. Damga o siparişin SERVİS GÜNÜNÜN KESİM ANIDIR.
+     * `null` = serbest, yani bugüne verilen her sipariş ve göç öncesi her
+     * satır bu kapıdan etkilenmez.
      */
     public function orders(Request $request): JsonResponse
     {
@@ -102,6 +108,18 @@ class KitchenController extends ApiController
 
         $includeCompleted = $request->boolean('include_completed');
 
+        /*
+         * "ŞİMDİ" TEK KEZ OKUNUYOR VE `server_time` OLARAK GERİ DÖNÜYOR.
+         *
+         * İstemci bir sonraki yoklamasında `since = server_time` gönderiyor.
+         * Sorguyu bir anla, yanıtı başka bir anla damgalasaydık aradaki
+         * boşlukta serbest bırakılan bir sipariş iki imlecin arasına düşer ve
+         * bir daha HİÇ yayınlanmazdı — aşağıdaki `whereBetween` tam olarak
+         * bu aralığı tarıyor.
+         */
+        $now = Carbon::now();
+        $nowStored = BusinessTime::forStorage($now);
+
         $query = Order::query()->orderBy('order_id');
 
         if (!$includeCompleted) {
@@ -110,6 +128,24 @@ class KitchenController extends ApiController
 
         // Bugünün siparişleri: mutfak ekranı dünün işini göstermez.
         $query->whereDate('order_date', BusinessTime::now()->toDateString());
+
+        /*
+         * SERBEST BIRAKMA KAPISI.
+         *
+         * İleri tarihli her sipariş — müşterinin bir hafta önceden verdiği de,
+         * gece 22:00'de üretilen abonelik siparişi de — servis gününün KESİM
+         * ANINA damgalanıyor. Kapı olmasaydı vardiya panoyu kırk kartla dolu
+         * bulur, o an gelen gerçek siparişi göremezdi; kesim anına bağlı
+         * olması sayesinde de mutfak, satış kapandığı an günün TAM listesini
+         * bir kerede görüyor, arkadan sipariş damlamıyor.
+         *
+         * `NULL = SERBEST`: bugüne verilen siparişler ve göçten önceki her
+         * satır damgasız ve anında görünür.
+         */
+        $query->where(function ($sub) use ($nowStored): void {
+            $sub->whereNull('bld_released_at')
+                ->orWhere('bld_released_at', '<=', $nowStored);
+        });
 
         if ($request->filled('after')) {
             $query->where('order_id', '>', (int) $request->query('after'));
@@ -125,7 +161,7 @@ class KitchenController extends ApiController
             );
             $dayStart = BusinessTime::startOfBusinessDay();
 
-            $query->where(function ($sub) use ($since, $dayStart): void {
+            $query->where(function ($sub) use ($since, $dayStart, $nowStored): void {
                 $sub->where('updated_at', '>', $since);
 
                 /*
@@ -150,6 +186,30 @@ class KitchenController extends ApiController
                 if ($dayStart->greaterThan($since)) {
                     $sub->orWhere('created_at', '<', $dayStart);
                 }
+
+                /*
+                 * SERBEST BIRAKMA KÖR NOKTASI — aynı hastalık, aynı ilaç.
+                 *
+                 * Dün verilmiş bir sipariş bugünün kesim anında görünür
+                 * hale geliyor ama `updated_at` O AN DEĞİŞMİYOR: kimse satıra
+                 * dokunmuyor, yalnız duvardaki saat ilerliyor. `updated_at >
+                 * since` bu yüzden hiçbir zaman geçmez ve sipariş, artımlı
+                 * yoklama yapan bir KDS'e — yani sahadaki tek KDS'e — HİÇ
+                 * düşmez. Yukarıdaki ön sipariş kör noktasıyla aynı aile.
+                 *
+                 * İlaç: imleçle şimdi arasında serbest bırakılmış siparişleri
+                 * de yanıta kat. Aralık İKİ UÇTAN DA KAPALI olduğu için
+                 * sipariş, serbest bırakılma anından sonraki İLK yoklamada tam
+                 * bir kez yayınlanır; imleç ilerledikten sonraki yoklamalarda
+                 * damga aralığın gerisinde kalır ve tekrar gönderilmez.
+                 *
+                 * `$nowStored` yanıtın `server_time`'ı ile AYNI an — istemcinin
+                 * bir sonraki imleci tam buraya oturuyor, aralarında yutulacak
+                 * boşluk kalmıyor.
+                 *
+                 * Düzeltme tamamen burada: `mutfakapp` hiç değişmiyor.
+                 */
+                $sub->orWhereBetween('bld_released_at', [$since, $nowStored]);
             });
         }
 
@@ -165,7 +225,7 @@ class KitchenController extends ApiController
             'data' => $orders->map(
                 fn(Order $order): array => $this->presenter->kitchen($order),
             )->all(),
-            'server_time' => Carbon::now()->utc()->toIso8601ZuluString(),
+            'server_time' => $now->copy()->utc()->toIso8601ZuluString(),
             'max_id' => $maxId,
         ]);
     }
@@ -177,6 +237,15 @@ class KitchenController extends ApiController
      * hazırlandığı için mutfak yarını da görmek ister. Bu uç salt bilgidir —
      * durum ilerletme (onayla/hazır) yine ana panoda, servis günü geldiğinde
      * yapılır. Yalnız `bld_subscription_id` dolu, terminal olmayan siparişler.
+     *
+     * SERBEST BIRAKMA KAPISINI BİLEREK YOK SAYAR. Bu asimetri kaza değil:
+     * [orders] mutfağın ŞU AN pişireceği işi gösterir ve gece üretilen kırk
+     * abonelik kartının servis gününün kesiminden önce oraya düşmesi gerçek
+     * siparişi görünmez kılar. Bu uç ise PLANLAMA görünümüdür — mutfak
+     * yarınki yükü akşam 22:00'de, üretim koştuğu anda görmelidir; göremezse
+     * hazırlığa başlayamaz. Kapıyı buraya da koymak, ekranı var oluş
+     * sebebinden ederdi. **Düzeltmeyin.** Aynı gerekçe [subscriptionPlan] ve
+     * `SubscriptionKitchenPlan` için de geçerlidir.
      */
     public function subscriptionOrders(Request $request): JsonResponse
     {
@@ -370,6 +439,14 @@ class KitchenController extends ApiController
         // `updated_at`'i kirletip model olaylarını tetiklemesine gerek yok.
         $this->recordCommandResults($device, $data['command_results'] ?? []);
 
+        /*
+         * HATA AYNALAMASI — B4. İki değer de `forceFill`'DEN ÖNCE okunuyor:
+         * karşılaştırma bir ÖNCEKİ bildirimin hatasıyla yapılıyor ve kolon
+         * yazıldıktan sonra o değer kaybolurdu.
+         */
+        $previousError = self::trimOrNull($device->last_error, 255);
+        $lastError = self::trimOrNull($data['last_error'] ?? null, 255);
+
         KitchenDevice::withoutTimestamps(fn() => $device->forceFill([
             'health_reported_at' => Carbon::now(),
             'printer_ok' => (bool) $data['printer_ok'],
@@ -393,7 +470,7 @@ class KitchenController extends ApiController
              * göndermeyen bir kasa için sütun `null` kalır, panel de
              * "bildirmedi" der; "sorun yok" DEMEZ.
              */
-            'last_error' => self::trimOrNull($data['last_error'] ?? null, 255),
+            'last_error' => $lastError,
             'alarm_muted' => self::boolOrNull($data['alarm_muted'] ?? null),
             'alarm_mute_reason' => self::trimOrNull($data['alarm_mute_reason'] ?? null, 120),
             // `BusinessTime::forStorage` ŞART, çıplak `Carbon::parse` DEĞİL:
@@ -409,6 +486,8 @@ class KitchenController extends ApiController
             'sound_ok' => self::boolOrNull($data['sound_ok'] ?? null),
         ])->saveQuietly());
 
+        $this->mirrorDeviceError($device, $previousError, $lastError);
+
         return $this->json([
             'server_time' => Carbon::now()->utc()->toIso8601ZuluString(),
             'orders_today' => $this->ordersToday(),
@@ -423,6 +502,57 @@ class KitchenController extends ApiController
             // sonraki bildirimde `command_results` ile geri gönderir.
             'commands' => $this->takeCommands($device),
         ]);
+    }
+
+    /**
+     * Kasanın bildirdiği son hatayı durum monitörüne aynalar — B4.
+     *
+     * ─────────────────────────────────────────────────────────────────────
+     * NEDEN AYNALAMA, NEDEN KASADAN AYRI BİR UÇ DEĞİL:
+     *
+     * Kasa zaten dakikada bir buraya geliyor ve `last_error`'ı ZATEN
+     * gönderiyor; kolon da ZATEN var. Kasaya ikinci bir uç çağırtmak,
+     * hata anında — yani ağın/kasanın en güvenilmez olduğu anda — ikinci
+     * bir isteğe bel bağlamak olurdu. Karşılaştırma bedava, veri elimizde.
+     * ─────────────────────────────────────────────────────────────────────
+     *
+     * SADECE DEĞİŞİMDE YAZILIYOR. Kasa aynı hatayı düzelene kadar HER
+     * bildirimde tekrar gönderir (dakikada bir, gün boyu). Her bildirimi
+     * aynalamak, `occurrences` sayacını gerçek tekrar sayısı yerine
+     * "arıza kaç dakika sürdü"ye çevirirdi — ve o soruyu zaten
+     * `first_seen_at`/`last_seen_at` çifti cevaplıyor. Değişim anı ise
+     * gerçek bir olaydır: yeni bir arıza başladı.
+     *
+     * `null` AYNALANMAZ: "hata yok" bir hata değildir. Arızanın bittiğini
+     * monitöre yazmak, çözülmemiş olarak duran satırın yanına ikinci bir
+     * satır koymak olurdu; çözüm işareti panelden verilir.
+     *
+     * PARMAK İZİNE CİHAZ KİMLİĞİ GİRİYOR: iki ayrı kasanın aynı yazıcı
+     * hatası İKİ olaydır — birini çözmek ötekini çözmez ve tek satırda
+     * birleşselerdi panelde "hangi kasa" sorusunun cevabı kaybolurdu.
+     */
+    private function mirrorDeviceError(
+        KitchenDevice $device,
+        ?string $previousError,
+        ?string $lastError,
+    ): void {
+        if ($lastError === null || $lastError === $previousError) {
+            return;
+        }
+
+        ErrorEvent::record(
+            source: ErrorEvent::SOURCE_KDS,
+            level: ErrorEvent::LEVEL_ERROR,
+            type: 'kds_last_error',
+            message: $lastError,
+            context: [
+                'device_id' => (int) $device->getKey(),
+                'device_name' => (string) $device->name,
+                'app_version' => $device->app_version,
+            ],
+            occurredAt: BusinessTime::forStorage(Carbon::now()),
+            discriminator: 'device:'.$device->getKey(),
+        );
     }
 
     /**

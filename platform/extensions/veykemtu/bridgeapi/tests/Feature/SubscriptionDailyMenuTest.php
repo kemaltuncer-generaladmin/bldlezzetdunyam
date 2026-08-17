@@ -12,6 +12,7 @@ use Igniter\User\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Tests\KitchenTestCase;
+use Veykemtu\BridgeApi\Http\Middleware\RequireAdminPanel;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
 use Veykemtu\BridgeApi\Models\DailyMenu;
 use Veykemtu\BridgeApi\Models\DailyMenuItem;
@@ -47,6 +48,11 @@ class SubscriptionDailyMenuTest extends KitchenTestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Bu paketin bir testi abonelik ekranını PANELDEN açıyor; `/admin/*`
+        // üretimde kapalı (`RequireAdminPanel`, F4) ve yedek yüzeyin
+        // çalıştığı doğrulanmaya devam etmeli — `AdminPanelClosedTest`.
+        config([RequireAdminPanel::CONFIG_KEY => true]);
 
         // Abonelik vitrin kapılarına bakmıyor ama günün menüsü rejimi
         // gösterge paneli ve müşteri uçları için açık olmalı.

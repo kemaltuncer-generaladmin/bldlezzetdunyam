@@ -8,7 +8,9 @@ use Igniter\System\Classes\BaseExtension;
 use Illuminate\Support\Facades\Route;
 use Override;
 use Veykemtu\Payment\Http\Controllers\SimulationController;
+use Veykemtu\Payment\Http\Controllers\SubscriptionSimulationController;
 use Veykemtu\Payment\Payments\CashPayment;
+use Veykemtu\Payment\Payments\PaymentGateway;
 use Veykemtu\Payment\Payments\SimulatedPos;
 
 /**
@@ -43,6 +45,30 @@ class Extension extends BaseExtension
         ];
     }
 
+    /**
+     * Siparişsiz tahsilat geçidinin bağı — **"tek sınıf değişecek" sözü bu satır.**
+     *
+     * Abonelik dönem ödemesini kuran denetleyiciler somut sınıfı hiç anmaz,
+     * `PaymentGateway` arayüzünü ister. Kuveyt Türk sözleşmesi tamamlandığında
+     * burada `SimulatedPos::class` yerine `KuveytTurk::class` yazılır ve başka
+     * hiçbir dosya değişmez. Somut sınıf denetleyicilerde `new` ile
+     * kurulsaydı bu söz iki dosyada birden yalan olurdu.
+     *
+     * BAĞ ORTAMA GÖRE KALDIRILMIYOR: `SimulatedPos` üretimde kendini zaten
+     * reddediyor (`assertAllowed`). Bağı koşullu yapsaydık üretimde ödeme ucu
+     * "geçit bulunamadı" diye 500 dönerdi — teşhis edilmesi, açık ve gürültülü
+     * bir "simülasyon üretimde kapalıdır" hatasından çok daha zor bir arıza.
+     */
+    #[Override]
+    public function register(): void
+    {
+        // `parent::register()` ŞART: taban sınıf global scope'ları ve morph
+        // haritasını orada kuruyor. Atlanırsa eklenti sessizce yarım açılır.
+        parent::register();
+
+        $this->app->bind(PaymentGateway::class, static fn(): SimulatedPos => new SimulatedPos);
+    }
+
     #[Override]
     public function boot(): void
     {
@@ -75,7 +101,20 @@ class Extension extends BaseExtension
             // kaldırıldı — cari hesap iş modelinden çıktı. Akışın
             // devralınmaya değer iskeleti (niyet → hash → dönüş adresi →
             // çift geri-arama koruması) `docs/control/_devralinan-odeme-yapisi.md`
-            // dosyasına çıkarıldı; abonelik ödemesi oradan kurulacak.
+            // dosyasına çıkarıldı; abonelik ödemesi ORADAN KURULDU:
+
+            /*
+             * ÜÇÜNCÜ ROTA — abonelik dönem ödemesi.
+             *
+             * Sipariş ödemesiyle aynı adrese konmadı: orada bir siparişin
+             * bedeli tahsil edilip sipariş `processed` işaretleniyor, burada
+             * ortada sipariş yok. Tek adrese iki anlam yüklemek, dönüş
+             * adresinden yazıcı tetiğine kadar her adımda "bu hangisiydi"
+             * dallanması demekti.
+             */
+            Route::get('/abonelik-odeme-simulasyon/{hash}', [SubscriptionSimulationController::class, 'show'])
+                ->name('veykemtu.payment.subscription_simulation');
+            Route::post('/abonelik-odeme-simulasyon/{hash}', [SubscriptionSimulationController::class, 'process']);
         });
     }
 }

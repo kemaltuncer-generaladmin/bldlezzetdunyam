@@ -83,7 +83,15 @@ abstract final class EscPosCommands {
   /// Model 2 varsayılan: neredeyse tüm okuyucular destekliyor ve aynı veri
   /// için daha küçük sembol üretiyor.
   static const List<int> qrModel = [
-    0x1D, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 50, 0x00,
+    0x1D,
+    0x28,
+    0x6B,
+    0x04,
+    0x00,
+    0x31,
+    0x41,
+    50,
+    0x00,
   ];
 
   /// Modül (nokta) boyu — `1..16`.
@@ -92,7 +100,14 @@ abstract final class EscPosCommands {
   /// küçüğü telefon kamerasıyla loş mutfak ışığında okunmuyor, daha büyüğü
   /// fişi gereksiz uzatıyor.
   static List<int> qrModuleSize(int size) => [
-    0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, size,
+    0x1D,
+    0x28,
+    0x6B,
+    0x03,
+    0x00,
+    0x31,
+    0x43,
+    size,
   ];
 
   /// Hata düzeltme düzeyi — `48`=L, `49`=M, `50`=Q, `51`=H.
@@ -101,7 +116,14 @@ abstract final class EscPosCommands {
   /// eziliyor. L bu koşullarda okunamaz hâle geliyor; H ise sembolü
   /// gereksiz büyütüyor.
   static List<int> qrErrorCorrection(int level) => [
-    0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, level,
+    0x1D,
+    0x28,
+    0x6B,
+    0x03,
+    0x00,
+    0x31,
+    0x45,
+    level,
   ];
 
   /// Veriyi yazıcının QR tamponuna yazar.
@@ -109,16 +131,28 @@ abstract final class EscPosCommands {
     // +3: `cn` (0x31), `fn` (0x50) ve `m` (0x30) baytları da uzunluğa dahil.
     final length = data.length + 3;
     return [
-      0x1D, 0x28, 0x6B,
-      length & 0xFF, (length >> 8) & 0xFF,
-      0x31, 0x50, 0x30,
+      0x1D,
+      0x28,
+      0x6B,
+      length & 0xFF,
+      (length >> 8) & 0xFF,
+      0x31,
+      0x50,
+      0x30,
       ...data,
     ];
   }
 
   /// Tamponu basar.
   static const List<int> qrPrint = [
-    0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30,
+    0x1D,
+    0x28,
+    0x6B,
+    0x03,
+    0x00,
+    0x31,
+    0x51,
+    0x30,
   ];
 
   // ── Raster görsel (`GS v 0`) ──────────────────────────────────────────
@@ -138,9 +172,14 @@ abstract final class EscPosCommands {
     required int height,
     int mode = 0,
   }) => [
-    0x1D, 0x76, 0x30, mode,
-    widthBytes & 0xFF, (widthBytes >> 8) & 0xFF,
-    height & 0xFF, (height >> 8) & 0xFF,
+    0x1D,
+    0x76,
+    0x30,
+    mode,
+    widthBytes & 0xFF,
+    (widthBytes >> 8) & 0xFF,
+    height & 0xFF,
+    (height >> 8) & 0xFF,
   ];
 }
 
@@ -255,9 +294,7 @@ class EscPosBuilder {
     }
 
     _buffer
-      ..add(
-        EscPosCommands.rasterHeader(widthBytes: widthBytes, height: height),
-      )
+      ..add(EscPosCommands.rasterHeader(widthBytes: widthBytes, height: height))
       ..add(data);
   }
 

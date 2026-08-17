@@ -44,13 +44,33 @@
 [x] admin panelden telefonla gelen siparişlerin eklenmesi, KDS'ye iletilmesi (müşteri seç, ürün seç, abonelik mi değil mi)
 
 # MusteriApp
-[] abonelik-abonelik takibi gibi işlemler işte cari hesapta istenen ya da total tutara göre ödeme simülasyonu olacak.
+[x] abonelik-abonelik takibi gibi işlemler işte cari hesapta istenen ya da total tutara göre ödeme simülasyonu olacak.
+    → KONUSU DEĞİŞTİ, karşılığı geldi. Cari hesap iş modelinden çıktı (senin kararın),
+      yerine **abonelik dönem ödemesi** geldi: 30 günlük peşin, `porsiyon × birim fiyat`,
+      niyet satırı + `hash` + dönem başına tekillik. Simülasyon POS'u aynı geçit.
+      "İstenen tutara göre kısmi ödeme" ise ARTIK YOK — ödenecek şey bir bakiye değil,
+      bir dönem.
 [] mobil uygulama anmasyon ve işlevselliği arttırılacak
 [] mobil ui sıfırdan yemeksepeti gibi tasarlanacak. bu tasarımda kullanıcının prati bi şekilde kurumsal catering hissiyatı arttırılacak. 
-[] Admin panelden yönetilen bir ana sayfa görsel ve uygulama içi CTA mantığı oturtulacak. böylelikle panelden üğrün reklamı tanıtım duyuru vs yapoıalbilecek
-[] admin panelden abonelik ne zaman başlayacak işte beklenen teslimat saati gibi ayrıntılar toplaacak. 
-[] profil sekmesine belgelerim eklenecek böylelikle genel bir işte onaylanan sözleşmeler vs olacak. admin panelden müşteri bazlı her müşteri sözleşmelerini kontrol edecek
-[] kullanıcı dış linkten ödeme yapomayacak her türlü işlemi uygulamada yapacak
+[x] Admin panelden yönetilen bir ana sayfa görsel ve uygulama içi CTA mantığı oturtulacak. böylelikle panelden üğrün reklamı tanıtım duyuru vs yapoıalbilecek
+    → Uygulama-içi duyurular (`veykemtu_announcements`) + Kontrol Merkezi duyuru paneli.
+      Görsel, yerleşim, ton, biçim, kitle, yayın penceresi ve **eylem düğmesi** (uygulama-içi
+      yol mu dış bağlantı mı) panelden. Gören/kapatan sayısı da ölçülüyor.
+      PUSH DEĞİL: duyuru yalnız uygulama açıkken çekiliyor (aşağıdaki günlüğe bakın).
+[x] admin panelden abonelik ne zaman başlayacak işte beklenen teslimat saati gibi ayrıntılar toplaacak. 
+    → Kontrol Merkezi abonelik panelinde `start_date`, `end_date`, `delivery_time_from/to`,
+      servis günleri, porsiyon ve teslim noktaları yazılabiliyor (`docs/control/subscriptions.md`).
+[~] profil sekmesine belgelerim eklenecek böylelikle genel bir işte onaylanan sözleşmeler vs olacak. admin panelden müşteri bazlı her müşteri sözleşmelerini kontrol edecek
+    → YARISI BİTTİ. Sözleşme ve fatura belgeleri artık VAR ve panelden görülüyor
+      (`veykemtu_subscription_contracts`, `veykemtu_invoices`). Eksik olan **mobildeki
+      "Belgelerim" sekmesi**: sözleşmeye bugün yalnız abonelik detayından giriliyor,
+      faturaya hiç girilmiyor. Ayrı bir iş olarak duruyor.
+[x] kullanıcı dış linkten ödeme yapomayacak her türlü işlemi uygulamada yapacak
+    → Mobilde `url_launcher` ile sistem tarayıcısına gönderme KALDIRILDI. Ödeme adımı
+      artık `next_action` durum makinesinden okunuyor ve abonelik ödemesiyle aynı sözlüğü
+      paylaşıyor. Tanınmayan adım "bitti" SAYILMIYOR.
+      NOT: **site hâlâ `redirect_url` ile dış sayfaya gidiyor** ve bu bilinçli — tarayıcıda
+      geri dönüş zaten çalışıyor, mobilde çalışmıyordu (`docs/06` §3).
 [] uygulama içerisinde tek tıkla mutağı arayabilecek siparişi oluştuktan sonra gereken desteği oradan alacak. böylelikle müşteri temsilcisi kısmı da mutfağa düşecek
 
 # Siber
@@ -61,9 +81,17 @@
 [] sistemde fishing tarzı durumlara karşı bir saldırı koruma kalkanı kurulacak
 
 # Yasal Metinler
-[] Kapsamlı bir cari hesap sözleşmesi hazırlanacak
+[-] Kapsamlı bir cari hesap sözleşmesi hazırlanacak
+    → DÜŞTÜ. Cari hesap iş modelinden çıktı; imzalanacak bir veresiye ilişkisi yok.
+      Yerine geçen **abonelik sözleşmesi** yazıldı ve teknik olarak çalışıyor
+      (imzalı bağlantı + SMS OTP + donmuş metin). Ama METNİN KENDİSİ hâlâ
+      hukukçu eli görmedi — aşağıdaki günlüğe bakın.
 [] KVKK, Gizlilik Politikaı ve Uygulama kullanım koşulları yasal belgeleri hazırlanacak.
 [] Ödeme planı metinleri oluşturulacak
+[] **İYS (İleti Yönetim Sistemi) kaydı ve ticari ileti onay akışı.** Sipariş
+   bilgilendirme SMS'i izin istemiyor; menü duyurusu ve toplu duyuru İSTİYOR
+   (6563 + KVKK). Sunucu tarafı hazır (`bld_sms_opt_out`), onayı tutan alan ve
+   İYS entegrasyonu yok. Bu ikisi gelene kadar o iki şablon KAPALI kalıyor.
 
 ---
 
@@ -1089,3 +1117,194 @@ Kasa yeni komutları ve ayarları ancak **yeniden derlenip kurulunca** tanır
   daha fazlasını yaptırırdı.
 - **`server_url` cihaz künyesinde taşınmıyor.** Panel varsa gösteriyor, yoksa
   "kasa bildirmiyor" yazıyor. Alan eklemek ayrı bir iş.
+
+---
+
+# Log — Günlük menü satış modeline geçiş (17.08.2026)
+
+**İstek:** satış sabit bir katalogdan **gün gün girilen menüye** taşınacak,
+cari hesap kalkacak, abonelik sözleşme ve peşin ödemeyle başlayacak, her şey
+Kontrol Merkezi'nden yönetilebilecek.
+
+Bu, tek bir turun değil üç dalganın işi. Aşağısı **ne yapıldığı, hangi kararın
+neden alındığı ve neyin BİLEREK açık bırakıldığı**. Şemanın tamamı
+`docs/02-veri-modeli.md` §10'da, sözleşme değişikliklerinin tamamı
+`docs/03-api-sozlesmesi.md` §15'te.
+
+## Modelin özeti — bir cümlede ne değişti
+
+Eskiden bir ürün her gün aynı fiyata satılıyordu ve borç ay sonunda
+faturalanıyordu. Şimdi **bir yemek yalnızca menüsünde yer aldığı gün ve o
+günün fiyatıyla** satılıyor, her sipariş kendi başına ödeniyor.
+
+Bu tek cümle, birbirine bakan on üç kararı zorunlu kıldı.
+
+## Alınan kararlar
+
+**1. Cari hesap kaldırıldı.** Borç defteri, kredi limiti, ekstre ve ay sonu
+özeti düştü; üç tablo ve bir kolon şemadan silindi. Ödeme yöntemleri `online`
+ve `cash`. Düşürmeden ÖNCE veri dosyaya döküldü (`veykemtu:cari-arsivle`) ama
+**asıl adım operatörün o dizini elle indirmesidir** — göçün yazdığı kopya
+konteyner biriminde yaşıyor ve birim silindiğinde arşiv de gider.
+Şema geri alınabilir, **veri geri alınamaz**; sahibi bunu bilerek onayladı.
+
+`payments` tablosundaki `account` satırı SİLİNMEDİ, pasifleştirildi: silinseydi
+eski cari siparişlerin ödeme ilişkisi `null` döner ve günlük "property on null"
+ile patlardı.
+
+**2. Kesim saati güne bağlandı.** "Bugüne sipariş verme saati" değil, **o günün
+kendi kapanış anı**. Gelecek günler kesimden etkilenmiyor — tanımı gereği:
+22 Ağustos'un 08:00'i, 20 Ağustos'ta her zaman gelecektedir. Kural birleşince
+kod SADELEŞTİ: eski hâlde iki ayrı yerde duran "yalnız bugünse kesime bak"
+özel durumu kayboldu ve tek sahibe indi (`Services\OrderingWindow`).
+
+**3. İleri sipariş penceresi 30 günden 7'ye indi.** Mutfak bir aylık taahhüde
+giremiyor. Hem uç 7'nin üstünü reddediyor hem sunucu varsayılanı 7 — biri
+eksik kalsaydı ayara hiç dokunulmamış bir kurulumda karar sessizce delinirdi.
+
+**4. Stok iki tavanlı.** Gün toplamı VE ürün bazlı; hangisi önce dolarsa satışı
+o kapatır. **Satır yoksa sınırsız.** Bu kural üç dilde birden hesaplanıyor
+(Dart, TypeScript, PHP) ve bu yüzden normatif kaynağı bir veri dosyası oldu:
+`docs/contract/sales-rules.cases.json`. Üç test onu okuyor; tek bir dilde
+sessizce sapmak mümkün değil.
+
+En pahalı kenar durum: **`null` sıfır değildir.** `null`'ı tükenmiş sayan
+istemci, tavanı hiç konmamış bir günü satışa kapatır ve kimse bir hata görmez.
+
+**5. Abonelikler stoku ÖNCE rezerve eder.** Bu yüzden `reserved` ve `sold` ayrı
+kolon, ve bu yüzden gece işlerinin sırası anlamlı: `stok-tazele` (21:30)
+`abonelik-uret`'ten (22:00) önce koşmak ZORUNDA. Ters olsaydı abonelik
+siparişleri stoksuz bir güne düşer ve o günün serbest satış kapasitesi
+olduğundan büyük görünürdü.
+
+**6. Sipariş mutfağa kesim anında düşer.** Önce "abonelikler 07:00'de düşsün"
+diye ayrı bir ayar yazılmıştı (`subscription_release_time`); bu turda
+kaldırıldı. Kesim saati zaten "o günün satışı kapandı" anını tanımlıyordu ve
+ikinci bir ayar **iki doğruluk kaynağı** demekti: kesimi 09:00'a çekip düşme
+saatini 07:00'de unutan yönetici, mutfağa satış hâlâ açıkken eksik bir listeyi
+tam diye gösterirdi.
+
+Damga bir cron'a bağlanmadı: kapı "şimdi"ye göre kendiliğinden açılıyor.
+Cron'a bağlansaydı, cron'un koşmadığı her sabah mutfak boş ekrana bakardı.
+
+**7. Abonelik sözleşmesi imzalı bağlantı + SMS OTP ile onaylanıyor.** Onaylanan
+metin **donmuş saklanıyor**, yalnız sürüm etiketi değil: şablon sonradan
+değişseydi müşterinin "imzaladığı" metin de sessizce değişirdi ve hiçbir
+denetim bu farkı göremezdi. Ham token saklanmıyor, yalnız özeti.
+
+**8. Abonelik 30 günlük peşin dönem ödemesiyle başlıyor** — takvim ayı değil
+30 GÜN. Ayın 17'sinde başlayan abonelik 17'sinde biter; takvim ayına
+yuvarlamak ilk dönemi kısaltır ve eksik gün için tam para almak olurdu.
+Ödeme yapısı sıfırdan tasarlanmadı: kaldırılan cari ödeme niyeti tablosunun
+bilinçli devamı — yapısı sağlamdı, yalnız amacı kalkmıştı.
+
+**9. Fatura bir belge, mali kayıt değil.** e-Fatura değil, e-Arşiv değil,
+GİB'e gitmiyor, KDV hesaplamıyor. Yine de numarası **boşluksuz** ve içeriği
+**donmuş**: gerçek entegrasyon bir gün buraya takılacaksa, o gün geriye dönük
+numaralandırma yapmak imkânsız olur. `MAX(sequence)+1` hiç kullanılmadı —
+eşzamanlı iki kesimde aynı sayıyı verir ve kullanıcı yazdır düğmesinde 500
+görür; hata ayıklamasının en zor anı, en yoğun andır.
+
+**10. SMS şablonları KAPALI doğar.** Turdaki en önemli tek satır bu. Açık doğan
+bir şablon, tek bir dağıtımı binlerce SMS'e çevirirdi: göç koştuğu anda durum
+tetikleyicileri canlanır ve o gün açık olan her siparişin her geçişi mesaj
+olarak giderdi. Geri alınamaz, özür dilenemez ve faturası gelir. Kapalı doğan
+bir şablonun bedeli ise yalnızca "yönetici açmayı unuttu".
+
+**11. Push (FCM) kapsam dışı.** Müşteriye ulaşmanın iki yolu kaldı: SMS ve
+uygulama-içi duyuru. `POST /api/me/push-token` sözleşmede duruyor ve
+silinmedi, ama hiçbir bildirim göndermiyor.
+
+**12. Ödeme mobilde uygulamanın içine alındı.** `redirect_url` ile sistem
+tarayıcısına gönderme kaldırıldı: müşteri uygulamadan çıkıyor ve dönmüyordu.
+Karar noktası da yanlış alandaydı — `redirect_url` bir ARAÇ, `next_action`
+sunucunun KARARI. **Site bunu yapmadı ve bu bilinçli:** tarayıcıda geri dönüş
+zaten çalışıyor.
+
+**13. Blog geri geldi** (`/bilgi-merkezi`). Buradan çıkan ders yazının
+kendisinden değerli: **308 geri alınamaz.** Kalıcı yönlendirmeyi tarayıcı
+kalıcı önbelleğe alıyor; adresi yönlendirme yürürlükteyken bir kez açmış
+tarayıcı bundan sonra sunucuya hiç sormadan eski hedefe gidiyor ve bunu
+uzaktan temizlemenin yolu yok. Bu yüzden `/kurumsal` sayfasına belirgin bir
+bağlantı kondu. **Geri gelmesi ihtimali olan bir sayfa 308'lenmez.**
+
+## Bilerek bırakılan açıklar
+
+Hiçbiri unutulmuş değil; her birinin bir sebebi var.
+
+- **`bld_menu_announce_time` yazılamıyor.** Menü duyurusunun saati
+  `location_options`'ta yaşıyor ve `09:00` varsayılanıyla okunuyor, ama onu
+  yazan **hiçbir yol yok** — ne uç, ne panel, ne erişimci. Değeri değiştirmenin
+  tek yolu satıra elle dokunmak. Anahtar adının kendisi de bir varsayım
+  (`docs/control/settings.md` → "bu uçta YOK, ama `location_options`'ta VAR").
+  Kapatılması gereken iş: alanı `menu_announce_time` adıyla ayarlar ucuna
+  eklemek.
+- **`auto_invoice` okunuyor ama yazılamıyor.** `LocationGate` erişimcisi henüz
+  yok; uç yazmayı `422` ile reddediyor. Sessizce yutmak, yöneticinin
+  kaydettiğini sandığı ayarın hiç uygulanmaması demekti.
+- **`subscription_release_time` KAPANDI (17.08.2026) — açık değil, ders.** Madde
+  silinmiyor çünkü asıl değeri sonucunda değil, ayrışmanın **yön
+  değiştirmesinde**: önce sunucu geriydi (anahtar ve erişimciler silinmişti ama
+  `SettingsRepository`/`SettingsController` alanı hâlâ sabit `"07:00"` diye
+  yayınlıyordu), sunucu temizlenince geride kalan taraf **Kontrol Merkezi
+  paneli** oldu — ve bu hâli ilkinden pahalıya patladı. `bld_sales_settings`
+  paneli alanı `required: true` ile çizmeyi sürdürdü; alan sunucudan hiç
+  gelmediği için form doğrulamadan geçmedi ve ekran **yalnız o alanı değil,
+  hiçbir ayarı** kaydedemedi. İki taraf da kapatıldı: uç alanı yayınlamıyor ve
+  gönderilirse "kaldırıldı" diyen bir `422` veriyor, panel de alanı formundan ve
+  yazılabilirler listesinden çıkardı. **Kalan ders:** kaldırılmış bir alanı
+  zorunlu çizmek, o alanı değil bütün formu kilitler.
+- **`awaiting_contract` durumu kolona sığmıyor.** Değer 17 karakter,
+  `veykemtu_subscriptions.status` ise `varchar(16)`. `awaiting_payment` tam 16
+  hane olduğu için akış ölmüyor, ama sözleşme bekleyen bir abonelik o durumu
+  yazamıyor. Kolonu genişletmek abonelik kulvarının işi; sözleşme kulvarı
+  başka bir kulvarın tablosuna dokunmuyor. Kod o değeri yazmayı **hiç
+  denemiyor** ve bu doğru: MySQL gevşek kipte fazlalığı sessizce kırpar ve
+  kolona hiçbir istemcinin tanımadığı `awaiting_contrac` yazılırdı.
+- **`Location.service_weekdays` yayınlanıyor ama yazılamıyor.** `[1..5]` kodda
+  sabit. Bu bir KAPI DEĞİL: hafta sonuna menü yayınlamak serbest ve yayınlanan
+  gün normal satılıyor; alan yalnız takvimin o hücreyi soluk çizmesi ve hafta
+  sonu bandının metni için var.
+- **Faturanın PDF'i yok.** v1'de belge HTML olarak basılıyor. PDF için yeni bir
+  bağımlılık (dompdf/mpdf) gerekiyor ve bu `AGENTS.md` §4/§6.3 gereği ayrı bir
+  karar. `pdf_path` kolonu o karar verildiğinde şema değişikliği gerekmesin
+  diye şimdiden duruyor.
+- **Gerçek sanal POS bağlı değil.** `online` arkasındaki geçit simülasyon ve
+  üretimde yalnız `POS_ALLOW_SIMULATION=true` ile çalışıyor. **O bayrak açık
+  kalırsa her sipariş bedava olur** — canlıya alma listesinin ilk maddesi
+  (`docs/10` §3).
+- **Ticari SMS onayı ve İYS kaydı yok.** `dailymenu.announce` ve `announcement`
+  şablonları bu yüzden kapalı ve öyle kalacak. `bld_sms_opt_out` yalnız REDDİ
+  tutuyor; **"reddetmedi" ile "onayladı" aynı şey değildir** ve karıştırılması
+  tam olarak ihlali üretir.
+- **Günde birden çok menü ertelendi.** Bugün bir servis gününün bir menüsü var.
+  Öğle/akşam ayrımı şemayı da uçları da etkiliyor; günlük modelin kendisi
+  oturmadan açmak erken olurdu.
+- **Kesim geçtikten sonra kalem fiyatı hâlâ değiştirilebiliyor.** Yönetici
+  panelden geçmiş bir günün fiyatına dokunabilir; sipariş fiyatı kopyalandığı
+  için verilmiş siparişler etkilenmiyor ama o günün menüsü yalan söylemeye
+  başlıyor. Açık madde.
+- **Malzeme stoğu yok.** Sistemin bildiği tek stok **porsiyon tavanı**. Un,
+  tavuk, kilogram hiçbir yerde geçmiyor; `veykemtu_stock_ledger` hâlâ yazılmadı
+  (`docs/02` §5).
+- **Mobilde "Belgelerim" sekmesi yok** ve **uygulama içinden mutfağı tek tıkla
+  arama** yok. İkisi de listenin üstünde açık duruyor.
+
+## Bu turda dokümanlar gerçekle uzlaştırıldı
+
+Kod üç dalga ilerlerken dokümanlar geride kalmıştı. Düzeltilenler:
+
+| Dosya | Ne düzeltildi |
+|---|---|
+| `docs/02-veri-modeli.md` | Cari tablolar **kaldırıldı notuna** çevrildi (silinmedi — şemayı arayan neden bulamadığını anlamalı); on yeni tablo/kolon şemadan okunarak §10'a yazıldı |
+| `docs/10-test-kabul.md` | Cari kabul senaryosu düştü, yerine abonelik-sözleşme-belge (S9b) ve stok-kesim (S9c) senaryoları; §4 "bilinen sınırlar" gerçeğe çevrildi |
+| `docs/07-musteriapp.md` | Silinmiş bir testi adıyla zorunlu tutan §7 düzeltildi; ödeme bölümü `next_action` durum makinesini anlatıyor; cari ekranı ve sipariş kapısı kaldırıldı |
+| `docs/06-website.md` | `/hesabim/cari` kaldırıldı, blog geri döndü, günün menüsü ekranı (stok rozeti, kesim geri sayımı, hafta sonu bandı) yazıldı, sayfa haritası gerçekle eşlendi |
+| `docs/control/settings.md` | Belgelenmemiş `bld_menu_announce_time` yazıldı; kapanmış iki "başka ajanın kulvarı" notu kapandı olarak işaretlendi |
+| `docs/00-INDEX.md` | Eksik dosyalar eklendi, eskimiş açıklamalar düzeltildi |
+
+**Bir doküman kuralı bu turda test edildi ve tuttu:** `docs/00-INDEX.md`
+"kod ile doküman çelişirse doküman kazanır" diyor. Bu turda tersi yapıldı —
+çünkü çelişen şey bir KURAL değil, bir OLGUYDU: doküman "şu tablo var" diyor,
+tablo yok. Olguda kod kazanır; kuralda doküman. İkisini ayırmayan bir
+uzlaştırma, düşürülmüş bir tabloyu geri kurmaya çalışırdı.

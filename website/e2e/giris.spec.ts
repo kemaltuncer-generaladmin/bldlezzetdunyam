@@ -62,7 +62,17 @@ test.describe('Telefonla giriş', () => {
     await page.getByLabel('Giriş kodu').fill('000000');
     await page.getByRole('button', { name: 'Giriş yap' }).click();
 
-    await expect(page.getByRole('alert')).toBeVisible();
+    /*
+     * UYARI `main` İÇİNDE ARANIYOR, SAYFANIN TAMAMINDA DEĞİL.
+     *
+     * Next.js `<body>`ye `#__next-route-announcer__` diye BOŞ bir
+     * `role="alert"` düğümü koyuyor. Sayfa genelinde `getByRole('alert')`
+     * demek onu da yakalıyor ve iki eşleşme katı kipte hata veriyor. Üstelik
+     * hata kararsız: duyurucu yalnız istemci tarafı gezinmeden sonra
+     * doluyor, yani aynı test bir tarayıcıda geçip ötekinde düşüyordu.
+     * Formun uyarısı `main`'in içinde, duyurucu dışında.
+     */
+    await expect(page.getByRole('main').getByRole('alert')).toBeVisible();
     // Kod ekranında kalmalı: numara ekranına geri atmak, elindeki geçerli
     // kodu girememesine yol açardı.
     await expect(page.getByLabel('Giriş kodu')).toBeVisible();

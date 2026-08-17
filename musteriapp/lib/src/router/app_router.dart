@@ -29,8 +29,10 @@ import '../features/orders/order_tracking_screen.dart';
 import '../features/orders/orders_screen.dart';
 import '../features/shell/home_shell.dart';
 import '../features/splash/splash_screen.dart';
+import '../features/subscriptions/subscription_contract_screen.dart';
 import '../features/subscriptions/subscription_create_screen.dart';
 import '../features/subscriptions/subscription_detail_screen.dart';
+import '../features/subscriptions/subscription_payment_screen.dart';
 import '../features/subscriptions/subscriptions_screen.dart';
 import '../features/update/force_update_screen.dart';
 import '../providers/catalog_providers.dart';
@@ -64,6 +66,27 @@ abstract final class Routes {
   static String orderTracking(int orderId) => '/orders/$orderId';
 
   static String subscriptionDetail(int id) => '/subscriptions/$id';
+
+  /// Aboneliğin yürürlükteki DÖNEM ödemesi.
+  ///
+  /// Yolda ödeme kimliği YOK: hangi dönemin ödeneceğini sunucu seçiyor
+  /// (`POST /subscriptions/{id}/payments` tutarı da dönemi de kendisi
+  /// belirliyor). Kimlik yola konsaydı paylaşılan ya da yer imlenmiş bir
+  /// bağlantı, kapanmış bir döneme işaret edebilirdi.
+  static String subscriptionPayment(int id) => '/subscriptions/$id/payment';
+
+  /// Abonelik sözleşmesinin onay ekranı.
+  ///
+  /// Yolda ABONELİK KİMLİĞİ YOK, imzalı belirteç var: uç kimlik istemiyor ve
+  /// yetkiyi taşıyan şey belirtecin kendisi. Sıralı bir kimlik olsaydı, bir
+  /// bağlantıyı eline geçiren komşu numaraları deneyerek başkalarının
+  /// sözleşmelerini okuyabilirdi.
+  ///
+  /// `/subscriptions/...` ALTINA KONMADI: o önek giriş istiyor
+  /// ([_requiresAuth]) ve sözleşmeyi onaylayan kişi çoğu zaman uygulamada
+  /// oturum açmış kişi değil, satın almayı onaylayan yetkilidir.
+  static String contract(String token) =>
+      '/contracts/${Uri.encodeComponent(token)}';
 }
 
 /// Giriş isteyen yollar.
@@ -177,10 +200,27 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.subscriptionNew,
         builder: (context, state) => const SubscriptionCreateScreen(),
       ),
+      // Ödeme yolu da `:id`'den ÖNCE: aynı disiplin. Bugün iki yol farklı
+      // sayıda parçaya sahip olduğu için çakışmıyorlar, ama `:id` altına bir
+      // gün alt yol eklendiğinde sıra tek koruma olacak.
+      GoRoute(
+        path: '/subscriptions/:id/payment',
+        builder: (context, state) => SubscriptionPaymentScreen(
+          id: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+        ),
+      ),
       GoRoute(
         path: '/subscriptions/:id',
         builder: (context, state) => SubscriptionDetailScreen(
           id: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+        ),
+      ),
+      // Sözleşme onayı — GİRİŞ İSTEMEZ (bkz. `Routes.contract`). Boş belirteç
+      // ekranı çökertmez: uç `404` döner ve ekran "bağlantı tanınmadı" der.
+      GoRoute(
+        path: '/contracts/:token',
+        builder: (context, state) => SubscriptionContractScreen(
+          token: state.pathParameters['token'] ?? '',
         ),
       ),
       StatefulShellRoute.indexedStack(

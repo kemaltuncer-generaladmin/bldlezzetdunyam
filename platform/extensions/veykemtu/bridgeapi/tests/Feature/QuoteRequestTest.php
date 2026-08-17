@@ -9,6 +9,7 @@ use Igniter\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
+use Veykemtu\BridgeApi\Http\Middleware\RequireAdminPanel;
 use Veykemtu\BridgeApi\Models\QuoteRequest;
 
 /**
@@ -67,6 +68,23 @@ class QuoteRequestTest extends TestCase
                 .'tabloları düşürecekti. Test veritabanı adı "_test" ile bitmelidir.',
             );
         }
+    }
+
+    /**
+     * Panel şalteri TEST İÇİN AÇILIYOR — F4.
+     *
+     * Bu paketin son bölümü teklif taleplerini PANELDEN okuyor; `/admin/*`
+     * üretimde kapalı (`RequireAdminPanel`, varsayılan kapalı) ve tek
+     * yönetim yüzeyi Kontrol Merkezi. Panel bir YEDEK olarak duruyor,
+     * yedeğin değeri ihtiyaç anında çalıştığının bilinmesinde — bu yüzden
+     * testler silinmedi, şalteri açıp koşuyorlar. Kapatmanın kendi testi
+     * `AdminPanelClosedTest`.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config([RequireAdminPanel::CONFIG_KEY => true]);
     }
 
     // ── Uç: kabul edilen yollar ───────────────────────────────────────────

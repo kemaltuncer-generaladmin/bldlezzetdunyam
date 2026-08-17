@@ -596,14 +596,19 @@ Uint8List buildCourierReceipt(
 
   if (_hasText(data.customerNote)) {
     builder.rule();
-    for (final row in _wrap('NOT: ${data.customerNote!.trim()}', style.columns)) {
+    for (final row in _wrap(
+      'NOT: ${data.customerNote!.trim()}',
+      style.columns,
+    )) {
       builder.line(row);
     }
   }
 
   // ── Ne kadar ────────────────────────────────────────────────────────
   builder.rule();
-  builder.line('Ödeme: ${data.paymentMethod.label} (${data.paymentStatus.label})');
+  builder.line(
+    'Ödeme: ${data.paymentMethod.label} (${data.paymentStatus.label})',
+  );
 
   // TAHSİLAT SATIRI EN ALTTA VE ÇİFT BOY. Ödenmiş siparişte hiç
   // basılmaz: sıfırlık bir "tahsil edilecek" satırı, kuryenin bir

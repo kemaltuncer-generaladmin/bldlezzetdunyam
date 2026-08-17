@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { KitchenBusyBanner } from '@/components/kitchen-busy-banner';
 import { OrderingClosedBanner } from '@/components/ordering-banner';
 import { DayPicker, findCalendarDay, nextOrderableDay } from '@/components/menu/day-picker';
+import { ServiceDaysBanner } from '@/components/menu/service-days-banner';
 import { DailyMenuItemCard, DailyMenuPackageCard } from '@/components/menu/daily-menu-cards';
 import { SITE_URL } from '@/lib/api/client';
 import {
@@ -23,7 +24,12 @@ import {
   type DailyMenuSnapshot,
 } from '@/lib/api/daily-menu';
 import { isOrderingOpen } from '@/lib/api/catalog';
-import { formatLongDate, parseBusinessDate, relativeDayLabel } from '@/lib/business-date';
+import {
+  formatLongDate,
+  isoWeekday,
+  parseBusinessDate,
+  relativeDayLabel,
+} from '@/lib/business-date';
 import { readCart } from '@/lib/cart';
 import { schemaOrgPrice } from '@/lib/format';
 import { dayUnavailableCopy } from '@/lib/labels';
@@ -264,6 +270,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
       <div className="mx-auto max-w-content px-4 pt-6 pb-28 sm:pt-8 lg:pb-16">
         <div className="space-y-3 empty:hidden">
           {!orderingOpen && <OrderingClosedBanner location={location} />}
+          <ServiceDaysBanner location={location} today={isoWeekday(today)} />
           <KitchenBusyBanner />
         </div>
 

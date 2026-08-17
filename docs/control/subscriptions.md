@@ -382,7 +382,7 @@ Sorgu: `from` (varsayılan bugün), `days` (varsayılan 30, tavan 92).
 {
   "data": [
     { "date": "2026-08-17", "weekday": 1, "quantity": 20, "closed": false, "note": null,
-      "exception": null, "generated": true, "order_id": 8455, "released_at": "2026-08-17T04:00:00Z" },
+      "exception": null, "generated": true, "order_id": 8455, "released_at": "2026-08-17T05:00:00Z" },
     { "date": "2026-08-18", "weekday": 2, "quantity": 12, "closed": false, "note": null,
       "exception": { "skip": false, "quantity_override": 12, "note": "Toplantı" },
       "generated": false, "order_id": null, "released_at": null },
@@ -400,6 +400,11 @@ sonu menü olmadığı için (iş kararı 4) `service_days` beş gün olan bir
 abonelikte cumartesi/pazar hiç görünmez. Kapalı günler **görünür ama
 `closed: true`** ile — yöneticinin "o gün neden üretim yok" sorusunun cevabı
 listede olmalı.
+
+`released_at` üretilmiş siparişin `orders.bld_released_at` damgasıdır: o
+servis gününün **kesim anı**. `null` iki şey demek olabilir — sipariş henüz
+üretilmedi (`order_id` de `null`) ya da damgasız üretildi, yani **anında**
+mutfağa düştü (servis günü bugünse veya kesim tanımsız/geçmişse).
 
 ---
 
@@ -459,7 +464,7 @@ Sorgu: `from`, `to`, `page`, `per_page`.
     {
       "id": 2201, "service_date": "2026-08-17", "delivery_point_id": 9,
       "order_id": 8455, "order_number": "BLD-8455", "order_status": "hazirlaniyor",
-      "quantity": 20, "released_at": "2026-08-17T04:00:00Z", "created_at": "2026-08-17T00:12:00Z"
+      "quantity": 20, "released_at": "2026-08-17T05:00:00Z", "created_at": "2026-08-17T00:12:00Z"
     },
     {
       "id": 2202, "service_date": "2026-08-18", "delivery_point_id": 9,
@@ -507,8 +512,10 @@ Gece işini beklemeden belirli bir gün için üretim yapar. Kural
   rezervasyonun dışında kalan bir talep olduğu için tavana takılabilir.
   Yönetici tavanı yükseltir ya da üretimi bilinçli olarak ertesi güne bırakır.
 - `release_now: true` üretilen siparişi **anında KDS'e düşürür**; varsayılan
-  `false`, yani normal serbest bırakma saati (`subscription_release_time`,
-  varsayılan 07:00) geçerlidir.
+  `false`, yani sipariş **servis gününün kesim anında** mutfağa düşer
+  (`gün.cutoff_time ?? ayar.order_cutoff`). Servis günü bugünse ya da kesim
+  tanımsız/geçmişse damga hiç atılmaz ve `release_at` `null` döner — bu da
+  "anında görünür" demektir.
 
 ```json
 {
@@ -516,24 +523,31 @@ Gece işini beklemeden belirli bir gün için üretim yapar. Kural
   "data": {
     "service_date": "2026-08-17",
     "created": [ { "run_id": 2201, "order_id": 8455, "order_number": "BLD-8455",
-                   "delivery_point_id": 9, "quantity": 20, "release_at": "2026-08-17T04:00:00Z" } ],
+                   "delivery_point_id": 9, "quantity": 20, "release_at": "2026-08-17T05:00:00Z" } ],
     "skipped": []
   }
 }
 ```
 
+`created` içindeki `release_at` **satırın kendisinden** okunur, tahminden
+değil: damgayı `OrderFactory` atar, bu uç yalnız `release_now: true` ile onu
+bilinçli olarak ezer. İkinci bir hesap, iki kaynağın ayrıştığı gün sessizce
+kazanan olurdu.
+
 Kuru prova `would` aynı yapıyı `created` yerine `would_create` ile döner ve
-**hiçbir satır yazmaz**.
+**hiçbir satır yazmaz**. Kuru provada okunacak satır olmadığı için oradaki
+`release_at` aynı kuralla ÖNCEDEN hesaplanır.
 
 ### `POST /orders/{order}/release`
 
-Abonelik siparişleri gece üretilir ve **KDS'e 07:00'de düşer** (iş kararı 7).
-Bu uç, bir siparişi o saatten önce mutfağa açar.
+Abonelik siparişleri gece üretilir ve **servis gününün kesim anında** KDS'e
+düşer (iş kararı 7, güncellendi 17.08.2026). Bu uç, bir siparişi o andan önce
+mutfağa açar.
 
 Neden gecikmeli düşüyor: gece 00:12'de üretilen kırk sipariş sabah 05:00'te
 işbaşı yapan mutfağın ekranını doldurur ve o an gelen **gerçek** bir siparişi
-görünmez kılardı. Serbest bırakma saati, panoyu vardiya başlangıcıyla
-hizalar.
+görünmez kılardı. Kesim anı, panoyu "o günün satışı kapandı" anıyla hizalar:
+mutfak günün TAM listesini bir kerede görür.
 
 ```json
 { "actor": "Ayşe Yılmaz", "reason": "Erken teslimat talebi, sipariş mutfağa açıldı" }
@@ -546,15 +560,26 @@ hizalar.
 ```json
 {
   "ok": true, "dry_run": false, "audit_id": 1940,
-  "data": { "order_id": 8455, "released_at": "2026-08-16T09:00:00Z", "was_scheduled_for": "2026-08-17T04:00:00Z" }
+  "data": { "order_id": 8455, "released_at": "2026-08-16T09:00:00Z", "was_scheduled_for": "2026-08-17T05:00:00Z" }
 }
 ```
 
-> **BAŞKA AJANIN KULVARI — göç gerekiyor.** `orders.bld_kds_release_at`
-> (`timestamp`, nullable, indeksli). `null` = beklemesiz (normal sipariş).
-> Mutfak sorgusu `bld_kds_release_at IS NULL OR bld_kds_release_at <= NOW()`
-> süzgecini eklemeli; aksi hâlde abonelik siparişleri üretildikleri anda
-> panoya düşer ve serbest bırakma saati hiçbir işe yaramaz.
+> **KAPANDI (17.08.2026) — kolonun adı `orders.bld_released_at`.** Sözleşme
+> onu `bld_kds_release_at` diye adlandırmıştı; göç
+> (`2026_08_21_000001_add_released_at_to_orders`) `bld_released_at` adıyla
+> geldi ve `OrderFactory`, `KitchenController`, `ProductionListService` o adı
+> kullanıyor. `timestamp`, nullable, indeksli; **`null` = beklemesiz**.
+>
+> Mutfak süzgeci yerinde:
+> `bld_released_at IS NULL OR bld_released_at <= NOW()`. Artımlı yoklama için
+> ikinci bir koşul da var — sipariş kesim anında `updated_at` DEĞİŞMEDEN
+> görünür hâle geldiği için `[since, now]` aralığı `bld_released_at` üzerinde
+> ayrıca taranır; aksi hâlde KDS onu hiç görmezdi.
+>
+> Denetleyici bu kolonu bir süre eski adıyla `Schema::hasColumn` ardında
+> aradı: yoklama hep `false` döndüğü için `POST /orders/{order}/release`
+> **hiçbir şey yapmadan `ok: true`** veriyor ve `released_at` her satırda
+> `null` görünüyordu. Ad ayrışması hiçbir yerde patlamamıştı.
 
 ---
 

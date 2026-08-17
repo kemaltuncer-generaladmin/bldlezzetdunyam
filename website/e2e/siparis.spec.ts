@@ -143,11 +143,16 @@ test.describe('Ana sayfadan sipariş (gömülü menü)', () => {
    * v2.0'da "bugün mutfakta" bölümü sipariş verilebilir hâle geldi (W-10).
    * Öncesinde kartlar yalnızca ürün sayfasına bağlanıyordu ve sipariş
    * vermek isteyen ziyaretçi üç adım atıyordu.
+   *
+   * B-19'DAN SONRA DÜĞMENİN ADI DEĞİŞTİ. Bant artık altı ürün kartı değil
+   * TEK bir günlük menü teklifi gösteriyor, düğmesi de "Menüyü sepete ekle".
+   * Eşleşme bu yüzden büyük/küçük harfe duyarsız: sınanan şey etiketin tam
+   * metni değil, ana sayfadan sepete eklenebilmesi.
    */
   test('ana sayfadaki menüden sepete eklenebilir', async ({ page }) => {
     await page.goto('/');
 
-    const add = page.getByRole('button', { name: /Sepete ekle/ }).first();
+    const add = page.getByRole('button', { name: /sepete ekle/i }).first();
     await expect(add).toBeVisible();
     await add.click();
 

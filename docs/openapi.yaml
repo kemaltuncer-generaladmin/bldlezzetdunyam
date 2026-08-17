@@ -46,7 +46,7 @@ info:
     | `/control/kds/*` | 1200 istek / saat / **IP** (`bld-control`, K-21) |
     | `/addresses/suggest`, `/addresses/reverse` | 30 istek / dakika / **hesap** |
     | `/contracts/{token}/otp` | 5 istek / saat / **token** |
-    | `POST /client-errors` | 60 istek / dakika / IP |
+    | `POST /client-errors` | 60 **istek** / dakika / IP (istek başına en çok 20 olay) |
     | Diğer | 120 istek / dakika / IP |
 
     Mutfak sınırı **12.08.2026'da 1200'den 2000'e çıktı** ve bu tablo o gün
@@ -75,11 +75,44 @@ info:
     bağlantının kendisidir ve zaten korunması gereken de odur — bir sözleşme
     bağlantısına sınırsız SMS ısmarlanabilmesi doğrudan para kaybıdır.
 
-    `POST /client-errors` sınırı neden bu kadar yüksek: uç bir hata
-    boşaltma yeridir ve asıl işi kaybedilen teşhis bilgisini yakalamaktır.
-    Döngüye giren bir istemci sınırı doldurur ama sınıra takılan istek
-    **sessizce düşer** — istemci `429` yüzünden ikinci bir hata üretmemelidir,
-    yoksa hata bildirimi kendi kendini besleyen bir döngüye girer.
+    `POST /client-errors` sınırı **dakikalıktır, saatlik değildir** ve bu
+    karar 17.08.2026'da tartılıp kapatıldı — bir faz notu 60/saat diyordu,
+    sunucu ise sözleşmeyi uyguluyordu. Geçerli değer **60 istek / dakika /
+    IP**'dir; `Extension::registerRateLimiters()` (`bld-hata`) aynı sayıyı
+    ve aynı gerekçeyi taşır. Değer değişecekse **önce bu tablo** değişir.
+
+    Saatlik kova (60/saat = 1/dakika) neden reddedildi:
+
+    - Uç bir **hata boşaltma yeridir** ve değerinin tamamı bir çökme
+      dalgasının ilk dakikalarında yazdığı satırlardadır. Saatlik bir kova
+      tam o dakikada kapanır; elde dalganın yalnızca ilk kaydı kalır ve
+      "hangi sürümde, kaç cihazda, hangi ekranda" sorularının cevabı gider.
+    - Sınır **IP başına** ve üç yüzeyde de IP paylaşılıyor: web
+      raporlarının bir kısmını Next.js **sunucusu** gönderiyor (tek çıkış
+      IP'si), mutfak kasası ile yönetici aynı ağdan çıkıyor, kurumsal
+      müşteri tek NAT arkasında. Saatlik bir kovada döngüye giren tek bir
+      istemci, aynı IP'nin arkasındaki herkesi bir saat susturur.
+
+    Asıl koruma sunucuda değil, **istemcidedir**: parmak izi tekilleştirme,
+    açılışlar arası altı saatlik kalıcı soğuma, oturum başına beş jetonluk
+    kova (en az 10 sn ara) ve örnekleme. Bir istemci gerçekte dakikada ~5
+    rapor üretebiliyor; 60'a ulaşmak için aynı IP'nin arkasında onlarca
+    istemcinin aynı anda çökmesi gerekir — yani bozuk bir sürüm
+    yayınladığımız an. Sunucu kovasının işi hızı kesmek değil, istemci
+    kemerleri çalışmazsa (eski sürüm, elle yazılmış istemci, kasıtlı
+    gürültü) tabloyu sınırsız büyümekten korumaktır.
+
+    Birim **istek**, olay değil: uç toplu gönderim kabul ediyor ve tek
+    istekte en çok **20 olay** alıyor, yani gerçek tavan 1200 olay/dakika/IP.
+    Bu bilinçlidir — toplu gönderim, çevrimdışı kalmış bir istemcinin
+    biriktirdiklerini tek seferde boşaltabilmesi için var; onu istek
+    sayısıyla cezalandırmak varlık sebebini ortadan kaldırırdı. Tablonun
+    büyümesini oran sınırı değil, gece koşan `veykemtu:hata-temizle`
+    dengeliyor.
+
+    Sınıra takılan istek **istemci tarafında sessizce düşer** — istemci
+    `429` yüzünden ikinci bir hata üretmemelidir, yoksa hata bildirimi
+    kendi kendini besleyen bir döngüye girer.
 
     Sınır aşılırsa `429 RATE_LIMITED`.
   license:

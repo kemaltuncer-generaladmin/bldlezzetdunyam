@@ -74,9 +74,7 @@ abstract final class ServiceArea {
   static bool coversDistrict(String? district) {
     if (district == null) return false;
     final needle = TurkishCase.toLowerCase(district.trim());
-    return districts.any(
-      (known) => TurkishCase.toLowerCase(known) == needle,
-    );
+    return districts.any((known) => TurkishCase.toLowerCase(known) == needle);
   }
 
   /// Verilen il hizmet alanında mı?

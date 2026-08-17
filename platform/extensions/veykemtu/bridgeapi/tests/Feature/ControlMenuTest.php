@@ -5,17 +5,20 @@ declare(strict_types=1);
 namespace Veykemtu\BridgeApi\Tests\Feature;
 
 use Igniter\Cart\Models\Menu;
+use Igniter\Cart\Models\Order;
 use Igniter\Local\Models\Location;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Tests\KitchenTestCase;
+use Veykemtu\BridgeApi\Models\ApiCustomer;
 use Veykemtu\BridgeApi\Models\ControlAudit;
 use Veykemtu\BridgeApi\Models\DailyMenu;
 use Veykemtu\BridgeApi\Models\DailyMenuItem;
 use Veykemtu\BridgeApi\Models\DailyMenuStock;
 use Veykemtu\BridgeApi\Services\DailyMenuService;
 use Veykemtu\BridgeApi\Services\LocationGate;
+use Veykemtu\BridgeApi\Services\OrderFactory;
 use Veykemtu\BridgeApi\Support\BusinessTime;
 
 /**
@@ -276,16 +279,188 @@ class ControlMenuTest extends KitchenTestCase
         );
     }
 
-    public function test_gerekcesiz_yazma_reddedilir_ve_denetim_satiri_acilmaz(): void
+    // ── Gerekçe politikası ────────────────────────────────────────────────
+
+    /*
+     * TASLAK KURMAK BİR TAAHHÜT DEĞİL, YAYINLAMAK TAAHHÜTTÜR.
+     *
+     * Gerekçe yalnız müşteriye görünür hâle gelen ve geri alınması zor olan
+     * uçlarda isteniyor: `publish`, `unpublish`, `DELETE days`,
+     * `duplicate`. Gün kurmak/düzenlemek, kalem yazmak ve tavan yazmak
+     * gerekçesiz. Sütun sözleşmesi `docs/control/menu.md` "Uçlar"
+     * tablosundadır.
+     *
+     * Aşağıdaki testler politikanın İKİ YÜZÜNÜ birden sabitliyor: gevşeyen
+     * uçta yazma geçiyor, gevşemeyen uçta eski disiplin (422 + denetim
+     * satırı YOK) aynen duruyor. Yalnız biri yazılsaydı, ikinci turda
+     * "hepsini gevşetelim" demek serbest kalırdı.
+     */
+
+    /** Sahibin şikâyetinin tam karşılığı: kalem eklemek gerekçe istemiyor. */
+    public function test_gerekcesiz_kalem_eklenebilir(): void
     {
-        $this->signed('POST', self::BASE.'/days', [
-            'actor' => self::ACTOR,
-            'reason' => 'kısa',
-            'date' => BusinessTime::now()->addDay()->toDateString(),
+        $day = BusinessTime::now()->addDay()->startOfDay();
+        $this->makeDay($day, 18000, ['Tavuk Sote']);
+
+        $data = $this->signed(
+            'POST',
+            self::BASE.'/days/'.$day->toDateString().'/items',
+            $this->withoutReason(['menu_id' => $this->productId('Mercimek Çorbası')]),
+        )->assertOk()->json('data');
+
+        $this->assertCount(2, $data['items'], 'Kalem gerekçesiz eklenebilmeli.');
+    }
+
+    /**
+     * GEREKÇE SEYRELDİ, DENETİM İZİ SEYRELMEDİ.
+     *
+     * Satır yine açılıyor ve `actor` yine dolu — seyrelen yalnız "neden".
+     * `reason` sütunu `NOT NULL` (`veykemtu_control_audit`); "sorulmadı"
+     * boş dize olarak yazılıyor ve bunun için göç açılmadı.
+     */
+    public function test_gerekcesiz_yazma_da_denetim_satiri_acar(): void
+    {
+        $day = BusinessTime::now()->addDay()->startOfDay();
+        $menu = $this->makeDay($day, 18000, ['Tavuk Sote']);
+
+        $this->signed(
+            'POST',
+            self::BASE.'/days/'.$day->toDateString().'/items',
+            $this->withoutReason(['menu_id' => $this->productId('Mercimek Çorbası')]),
+        )->assertOk();
+
+        $audit = ControlAudit::query()->where('action', 'menu.item.create')->firstOrFail();
+
+        $this->assertSame(ControlAudit::RESULT_APPLIED, $audit->result);
+        $this->assertSame(self::ACTOR, $audit->actor, '`actor` her yazmada kalır.');
+        $this->assertSame('', (string) $audit->reason, 'Sorulmayan gerekçe boş dize yazılır, `null` değil.');
+        $this->assertSame((int) $menu->id, (int) $audit->target_id);
+    }
+
+    /**
+     * `actor` HER KOŞULDA ZORUNLU — gerekçe istemeyen uçta bile.
+     *
+     * "Kim yaptı" sorusu hiçbir yerde seyrelmiyor; gevşeyen tek alan
+     * `reason`. Aksi hâlde imzalı ama sahipsiz bir yazma mümkün olurdu.
+     */
+    public function test_aktorsuz_yazma_gerekcesiz_ucta_da_reddedilir(): void
+    {
+        $day = BusinessTime::now()->addDay()->startOfDay();
+        $menu = $this->makeDay($day, 18000, ['Tavuk Sote']);
+
+        $this->signed('POST', self::BASE.'/days/'.$day->toDateString().'/items', [
+            'menu_id' => $this->productId('Mercimek Çorbası'),
         ])->assertStatus(422);
 
-        // Geçerli bir istek hiç oluşmadı; denetim satırı da yok.
         $this->assertSame(0, ControlAudit::count());
+        $this->assertSame(1, DailyMenuItem::query()->where('daily_menu_id', $menu->id)->count());
+    }
+
+    /**
+     * KURU PROVA DAVRANIŞI DEĞİŞMEDİ.
+     *
+     * Gerekçenin gevşemesi kabuğun geri kalanına dokunmuyor: `would`
+     * dönüyor, `data` dönmüyor, hiçbir satır yazılmıyor ve iz `dry_run`
+     * olarak açılıyor.
+     */
+    public function test_gerekcesiz_ucta_kuru_prova_degismedi(): void
+    {
+        $day = BusinessTime::now()->addDay()->startOfDay();
+        $menu = $this->makeDay($day, 18000, ['Tavuk Sote']);
+
+        $body = $this->signed(
+            'POST',
+            self::BASE.'/days/'.$day->toDateString().'/items',
+            $this->withoutReason([
+                'menu_id' => $this->productId('Mercimek Çorbası'),
+                'dry_run' => true,
+            ]),
+        )->assertOk()->json();
+
+        $this->assertTrue($body['dry_run']);
+        $this->assertArrayNotHasKey('data', $body);
+        $this->assertSame('menu.item.create', $body['would']['action']);
+
+        $this->assertSame(1, DailyMenuItem::query()->where('daily_menu_id', $menu->id)->count());
+        $this->assertSame(
+            ControlAudit::RESULT_DRY_RUN,
+            ControlAudit::query()->where('action', 'menu.item.create')->firstOrFail()->result,
+        );
+    }
+
+    /**
+     * GEREKÇE ZORUNLU OLAN UÇTA ESKİ DİSİPLİN AYNEN DURUYOR:
+     * 422 **ve denetim satırı YOK** — geçerli bir istek hiç oluşmadı.
+     */
+    public function test_gerekcesiz_yayin_reddedilir_ve_denetim_satiri_acilmaz(): void
+    {
+        $day = BusinessTime::now()->addDay()->startOfDay();
+        $menu = $this->makeDay($day, 18000, ['Tavuk Sote']);
+
+        $this->signed(
+            'POST',
+            self::BASE.'/days/'.$day->toDateString().'/publish',
+            $this->withoutReason(),
+        )->assertStatus(422);
+
+        $this->assertSame(0, ControlAudit::count());
+        $this->assertSame(
+            DailyMenu::STATUS_DRAFT,
+            (string) $menu->refresh()->status,
+            'Reddedilen yayın isteği günü taslakta bırakmalı.',
+        );
+    }
+
+    /**
+     * Gerekçe İSTENEN uçta alt sınır hâlâ on karakter.
+     *
+     * Sınırın kendisi gevşemedi, yalnız SORULDUĞU YER azaldı: "ok" yazıp
+     * geçmek yayın gibi bir taahhütte hâlâ serbest değil.
+     */
+    public function test_yayin_gerekcesi_on_karakterin_altina_inemez(): void
+    {
+        $day = BusinessTime::now()->addDay()->startOfDay();
+        $this->makeDay($day, 18000, ['Tavuk Sote']);
+        $path = self::BASE.'/days/'.$day->toDateString().'/publish';
+
+        // Dokuz karakter — sınırın bir altı.
+        $this->signed('POST', $path, ['actor' => self::ACTOR, 'reason' => 'dokuz kar'])
+            ->assertStatus(422);
+
+        $this->assertSame(0, ControlAudit::count(), 'Reddedilen istek iz bırakmamalı.');
+
+        // On karakter — sınırın tam üstü.
+        $this->signed('POST', $path, ['actor' => self::ACTOR, 'reason' => 'on karakte'])
+            ->assertOk()
+            ->assertJsonPath('data.status', DailyMenu::STATUS_PUBLISHED);
+    }
+
+    /**
+     * Geri alınması zor DİĞER iki uç da gerekçe istiyor.
+     *
+     * `DELETE days` gün ve kalemlerini birlikte götürüyor; `duplicate`
+     * toplu çalışıyor ve hedefin üzerine yazabiliyor. Yayın uçları
+     * yukarıda ayrıca sınanıyor; bu test tabloyu tamamlıyor.
+     */
+    public function test_silme_ve_kopyalama_gerekce_ister(): void
+    {
+        $day = BusinessTime::now()->addDay()->startOfDay();
+        $this->makeDay($day, 18000, ['Tavuk Sote']);
+
+        $this->signed('DELETE', self::BASE.'/days/'.$day->toDateString(), $this->withoutReason())
+            ->assertStatus(422);
+
+        $this->signed(
+            'POST',
+            self::BASE.'/days/'.$day->toDateString().'/duplicate',
+            $this->withoutReason(['target_date' => $day->copy()->addDays(7)->toDateString()]),
+        )->assertStatus(422);
+
+        $this->assertSame(0, ControlAudit::count());
+        $this->assertNotNull(
+            DailyMenu::query()->whereDate('menu_date', $day->toDateString())->first(),
+            'Gerekçesiz silme isteği günü silmemeli.',
+        );
     }
 
     // ── Gün güncelleme ────────────────────────────────────────────────────
@@ -540,6 +715,205 @@ class ControlMenuTest extends KitchenTestCase
         )->assertOk()->assertJsonPath('data.deleted', true);
 
         $this->assertNull(DailyMenuItem::find($item->id));
+    }
+
+    // ── Kesim sonrası fiyat kapısı ────────────────────────────────────────
+
+    /**
+     * AÇIK BUYDU: kesim geçmiş bir güne KALEM fiyatı yazılabiliyordu.
+     *
+     * Gün düzeyindeki kapı yalnız `package_price_kurus`'u koruyordu. Kalem
+     * ucu açık kalınca müşteri o günün fiyatını görüp sipariş verdikten
+     * sonra fiyat değişebiliyordu: sipariş satırları kendi kopyalarını
+     * taşıdığı için geçmiş sipariş bozulmuyor, ama MENÜDE GÖRÜNEN fiyat ile
+     * O GÜN SATILAN fiyat ayrışıyor ve fark fatura/rapor tarafında
+     * açıklanamıyordu.
+     */
+    public function test_kesim_gecmis_gunde_kalem_fiyati_degistirilemez(): void
+    {
+        $menu = $this->pastCutoffDay();
+        $item = $menu->items()->first();
+        $item->update(['price_override_kurus' => 4500]);
+
+        $this->signed(
+            'PATCH',
+            self::BASE.'/days/'.$menu->menu_date->toDateString().'/items/'.$item->id,
+            $this->intent(['price_override_kurus' => 9900]),
+        )
+            ->assertStatus(409)
+            ->assertJsonPath('error.details.conflict', 'cutoff')
+            ->assertJsonPath('error.details.fields', ['price_override_kurus']);
+
+        $this->assertSame(
+            4500,
+            (int) $item->refresh()->price_override_kurus,
+            'Reddedilen istek hiçbir şey yazmamalı.',
+        );
+    }
+
+    /**
+     * `quantity` de kilitli: fiyatın ÇARPANI.
+     *
+     * Birim fiyat aynı kalsa bile porsiyon sayısı o günün menüde görünen
+     * tutarını (`DailyMenu::itemsTotalKurus()`) ve paketin fişe basılan
+     * porsiyonunu değiştirir — yalnız fiyatı kilitlemek aynı ayrışmayı
+     * çarpan üzerinden açık bırakırdı.
+     */
+    public function test_kesim_gecmis_gunde_kalem_porsiyonu_degistirilemez(): void
+    {
+        $menu = $this->pastCutoffDay();
+        $item = $menu->items()->first();
+
+        $this->signed(
+            'PATCH',
+            self::BASE.'/days/'.$menu->menu_date->toDateString().'/items/'.$item->id,
+            $this->intent(['quantity' => 2]),
+        )
+            ->assertStatus(409)
+            ->assertJsonPath('error.details.conflict', 'cutoff')
+            ->assertJsonPath('error.details.fields', ['quantity']);
+
+        $this->assertSame(1, (int) $item->refresh()->quantity);
+    }
+
+    /** Kesim geçmemişken kalem fiyatı serbestçe düzeltilir. */
+    public function test_kesim_gecmemis_gunde_kalem_fiyati_degistirilebilir(): void
+    {
+        $menu = $this->openCutoffDay();
+        $item = $menu->items()->first();
+
+        $data = $this->signed(
+            'PATCH',
+            self::BASE.'/days/'.$menu->menu_date->toDateString().'/items/'.$item->id,
+            $this->intent(['price_override_kurus' => 9900, 'quantity' => 2]),
+        )->assertOk()->json('data.items.0');
+
+        $this->assertSame(9900, $data['price_override_kurus']);
+        $this->assertSame(2, $data['quantity']);
+    }
+
+    /**
+     * KAPI YALNIZ PARAYI KORUYOR.
+     *
+     * Kesimden sonra mutfağın etiketi düzeltmesi, sırayı değiştirmesi ya da
+     * kalemi tek tek satıştan çıkarması meşru; tavan ise aynı gün
+     * `PUT .../stock` tarafından kapısız yazılıyor ve iki ucun farklı
+     * davranması sessiz bir tuzak olurdu.
+     */
+    public function test_kesim_sonrasi_kilitlenmeyen_alanlar_yazilabilir(): void
+    {
+        $menu = $this->pastCutoffDay();
+        $item = $menu->items()->first();
+
+        $data = $this->signed(
+            'PATCH',
+            self::BASE.'/days/'.$menu->menu_date->toDateString().'/items/'.$item->id,
+            $this->intent([
+                'label' => 'Tavuk Şiş',
+                'sort_order' => 40,
+                'sellable_alone' => false,
+                'is_required' => false,
+                'capacity' => 60,
+            ]),
+        )->assertOk()->json('data.items.0');
+
+        $this->assertSame('Tavuk Şiş', $data['label']);
+        $this->assertSame(40, $data['sort_order']);
+        $this->assertFalse($data['sellable_alone']);
+        $this->assertFalse($data['is_required']);
+        $this->assertSame(60, $data['capacity']);
+    }
+
+    /** Kalem EKLERKEN de o güne fiyat yazılamaz. */
+    public function test_kesim_gecmis_gune_fiyatli_kalem_eklenemez(): void
+    {
+        $menu = $this->pastCutoffDay();
+
+        $this->signed('POST', self::BASE.'/days/'.$menu->menu_date->toDateString().'/items', $this->intent([
+            'menu_id' => $this->productId('Mercimek Çorbası'),
+            'price_override_kurus' => 2500,
+        ]))
+            ->assertStatus(409)
+            ->assertJsonPath('error.details.conflict', 'cutoff');
+
+        $this->assertCount(1, $menu->refresh()->items, 'Kalem eklenmemeli.');
+    }
+
+    /**
+     * Fiyatsız ekleme serbest: o gün için sipariş kapandığından yeni satır
+     * satılmış hiçbir şeyi değiştirmiyor, kapalı olan yalnız PARA yazmak.
+     */
+    public function test_kesim_gecmis_gune_fiyatsiz_kalem_eklenebilir(): void
+    {
+        $menu = $this->pastCutoffDay();
+
+        $data = $this->signed(
+            'POST',
+            self::BASE.'/days/'.$menu->menu_date->toDateString().'/items',
+            $this->intent(['menu_id' => $this->productId('Mercimek Çorbası')]),
+        )->assertOk()->json('data');
+
+        $this->assertCount(2, $data['items']);
+    }
+
+    /**
+     * Kapı KURU PROVADA DA koşar (`docs/control/00-genel.md` §3.1):
+     * "kuru prova geçti" diyen ekran gerçek gönderimde patlamamalı.
+     */
+    public function test_kesim_kapisi_kuru_provada_da_kosar(): void
+    {
+        $menu = $this->pastCutoffDay();
+        $item = $menu->items()->first();
+
+        $this->signed(
+            'PATCH',
+            self::BASE.'/days/'.$menu->menu_date->toDateString().'/items/'.$item->id,
+            $this->intent(['price_override_kurus' => 9900, 'dry_run' => true]),
+        )->assertStatus(409)->assertJsonPath('error.details.conflict', 'cutoff');
+    }
+
+    /**
+     * SİLMEYE kesim kapısı KONMADI — karar `destroyItem()` yorumunda.
+     *
+     * Fişte olan kalemi `assertItemUnused()` zaten kilitliyor (paketin
+     * zorunlu bileşenleri `order_menus`'a gerçek `menu_id`'leriyle yazılır).
+     * Üstüne kesim kapısı koymak yalnız HİÇ SİPARİŞ ALMAMIŞ bir kalemin
+     * silinmesini engellerdi — yani "malzeme bitti, listeden çıkardık"ı.
+     */
+    public function test_kesim_gecmis_gunde_siparissiz_kalem_yine_silinebilir(): void
+    {
+        $menu = $this->pastCutoffDay();
+        $item = $menu->items()->first();
+
+        $this->signed(
+            'DELETE',
+            self::BASE.'/days/'.$menu->menu_date->toDateString().'/items/'.$item->id,
+            $this->intent(),
+        )->assertOk()->assertJsonPath('data.deleted', true);
+
+        $this->assertNull(DailyMenuItem::find($item->id));
+    }
+
+    /**
+     * GÜN düzeyindeki kapı yerinde duruyor ve hâlâ DAR.
+     *
+     * Kalem kapısı bu kapıyla ortak bir yardımcıya taşındı; gün ucunun
+     * davranışı değişmemeli: fiyat 409, başlık serbest.
+     */
+    public function test_kesim_gecmis_gunde_paket_fiyati_degistirilemez(): void
+    {
+        $menu = $this->pastCutoffDay();
+        $path = self::BASE.'/days/'.$menu->menu_date->toDateString();
+
+        $this->signed('PATCH', $path, $this->intent(['package_price_kurus' => 21000]))
+            ->assertStatus(409)
+            ->assertJsonPath('error.details.conflict', 'cutoff');
+
+        $this->assertSame(18000, (int) $menu->refresh()->package_price_kurus);
+
+        $this->signed('PATCH', $path, $this->intent(['title' => 'Ev Yemeği Menüsü (düzeltildi)']))
+            ->assertOk()
+            ->assertJsonPath('data.title', 'Ev Yemeği Menüsü (düzeltildi)');
     }
 
     // ── Stok ──────────────────────────────────────────────────────────────
@@ -847,6 +1221,21 @@ class ControlMenuTest extends KitchenTestCase
         return ['actor' => self::ACTOR, 'reason' => self::REASON, ...$extra];
     }
 
+    /**
+     * Gerekçesiz gövde — `actor` YİNE ZORUNLU.
+     *
+     * Kontrol Merkezi paneli gerekçe istemeyen uçlarda alanı hiç
+     * göndermeyecek; testlerin de tam olarak o gövdeyi kurması gerekiyor.
+     * `reason` boş dize ile göndermek başka bir şeyi sınardı.
+     *
+     * @param  array<string, mixed>  $extra
+     * @return array<string, mixed>
+     */
+    private function withoutReason(array $extra = []): array
+    {
+        return ['actor' => self::ACTOR, ...$extra];
+    }
+
     private function today(): string
     {
         return BusinessTime::now()->toDateString();
@@ -945,32 +1334,123 @@ class ControlMenuTest extends KitchenTestCase
     }
 
     /**
+     * Kesim saati KESİN GEÇMİŞ bir gün.
+     *
+     * DÜNKÜ servis günü + güne özel `08:00`. `OrderingWindow::cutoffFor()`
+     * günün kendi saatini vitrinin genel saatinin önüne aldığı için kesim
+     * anı DÜN 08:00'dir ve testin koştuğu saatten bağımsız olarak
+     * geçmiştir. Bugün kullanılsaydı test saate bağlanırdı: sabah 07:00'de
+     * koşan bir iş kesimi geçmemiş sayar ve paket sessizce yeşil kalırdı.
+     *
+     * Gün YAYINDA doğuyor — kapının koruduğu şey satılmış bir günün fiyatı.
+     */
+    private function pastCutoffDay(): DailyMenu
+    {
+        $menu = $this->makeDay(
+            BusinessTime::now()->subDay()->startOfDay(),
+            18000,
+            ['Tavuk Sote'],
+            DailyMenu::STATUS_PUBLISHED,
+        );
+
+        $menu->update(['cutoff_time' => '08:00']);
+
+        return $menu->refresh();
+    }
+
+    /** Kesimi HENÜZ GEÇMEMİŞ gün: yarın + `08:00`, her koşulda gelecekte. */
+    private function openCutoffDay(): DailyMenu
+    {
+        $menu = $this->makeDay(
+            BusinessTime::now()->addDay()->startOfDay(),
+            18000,
+            ['Tavuk Sote'],
+            DailyMenu::STATUS_PUBLISHED,
+        );
+
+        $menu->update(['cutoff_time' => '08:00']);
+
+        return $menu->refresh();
+    }
+
+    /**
      * O güne yayında bir menü kurar VE gerçek bir sipariş açar.
      *
-     * Sipariş `OrderFactory` üzerinden geçiyor: kilidin dayandığı
-     * `orders.bld_service_date` değerini o yazıyor. Elle insert edilseydi
-     * test, gerçekte var olmayan bir değişmezi doğrulardı.
+     * Sipariş `OrderFactory` üzerinden geçiyor, doğrudan tabloya
+     * yazılmıyor: kilidin dayandığı `orders.bld_service_date` değerini o
+     * yazıyor. Elle insert edilseydi test, gerçekte var olmayan bir
+     * değişmezi doğrulardı.
+     *
+     * NEDEN MÜŞTERİ UCU (`POST /api/orders`) DEĞİL, PANEL BAĞLAMI: müşteri
+     * bugünden en fazla `LocationGate::DEFAULT_LOOKAHEAD_DAYS` (7) gün
+     * ileriye sipariş verebiliyor ve `OrderingWindow::assertWithinWindow()`
+     * daha ilerisini "Bu tarih için henüz sipariş alınmıyor." ile
+     * reddediyor. Bu paketin kilitlediği günler bugün pencerenin içinde
+     * kalıyor, yani test BUGÜN KIRIK DEĞİL — ama pencere daralırsa ya da
+     * kilitli gün ileri taşınırsa sessizce kırılırdı. Kardeşi
+     * `AdminDailyMenuTest` tam bu yüzden kırılmıştı ve orada aynı düzeltme
+     * yapıldı.
+     *
+     * Gerçek hayatta da o güne sipariş yalnız yöneticinin telefon
+     * siparişinden doğar; `adminContext: true` pencereyi bilerek atlayan
+     * tek yol (`OrderFactory::create()` gerekçesi orada yazılı). Kural
+     * bilinçli olduğu için gevşetilmiyor, test gerçek doğuş yoluna
+     * taşınıyor.
      */
     private function makePublishedDayWithOrder(Carbon $date): DailyMenu
     {
         $menu = $this->makeDay($date, 25000, ['Tavuk Sote'], DailyMenu::STATUS_PUBLISHED);
 
-        $this->asCustomer()->postJson('/api/orders', [
-            'location_id' => $this->locationId(),
-            'items' => [['menu_id' => $this->packageMenuId(), 'quantity' => 1]],
-            'delivery_type' => 'pickup',
-            'payment_method' => 'cash',
-            'service_date' => $date->toDateString(),
-        ], self::HEADERS)->assertCreated();
+        app(OrderFactory::class)->create(
+            customer: $this->phoneCustomer(),
+            location: $this->location(),
+            deliveryType: Order::COLLECTION,
+            items: [['menu_id' => $this->packageMenuId(), 'quantity' => 1]],
+            address: null,
+            requestedAt: null,
+            paymentMethod: 'cash',
+            customerNote: null,
+            adminContext: true,
+            serviceDate: $date->toDateString(),
+        );
 
         $this->assertSame(
             1,
             DB::table('orders')->whereDate('bld_service_date', $date->toDateString())->count(),
+            'Kilidi kuran değişmez: `orders.bld_service_date` yazılmış olmalı.',
         );
 
-        // Müşteri belirteci sonraki panel isteklerine bulaşmasın.
-        $this->withHeaders(['Authorization' => '']);
-
         return $menu->refresh();
+    }
+
+    /**
+     * Panelden girilen siparişin müşterisi.
+     *
+     * `Admin\PhoneOrders::resolveCustomer()` ile aynı kalıp: telefonla
+     * arayanın kaydı panelde açılır, müşteri kayıt/oturum ucundan geçmez —
+     * zaten bu paketin sınadığı şey menü uçları, kimlik akışı değil.
+     * `invalid.` alan adı RFC 6761 ile ayrılmıştır, kazara posta gitmez.
+     *
+     * Aynı testte ikinci kez çağrılırsa mevcut kayıt dönüyor: `customers`
+     * tablosunda e-posta tekil ve ikinci `save()` kilitli gün kurulumunu
+     * konuyla ilgisiz bir tekillik hatasıyla düşürürdü.
+     */
+    private function phoneCustomer(): ApiCustomer
+    {
+        $existing = ApiCustomer::query()->firstWhere('email', 'tel-05001112233@bld.invalid');
+
+        if ($existing instanceof ApiCustomer) {
+            return $existing;
+        }
+
+        $customer = new ApiCustomer;
+        $customer->first_name = 'Telefon';
+        $customer->last_name = 'Müşterisi';
+        $customer->email = 'tel-05001112233@bld.invalid';
+        $customer->telephone = '05001112233';
+        $customer->status = true;
+        $customer->save();
+
+        return $customer;
     }
 }

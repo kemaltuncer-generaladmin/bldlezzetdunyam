@@ -544,5 +544,6 @@ class CustomerReceiptData {
 
   /// Boş dize de `null` sayılır: sunucu tarafında bir alan boş string
   /// olarak gelirse QR yerine kare bir gürültü basılırdı.
-  static bool _hasUrl(String? value) => value != null && value.trim().isNotEmpty;
+  static bool _hasUrl(String? value) =>
+      value != null && value.trim().isNotEmpty;
 }

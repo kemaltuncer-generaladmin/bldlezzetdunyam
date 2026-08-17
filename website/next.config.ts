@@ -112,10 +112,24 @@ const nextConfig: NextConfig = {
       { source: '/kalite-hijyen', destination: '/kurumsal#kalite', permanent: true },
       { source: '/calistigimiz-alanlar', destination: '/kurumsal#alanlar', permanent: true },
 
-      // Bilgi merkezi (blog) tamamen kaldırıldı. Yazıların kendi adresleri
-      // için hedef yok; kurumsal sayfa en yakın karşılık.
-      { source: '/bilgi-merkezi/:slug', destination: '/kurumsal', permanent: true },
-      { source: '/bilgi-merkezi', destination: '/kurumsal', permanent: true },
+      /*
+       * BİLGİ MERKEZİ YÖNLENDİRMELERİ SİLİNDİ — M4.
+       *
+       * `/bilgi-merkezi` ve `/bilgi-merkezi/:slug` v2.0'da `/kurumsal`'a
+       * **kalıcı (308)** yönlendiriliyordu. Blog geri geldi; yönlendirmeler
+       * kalksaydı bile bir kısım ziyaretçi için geri gelmiş SAYILMAZ:
+       *
+       * 308'i tarayıcı KALICI önbelleğe alır. Adresi yönlendirme yürürlükteyken
+       * bir kez açmış tarayıcı, bundan sonra sunucuya HİÇ SORMADAN
+       * `/kurumsal`'a gidecek. Aynı yola yeniden yayın yapmak bunu geri
+       * almıyor ve önbelleği uzaktan temizlemenin bir yolu yok — kullanıcının
+       * kendi tarayıcı verisini silmesi gerekir.
+       *
+       * Bu yüzden `/kurumsal` sayfasında bilgi merkezine BELİRGİN bir
+       * bağlantı duruyor: etkilenen ziyaretçi tam olarak oraya düşüyor ve
+       * geri dönüş yolu o bağlantı. Arama motorları ise yeni 200 yanıtını
+       * bir sonraki taramada görüp dizini düzeltir.
+       */
 
       /*
        * BİREYSEL KAYIT → KURUMSAL KAYIT.

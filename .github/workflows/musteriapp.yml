@@ -37,6 +37,34 @@ jobs:
           fi
           echo "Tüm çağrılar api_client üzerinden."
 
+      - name: Üretilen l10n dosyaları güncel olmalı
+        working-directory: musteriapp
+        # `app_tr.arb`'ye anahtar eklenip `app_localizations*.dart`
+        # yenilenmezse `flutter analyze` "böyle bir getter yok" hatalarıyla
+        # düşer. Üretilen dosyalar bilerek commitleniyor (AGENTS.md §4 —
+        # klonlayan ajan üreteci koşmadan derleyebilmeli), dolayısıyla
+        # bayatlamaları sessiz ve tekrarlayan bir ihtimal.
+        #
+        # KAPI BURADA, ANALİZDE DEĞİL: bu adım üreteci koşturduğu için
+        # kendisinden sonraki `flutter analyze` bayat dosyayla bile GEÇERDİ —
+        # CI yeşil yanar, eksik olan yalnızca depoya bakan insanda patlardı.
+        # Fark denetimi o boşluğu kapatıyor: üretilen çıktı commitlenenden
+        # ayrıldığı anda iş burada durur.
+        #
+        # `git add -N`: yeni bir dil eklenirse üreteç yepyeni bir dosya
+        # yazar; `git diff` izlenmeyen dosyayı görmez ve kapı sessizce
+        # atlanırdı. `--intent-to-add` onları farka dahil eder.
+        #
+        # Üreteç deterministik — çıktıda tarih/sürüm damgası yok — bu yüzden
+        # fark yalnızca gerçekten bayat dosyada oluşur, gürültü üretmez.
+        run: |
+          flutter gen-l10n
+          git add --intent-to-add lib/src/l10n/
+          if ! git diff --exit-code lib/src/l10n/; then
+            echo "::error::Üretilen l10n dosyaları bayat. 'flutter gen-l10n' koşun ve lib/src/l10n/ altındaki değişiklikleri commitleyin."
+            exit 1
+          fi
+
       - name: Analiz (sıfır uyarı)
         working-directory: musteriapp
         run: flutter analyze

@@ -74,8 +74,7 @@ String fingerprint(String kind, String message, List<String> stackFrames) {
 }
 
 /// Boşlukları tekleştirir ve kırpar.
-String _normalize(String value) =>
-    value.replaceAll(_whitespaceRun, ' ').trim();
+String _normalize(String value) => value.replaceAll(_whitespaceRun, ' ').trim();
 
 /// FNV-1a, 64 bit.
 ///

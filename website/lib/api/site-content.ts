@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { cache } from 'react';
+import DOMPurify from 'isomorphic-dompurify';
 import { z } from 'zod';
 import { apiFetch } from './client';
 import { resolveIcon } from '@/lib/lucide-icon';
@@ -14,12 +15,14 @@ import {
   VISION,
 } from '@/content/company';
 import { MENU_SOLUTIONS, SEASONAL_APPROACH } from '@/content/menus';
+import { POSTS } from '@/content/posts';
 import { ALLERGEN_APPROACH, CERTIFICATIONS, QUALITY_CHAIN } from '@/content/quality';
 import { SECTORS } from '@/content/sectors';
 import { SERVICES } from '@/content/services';
 import { BRAND, CONTACT, LOGO, SOCIAL } from '@/content/site';
 import type { Differentiator, FaqItem, ProcessStep, Value } from '@/content/company';
 import type { MenuCourse, MenuSolution } from '@/content/menus';
+import type { Post } from '@/content/posts';
 import type { QualityPrinciple } from '@/content/quality';
 import type { Sector } from '@/content/sectors';
 import type { Service } from '@/content/services';
@@ -118,15 +121,18 @@ export interface SiteMenus {
 /**
  * Hizmet ve yazı gövdeleri.
  *
- * `bodyHtml` yalnızca panelden gelir; yedek içerikte `null`'dır.
+ * `bodyHtml` yalnızca panelden gelir; yedek içerikte `null`'dır ve buraya
+ * ulaştığında **temizlenmiş** olur (bkz. `sanitizeHtml`).
  *
- * BLOG (`posts`) v2.0'DA KALDIRILDI (W-08). Uç hâlâ `posts` döndürüyor —
- * sözleşme eklemeli, alan silinmez — ama site onu ne doğruluyor ne de
- * gösteriyor: zod nesnesi katı değil, tanımsız alanları sessizce atıyor.
- * Yazıları geri getirmek isteyen `postSchema` + `mergePosts` + yedek
- * dosyasını birlikte geri koymalı; git geçmişinde duruyorlar.
+ * BLOG (`posts`) M4'TE GERİ GELDİ. v2.0'da (W-08) sözleşmeden değil yalnızca
+ * SİTEDEN kaldırılmıştı; uç `posts` döndürmeye devam ediyordu ve zod nesnesi
+ * katı olmadığı için alan sessizce atılıyordu. Şimdi yeniden doğrulanıyor,
+ * temizleniyor ve `/bilgi-merkezi` altında yayınlanıyor.
  */
 export type SiteService = Service & { readonly bodyHtml: Nullable<string> };
+
+/** Bilgi merkezi yazısı. Gövde HTML'i panelden gelir ve temizlenmiştir. */
+export type SitePost = Post & { readonly bodyHtml: Nullable<string> };
 
 export interface SiteContent {
   readonly brand: SiteBrand;
@@ -138,9 +144,119 @@ export interface SiteContent {
   readonly quality: SiteQuality;
   readonly services: readonly SiteService[];
   /** Yayın tarihine göre yeniden eskiye sıralı. */
+  readonly posts: readonly SitePost[];
   readonly updatedAt: Nullable<string>;
   /** İçeriğin API'den mi yedekten mi geldiği — tanılama için, arayüz kullanmaz. */
   readonly origin: 'api' | 'fallback';
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   1.5. Serbest HTML temizliği
+
+   Panelden gelen tek serbest alan `body_html` (hizmet gövdesi ve yazı
+   gövdesi). Sunucu onu zaten temizliyor — ama tek bir temizleyici hatasının
+   bedeli burada ağır.
+
+   ## Neden ikinci bir temizlik?
+
+   Pazarlama sitesi ile sipariş akışı **aynı köken**. Oturum çerezi
+   (`bld_token`) `httpOnly`, yani sayfaya sızan bir betik onu OKUYAMAZ; buraya
+   bakıp "risk yok" demek kolay. Okuyamaması gerekmiyor: aynı kökendeki bir
+   betik, ziyaretçinin oturumuyla `addToCartAction` / `createOrderAction` gibi
+   sunucu eylemlerini çağırabilir. Yani depolanmış bir XSS'in bedeli "çerez
+   çalındı" değil, **müşterinin adına sipariş verildi**. Sunucunun temizleyici
+   sürümünde bir gerileme olması, bizim tarafımızda sipariş verilebilmesine yol
+   açmamalı.
+
+   ## Neden burada, bileşende değil?
+
+   Temizlik ZOD DÖNÜŞÜMÜNDE, tek çağrı yerinde yapılıyor. Sonuç ISR
+   önbelleğine giriyor: yazı başına en fazla beş dakikada bir çalışıyor,
+   render başına maliyeti sıfır. Bileşende yapılsaydı her istek için yeniden
+   koşar ve — asıl önemlisi — `dangerouslySetInnerHTML` yazan yeni bir
+   bileşenin temizliği atlaması mümkün olurdu.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/** Yalnızca metin biçimlendirmesi. `script`, `iframe`, `style` listede yok. */
+const ALLOWED_TAGS = [
+  'p', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'strong', 'em', 'a', 'img',
+  'blockquote', 'figure', 'figcaption', 'br', 'hr',
+  'table', 'thead', 'tbody', 'tr', 'th', 'td',
+];
+
+/**
+ * İzinli öznitelikler.
+ *
+ * `target` LİSTEDE YOK ve bilinçli: `target="_blank"` açılan sayfaya
+ * `window.opener` verir. `on*` ve `style` de yok — biri betik çalıştırır,
+ * öteki sayfanın üstüne görünmez bir katman serip tıklamayı çalar.
+ */
+const ALLOWED_ATTR = ['href', 'title', 'alt', 'src', 'width', 'height'];
+
+/** Bağlantı ve görsel adreslerinde kabul edilen tek şema. */
+const HTTPS_ONLY = /^https:\/\//i;
+
+/**
+ * Kancalar DOMPurify örneğine GLOBAL bağlanır; iki kez bağlanmasınlar diye
+ * `globalThis` üzerinde işaretleniyor. Modül düzeyinde bir `let` yetmezdi:
+ * geliştirmede sıcak yeniden yükleme modülü yeniden değerlendirir, DOMPurify
+ * örneği ise aynı kalır.
+ */
+const HOOK_FLAG = Symbol.for('bld.site-content.dompurify-hooks');
+type HookRegistry = typeof globalThis & { [HOOK_FLAG]?: true };
+
+function installHooks(): void {
+  const registry = globalThis as HookRegistry;
+  if (registry[HOOK_FLAG]) return;
+  registry[HOOK_FLAG] = true;
+
+  /*
+   * ŞEMA DENETİMİ KANCADA, `ALLOWED_URI_REGEXP` İLE DEĞİL.
+   *
+   * O ayar cazip görünüyor ama DOMPurify onu URI olmayan özniteliklere de
+   * uyguluyor: `https://` zorlandığında `<img width="10">` de düşüyor, çünkü
+   * "10" kalıba uymuyor. Denendi ve ölçüldü.
+   *
+   * `data:` ayrıca özel bir durum: DOMPurify `img`/`video`/`audio` için
+   * `data:` adreslerini varsayılan olarak GEÇİRİR. `data:` bir sayfayı
+   * ağa hiç çıkmadan taşıyabilir; izin listesi bu yüzden açıkça yalnızca
+   * `https:` diyor ve `javascript:`, `data:` ile birlikte düşüyor.
+   */
+  DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+    if (typeof (node as Element).getAttribute !== 'function') return;
+    const element = node as Element;
+
+    for (const attribute of ['src', 'href']) {
+      const value = element.getAttribute(attribute);
+      if (value === null) continue;
+      if (HTTPS_ONLY.test(value.trim())) continue;
+
+      element.removeAttribute(attribute);
+      // Adresi olmayan bir görsel kırık ikon çizer; düğümü tamamen atıyoruz.
+      if (element.tagName === 'IMG') element.remove();
+    }
+
+    /*
+     * Dış bağlantı sayılmayan bağlantı kalmıyor (izinli tek şema `https:`,
+     * yani hepsi mutlak adres), bu yüzden `rel` koşulsuz basılıyor.
+     * `noopener` yeni sekmeye açılma ihtimaline karşı, `nofollow` ise
+     * panelden girilen bir yazının site otoritesini dışarı taşımaması için.
+     */
+    if (element.tagName === 'A' && element.hasAttribute('href')) {
+      element.setAttribute('rel', 'nofollow noopener');
+    }
+  });
+}
+
+/** Panelden gelen serbest HTML'i izin listesine indirger. */
+function sanitizeHtml(value: string): string {
+  installHooks();
+  return DOMPurify.sanitize(value, {
+    ALLOWED_TAGS,
+    ALLOWED_ATTR,
+    ALLOW_DATA_ATTR: false,
+    ALLOW_ARIA_ATTR: false,
+  });
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -247,18 +363,47 @@ const qualitySchema = z.object({
     .nullish(),
 });
 
+/**
+ * Serbest HTML alanı — doğrulamanın parçası olarak TEMİZLENİR.
+ *
+ * `.transform()` burada bilinçli: temizliğin şemadan çıkan tipe işlemesi,
+ * "ham gövde" diye bir değerin bu dosyanın dışına hiç çıkmaması demek.
+ */
+const richTextSchema = z
+  .string()
+  .nullish()
+  .transform((value) => (value == null ? null : sanitizeHtml(value)));
+
 const serviceSchema = z.object({
   slug: z.string(),
   title: z.string(),
   summary: z.string(),
   intro: z.string(),
   icon: z.string().nullish(),
-  body_html: z.string().nullish(),
+  body_html: richTextSchema,
   audience: z.array(z.string()).nullish(),
   how_it_works: z.array(titleBodySchema).nullish(),
   benefits: z.array(z.string()).nullish(),
   menu_planning: z.string().nullish(),
   quote_needs: z.array(z.string()).nullish(),
+});
+
+/**
+ * Bilgi merkezi yazısı.
+ *
+ * `slug`, `title` ve `published_at` ZORUNLU: adresi, başlığı ya da tarihi
+ * olmayan bir kayıt yayınlanabilir bir yazı değil. Eksik gelen kayıt kendi
+ * başına düşer (`z.array(...).catch(null)` bütün diziyi değil), böylece
+ * yarım bir taslak öbür yazıları da götürmez.
+ */
+const postSchema = z.object({
+  slug: z.string(),
+  title: z.string(),
+  category: z.string().nullish(),
+  description: z.string().nullish(),
+  published_at: z.string(),
+  reading_minutes: z.coerce.number().int().positive().nullish(),
+  body_html: richTextSchema,
 });
 
 const siteContentSchema = z.object({
@@ -270,6 +415,7 @@ const siteContentSchema = z.object({
   menus: menusSchema.nullish().catch(null),
   quality: qualitySchema.nullish().catch(null),
   services: z.array(serviceSchema).nullish().catch(null),
+  posts: z.array(postSchema).nullish().catch(null),
   updated_at: z.string().nullish().catch(null),
 });
 
@@ -320,6 +466,13 @@ const FALLBACK_CONTENT: SiteContent = {
     certifications: CERTIFICATIONS,
   },
   services: SERVICES.map((service) => ({ ...service, bodyHtml: null })),
+  /*
+   * `POSTS` BİLEREK BOŞ — gerekçe `content/posts.ts` başlığında. Özetle:
+   * marka/iletişim için sabit bir yedek doğrudur (kesinti boyunca
+   * değişmezler), yazı için değildir; panelde silinmiş bir yazıyı repodan
+   * yeniden yayınlamak içerik yalanıdır ve kesintiden uzun yaşar.
+   */
+  posts: POSTS.map((post) => ({ ...post, bodyHtml: null })),
   updatedAt: null,
   origin: 'fallback',
 };
@@ -513,6 +666,39 @@ function mergeServices(input: SiteContentResponse['services']): readonly SiteSer
   );
 }
 
+/**
+ * Yazıları birleştirir ve **yeniden eskiye** sıralar.
+ *
+ * `mapList` KULLANILMIYOR, yani boş bir `posts` dizisi yedeğe DÜŞMEZ. Yedek
+ * zaten boş olduğu için sonuç bugün aynı; kural yine de açıkça yazılıyor:
+ * "panelde yazı yok" geçerli ve olması gereken cevaptır. Sertifikalarda da
+ * aynı karar var (bkz. `mergeQuality`) ve sebebi aynı: var olmayan bir şeyi
+ * göstermek, göstermemekten pahalı.
+ *
+ * Sıralama BURADA yapılıyor, sayfada değil: iki sayfa (liste + detaydaki
+ * "diğer yazılar") aynı sırayı bekliyor ve panelin gönderdiği sıraya
+ * güvenmek, arşivin bir gün karışık çıkması demek.
+ */
+function mergePosts(input: SiteContentResponse['posts']): readonly SitePost[] {
+  if (!input) return FALLBACK_CONTENT.posts;
+
+  return input
+    .map(
+      (post): SitePost => ({
+        slug: post.slug,
+        title: post.title,
+        category: text(post.category, 'Bilgi merkezi'),
+        description: text(post.description, ''),
+        publishedAt: post.published_at,
+        // Panelde boş bırakılan süre için tahmin uydurmuyoruz; 1 dakika
+        // "kısa" demenin en dürüst hâli ve kart düzeni bozulmuyor.
+        readingMinutes: post.reading_minutes ?? 1,
+        bodyHtml: optionalText(post.body_html, null),
+      }),
+    )
+    .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : a.publishedAt > b.publishedAt ? -1 : 0));
+}
+
 function merge(input: SiteContentResponse): SiteContent {
   return {
     brand: mergeBrand(input.brand),
@@ -538,6 +724,7 @@ function merge(input: SiteContentResponse): SiteContent {
     menus: mergeMenus(input.menus),
     quality: mergeQuality(input.quality),
     services: mergeServices(input.services),
+    posts: mergePosts(input.posts),
     updatedAt: optionalText(input.updated_at, null),
     origin: 'api',
   };
@@ -615,4 +802,8 @@ export function findService(
   slug: string,
 ): SiteService | undefined {
   return services.find((service) => service.slug === slug);
+}
+
+export function findPost(posts: readonly SitePost[], slug: string): SitePost | undefined {
+  return posts.find((post) => post.slug === slug);
 }

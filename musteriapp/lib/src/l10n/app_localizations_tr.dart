@@ -1047,4 +1047,290 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get dailyMenuNoServiceShort => 'Servis yok';
+
+  @override
+  String get subscriptionPaymentTitle => 'Abonelik ödemesi';
+
+  @override
+  String get subscriptionPaymentPeriod => 'Dönem';
+
+  @override
+  String get subscriptionPaymentAmount => 'Dönem tutarı';
+
+  @override
+  String get subscriptionPaymentServerCalculates =>
+      'Tutarı sunucu hesaplar; atladığınız günler düşülür.';
+
+  @override
+  String subscriptionPaymentDueDate(String date) {
+    return 'Son ödeme: $date';
+  }
+
+  @override
+  String get subscriptionPaymentNumber => 'Ödeme no';
+
+  @override
+  String get subscriptionPaymentIntro =>
+      'Dönem tutarı peşin tahsil edilir. Ödemeyi başlattığınızda bankanız ek bir doğrulama isteyebilir.';
+
+  @override
+  String get subscriptionPaymentStart => 'Ödemeyi başlat';
+
+  @override
+  String get subscriptionPaymentRetry => 'Ödemeyi yeniden dene';
+
+  @override
+  String get subscriptionPaymentStarting => 'Ödeme başlatılıyor…';
+
+  @override
+  String get subscriptionPaymentNotReady =>
+      'Bu abonelik henüz ödemeye hazır değil. Fiyat girildikten sonra dönem tutarı burada görünecek.';
+
+  @override
+  String get subscriptionPaymentCancelled =>
+      'İptal edilmiş abonelik için ödeme alınmaz.';
+
+  @override
+  String get subscriptionPaymentAlreadyPaid => 'Bu dönem ödendi.';
+
+  @override
+  String get subscriptionPaymentOtpTitle => 'SMS kodunu girin';
+
+  @override
+  String get subscriptionPaymentOtpBody =>
+      'Bankanız kayıtlı telefonunuza bir doğrulama kodu gönderdi. Kodu biz üretmiyoruz, yalnızca iletiyoruz.';
+
+  @override
+  String get subscriptionPaymentOtpLabel => 'Doğrulama kodu';
+
+  @override
+  String get subscriptionPaymentOtpLength =>
+      'Kod 4 ile 8 hane arasında olmalı.';
+
+  @override
+  String get subscriptionPaymentOtpSubmit => 'Onayla';
+
+  @override
+  String get subscriptionPaymentOtpAttemptWarning =>
+      'Her yanlış deneme hakkınızdan düşer.';
+
+  @override
+  String get subscriptionPaymentVerifying => 'Kod doğrulanıyor…';
+
+  @override
+  String get subscriptionPaymentThreeDsTitle =>
+      '3-D Secure bu sürümde açık değil';
+
+  @override
+  String get subscriptionPaymentThreeDsBody =>
+      'Bankanızın doğrulama sayfası, ödeme sağlayıcısı bağlandığında bu ekranda açılacak. Ödeme kaydınız duruyor; sonucunu izliyoruz.';
+
+  @override
+  String get subscriptionPaymentWatching => 'Sonuç izleniyor…';
+
+  @override
+  String subscriptionPaymentPollProgress(int attempt, int total) {
+    return 'Sonuç soruluyor ($attempt/$total)';
+  }
+
+  @override
+  String get subscriptionPaymentPollExhausted =>
+      'Sonuç bu sürede gelmedi. Ekranı aşağı çekerek yenileyebilirsiniz.';
+
+  @override
+  String get subscriptionPaymentUnsettled =>
+      'Ödeme kesinleşmedi. Ekranı aşağı çekerek yenileyin.';
+
+  @override
+  String get subscriptionPaymentUnsupportedStep =>
+      'Bu ödeme adımı için uygulamayı güncellemeniz gerekiyor.';
+
+  @override
+  String get subscriptionPaymentDeclined => 'Ödeme tamamlanamadı.';
+
+  @override
+  String get subscriptionPaymentSucceededTitle => 'Ödeme alındı';
+
+  @override
+  String get subscriptionPaymentSucceededBody =>
+      'Bu dönemin tutarı tahsil edildi. Aboneliğiniz kaldığı yerden sürüyor.';
+
+  @override
+  String get subscriptionPaymentPaidAt => 'Ödeme anı';
+
+  @override
+  String get subscriptionPaymentReceipt => 'Makbuz';
+
+  @override
+  String get subscriptionPaymentReceiptNote =>
+      'Bu makbuzun mali değeri yoktur; fatura ayrıca düzenlenir.';
+
+  @override
+  String get subscriptionPaymentBack => 'Aboneliğe dön';
+
+  @override
+  String get subscriptionPaymentRefresh => 'Durumu yenile';
+
+  @override
+  String get checkoutPaymentStepOtp =>
+      'Ödemeniz banka doğrulaması bekliyor. Siparişiniz oluştu; ödeme durumunu bu ekrandan izleyebilirsiniz.';
+
+  @override
+  String get checkoutPaymentStepThreeDs =>
+      'Ödemeniz için banka doğrulaması gerekiyor. Doğrulama sayfası bu sürümde açılmıyor; siparişiniz oluştu ve ödeme durumunu bu ekrandan izleyebilirsiniz.';
+
+  @override
+  String get checkoutPaymentStepUnsupported =>
+      'Ödeme bir sonraki adımı bekliyor. Uygulamayı güncelledikten sonra ödemeyi tamamlayabilirsiniz.';
+
+  @override
+  String get otpFieldLabel => 'Onay kodu';
+
+  @override
+  String get validationOtpCode => 'Onay kodu 6 rakamdan oluşur.';
+
+  @override
+  String get contractTitle => 'Abonelik sözleşmesi';
+
+  @override
+  String contractVersion(int version) {
+    return 'Sürüm $version';
+  }
+
+  @override
+  String get contractStatusAwaiting => 'Onay bekliyor';
+
+  @override
+  String get contractStatusApproved => 'Onaylandı';
+
+  @override
+  String get contractStatusExpired => 'Süresi doldu';
+
+  @override
+  String get contractStatusCancelled => 'Geçersiz';
+
+  @override
+  String get contractNotFoundTitle => 'Sözleşme bulunamadı';
+
+  @override
+  String get contractNotFoundBody =>
+      'Bu bağlantı tanınmadı. SMS ile gelen bağlantıyı olduğu gibi açtığınızdan emin olun.';
+
+  @override
+  String get contractApprovedTitle => 'Bu sözleşme onaylandı';
+
+  @override
+  String get contractApprovedBody =>
+      'Onayınız kayıtlara geçti. Yeniden onaylamanız gerekmiyor.';
+
+  @override
+  String contractApprovedAt(String moment) {
+    return 'Onayınız $moment tarihinde kayıtlara geçti. Yeniden onaylamanız gerekmiyor.';
+  }
+
+  @override
+  String get contractExpiredTitle => 'Bağlantının süresi doldu';
+
+  @override
+  String get contractExpiredBody =>
+      'Sözleşmeyi bu bağlantıdan onaylayamazsınız. Bizimle iletişime geçip yeni bir onay bağlantısı isteyin.';
+
+  @override
+  String get contractCancelledTitle => 'Bu sözleşme geçersiz';
+
+  @override
+  String get contractCancelledBody =>
+      'Sözleşme iptal edildi ya da yerine yeni bir sürüm hazırlandı. Geçerli sürüm için gönderilen son bağlantıyı kullanın.';
+
+  @override
+  String get contractMonthlyEstimate => 'Aylık tahmini tutar';
+
+  @override
+  String get contractQuantity => 'Günlük porsiyon';
+
+  @override
+  String get contractBodyTitle => 'Sözleşme metni';
+
+  @override
+  String get contractEmptyBody => 'Sözleşme metni boş görünüyor.';
+
+  @override
+  String get contractApproveTitle => 'Sözleşmeyi onaylayın';
+
+  @override
+  String contractCodeToPhone(String phone) {
+    return 'Onay kodunu $phone numarasına göndereceğiz.';
+  }
+
+  @override
+  String get contractCodeToRegisteredPhone =>
+      'Onay kodunu sözleşmede kayıtlı cep telefonunuza göndereceğiz.';
+
+  @override
+  String get contractCodeSent => 'Onay kodunu gönderdik.';
+
+  @override
+  String get contractSendCode => 'Onay kodu gönder';
+
+  @override
+  String get contractApprove => 'Sözleşmeyi onayla';
+
+  @override
+  String get contractResend => 'Kodu yeniden gönder';
+
+  @override
+  String get contractIrreversible =>
+      'Onaylamak, sözleşmeyi kabul ettiğiniz anlamına gelir ve geri alınamaz. Vazgeçmek isterseniz aboneliğinizi iptal edebilirsiniz.';
+
+  @override
+  String contractExpiresAt(String moment) {
+    return 'Bu bağlantı $moment tarihine kadar geçerli.';
+  }
+
+  @override
+  String get subscriptionSkipTitle => 'Gün atlama';
+
+  @override
+  String get subscriptionSkipHelp =>
+      'Gelmeyeceğiniz günü kapatın; o günün porsiyonu serbest satışa döner. Kesim saati geçen gün değiştirilemez.';
+
+  @override
+  String get subscriptionSkipStateScheduled => 'Teslimat var';
+
+  @override
+  String get subscriptionSkipStateSkipped => 'Atlandı';
+
+  @override
+  String get subscriptionSkipStateLocked => 'Kesim geçti';
+
+  @override
+  String get subscriptionSkipStateOffDay => 'Servis yok';
+
+  @override
+  String get subscriptionSkipStateOutside => 'Dönem dışı';
+
+  @override
+  String subscriptionSkipDone(String date) {
+    return '$date atlandı. Porsiyon serbest satışa döndü.';
+  }
+
+  @override
+  String subscriptionSkipUndone(String date) {
+    return '$date yeniden teslim edilecek.';
+  }
+
+  @override
+  String get announcementSeverityInfo => 'Bilgi';
+
+  @override
+  String get announcementSeverityWarning => 'Uyarı';
+
+  @override
+  String get announcementSeverityCritical => 'Önemli';
+
+  @override
+  String get announcementDismiss => 'Duyuruyu kapat';
+
+  @override
+  String get announcementLinkFailed => 'Bağlantı açılamadı.';
 }

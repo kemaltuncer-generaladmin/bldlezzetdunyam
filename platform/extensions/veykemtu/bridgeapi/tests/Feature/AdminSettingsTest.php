@@ -18,6 +18,7 @@ use Veykemtu\BridgeApi\Admin\BldSettings;
 use Veykemtu\BridgeApi\Admin\LiraField;
 use Veykemtu\BridgeApi\Admin\OperationsSnapshot;
 use Veykemtu\BridgeApi\Admin\SettingsRepository;
+use Veykemtu\BridgeApi\Http\Middleware\RequireAdminPanel;
 use Veykemtu\BridgeApi\Models\ClosedDay;
 use Veykemtu\BridgeApi\Models\DailyMenu;
 use Veykemtu\BridgeApi\Models\KitchenDevice;
@@ -55,6 +56,15 @@ class AdminSettingsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        /*
+         * Panel şalteri TEST İÇİN AÇILIYOR — F4. `/admin/*` üretimde kapalı
+         * (`RequireAdminPanel`, varsayılan kapalı): tek yönetim yüzeyi
+         * Kontrol Merkezi. Panel yedek olarak duruyor ve yedeğin değeri,
+         * ihtiyaç anında çalıştığının bilinmesinde. Kapatmanın kendi testi
+         * `AdminPanelClosedTest`.
+         */
+        config([RequireAdminPanel::CONFIG_KEY => true]);
 
         $this->artisan('veykemtu:setup');
     }

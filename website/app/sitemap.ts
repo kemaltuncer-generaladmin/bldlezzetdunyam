@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { SITE_URL } from '@/lib/api/client';
+import { fetchSiteContent } from '@/lib/api/site-content';
 
 export const revalidate = 3600;
 
@@ -20,11 +21,19 @@ export const revalidate = 3600;
  * Gün parametreli menü adresleri (`/menu?gun=…`) de HARİTADA YOK: hepsi
  * `/menu`ye canonical veriyor, yani ayrı sayfa değiller.
  *
- * Harita artık API'ye HİÇ bağlı değil — sipariş altyapısı kapalıyken de
- * doğru üretiliyor.
+ * BLOG GERİ GELDİ — M4, ve haritaya YAZI ADRESLERİ de giriyor. Bu, yukarıdaki
+ * "haritayı API'den ayırma" kararının tek istisnası ve sebebi şu: bir yazının
+ * VAR OLUP OLMADIĞINI yalnızca panel biliyor. Sabit bir liste yazsaydık,
+ * panelden silinen yazı haritada kalır ve arama motoru 404'e gönderilirdi.
+ *
+ * API kapalıyken `fetchSiteContent` yedeğe düşüyor ve yedek yazı listesi
+ * BİLEREK BOŞ (`content/posts.ts`); yani kesintide harita yazısız üretilir.
+ * Bu doğru davranış: olmadığından emin olmadığımız bir adresi ilan etmiyoruz.
+ * Sabit sayfalar her hâlükârda listede — onlar API'ye bağlı değil.
  */
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
+  const { posts } = await fetchSiteContent();
 
   /*
    * Öncelik sırası ziyaret niyetini yansıtıyor: menü her gün değişiyor ve
@@ -37,6 +46,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/teklif-al`, lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
     { url: `${SITE_URL}/kurumsal`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
     {
+      url: `${SITE_URL}/bilgi-merkezi`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.6,
+    },
+    {
       url: `${SITE_URL}/kurumsal-kayit`,
       lastModified: now,
       changeFrequency: 'monthly',
@@ -44,6 +59,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     { url: `${SITE_URL}/iletisim`, lastModified: now, changeFrequency: 'yearly', priority: 0.5 },
   ];
+
+  /*
+   * `lastModified` yayın günü: yazının kendi tarihi. `now` yazılsaydı harita
+   * her saat "hepsi bugün değişti" derdi ve arama motoru bir süre sonra bu
+   * alana hiç bakmaz olurdu.
+   */
+  const postEntries: MetadataRoute.Sitemap = posts.map((post) => ({
+    url: `${SITE_URL}/bilgi-merkezi/${post.slug}`,
+    lastModified: new Date(post.publishedAt),
+    changeFrequency: 'yearly',
+    priority: 0.4,
+  }));
 
   const legalEntries: MetadataRoute.Sitemap = [
     '/kvkk',
@@ -57,5 +84,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.2,
   }));
 
-  return [...staticEntries, ...legalEntries];
+  return [...staticEntries, ...postEntries, ...legalEntries];
 }

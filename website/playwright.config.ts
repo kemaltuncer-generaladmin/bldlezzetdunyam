@@ -49,8 +49,22 @@ export default defineConfig({
    * üretimden farklı ele alıyor; W-08'in 308 yönlendirmelerini `dev`'de
    * test etmek yanlış güven verirdi.
    */
+  /*
+   * MOCK, DERLEMEDEN ÖNCE AÇILIYOR.
+   *
+   * Ana sayfa statik/ISR üretiliyor: "bugün mutfakta" bandı derleme anındaki
+   * menü durumuyla HTML'e gömülüyor. Seed'deki vitrinin kesim saati 08:00,
+   * yani o saatten sonra (ya da hafta sonu) yapılan bir derleme, bandı
+   * "Bugüne sipariş alınmıyor" diye üretiyor ve önbellek penceresi boyunca
+   * öyle servis ediyor. Testin sonradan mock'u açması o HTML'i geri
+   * getirmiyordu — süit derlemeyi izleyen ilk koşumda kırılıyor, ikinci
+   * koşumda (önbellek tazelendiği için) geçiyordu.
+   *
+   * Aynı tarif testlerin `beforeEach`'inde de koşuyor; `/__mock/reset`
+   * vitrini seed'e geri aldığı için gerekiyor (`e2e/open-ordering.mjs`).
+   */
   webServer: {
-    command: `npm run build && npx next start --port ${PORT}`,
+    command: `node e2e/prepare-mock.mjs && npm run build && npx next start --port ${PORT}`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,

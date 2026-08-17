@@ -49,6 +49,22 @@ use Veykemtu\BridgeApi\Support\BusinessTime;
  *   - `actor` + `reason` + `dry_run` + denetim satırı →
  *     `ControlController::write()`.
  *
+ * GEREKÇE UÇ BAŞINA İSTENİR — taslak kurmak bir taahhüt değil, yayınlamak
+ * taahhüttür. Gerekçe yalnız MÜŞTERİYE GÖRÜNÜR HÂLE GELEN ve GERİ
+ * ALINMASI ZOR eylemlerde zorunlu: `publish`, `unpublish`, `DELETE days`
+ * (gün ve kalemleri gider), `duplicate` (toplu ve üzerine yazabiliyor).
+ * Gün kurmak, gün düzenlemek, kalem eklemek/çıkarmak ve tavan yazmak
+ * gerekçesizdir.
+ *
+ * NEDEN GEVŞEDİ: bir güne beş kalem koymak beş kez on karakterlik gerekçe
+ * demekti ve ürettiği metinler ("düzeltme", "ok", "asdasd") tam olarak
+ * `ControlController::REASON_MIN`'in kaçınmak için var olduğu şeydi. Az
+ * yerde istenen gerekçe, çok yerde istenenden daha değerlidir.
+ *
+ * `actor` HER YAZMADA KALIR ve denetim satırı her yazmada açılmaya devam
+ * eder: seyrelen "neden", "kim" değil. Sütun sözleşmesi
+ * `docs/control/menu.md` "Uçlar" tablosundadır ve bağlayıcıdır.
+ *
  * TAVAN NEREDE DURUYOR: `veykemtu_daily_menu_stock` satırlarında
  * (`(location_id, service_date, menu_id)`; `menu_id = 0` gün toplamı).
  * Sözleşme metni tavanları `veykemtu_daily_menus.capacity_total` ve
@@ -73,6 +89,48 @@ class DailyMenuController extends ControlController
 
     /** Tavan satılanın altına düştüğünde yanıta konan uyarı. */
     private const string WARN_BELOW_SOLD = 'capacity_below_sold';
+
+    /**
+     * Kesim geçtikten sonra GÜN düzeyinde kilitlenen alanlar.
+     *
+     * Tek alan: paketin fiyatı. Kesim saati geçmiş bir günün başlığını,
+     * açıklamasını ya da iç notunu düzeltmek kimseye zarar vermiyor.
+     *
+     * @var list<string>
+     */
+    private const array LOCKED_DAY_FIELDS = ['package_price_kurus'];
+
+    /**
+     * Kesim geçtikten sonra KALEM düzeyinde kilitlenen alanlar.
+     *
+     * NEDEN TAM OLARAK BU İKİSİ: ikisi de o günün PARASINI yazıyor.
+     * `price_override_kurus` tek tek satışta ödenen birim fiyatın kendisi
+     * (`DailyMenuItem::effectiveUnitPriceKurus()` → `LineResolver`);
+     * `quantity` ise o fiyatın çarpanı (`DailyMenu::itemsTotalKurus()`) ve
+     * aynı zamanda paketin fişe basılan porsiyon sayısı
+     * (`LineResolver::resolvePackageLine()`: `quantity * dayItem->quantity`).
+     * Yalnız fiyatı kilitlemek, aynı ayrışmayı çarpan üzerinden açık
+     * bırakırdı — "birim fiyat aynı ama iki porsiyon oldu" da o günün
+     * menüde görünen tutarını değiştirir.
+     *
+     * KİLİTLENMEYENLER ve nedenleri:
+     *   - `label`, `sort_order` — yalnız görünüm. Kesimden sonra mutfağın
+     *     etiketi düzeltmesi meşru; engellemek yöneticiyi veritabanına
+     *     iterdi (gün düzeyindeki kapının da tam olarak bu yüzden dar
+     *     tutulduğu yer: `assertPriceEditable()`).
+     *   - `is_required`, `sellable_alone` — satış BİÇİMİ alanları, para
+     *     değil. Kesimden sonra o güne yeni sipariş girmiyor, yani ikisi de
+     *     satılmış hiçbir şeyi değiştirmiyor. Gün düzeyindeki kardeşleri
+     *     (`components_sellable`) de kilitli değil; ikisinin ayrışması
+     *     sebepsiz olurdu.
+     *   - `capacity` — aynı satırı `PUT /days/{date}/stock` KAPISIZ yazıyor
+     *     ve orada bu bilinçli ("malzeme biter, yönetici satışı kapatır").
+     *     Burada kilitlemek, aynı değeri yazan iki ucun farklı davranması
+     *     demek olurdu; tavan üstelik parayı değil, kalan porsiyonu anlatır.
+     *
+     * @var list<string>
+     */
+    private const array LOCKED_ITEM_FIELDS = ['price_override_kurus', 'quantity'];
 
     /*
      * `DailyStock` BİLEREK ENJEKTE EDİLMİYOR: o servisin bütün yüzeyi
@@ -351,6 +409,9 @@ class DailyMenuController extends ControlController
 
                 return ['data' => $this->dayPayload($location, $this->requireDay($location, $date))];
             },
+            // Taslak kurmak bir taahhüt değil: gün `draft` doğuyor ve
+            // müşteri onu görmüyor. Taahhüt `publish`'te.
+            reasonRequired: false,
         );
 
         // 201 yalnız GERÇEKTEN oluşturulduğunda: kuru provada hiçbir kayıt
@@ -442,6 +503,14 @@ class DailyMenuController extends ControlController
 
                 return ['data' => $this->dayPayload($location, $this->requireDay($location, $day))];
             },
+            /*
+             * YAYINDAKİ GÜNÜN BAŞLIĞINI DÜZELTMEK DE GEREKÇESİZ. Bilinçli
+             * bir gevşeme: kapı `assertPriceEditable()`'da, yani kesim
+             * saati geçmiş günün fiyatında duruyor ve orada engel 409'dur,
+             * gerekçe değil. Yazım hatası düzeltmek için on karakter
+             * yazdırmak, yöneticiyi düzeltmemeye iterdi.
+             */
+            reasonRequired: false,
         );
     }
 
@@ -492,6 +561,13 @@ class DailyMenuController extends ControlController
                  */
                 return ['data' => ['deleted' => true, 'date' => $day->toDateString()]];
             },
+            /*
+             * Gün ve BÜTÜN KALEMLERİ birlikte gidiyor ve geri dönüşü yok —
+             * gerekçe ZORUNLU. Bu, kalem silmenin gerekçesizliğiyle
+             * çelişmiyor: orada tek satır gidiyor ve geri koymak bir
+             * tıklama.
+             */
+            reasonRequired: true,
         );
     }
 
@@ -546,6 +622,8 @@ class DailyMenuController extends ControlController
                  */
                 return ['data' => $this->statusPayload($this->requireDay($location, $day))];
             },
+            // Menüyü müşteriye açan eylem bu: gerekçe ZORUNLU.
+            reasonRequired: true,
         );
     }
 
@@ -594,12 +672,22 @@ class DailyMenuController extends ControlController
 
                 return ['data' => $this->statusPayload($this->requireDay($location, $day))];
             },
+            // Müşteriden bir günü geri çekmek de görünürlüğü değiştiriyor:
+            // gerekçe ZORUNLU.
+            reasonRequired: true,
         );
     }
 
     // ── Kalemler ──────────────────────────────────────────────────────────
 
-    /** `POST /days/{date}/items` — kalem ekler. */
+    /**
+     * `POST /days/{date}/items` — kalem ekler.
+     *
+     * KESİM GEÇMİŞSE FİYATLI EKLEME KAPALI: `price_override_kurus` ya da
+     * `quantity` taşıyan gövde 409 alır. Kalem eklemenin kendisi serbest
+     * kalıyor — o gün için sipariş kapandığından yeni satır satılmış
+     * hiçbir şeyi değiştirmiyor — ama o güne PARA yazmak kapalı.
+     */
     public function storeItem(Request $request, string $date): JsonResponse
     {
         $location = $this->location($request);
@@ -616,8 +704,9 @@ class DailyMenuController extends ControlController
             ControlAudit::TARGET_DAILY_MENU,
             (int) $model->id,
             ['date' => $day->toDateString(), 'menu_id' => $menuId],
-            function () use ($day, $model, $menuId, $sortOrder): array {
+            function () use ($location, $day, $model, $menuId, $sortOrder, $data): array {
                 $this->assertItemAbsent($model, $menuId);
+                $this->assertItemPriceEditable($location, $day, $data);
 
                 return [
                     'action' => 'menu.item.create',
@@ -628,6 +717,7 @@ class DailyMenuController extends ControlController
             },
             function (array $intent) use ($location, $day, $model, $menuId, $sortOrder, $data): array {
                 $this->assertItemAbsent($model, $menuId);
+                $this->assertItemPriceEditable($location, $day, $data);
 
                 DB::transaction(function () use ($location, $day, $model, $menuId, $sortOrder, $data, $intent): void {
                     $this->fillItem(new DailyMenuItem, $data, [
@@ -650,6 +740,9 @@ class DailyMenuController extends ControlController
 
                 return ['data' => $this->dayPayload($location, $this->requireDay($location, $day))];
             },
+            // Sahibin asıl şikâyeti buydu: bir güne beş ürün koymak beş kez
+            // gerekçe diyaloğu demekti. Gerekçesiz.
+            reasonRequired: false,
         );
     }
 
@@ -658,6 +751,10 @@ class DailyMenuController extends ControlController
      *
      * `menu_id` yazılamaz: ürünü değiştirmek kalemi silip yenisini
      * eklemektir ve denetim izinde İKİ AYRI SATIR olarak görünmelidir.
+     *
+     * KESİM GEÇMİŞSE fiyat ve porsiyon da yazılamaz
+     * (`assertItemPriceEditable()`); etiket, sıra ve tavan yazılabilir
+     * kalır.
      */
     public function updateItem(Request $request, string $date, int $item): JsonResponse
     {
@@ -692,13 +789,25 @@ class DailyMenuController extends ControlController
                 'menu_id' => (int) $row->menu_id,
                 'fields' => array_keys($data),
             ],
-            fn(): array => [
-                'action' => 'menu.item.update',
-                'date' => $day->toDateString(),
-                'item_id' => (int) $row->id,
-                'fields' => array_keys($data),
-            ],
+            /*
+             * ÖN DENETİM KURU PROVADA DA KOŞAR (`docs/control/00-genel.md`
+             * §3.1): "kuru prova geçti" diyen ekran gerçek gönderimde
+             * patlamamalı. Bu yüzden kısa ok gösteriminden vazgeçildi —
+             * kapı hem provada hem gerçek yazmada duruyor.
+             */
+            function () use ($location, $day, $row, $data): array {
+                $this->assertItemPriceEditable($location, $day, $data);
+
+                return [
+                    'action' => 'menu.item.update',
+                    'date' => $day->toDateString(),
+                    'item_id' => (int) $row->id,
+                    'fields' => array_keys($data),
+                ];
+            },
             function (array $intent) use ($location, $day, $row, $data): array {
+                $this->assertItemPriceEditable($location, $day, $data);
+
                 DB::transaction(function () use ($location, $day, $row, $data, $intent): void {
                     $this->fillItem($row, $data)->save();
 
@@ -715,6 +824,7 @@ class DailyMenuController extends ControlController
 
                 return ['data' => $this->dayPayload($location, $this->requireDay($location, $day))];
             },
+            reasonRequired: false,
         );
     }
 
@@ -726,6 +836,27 @@ class DailyMenuController extends ControlController
      * `order_menus`'ta kendi kopyasını taşıdığı için geçmiş bozulmaz —
      * engel, yöneticinin farkında olmadan "mutfağın bugün pişirdiği bir
      * kalemi" listeden düşürmesini önlemek içindir.
+     *
+     * KESİM SAATİ KAPISI BİLEREK EKLENMEDİ — karar ve gerekçesi:
+     *
+     * Sorulan risk "kesim geçmiş ve o güne sipariş düşmüş bir kalemi
+     * silmek, mutfağın bastığı fişte olan ama menüde olmayan bir yemek
+     * demek"ti. O riski `assertItemUnused()` ZATEN kapatıyor ve tam da bu
+     * soruyu soruyor: kalem o günün iptal edilmemiş siparişlerinde geçiyor
+     * mu? PAKET SATIŞI DA SAYILIYOR, çünkü paketin zorunlu bileşenleri
+     * `LineResolver::resolvePackageLine()` tarafından `order_menus`'a
+     * GERÇEK `menu_id`'leriyle (sıfır fiyatlı satırlar olarak) yazılıyor —
+     * yani fişte görünen her kalem burada da görünüyor.
+     *
+     * Üstüne bir de kesim kapısı koymak, yalnız HİÇ SİPARİŞ ALMAMIŞ bir
+     * kalemin silinmesini engellerdi: hiçbir fişte olmayan, hiçbir faturaya
+     * girmemiş satır. Engellenen tek durum, görevin meşru saydığı durumun
+     * kendisi olurdu — "malzeme bitti, bugünkü listeden çıkardık". Kapı
+     * hiçbir parayı korumadan menüyü 08:00'den sonra bakımsız bırakırdı.
+     *
+     * Silinen kalemin FİYATI da bu yüzden sorun değil: para taşıyan
+     * alanlar (`LOCKED_ITEM_FIELDS`) kesimden sonra zaten yazılamıyor ve
+     * satılmış bir kalem zaten silinemiyor.
      */
     public function destroyItem(Request $request, string $date, int $item): JsonResponse
     {
@@ -762,6 +893,13 @@ class DailyMenuController extends ControlController
                 // eklenirse tavan da rezervasyon da yerinde durur.
                 return ['data' => ['deleted' => true, 'item_id' => (int) $row->id]];
             },
+            /*
+             * GÜN SİLME GEREKÇE İSTİYOR AMA KALEM SİLME İSTEMİYOR — fark
+             * kasıtlı: kalem tek bir satır ve geri koymak bir tıklama,
+             * üstelik `assertItemUnused()` siparişli kalemi zaten
+             * kilitliyor. Gün silmek ise gün + bütün kalemleri götürüyor.
+             */
+            reasonRequired: false,
         );
     }
 
@@ -852,6 +990,13 @@ class DailyMenuController extends ControlController
                     'data' => $this->stockProjection($location, $day, $model, $capacityTotal, $byItemId),
                 ];
             },
+            /*
+             * Tavan gün içinde defalarca değişiyor (malzeme bitti, tedarik
+             * geldi) ve hiçbiri geri alınamaz değil — sayaçlara da
+             * dokunulmuyor. Uyarı zaten yanıtta (`warnings`); gerekçe
+             * istemek o uyarıyı daha okunur yapmıyordu.
+             */
+            reasonRequired: false,
         );
     }
 
@@ -945,6 +1090,13 @@ class DailyMenuController extends ControlController
                     ],
                 ];
             },
+            /*
+             * TOPLU VE ÜZERİNE YAZABİLEN tek uç: hedef günün bütün kalemleri
+             * silinip yeniden yazılıyor (`copyInto()`). Bir haftalık takvimi
+             * yanlış güne kopyalamak, tek tek geri alınacak bir hata değil —
+             * gerekçe ZORUNLU.
+             */
+            reasonRequired: true,
         );
     }
 
@@ -1100,7 +1252,7 @@ class DailyMenuController extends ControlController
     }
 
     /**
-     * Kesim saati geçmiş bir günün FİYATI değiştirilemez.
+     * Kesim saati geçmiş bir günün PAKET FİYATI değiştirilemez.
      *
      * O gün için sipariş kapandı ve girmiş siparişler eski fiyattan;
      * fiyatı değiştirmek satılanı değiştirmez, yalnız raporları bozardı.
@@ -1108,26 +1260,102 @@ class DailyMenuController extends ControlController
      * ya da başlığındaki yazım hatasını gidermek kimseye zarar vermiyor ve
      * engellenmesi yöneticiyi veritabanına iterdi.
      *
-     * "Geçti mi" kararı `OrderingWindow`'da: günün kendi saati, yoksa
-     * vitrinin genel saati. Burada tekrar hesaplansaydı panel ile müşteri
-     * ucu farklı anlarda kapanırdı.
-     *
      * @param  array<string, mixed>  $data
      *
      * @throws ApiException
      */
     private function assertPriceEditable(Location $location, Carbon $date, array $data): void
     {
-        if (!array_key_exists('package_price_kurus', $data)) {
+        $this->assertCutoffFieldsWritable(
+            $location,
+            $date,
+            $data,
+            self::LOCKED_DAY_FIELDS,
+            'Bu günün sipariş kabul saati doldu; paket fiyatı artık değiştirilemez.',
+        );
+    }
+
+    /**
+     * Kesim saati geçmiş bir günün KALEM FİYATI değiştirilemez.
+     *
+     * AÇIK BURADAYDI: gün düzeyindeki kapı yalnız `package_price_kurus`'u
+     * koruyordu ve kalem uçlarında hiçbir kapı yoktu — kesim geçmiş bir
+     * güne `price_override_kurus` yazılabiliyordu. Sipariş satırları kendi
+     * fiyatlarını taşıdığı için geçmiş sipariş bozulmuyor; bozulan şey
+     * MENÜDE GÖRÜNEN fiyat ile O GÜN SATILAN fiyatın aynı olması ve fark
+     * fatura/rapor tarafında açıklanamayan bir kalem olarak çıkıyordu.
+     *
+     * Kilitlenen ve kilitlenmeyen alanların gerekçesi
+     * `self::LOCKED_ITEM_FIELDS` yorumundadır. Kapı üç kalem ucunun
+     * İKİSİNE uygulanıyor (`POST` ve `PATCH`); `DELETE` için karar ve
+     * gerekçe `destroyItem()` yorumunda.
+     *
+     * @param  array<string, mixed>  $data
+     *
+     * @throws ApiException
+     */
+    private function assertItemPriceEditable(Location $location, Carbon $date, array $data): void
+    {
+        $this->assertCutoffFieldsWritable(
+            $location,
+            $date,
+            $data,
+            self::LOCKED_ITEM_FIELDS,
+            'Bu günün sipariş kabul saati doldu; kalemin fiyatı ve porsiyonu artık değiştirilemez.',
+        );
+    }
+
+    /**
+     * Kesim geçmişse kilitli alanların yazılmasını 409 ile durdurur.
+     *
+     * ALAN DENETİMİ ÖNCE, SAAT SONRA: kilitli alan gönderilmemişse kesim
+     * hiç sorulmuyor ve `OrderingWindow` bir sorgu açmıyor. Sıra ters
+     * olsaydı yalnız etiket düzelten her istek de vitrin ayarını okurdu.
+     *
+     * "Geçti mi" kararı `OrderingWindow`'da: günün kendi saati, yoksa
+     * vitrinin genel saati. Burada tekrar hesaplansaydı panel ile müşteri
+     * ucu farklı anlarda kapanırdı.
+     *
+     * `array_key_exists` ile bakılıyor, doluluk ile değil: `null`
+     * göndermek de yazmadır (istisnayı temizler, kalemi ürünün kendi
+     * fiyatına döndürür) ve kesimden sonra o da bir fiyat değişikliğidir.
+     *
+     * @param  array<string, mixed>  $data
+     * @param  list<string>  $locked
+     *
+     * @throws ApiException
+     */
+    private function assertCutoffFieldsWritable(
+        Location $location,
+        Carbon $date,
+        array $data,
+        array $locked,
+        string $message,
+    ): void {
+        $touched = array_values(array_filter(
+            $locked,
+            static fn(string $field): bool => array_key_exists($field, $data),
+        ));
+
+        if ($touched === []) {
             return;
         }
 
-        if ($this->window->isPastCutoff($location, $date)) {
-            throw $this->conflict(
-                'Bu günün sipariş kabul saati doldu; paket fiyatı artık değiştirilemez.',
-                ['conflict' => 'cutoff', 'date' => $date->toDateString()],
-            );
+        if (!$this->window->isPastCutoff($location, $date)) {
+            return;
         }
+
+        throw $this->conflict($message, [
+            'conflict' => 'cutoff',
+            'date' => $date->toDateString(),
+            /*
+             * HANGİ ALANIN reddedildiği yükte duruyor: ekran "fiyatı geri
+             * al, etiketi yine de gönder" diyebilsin. `details.conflict`
+             * zaten `cutoff`; bu alan EKLEMEDİR, gün ucunun eski gövdesini
+             * bozmuyor (`docs/03-api-sozlesmesi.md` §1.4).
+             */
+            'fields' => $touched,
+        ]);
     }
 
     // ── Yazma yardımcıları ────────────────────────────────────────────────

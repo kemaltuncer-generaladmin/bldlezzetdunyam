@@ -7,9 +7,14 @@ namespace Veykemtu\BridgeApi\Services;
 use DateTimeInterface;
 use Igniter\Cart\Models\Menu;
 use Igniter\Cart\Models\Order;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
+use Veykemtu\BridgeApi\Models\ClosedDay;
+use Veykemtu\BridgeApi\Models\DailyMenu;
 use Veykemtu\BridgeApi\Models\DailyMenuStock;
+use Veykemtu\BridgeApi\Models\Subscription;
 use Veykemtu\BridgeApi\Support\BusinessTime;
 
 /**
@@ -220,6 +225,394 @@ class DailyStock
     public function unreserve(int $locationId, DateTimeInterface|string $date, array $menuIdToQty): void
     {
         $this->decrease('reserved', $locationId, $date, $menuIdToQty);
+    }
+
+    /**
+     * Rezerve porsiyonu SATIŞA çevirir — abonelik siparişi doğduğu an.
+     *
+     * TEK İFADE, TEK SATIR KİLİDİ. `reserved` azalırken `sold` aynı
+     * `UPDATE` içinde artıyor. `unreserve()` sonra `take()` yazılsaydı
+     * ikisinin arasında bir pencere açılırdı ve o pencerede porsiyon
+     * HERKESE AÇIK görünürdü: serbest satış tam o anda kapasiteyi kapar,
+     * abonenin sözleşmeyle garanti ettiği porsiyon başkasına satılırdı.
+     *
+     * TAVAN DENETLENMEZ ve bu bilinçli — `take()`'in koşullu `UPDATE`'i
+     * burada YANLIŞ olurdu: porsiyon zaten rezerve edilmişken
+     * `capacity - reserved - sold >= n` sorsaydık kendi rezervasyonumuz
+     * kendimize engel olurdu.
+     *
+     * `GREATEST(..., 0)`: rezervasyon eksik kalmış olabilir (uzlaştırma
+     * henüz koşmadı, sipariş panelden elle üretildi). O hâlde `reserved`
+     * sıfırda durur ama satış YİNE DE kaydedilir — mutfağa düşmüş bir
+     * siparişi satılmamış saymak, tavanın kendisinden daha büyük bir yalan.
+     *
+     * @param  array<int, int>  $menuIdToQty
+     */
+    public function sellReserved(
+        int $locationId,
+        DateTimeInterface|string $date,
+        array $menuIdToQty,
+    ): void {
+        $day = self::dateKey($date);
+        $now = BusinessTime::forStorage(BusinessTime::now())->toDateTimeString();
+
+        foreach (self::normalize($menuIdToQty) as $menuId => $quantity) {
+            DB::update(
+                'UPDATE '.self::TABLE
+                    .' SET reserved = GREATEST(CAST(reserved AS SIGNED) - ?, 0),'
+                    .' sold = sold + ?, updated_at = ?'
+                    .' WHERE location_id = ? AND service_date = ? AND menu_id = ?',
+                [$quantity, $quantity, $now, $locationId, $day, $menuId],
+            );
+        }
+    }
+
+    /**
+     * ─────────────────────────────────────────────────────────────────────
+     * REZERVASYON İLERİYE DÖNÜK HESAPLANIR — bu bölümün tamamının sebebi.
+     *
+     * D+5'in serbest satışı, D+5'in abonelik siparişi doğmadan ÇOK ÖNCE
+     * açılıyor (gece işi yalnız ertesi günü üretiyor). Rezervasyon da bu
+     * yüzden sipariş üretimine bağlanamaz: bağlansaydı D+5'in kapasitesi
+     * beş gün boyunca boşmuş gibi görünür, serbest satış aboneye ayrılmış
+     * porsiyonları satar ve arıza ancak üretim gecesi — satış kapandıktan
+     * sonra — ortaya çıkardı.
+     *
+     * BU YÜZDEN SIFIRDAN HESAP, ARTIMLI DÜZELTME DEĞİL. Aşağıdaki
+     * [syncReservedWindow] `reserved`'ı pencerenin her günü için baştan
+     * kurar; artımlı kancalar (aktifleştirme, duraklatma, gün atlama, menü
+     * yayınlama) yalnız TEK BİR GÜNÜ aynı hesapla yeniden kurar
+     * ([syncReservedFor]). Sonuç: her artımlı hata en geç 24 saat içinde
+     * kendini onarır. Tersi — artımlı toplama/çıkarma — kaçırılan tek bir
+     * kancada sessiz aşırı satış demek.
+     *
+     * ÜRETİLMİŞ GÜN YENİDEN REZERVE EDİLMEZ. `veykemtu_subscription_runs`
+     * satırı olan (abonelik × teslimat noktası × gün) üçlüsünün porsiyonu
+     * artık `sold`; onu bir de rezerve saymak, aynı porsiyonu kapasiteden
+     * iki kez düşerdi.
+     * ─────────────────────────────────────────────────────────────────────
+     *
+     * Pencerenin tamamı için `reserved`'ı sıfırdan kurar; sapmaları döner.
+     *
+     * @param  bool  $apply  `false` ise hiçbir şey yazılmaz (kuru koşum).
+     * @return list<array{service_date: string, menu_id: int, from: int, to: int}>
+     */
+    public function syncReservedWindow(
+        int $locationId,
+        Carbon $from,
+        Carbon $to,
+        bool $apply = true,
+    ): array {
+        $first = $from->copy()->startOfDay();
+        $last = $to->copy()->startOfDay();
+
+        if ($last->lt($first)) {
+            return [];
+        }
+
+        $subscriptions = Subscription::query()
+            ->active()
+            ->where('location_id', $locationId)
+            ->with(['lines', 'delivery_points', 'pauses', 'exceptions'])
+            ->get();
+
+        $closed = $this->closedDaysBetween($first, $last);
+        $runs = $this->runCountsBetween($subscriptions, $first, $last);
+
+        $deviations = [];
+
+        for ($cursor = $first->copy(); $cursor->lte($last); $cursor->addDay()) {
+            // Kapalı gün (tatil) üretim yapmaz — `SubscriptionGenerateCommand`
+            // ile AYNI tabloyu okuyoruz, yani tek kaynak. Rezervasyon
+            // bırakmak, tatilde kimseye satılamayacak porsiyonları kilitli
+            // tutmak olurdu.
+            $expected = in_array($cursor->toDateString(), $closed, true)
+                ? []
+                : $this->expectedReservedOn($locationId, $cursor, $subscriptions, $runs);
+
+            foreach ($this->writeReserved($locationId, $cursor, $expected, $apply) as $deviation) {
+                $deviations[] = $deviation;
+            }
+        }
+
+        return $deviations;
+    }
+
+    /**
+     * Tek bir günün rezervasyonunu sıfırdan kurar.
+     *
+     * ARTIMLI KANCALARIN TEK GİRİŞİ. Aktifleştirme, duraklatma, devam,
+     * iptal, gün atlama ve menü yayınlama hepsi bunu çağırır: hepsi "şu
+     * günün rezervasyonu artık başka" diyor ve o günü yeniden hesaplamak,
+     * her biri için ayrı bir delta aritmetiği yazmaktan hem kısa hem de
+     * yanılmaz. Gecelik uzlaştırmayla AYNI kod yolu olduğu için ikisinin
+     * ayrışması da mümkün değil.
+     *
+     * @return list<array{service_date: string, menu_id: int, from: int, to: int}>
+     */
+    public function syncReservedFor(int $locationId, Carbon $date, bool $apply = true): array
+    {
+        return $this->syncReservedWindow($locationId, $date, $date, $apply);
+    }
+
+    /**
+     * Bir aboneliğin BİR teslimat noktası için, bir gündeki stok talebi.
+     *
+     * [demandOf]'un İLERİYE DÖNÜK İKİZİ: o, yazılmış sipariş satırlarını
+     * okur; bu, henüz doğmamış siparişin ne yazacağını önden söyler.
+     * İKİSİ AYNI SONUCU VERMEK ZORUNDA — ayrışırlarsa rezerve edilenden
+     * başka bir miktar satışa çevrilir, iptalde de başka bir miktar geri
+     * verilir ve fark her gün birikir. Bu yüzden gün toplamı kuralı
+     * birebir kopyalanmıştır: `component` OLMAYAN her satır gün toplamına
+     * da yazar.
+     *
+     * @return array<int, int>
+     */
+    public function subscriptionDemand(Subscription $subscription, Carbon $date): array
+    {
+        $day = $subscription->menu_mode === Subscription::MENU_DAILY
+            ? DailyMenu::findPublished((int) $subscription->location_id, $date)
+            : null;
+
+        return $this->demandFor($subscription, $date, $day);
+    }
+
+    /**
+     * O gün, o vitrinde beklenen rezervasyon — `menu_id => porsiyon`.
+     *
+     * @param  Collection<int, Subscription>  $subscriptions
+     * @param  array<string, int>  $runs  `abonelik|gün => üretilmiş nokta sayısı`
+     * @return array<int, int>
+     */
+    private function expectedReservedOn(
+        int $locationId,
+        Carbon $date,
+        Collection $subscriptions,
+        array $runs,
+    ): array {
+        $expected = [];
+        $day = null;
+        $dayLoaded = false;
+
+        foreach ($subscriptions as $subscription) {
+            if (!$subscription->runsOnDate($date)) {
+                continue;
+            }
+
+            // Teslimat noktası başına BİR sipariş doğuyor ve her biri
+            // porsiyonun tamamını istiyor (`OrderFactory` nokta adedini
+            // porsiyona çevirmiyor). Üretilmiş noktalar düşülür: onların
+            // porsiyonu artık `sold`.
+            $targets = max(1, $subscription->delivery_points->count())
+                - ($runs[$subscription->id.'|'.$date->toDateString()] ?? 0);
+
+            if ($targets < 1) {
+                continue;
+            }
+
+            if (!$dayLoaded && $subscription->menu_mode === Subscription::MENU_DAILY) {
+                // Gün başına TEK okuma: menü bütün abonelikler için aynı.
+                $day = DailyMenu::findPublished($locationId, $date);
+                $dayLoaded = true;
+            }
+
+            foreach ($this->demandFor($subscription, $date, $day) as $menuId => $quantity) {
+                $expected[$menuId] = ($expected[$menuId] ?? 0) + $quantity * $targets;
+            }
+        }
+
+        return $expected;
+    }
+
+    /**
+     * @param  DailyMenu|null  $day  `daily_menu` modunda o günün YAYINLANMIŞ menüsü
+     * @return array<int, int>
+     */
+    private function demandFor(Subscription $subscription, Carbon $date, ?DailyMenu $day): array
+    {
+        $portions = max(1, $subscription->quantityForDate($date));
+
+        if ($subscription->menu_mode !== Subscription::MENU_DAILY) {
+            return $this->fixedListDemand($subscription, $portions);
+        }
+
+        /*
+         * MENÜ YAYINLANMAMIŞSA REZERVASYON YOK — ve bu güvenli.
+         *
+         * Neyin pişeceği bilinmiyor, sipariş de üretilemiyor. Uydurma bir
+         * gün toplamı rezervasyonu yazmak, [demandOf] ile ayrışmak demekti.
+         * Aşırı satış riski de yok: yayınlanmamış bir güne serbest satış
+         * zaten kapalı (`DailyMenuService` → `not_published`). Menü
+         * yayınlandığı an o günün rezervasyonu yeniden kurulur
+         * ([syncReservedFor]) ve en geç gecelik uzlaştırmada oturur.
+         */
+        if ($day === null) {
+            return [];
+        }
+
+        $demand = [self::DAY_TOTAL => $portions];
+
+        // Paket ÜST satırı gerçek bir `menu_id` taşıyor ("Günün Menüsü"
+        // ürünü) ve tavanı ona da konabilir; sipariş satırı yazıldığında
+        // [demandOf] onu sayacağı için rezervasyon da saymak zorunda.
+        $packageMenuId = $day->packageMenuId();
+
+        if ($packageMenuId !== null) {
+            $demand[$packageMenuId] = ($demand[$packageMenuId] ?? 0) + $portions;
+        }
+
+        foreach ($day->items as $item) {
+            // Seçmeli kalem pakete girmiyor (`OrderFactory::dailyMenuLines`).
+            if (!$item->is_required) {
+                continue;
+            }
+
+            $menuId = (int) $item->menu_id;
+
+            if ($menuId < 1) {
+                continue;
+            }
+
+            $demand[$menuId] = ($demand[$menuId] ?? 0)
+                + $portions * max(1, (int) $item->quantity);
+        }
+
+        return $demand;
+    }
+
+    /**
+     * `fixed_list` — aboneliğin kendi satırları.
+     *
+     * GÜN TOPLAMINA HER SATIR YAZAR: bu modda paket üst satırı yok, yani
+     * satırların hiçbiri `component` değil ve [demandOf] hepsini gün
+     * toplamına sayıyor. "Porsiyon başına bir kez saysak" daha doğru
+     * görünürdü ama iki hesap ayrışır, iptalde rezervden fazlası geri
+     * verilirdi. Doğrusu tek yerde düzeltilir: [demandOf].
+     *
+     * @return array<int, int>
+     */
+    private function fixedListDemand(Subscription $subscription, int $portions): array
+    {
+        $demand = [];
+
+        foreach ($subscription->lines as $line) {
+            $menuId = (int) $line->menu_id;
+
+            if ($menuId < 1) {
+                continue;
+            }
+
+            $quantity = $portions * max(1, (int) $line->quantity);
+
+            $demand[$menuId] = ($demand[$menuId] ?? 0) + $quantity;
+            $demand[self::DAY_TOTAL] = ($demand[self::DAY_TOTAL] ?? 0) + $quantity;
+        }
+
+        return $demand;
+    }
+
+    /**
+     * Beklenen değeri satırlara yazar; değişenleri döner.
+     *
+     * MUTLAK YAZIM, ARTIŞ DEĞİL (`SET reserved = ?`). Hesap sıfırdan
+     * yapıldığı için doğru değer elimizde; `+=` yazmak, uzlaştırmayı iki
+     * kez koşturan bir operatörün rezervasyonu ikiye katlaması demekti.
+     *
+     * BEKLENEN SATIR YOKSA HİÇBİR ŞEY YAZILMAZ: tavansız gün/kalem
+     * SINIRSIZ demek (sınıf başlığı), ve olmayan bir tavana rezervasyon
+     * yazmak `remaining()`'in `null` sözleşmesini bozardı.
+     *
+     * @param  array<int, int>  $expected
+     * @return list<array{service_date: string, menu_id: int, from: int, to: int}>
+     */
+    private function writeReserved(
+        int $locationId,
+        Carbon $date,
+        array $expected,
+        bool $apply,
+    ): array {
+        $day = $date->toDateString();
+        $now = BusinessTime::forStorage(BusinessTime::now())->toDateTimeString();
+        $changes = [];
+
+        $rows = DB::table(self::TABLE)
+            ->where('location_id', $locationId)
+            ->where('service_date', $day)
+            // `menu_id ASC` — çoklu satır güncellemesinde kilitlenme
+            // önlemi; `normalize()` ile aynı gerekçe.
+            ->orderBy('menu_id')
+            ->get(['menu_id', 'reserved']);
+
+        foreach ($rows as $row) {
+            $menuId = (int) $row->menu_id;
+            $current = (int) $row->reserved;
+            $target = $expected[$menuId] ?? 0;
+
+            if ($current === $target) {
+                continue;
+            }
+
+            $changes[] = [
+                'service_date' => $day,
+                'menu_id' => $menuId,
+                'from' => $current,
+                'to' => $target,
+            ];
+
+            if ($apply) {
+                DB::update(
+                    'UPDATE '.self::TABLE.' SET reserved = ?, updated_at = ?'
+                        .' WHERE location_id = ? AND service_date = ? AND menu_id = ?',
+                    [$target, $now, $locationId, $day, $menuId],
+                );
+            }
+        }
+
+        return $changes;
+    }
+
+    /**
+     * Aralıktaki kapalı günler — tek sorgu.
+     *
+     * @return list<string>
+     */
+    private function closedDaysBetween(Carbon $first, Carbon $last): array
+    {
+        return ClosedDay::query()
+            ->whereBetween('closed_on', [$first->toDateString(), $last->toDateString()])
+            ->pluck('closed_on')
+            ->map(static fn(mixed $value): string => substr((string) $value, 0, 10))
+            ->all();
+    }
+
+    /**
+     * Üretilmiş (abonelik × gün) sayaçları — tek sorgu.
+     *
+     * Gün gün sorsaydık on dört günlük pencere on dört sorgu ederdi;
+     * `remainingMap()` aynı dersi bir kez vermişti.
+     *
+     * @param  Collection<int, Subscription>  $subscriptions
+     * @return array<string, int>  `abonelik|gün => üretilmiş nokta sayısı`
+     */
+    private function runCountsBetween(Collection $subscriptions, Carbon $first, Carbon $last): array
+    {
+        if ($subscriptions->isEmpty()) {
+            return [];
+        }
+
+        $counts = [];
+
+        $rows = DB::table('veykemtu_subscription_runs')
+            ->whereIn('subscription_id', $subscriptions->modelKeys())
+            ->whereBetween('service_date', [$first->toDateString(), $last->toDateString()])
+            ->get(['subscription_id', 'service_date']);
+
+        foreach ($rows as $row) {
+            $key = $row->subscription_id.'|'.substr((string) $row->service_date, 0, 10);
+            $counts[$key] = ($counts[$key] ?? 0) + 1;
+        }
+
+        return $counts;
     }
 
     /**
@@ -442,11 +835,13 @@ class DailyStock
 
     private static function dateKey(DateTimeInterface|string $date): string
     {
-        // `DateTimeInterface` sorulur, `Carbon` değil: bu dosya Carbon'u import
-        // ETMİYOR ve import edilmemiş bir sınıfa karşı `instanceof` PHP'de
-        // sessizce false döner — her tarih `trim()`'e düşüp TypeError üretirdi.
-        // Arayüz sorulduğunda Carbon, Illuminate\Support\Carbon ve düz DateTime
-        // birlikte karşılanıyor.
+        // `DateTimeInterface` sorulur, `Carbon` DEĞİL — ve bu, dosya artık
+        // Carbon'u import ediyor olsa da değişmedi. Import edilmemiş bir
+        // sınıfa karşı `instanceof` PHP'de sessizce false döner (her tarih
+        // `trim()`'e düşüp TypeError üretirdi); dahası ortalıkta İKİ Carbon
+        // var (`Carbon\Carbon` ve `Illuminate\Support\Carbon`) ve somut
+        // sınıfı sormak, hangisinin geldiğine bağlı bir kırılganlık olurdu.
+        // Arayüz sorulduğunda ikisi de düz `DateTime` ile birlikte karşılanır.
         return $date instanceof DateTimeInterface
             ? $date->format('Y-m-d')
             : substr(trim($date), 0, 10);

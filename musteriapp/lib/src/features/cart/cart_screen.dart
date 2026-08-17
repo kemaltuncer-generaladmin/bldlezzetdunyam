@@ -14,7 +14,7 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/catalog_providers.dart';
 import '../../providers/infra_providers.dart';
 import '../../router/app_router.dart';
-import '../../theme/bld_theme.dart';
+import '../../theme/bld_semantic_colors.dart';
 import '../../widgets/bld_card.dart';
 import '../../widgets/empty_view.dart';
 import '../../widgets/eta_notice.dart';
@@ -282,7 +282,7 @@ class _CartLineTile extends ConsumerWidget {
                 Money.format(line.lineTotal),
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  color: bldColor(BldColors.brand700),
+                  color: Theme.of(context).colorScheme.secondary,
                   fontSize: BldTextScale.body,
                 ),
               ),
@@ -316,7 +316,9 @@ class _CartLineTile extends ConsumerWidget {
               TextButton.icon(
                 onPressed: () => notifier.removeLine(line.signature),
                 style: TextButton.styleFrom(
-                  foregroundColor: bldColor(BldColors.neutral600),
+                  foregroundColor: Theme.of(
+                    context,
+                  ).colorScheme.onSurfaceVariant,
                 ),
                 icon: const Icon(Icons.delete_outline, size: 18),
                 label: Text(l10n.cartRemove),
@@ -345,16 +347,20 @@ class _MiniStepper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Container(
       decoration: BoxDecoration(
-        color: bldColor(BldColors.neutral50),
+        // Sessiz yüzey + dekoratif kenarlık: adet seçici kartın üstünde
+        // durur, kartla aynı tonda olursa sınırı kaybolur.
+        color: theme.colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(BldRadius.pill),
-        border: Border.all(color: bldColor(BldColors.neutral200)),
+        border: Border.all(color: context.bld.decorativeBorder),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _btn(Icons.remove_outlined, onDecrement),
+          _btn(theme, Icons.remove_outlined, onDecrement),
           SizedBox(
             width: 32,
             child: Text(
@@ -363,13 +369,13 @@ class _MiniStepper extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
-          _btn(Icons.add_outlined, onIncrement),
+          _btn(theme, Icons.add_outlined, onIncrement),
         ],
       ),
     );
   }
 
-  Widget _btn(IconData icon, VoidCallback? onTap) {
+  Widget _btn(ThemeData theme, IconData icon, VoidCallback? onTap) {
     return Material(
       color: Colors.transparent,
       shape: const CircleBorder(),
@@ -381,9 +387,12 @@ class _MiniStepper extends StatelessWidget {
           child: Icon(
             icon,
             size: 18,
+            // Marka rengi METİN/ikon rolünden (`secondary`) geliyor, dolgu
+            // rolünden değil: dolgu koyu temada açılıp kart zemininde
+            // kayboluyor.
             color: onTap == null
-                ? bldColor(BldColors.neutral400)
-                : bldColor(BldColors.brand700),
+                ? theme.disabledColor
+                : theme.colorScheme.secondary,
           ),
         ),
       ),
@@ -436,10 +445,12 @@ class _CartSummary extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: bldColor(BldColors.neutral0),
+        // Sabit alt çubuk YÜKSELTİLMİŞ yüzeydir: koyu temada yükseltmeyi
+        // gölge değil açıklık adımı taşır (bkz. `BldSemanticColors`).
+        color: context.bld.surfaceRaised,
         boxShadow: [
           BoxShadow(
-            color: bldColor(BldColors.neutral900).withValues(alpha: 0.08),
+            color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.08),
             offset: const Offset(0, -4),
             blurRadius: 16,
           ),

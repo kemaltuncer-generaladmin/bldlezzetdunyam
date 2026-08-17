@@ -5,10 +5,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ShoppingCart } from 'lucide-react';
 import { readBrowserCookie } from '@/lib/browser-cookie';
-import { CART_CHANGED_EVENT } from '@/lib/cart-events';
+import { CART_COUNT_COOKIE, subscribeCartChanged } from '@/lib/cart-events';
 import { isOrderingRoute } from '@/content/navigation';
 
-const CART_COUNT_COOKIE = 'bld_cart_n';
 const SESSION_NAME_COOKIE = 'bld_name';
 
 /**
@@ -66,6 +65,16 @@ export function HeaderActions({ labels }: { labels: HeaderActionLabels }) {
    *
    * Bu bir ISR sorunu YARATMAZ: çerez sunucuda değil tarayıcıda okunuyor,
    * yani `/` ve `/kurumsal` statik kalmaya devam ediyor.
+   *
+   * ## ÇEREZ İZLENİYOR, HABER BEKLENMİYOR
+   *
+   * Sayaç eskiden yalnızca `bld:cart-changed` olayıyla ve `focus` ile
+   * tazeleniyordu. İkisi de sepete ekleme eyleminin İSTEMCİ TARAFINDAKİ başarı
+   * dalına bağlıydı: o dal geç çalıştığında rozet, doğru değeri taşıyan çerez
+   * tarayıcıda dururken bile saniyelerce "Sepetiniz boş" diyordu — ölçülmüş,
+   * müşteriye görünen bir hata. `subscribeCartChanged` artık çerezin kendisini
+   * de izliyor; rozetin doğruluğu React'in eylemi ne zaman commit ettiğinden
+   * bağımsız (gerekçe ve ölçüm `lib/cart-events.ts`).
    */
   useEffect(() => {
     const sync = () => {
@@ -76,12 +85,7 @@ export function HeaderActions({ labels }: { labels: HeaderActionLabels }) {
     };
 
     sync();
-    window.addEventListener(CART_CHANGED_EVENT, sync);
-    window.addEventListener('focus', sync);
-    return () => {
-      window.removeEventListener(CART_CHANGED_EVENT, sync);
-      window.removeEventListener('focus', sync);
-    };
+    return subscribeCartChanged(sync);
   }, [pathname]);
 
   /*

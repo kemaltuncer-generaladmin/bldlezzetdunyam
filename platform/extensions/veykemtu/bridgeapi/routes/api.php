@@ -13,10 +13,13 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use Veykemtu\BridgeApi\Http\Controllers\AddressController;
+use Veykemtu\BridgeApi\Http\Controllers\AnnouncementController;
 use Veykemtu\BridgeApi\Http\Controllers\AppVersionController;
 use Veykemtu\BridgeApi\Http\Controllers\AuthController;
 use Veykemtu\BridgeApi\Http\Controllers\BbdController;
 use Veykemtu\BridgeApi\Http\Controllers\CatalogController;
+use Veykemtu\BridgeApi\Http\Controllers\ClientErrorController;
+use Veykemtu\BridgeApi\Http\Controllers\ContractController;
 use Veykemtu\BridgeApi\Http\Controllers\Control\AuditController as ControlAuditController;
 use Veykemtu\BridgeApi\Http\Controllers\Control\CmsController as ControlCmsController;
 use Veykemtu\BridgeApi\Http\Controllers\Control\CustomerController as ControlCustomerController;
@@ -41,6 +44,7 @@ use Veykemtu\BridgeApi\Http\Controllers\PublicTrackingController;
 use Veykemtu\BridgeApi\Http\Controllers\QuoteRequestController;
 use Veykemtu\BridgeApi\Http\Controllers\SiteContentController;
 use Veykemtu\BridgeApi\Http\Controllers\SubscriptionController;
+use Veykemtu\BridgeApi\Http\Controllers\SubscriptionPaymentController;
 
 Route::prefix('api')
     ->middleware(['bld.headers'])
@@ -102,6 +106,62 @@ Route::prefix('api')
         // kalem listesi yok).
         Route::get('public/orders/{order}/tracking', [PublicTrackingController::class, 'show'])
             ->middleware('throttle:bld-track');
+
+        /*
+         * ── Abonelik sözleşmesi (açık) ───────────────────────────────────
+         *
+         * KİMLİK GEREKTİRMEZ ve bu bilinçli: bağlantı aboneye SMS ile
+         * gidiyor, onaylayan kişi çoğu zaman uygulamada oturum açmış kişi
+         * değil satın almayı onaylayan yetkilidir. Oturum istemek onayı
+         * imkânsız kılardı (`docs/openapi.yaml` → `getContract`).
+         *
+         * BELİRTEÇ KİMLİK TAŞIMAZ. `{token}` sıralı bir kayıt kimliği
+         * değil; kalıp da onu bağlıyor. Sıralı olsaydı bir bağlantıyı
+         * eline geçiren komşu numaraları deneyerek başkalarının
+         * sözleşmelerini okurdu.
+         *
+         * İKİ SINIR ÜST ÜSTE:
+         *
+         *   - `bld-sozlesme` (10/dk/belirteç) üç ucun tamamında. Kaba
+         *     kuvvetle kod deneyen birini yavaşlatır.
+         *   - `bld-sozlesme-otp` (5/saat/belirteç) YALNIZ SMS ISMARLAYAN
+         *     uçta ve sözleşmeden birebir gelir. Bir sözleşme bağlantısına
+         *     sınırsız SMS ısmarlanabilmesi doğrudan para kaybıdır.
+         *
+         * İkisi de BELİRTEÇ başına, IP başına değil: uç kimlik istemez,
+         * aynı ofisten bakan iki abone birbirini kilitlememeli ve henüz
+         * oturum olmadığı için sayacın bağlanabileceği tek kimlik
+         * bağlantının kendisidir.
+         */
+        if (class_exists(ContractController::class)) {
+            Route::middleware('throttle:bld-sozlesme')
+                ->where(['token' => '[A-Za-z0-9_-]{20,200}'])
+                ->group(function (): void {
+                    Route::get('contracts/{token}', [ContractController::class, 'show']);
+                    Route::post('contracts/{token}/otp', [ContractController::class, 'requestOtp'])
+                        ->middleware('throttle:bld-sozlesme-otp');
+                    Route::post('contracts/{token}/approve', [ContractController::class, 'approve']);
+                });
+        }
+
+        /*
+         * İstemci hata bildirimi — `docs/control/monitor.md` havuzunu besler.
+         *
+         * KİMLİK OPSİYONEL, bu yüzden müşteri kapsamının DIŞINDA: hataların
+         * önemli bir kısmı tam da oturum açılamadığı için doğuyor ve orada
+         * token istemek en çok ihtiyaç duyulan kaydı kaybettirirdi. Token
+         * varsa denetleyici raporu müşteriye bağlar.
+         *
+         * `bld.headers` UYGULANIR ve şart: raporun hangi uygulamadan
+         * geldiğini sunucu `X-App-Id` başlığından türetiyor. Gövdedeki
+         * `source` sessizce yok sayılır — web sitesi `mutfakapp` yazan bir
+         * rapor üretebilseydi mutfağın güvendiği hata monitörüne sahte KDS
+         * alarmı düşerdi.
+         */
+        if (class_exists(ClientErrorController::class)) {
+            Route::post('client-errors', [ClientErrorController::class, 'store'])
+                ->middleware('throttle:bld-hata');
+        }
 
         // ── Ortak (BBD Store) ────────────────────────────────────────────
         //
@@ -175,6 +235,61 @@ Route::prefix('api')
             Route::post('subscriptions/{subscription}/resume', [SubscriptionController::class, 'resume']);
             Route::post('subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel']);
             Route::post('subscriptions/{subscription}/exceptions', [SubscriptionController::class, 'storeException']);
+
+            /*
+             * ── Abonelik dönem ödemesi ───────────────────────────────
+             *
+             * AYRI DENETLEYİCİ, `SubscriptionController`'A EKLENMEDİ: o
+             * sınıfın `store`'u ABONELİK açıyor, buradaki `store` ÖDEME
+             * başlatıyor. Aynı sınıfta iki `store` olamayacağı için
+             * ikincisi `storePayment` gibi bir ada kaçardı ve müşteri
+             * yüzündeki adlar Kontrol Merkezi'ndekilerle karışırdı
+             * (`control/subscriptions` ailesinde `storePayment` BAŞKA bir
+             * şey — yönetici tarafında elle ödeme kaydı açar).
+             *
+             * TUTAR YOLDA DA GÖVDEDE DE YOK: dönem tutarı sunucuda
+             * hesaplanır. İstemciden alınsaydı, arada bir gün atlandığında
+             * ekrandaki tutar ile gerçek tutar ayrışır ve abone eksik
+             * ödeyip "kapattım" sanırdı.
+             *
+             * `{payment}` YOL PARÇASI ABONELİĞİN ALTINDA: ödeme kimliği tek
+             * başına yeterli olsaydı bir abonenin ödeme kimliğini deneyen
+             * başka bir abone komşu kaydı okuyabilirdi. Denetleyici yine de
+             * ikisinin bağını doğrular — yol yapısı tek savunma değildir.
+             */
+            if (class_exists(SubscriptionPaymentController::class)) {
+                Route::where(['subscription' => '\\d+', 'payment' => '\\d+'])->group(function (): void {
+                    Route::middleware('throttle:bld-order')->group(function (): void {
+                        Route::post('subscriptions/{subscription}/payments', [SubscriptionPaymentController::class, 'store']);
+                        Route::post('subscriptions/{subscription}/payments/{payment}/confirm', [SubscriptionPaymentController::class, 'confirm']);
+                    });
+
+                    // OKUMA `bld-order` KOVASINDA DEĞİL: sözleşme istemciye
+                    // sonucu YOKLAMASINI söylüyor (2 sn aralık) ve 20/saatlik
+                    // yazma bütçesi tek bir ödemenin yoklamasında biterdi.
+                    Route::get('subscriptions/{subscription}/payments/{payment}', [SubscriptionPaymentController::class, 'show']);
+                });
+            }
+
+            /*
+             * ── Uygulama-içi duyuru ──────────────────────────────────
+             *
+             * Push (FCM) YOK; duyuru uygulamanın içinde yaşıyor. Pencere ve
+             * kapatma süzgeci SUNUCUDA: üç istemci aynı kuralı üç kez
+             * yazmasın ve saati kaymış bir telefon süresi dolmuş duyuruyu
+             * göstermeye devam etmesin.
+             *
+             * `seen` ile `dismiss` AYRI UÇLAR: görülmek duyuruyu listeden
+             * düşürmez, kapatmak düşürür. Tek uca indirilseydi ekranda
+             * çizilen her duyuru ilk karede kaybolurdu.
+             */
+            if (class_exists(AnnouncementController::class)) {
+                Route::get('announcements', [AnnouncementController::class, 'index']);
+                Route::post('announcements/{announcement}/seen', [AnnouncementController::class, 'markSeen'])
+                    ->whereNumber('announcement');
+                Route::post('announcements/{announcement}/dismiss', [AnnouncementController::class, 'dismiss'])
+                    ->whereNumber('announcement');
+            }
         });
 
         // ── Mutfak kapsamı ───────────────────────────────────────────────

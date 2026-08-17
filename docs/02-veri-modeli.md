@@ -158,8 +158,8 @@ sorgusunun dayanağı.
 
 **SATIR SİLİNMEZ.** Silme yolu bilinçli olarak açılmıyor ve `ControlAudit`
 modelinde de yok: **denetim izini silebilen bir denetim izi denetim izi
-değildir.** (`AGENTS.md` §2 ile aynı ruh; `veykemtu_account_ledger`'ın
-append-only kuralıyla da aynı aile.)
+değildir.** (`AGENTS.md` §2 ile aynı ruh; aynı aileden
+`veykemtu_error_events` de silmiyor, **çözüldü işaretliyor** — §10.9.)
 
 **Güncelleme yalnız sonuca dokunur.** `result` `pending` doğar, işlem
 bitince `applied` ya da `failed` olur; `actor`, `action`, `reason` ve hedef
@@ -290,18 +290,22 @@ Uçların tamamı ve gerekçe/kuru prova kuralları: `docs/03-api-sozlesmesi.md`
 kararı, mutfağınki GÜNLÜK. Aynı alanı paylaşsalardı akşam tükenen ürünü
 sabah yöneticinin elle geri açması gerekirdi.
 
-**Cari defter referansı revizyona bağlı:** `veykemtu_account_ledger`
-üzerindeki `UNIQUE(source, reference_type, reference_id, entry_type)`
-kısıtı sipariş kimliğine bağlansaydı, aynı siparişin ikinci düzenlemesi
-`insertOrIgnore` tarafından sessizce yutulur ve müşteri fazla borçlu
-kalırdı. Bu yüzden `reference_type = 'order_revision'`.
+**Referans neden siparişe değil REVİZYONA bağlanır:** kaldırılan cari defter
+(§7.2) `UNIQUE(source, reference_type, reference_id, entry_type)` kısıtını
+sipariş kimliğine bağlasaydı, aynı siparişin ikinci düzenlemesi
+`insertOrIgnore` tarafından sessizce yutulur ve müşteri fazla borçlu kalırdı;
+bu yüzden `reference_type = 'order_revision'` seçilmişti. Defter gitti ama
+**ders duruyor** ve bugün SMS kaydında aynı yerde işliyor: `veykemtu_sms_log`
+üzerindeki `UNIQUE(template_key, reference_type, reference_id)` de olaya
+bağlıdır, siparişe değil — aksi hâlde ikinci düzenlemenin bilgilendirmesi hiç
+gitmezdi (§10.7).
 
 **BBD tablosu neden `orders`'tan ayrı:** BBD Store bir **kitap
 e-ticaret sitesi** ve ayrı bir sunucuda yaşıyor. Ürünleri BLD menüsünde
 yok, fiyatları BLD fiyat listesinde değil, müşterisi BLD müşterisi değil
 ve iş akışı bile farklı — biri pişiriliyor, diğeri raftan alınıp
 kutulanıyor. Köprünün tek varlık sebebi **termal yazıcıyı paylaşmak**.
-`orders`'a yazılsaydı ciro raporu, üretim listesi ve cari hesap bir
+`orders`'a yazılsaydı ciro raporu, üretim listesi ve günlük stok sayacı bir
 gecede yanlış olurdu.
 
 **`order_totals` tekilliği yok:** `(order_id, code)` üzerinde kısıt
@@ -351,8 +355,17 @@ KDS bunu üst şeritte gösterir — mutfak toplam üretime bakar.
 
 - Sipariş geçmişi 2 yıl saklanır, sonrası anonimleştirilir (müşteri bağı koparılır, istatistik kalır).
 - KVKK aydınlatma metni `website/` ve `musteriapp/` kayıt ekranında gösterilir; onay `customers` tablosunda zaman damgasıyla saklanır.
+- **Hata olayları** (`veykemtu_error_events`, §10.9) tek saklama kuralı olan
+  tablodur: `veykemtu:hata-temizle` çözülmüş satırları 30, çözülmemişleri 90
+  günden sonra siler. Diğerlerinde bilinçli olarak silme yoktur; bir olay
+  kaydının "silinmiş" hâli, olayın hiç olmadığını iddia etmektir.
+- **Toplu SMS için onay AYRI BİR KONUDUR** ve henüz çözülmedi. Sipariş durum
+  bilgilendirmesi izin gerektirmez, ticari elektronik ileti (menü duyurusu,
+  toplu duyuru) İYS kaydı ve önceden onay ister. `customers.bld_sms_opt_out`
+  yalnız **reddi** tutar; onayı tutan bir alan yok ve o gelene kadar ticari
+  şablonlar kapalı (§10.7).
 
-## 7. B2B, cari hesap ve abonelik (Faz 2 — UYGULANDI)
+## 7. B2B ve abonelik (Faz 2 — UYGULANDI, cari kısmı 17.08.2026'da kaldırıldı)
 
 Tümü `bridgeapi` eklentisinde, ADR-09 additive kuralıyla: çekirdek `customers`/`orders` tablolarına yalnız `bld_` önekli kolon; geri kalan her şey `veykemtu_` önekli yeni tablo. `platform/vendor/` değişmez.
 
@@ -362,45 +375,87 @@ Müşteri grubu tek kalır ("Catering Müşterisi"); kurum/birey ayrımı kolonl
 
 | Kolon | Tip | Not |
 |---|---|---|
-| `bld_account_type` | varchar(16), default `corporate`, index | `corporate` \| `individual`. Sipariş kapısının kaynağı. |
+| `bld_account_type` | varchar(16), default `corporate`, index | `corporate` \| `individual`. **Artık bir kapı değil**, yalnız kayıt formunun hangi alanları topladığını ve belgelerde hangi unvanın basılacağını söyler. |
 | `bld_org_name` | varchar null | Ticari unvan |
 | `bld_tax_office` | varchar null | Vergi dairesi |
 | `bld_tax_no` | varchar null | Vergi / TC no |
 | `bld_contact_person` | varchar null | Yetkili kişi |
 | `bld_org_phone` | varchar null | Kurum telefonu |
 
-Sözleşmede `Customer.account_type` + `can_order` olarak yansır; `can_order = (bld_account_type === 'corporate')`. İstemci sipariş yolunu bu bayrağa göre açar.
+Sözleşmede `Customer.account_type` + `can_order` olarak yansır. **`can_order`
+artık her zaman `true` döner** — sipariş kapısı kaldırıldı (§7.2). Alan
+sözleşmede duruyor çünkü sahadaki eski istemciler onu okuyor; kaldırılsaydı
+`undefined` görüp sipariş düğmesini hiç çizmezlerdi. Yeni istemci bu alana
+BAKMAZ: siparişin verilebilirliği vitrinin (`is_open`, `ordering_enabled`) ve
+günün (`DailyMenu.is_orderable`) durumundan okunur (`docs/03` §12.1).
 
-### 7.2 `veykemtu_account_ledger` — cari hesap defteri (append-only)
+### 7.2 Cari hesap — KALDIRILDI (17.08.2026)
 
-Muhasebe yazılımı değiliz (bkz. `docs/10` §4): fatura/e-Arşiv **kesilmez**. Bu tablo borç/alacak hareketini tutar; bakiye satır silinerek değil, ters kayıtla düzeltilir.
+**Burada `veykemtu_account_ledger` (cari defter), `veykemtu_account_periods`
+(ay sonu özeti), `veykemtu_account_payments` (borç ödeme niyeti) ve
+`customers.bld_credit_limit_kurus` (borç limiti) anlatılıyordu. Dördü de
+şemadan düşürüldü; bu bölüm o şemayı arayan kişinin neden bulamadığını
+anlaması için duruyor.**
 
-| Kolon | Tip | Not |
-|---|---|---|
-| `id` | bigint PK | |
-| `customer_id` | bigint | |
-| `entry_type` | varchar(8) | `debit` (borç) \| `credit` (alacak) |
-| `amount_kurus` | bigint | Her zaman pozitif; yön `entry_type`'ta |
-| `source` | varchar(16) | `order` \| `subscription` \| `payment` \| `manual` \| `adjustment` |
-| `reference_type` / `reference_id` | varchar/bigint null | Kaynak belge |
-| `description` | varchar null | |
-| `effective_date` | date | İşlem günü (Istanbul) |
-| `created_by` | bigint null | Elle girişte admin |
-| `created_at` | timestamp | |
+**Neden:** iş modeli günlük menü satışına geçti. Cari hesap "ay sonu
+faturalanan kurumsal müşteri" varsayımına dayanıyordu; bugün her sipariş
+kendi başına ödeniyor (`online` \| `cash`) ve abonelik 30 günlük **peşin**
+dönem ödemesiyle yürüyor (§10.5). Borç/alacak yürüten bir defterin
+karşılığı kalmadı — dolduran hiçbir yazma yolu kalmayınca defter, kimsenin
+bakmadığı ama hâlâ doğru sanılan bir tabloya dönüşürdü.
 
-- **İdempotency (şemada):** `UNIQUE(source, reference_type, reference_id, entry_type)` — bir siparişin borcu iki kez yazılamaz (`insertOrIgnore`).
-- İndeksler: `(customer_id, effective_date)`, `(customer_id, id)`.
-- **Bakiye** çalışma anında `SUM(credit − amount) − SUM(debit)` ile hesaplanır (stok defteri felsefesi: doğruluk önce, drift yok). Pozitif = müşterinin borcu.
+**Nerede kaldırıldı:**
 
-### 7.3 `veykemtu_account_periods` — ay sonu özeti
+| Göç | Ne yaptı |
+|---|---|
+| `2026_08_20_000001_export_account_data_before_drop` | Düşürmeden önce veriyi dosyaya döktü (ikinci emniyet kemeri) |
+| `2026_08_20_000002_drop_account_tables` | Üç tabloyu ve `bld_credit_limit_kurus` kolonunu düşürdü; `payments` tablosundaki `account` satırını pasifleştirdi |
 
-Ay kapanış anlık görüntüsü (fatura değil): `customer_id`, `period` (YYYY-MM), `opening_kurus`, `debit_total_kurus`, `credit_total_kurus`, `closing_kurus`, `generated_at`. `UNIQUE(customer_id, period)` → aynı ay iki kez yazılamaz.
+**ŞEMA GERİ ALINABİLİR, VERİ GERİ ALINAMAZ.** `down()` üç tabloyu **boş**
+olarak, orijinal indeksleriyle geri kurar; içlerindeki tek satırı bile geri
+getirmez. Verinin tek yolu arşiv komutudur ve asıl adım operatörün onu ELLE
+koşup dizini sunucudan indirmesidir — konteyner dosya sistemi geçicidir:
 
-### 7.4 Abonelik ailesi (`veykemtu_subscription*`)
+```bash
+php artisan veykemtu:cari-arsivle    # docs/RUNBOOK.md §9
+```
+
+**`payments` SATIRI SİLİNMEDİ.** `orders.payment` alanı `payments.code` ile
+eşleşiyor; satır silinseydi eski cari siparişlerin `Order::$payment_method`
+ilişkisi `null` döner ve ödeme günlüğü "property on null" ile patlardı.
+Satır `status = 0`, `class_name = ''` ile duruyor: panelde seçilebilir bir
+yöntem olarak **görünmüyor**, tarihsel siparişler ise hâlâ çözülüyor.
+Aynı sebeple sözleşmedeki `PaymentMethod` enum'ında `account` değeri de
+duruyor ama **kabul edilmiyor** (`docs/03` §12.2).
+
+**Yerine ne geldi:** abonelik dönem ödemesi (§10.5) ve mali değeri olmayan
+fatura belgesi (§10.6). İkisi de cari defterin yaptığı işi yapmıyor; cari
+hesap bir daha açılırsa yeni bir karardır, geri alma değil.
+
+### 7.3 Abonelik ailesi (`veykemtu_subscription*`)
 
 **İlke:** abonelik sipariş değil, **sipariş üreten kuraldır**. Gece işi kurala bakıp ertesi günün siparişlerini doğurur; doğan sipariş kendi hayatını yaşar.
 
-- **`veykemtu_subscriptions`** — kural başlığı: `customer_id`, `location_id`, `status` (`pending`\|`active`\|`paused`\|`cancelled`, default `pending`), `start_date`, `end_date` null=süresiz, `delivery_type`, `delivery_time_from/to`, `service_days` (JSON, ISO 1..7), `default_quantity`, `menu_mode` (`fixed_list`\|`daily_menu`), `agreed_unit_price_kurus` null (talepte fiyatsız; admin belirler), `payment_mode` (`account`\|`prepaid_monthly`).
+- **`veykemtu_subscriptions`** — kural başlığı: `customer_id`, `location_id`, `status` (`pending`\|`active`\|`paused`\|`cancelled`, default `pending`), `start_date`, `end_date` null=süresiz, `delivery_type`, `delivery_time_from/to`, `service_days` (JSON, ISO 1..7), `default_quantity`, `menu_mode` (`fixed_list`\|`daily_menu`), `agreed_unit_price_kurus` null (talepte fiyatsız; admin belirler), `payment_mode` (kolon `account`\|`prepaid_monthly` doğdu; cari kalkınca **tek geçerli değer `prepaid_monthly`** oldu — kolon silinmedi, çünkü yeni bir ödeme modu geldiğinde tek doğru yer burasıdır ve `Control` ucu başka değeri `422` ile reddediyor).
+
+`status` kolonu dört değerle doğdu (`pending`\|`active`\|`paused`\|`cancelled`)
+ama sözleşme bugün iki değer daha yayınlıyor: `awaiting_contract` ve
+`awaiting_payment` (`docs/03` §15.1). İkisi de model sabiti değil,
+`Services\ContractService` içinde tanımlı — sözleşme imzalanmadan ve ilk dönem
+ödenmeden abonelik sipariş üretmemeli, ama bu "duraklatılmış" da değildir.
+
+> **AÇIK: `awaiting_contract` bu kolona BUGÜN YAZILAMIYOR.** Değer **17
+> karakter**, kolon ise `varchar(16)`. `awaiting_payment` tam 16 hane olduğu
+> için yedek yol çalışıyor ve akış ölmüyor; ama sözleşme bekleyen bir abonelik
+> o durumu kolona yazamıyor. Kolonu genişletmek **abonelik kulvarının işi** —
+> sözleşme kulvarı başka bir kulvarın tablosunu değiştirmiyor
+> (`ContractService::STATUS_AWAITING_CONTRACT` docblock'u). Genişletme göçü
+> yazılana kadar sözleşme ile şema burada ayrışık.
+>
+> Arızanın biçimi önemli: MySQL varsayılan (gevşek) kipte fazlalığı **sessizce
+> kırpar** ve kolona `awaiting_contrac` yazılırdı — hiçbir istemcinin
+> tanımadığı, hiçbir yerde eşleşmeyen bir durum. Bu yüzden kod o değeri
+> yazmayı hiç denemiyor.
 - **`veykemtu_subscription_lines`** — satır listesi (diyet/alerjen varyantı): `subscription_id`, `menu_id` null, `quantity`, `agreed_unit_price_kurus` null, `label`.
 - **`veykemtu_subscription_delivery_points`** — adres defterinden **çoklu** teslim noktası: `subscription_id`, `address_id`, `quantity` null (o noktaya porsiyon), `note`.
 - **`veykemtu_subscription_pauses`** — duraklatma (≠ iptal): `subscription_id`, `start_date`, `end_date`, `reason`.
@@ -408,34 +463,12 @@ Ay kapanış anlık görüntüsü (fatura değil): `customer_id`, `period` (YYYY
 - **`veykemtu_closed_days`** — resmî tatil/kapalı gün: `closed_on` UNIQUE, `description`.
 - **`veykemtu_subscription_runs`** — üretim kaydı, **idempotency şemada**: `subscription_id`, `delivery_point_id` (default 0), `service_date`, `order_id` null; `UNIQUE(subscription_id, delivery_point_id, service_date)` → gece işi iki kez koşsa da tek sipariş.
 
-### 7.5 `orders` — abonelik bağı (additive)
+### 7.4 `orders` — abonelik bağı (additive)
 
 `bld_subscription_id` (bigint null, index). Üretilen siparişin hangi aboneliğe ait olduğu; normal siparişlerde null. KDS bu kolonu okumaz, `OrderPresenter` `is_subscription = (bld_subscription_id !== null)` türetir (yeni kolon gerekmez).
 
 
-### 7.6 Cari borç limiti ve ödeme niyeti — v2.0 (12.08.2026)
-
-**`customers.bld_credit_limit_kurus`** (nullable, `unsignedInteger`) —
-üç durumu var ve ikisi birbirinin tam zıddı:
-
-| Değer | Anlam |
-|---|---|
-| `NULL` | Sınırsız. Göç öncesinden gelen müşteriler ve bilinçli seçim |
-| `0` | Cari hesap KAPALI. `account` ödeme yöntemi hiç görünmez |
-| `n > 0` | Borç `n` kuruşu aşamaz |
-
-Yeni açılan kurumsal hesaplar `0` alır: sipariş anında açılıyor ama
-veresiye ayrı bir güven kararı. Mevcut satırlar `NULL` kaldı — göç kimseyi
-kırmadı. Kontrol `Services\CreditLimit` içinde tek yerde; sipariş
-oluşurken borç deftere düşmeden ÖNCE bakılıyor.
-
-**`veykemtu_account_payments`** — cari borç ödeme niyeti. Mevcut simülasyon
-POS'u siparişe bağlı (`Order::where('hash', ...)`); "borcumun 2.500 TL'sini
-ödeyeyim" dendiğinde ortada sipariş yok.
-
-Niyet önce `pending` yazılıyor, defter ancak ödeme kesinleşince alacak
-satırı alıyor. İdempotency iki katmanda: `status` alanı ve defterdeki
-`(payment, account_payment, id, credit)` tekil indeksi.
+### 7.5 Telefonla giriş kodları — v2.0 (12.08.2026)
 
 **`veykemtu_otp_codes`** — telefonla giriş kodları. Kod `code_hash` olarak
 bcrypt'le saklanıyor; kısa ömür yetmez, bir yedek sızıntısı o an geçerli
@@ -628,3 +661,425 @@ süresi geçmiş satırları silen ve unutulduğu gün tabloyu şişiren türden
 
 Kalıcı olması gereken tek şey müşterinin **seçtiği** adres; o da zaten
 `addresses` satırına yazılıyor.
+
+---
+
+## 10. Günlük menü modelinin getirdiği tablolar (Faz 3–5, 20–24.08.2026)
+
+§8 satışı güne bağladı; bu bölüm o kararın arkasından gelen şemayı anlatıyor.
+Sıra göç sırasıdır ve bilinçlidir: önce satışın kendisi (stok, kesim, serbest
+bırakma), sonra aboneliğin parası (sözleşme, dönem ödemesi), sonra
+müşteriyle konuşma (fatura belgesi, SMS, duyuru), en sonda kendi hatalarımız.
+
+### 10.1 `veykemtu_daily_menu_stock` — günlük porsiyon tavanı
+
+İş kararı: *"gün toplamı VE ürün bazlı tavan; hangisi önce dolarsa kapatır.
+Satır yoksa sınırsız."* Tablo o cümlenin tamamı.
+
+| Kolon | Tip | Not |
+|---|---|---|
+| `id` | bigint PK | |
+| `location_id` | bigint, index | Faz 1 tek vitrin; kolon bugünden tekil anahtarda (§8.1 ile aynı gerekçe) |
+| `service_date` | date | |
+| `menu_id` | bigint | **`0` = gün toplamı satırı**, aksi hâlde çekirdek `menus.menu_id` |
+| `capacity` | unsigned int | Tavan |
+| `reserved` | unsigned int, default 0 | Abonelik rezervasyonu — henüz satılmadı |
+| `sold` | unsigned int, default 0 | Gerçekten satıldı |
+| `updated_by` | varchar(120) null | Serbest metin; Kontrol Merkezi kullanıcısı, panel ya da konsol |
+| `created_at` / `updated_at` | timestamp | |
+
+`UNIQUE(location_id, service_date, menu_id)` (`veykemtu_stok_essiz`) ·
+`INDEX(service_date)` (`veykemtu_stok_gun`)
+
+**KALAN = `capacity − reserved − sold`.** Bir gün ya da bir kalem, kendi
+satırı VEYA gün toplamı satırı sıfırlandığında kapanır; "hangisi önce
+dolarsa" kuralı ikisini birden denetlemekten kendiliğinden çıkar, ayrıca
+kodlanmış bir öncelik yoktur.
+
+**SATIR YOKSA SINIRSIZ.** Tavan konmamış bir gün için hiçbir satır yazılmaz
+ve `DailyStock::remaining()` `null` döner. **`null` ile `0` asla
+karıştırılmamalı:** `null`'ı sıfır sayan taraf, tavanı hiç konmamış bir günü
+tükenmiş gösterir. Bu kural üç dilde birden test ediliyor —
+`docs/contract/sales-rules.cases.json` değişmezleri.
+
+**`menu_id = 0` GÜN TOPLAMI NÖBETÇİSİDİR, `NULL` DEĞİL.** MySQL benzersiz
+indekste NULL'ları birbirinden ayrı sayar: `(1, '2026-08-20', NULL)` iki kez
+yazılabilir ve kısıt hiçbirini engellemez. Yani NULL nöbetçi aynı güne iki
+gün-toplamı satırına izin verir ve **tavan sessizce ikiye katlanır** — kimse
+bir hata görmez, yalnız o gün iki katı porsiyon satılır. `menus.menu_id` bir
+`AUTO_INCREMENT` ve asla 0 olmadığı için 0 nöbetçisi çakışmaz.
+
+**`reserved` ile `sold` neden ayrı kolon:** abonelikler stoku ÖNCE rezerve
+ediyor ve o porsiyonlar henüz satılmamıştır. Tek kolona toplansaydı "kaç
+tanesi gerçekten satıldı" sorusunun cevabı kaybolur, abonelik iptalinde neyi
+geri vereceğimizi bilemezdik.
+
+Yarının satırlarını gece `veykemtu:stok-tazele` (21:30) hazırlıyor ve bu
+**abonelik üretiminden (22:00) önce olmak zorunda**: rezervasyonun yazılacağı
+gün satırı hazır değilse abonelik siparişleri stoksuz bir güne düşer ve o
+günün serbest satış kapasitesi olduğundan büyük görünür.
+
+> **§5'teki `veykemtu_stock_ledger` ile karıştırmayın.** O tablo hâlâ
+> yazılmadı ve **malzeme** stoğunu (un, tavuk, kilogram) anlatıyor. Buradaki
+> tavan **porsiyon** sayısıdır ve reçeteden hiçbir şey bilmez.
+
+### 10.2 `veykemtu_daily_menus.cutoff_time` (additive)
+
+`time`, nullable, `status` kolonundan sonra. GÜNE ÖZEL sabah kesim saati.
+
+Vitrinin genel kesim saati (`location_options.bld_order_cutoff`) bunun
+varsayılanı; bu kolon o günü tek tek ezmek içindir. Birleştirme kuralı tektir
+ve `Services\OrderingWindow::cutoffFor()` içinde tek yerde yaşıyor:
+**`gün.cutoff_time ?? ayar.order_cutoff`**.
+
+**`null` = "bu güne özel saat girilmedi".** Kolona genel saatin kopyası
+yazılsaydı iki doğruluk kaynağı doğardı: yönetici genel saati
+değiştirdiğinde girilmiş günlerin hiçbiri takip etmezdi.
+
+**`time`, `datetime` değil:** kesim bir SAATTİR, bir an değil. Mutlak an
+(sözleşmedeki `cutoff_at`) servis gününün takviminden türetilir; depolamak,
+menü kopyalandığında sessizce yanlış bir ana bağlanmak olurdu.
+
+### 10.3 `orders` — serbest bırakma ve stok kredisi (additive)
+
+| Kolon | Tip | Ne |
+|---|---|---|
+| `bld_released_at` | timestamp null, **indeksli** | Siparişin mutfağa AÇILDIĞI an |
+| `bld_stock_released_at` | timestamp null | Stok kredisinin geri verildiği an |
+
+**`bld_released_at` — `NULL` = SERBEST.** Abonelik siparişleri gece 22:00'de
+üretiliyor ama KDS'e vardiya başında düşmeli; gecikme olmasaydı sabah 05:00'te
+işbaşı yapan mutfak, ekranı kırk abonelik kartıyla dolu bulur ve o an gelen
+GERÇEK bir siparişi göremezdi. Göçten önceki her satır ve her vitrin siparişi
+`null` kalıyor — varsayılanı "beklet" yapmak, tek kolon eklemesiyle bütün
+panoyu karartmak olurdu. Boolean değil AN: kapı "şimdi"ye göre kendiliğinden
+açılıyor, hiçbir arka plan işi bayrak çevirmiyor; bir cron'a bağlansaydı
+cron'un koşmadığı her sabah mutfak boş ekrana bakardı. İndeksli, çünkü mutfak
+panosu her yoklamada (birkaç saniyede bir) bu kolona bakıyor.
+
+**`bld_stock_released_at` — stok kredisi BİR KEZ verilir.** İptal, siparişin
+düştüğü porsiyonları stoka geri veriyor (`DailyStock::releaseOrder()`). Bu
+kolon olmadan ikinci bir iptal çağrısı — çift tıklama, KDS'in yeniden
+denemesi, panelden ve mutfaktan aynı anda basılan iptal — aynı porsiyonları
+İKİNCİ KEZ geri verir ve o gün tavanın üstünde satış açılır. Arıza sessizdir:
+kimse hata görmez, yalnız mutfak akşam iki porsiyon fazla sipariş bulur.
+Geriye doldurulmuyor: göçten önceki iptaller stok hiç düşmemiş siparişlerdi.
+
+### 10.4 `veykemtu_subscription_contracts` — imzalı sözleşme
+
+Sözleşme bir PDF değil, **tek kullanımlık bir bağlantıdır**: müşteri açar,
+metni okur, telefonuna gelen kodu girer ve onaylar. Tablo o onayın hukuki izi.
+
+`id`, `subscription_id` (index), `version` (varchar 32), `body_html`
+(**mediumText**), `agreed_unit_price_kurus`, `term_days` (default 30),
+`terms_json`, `status` (index), `token_hash` (**char(64) UNIQUE**), `sent_at`,
+`sent_to_phone`, `otp_verified_at`, `approved_at`, `approved_ip`,
+`approved_user_agent`, `approved_full_name`, `expires_at`, `cancelled_at`,
+`cancel_reason`, `created_by`, timestamps.
+
+`status` sözlüğü sözleşmedeki `ContractStatus`'tür:
+`draft` \| `sent` \| `approved` \| `expired` \| `cancelled`. Kontrol
+Merkezi'nin beklediği ayrı sözlüğe çeviri **tek yerde**,
+`SubscriptionContract::controlStatus()` içinde.
+
+**`body_html` DONMUŞ SAKLANIR — yalnız sürüm etiketi yetmez.** Metnin kendisi
+yerine sadece `version` saklansaydı, şablon sonradan değiştiğinde müşterinin
+"imzaladığı" metin de sessizce değişirdi: kayıtta `v1` yazar, ekranda bugünkü
+metin çizilirdi ve hiçbir denetim bu farkı göremezdi. "Neyi onayladı"
+sorusunun cevabı, sorulduğu güne değil onaylandığı ana aittir. `mediumText`
+çünkü 64 KB'lik `text` uzun bir kurumsal sözleşmeye dar gelebilir ve taşan
+metin MySQL'de **sessizce kırpılır** — hukuki bir belgede kabul edilemez.
+
+Aynı gerekçe `terms_json` için de geçerli: fiyat, servis günleri ve porsiyon
+sayısı abonelikte sonradan değişirse sözleşme değişmez.
+
+**HAM TOKEN SAKLANMAZ.** Bağlantının kendisi bir anahtardır: onu bilen
+sözleşmeyi okur ve (SMS koduyla) onaylar. Açık saklansaydı bir yedek sızıntısı
+o an geçerli her sözleşme bağlantısını kullanılabilir hâle getirirdi. Ham
+tokeni sunucunun yeniden üretebilmesi imza sırrına bağlı
+(`Support\SignedLink`) — veritabanı tek başına yetmez.
+
+**`sent_to_phone` kolonda, istekte değil.** Kodun gideceği numara istemciden
+alınsaydı bağlantıyı ele geçiren kodu kendi telefonuna ısmarlardı.
+
+`expires_at` imzanın İÇİNDE de var; kolonu elle ileri almak bağlantıyı
+uzatmaz, imza tutmaz.
+
+### 10.5 `veykemtu_subscription_payments` — 30 günlük peşin dönem
+
+Bu tablo sıfırdan tasarlanmadı: kaldırılan `veykemtu_account_payments`
+yapısının bilinçli devamıdır — yapısı sağlamdı, yalnız amacı kalktı.
+Devralınan gerekçeler kod parçalarıyla
+`docs/control/_devralinan-odeme-yapisi.md` dosyasında.
+
+`id`, `subscription_id` (index), `period_start`, `period_end`,
+`portions_planned`, `unit_price_kurus`, `amount_kurus`, `status` (index),
+`hash` (UNIQUE), `gateway`, `provider_ref`, `created_at`, `settled_at`.
+
+`status`: `pending` \| `succeeded` \| `failed` \| `refunded`.
+`UNIQUE(subscription_id, period_start)` (`veykemtu_sub_pay_donem_essiz`).
+
+1. **Niyet ayrı bir satırdır.** Sağlayıcıya gidip dönmek gerekiyor ve dönüş
+   güvenilmez: kullanıcı sekmeyi kapatır, sağlayıcı geri-aramayı iki kez
+   gönderir, ağ kopar. Niyeti önce `pending` yazıp dönüşte `succeeded`'a
+   çevirmek "ödeme başladı ama bitmedi" durumunu **temsil edilebilir** kılıyor.
+   Aboneliği doğrudan `active` yapmak, yarıda kalan her denemeyi bedava bir
+   aboneliğe çevirirdi.
+2. **Dışa kimlik `hash`.** Sıralı `id` ödeme adresinde görünmez; adres tahmin
+   edilerek başkasının ödeme sayfası açılamamalı.
+3. **İdempotans şemada.** Dönem başına TEK niyet. Kodun `if`'i bir yarışta
+   delinse bile ikinci satır yazılamaz; yinelenen geri-arama ikinci bir
+   `succeeded` üretemez.
+
+**Neden `period_start`+`period_end`, "ay" değil:** dönem 30 GÜNDÜR, takvim ayı
+değil. Abonelik ayın 17'sinde başlarsa dönemi de 17'sinde biter; takvim ayına
+yuvarlamak ilk dönemi kısaltır ve eksik gün için tam para almış oluruz.
+Sözleşmedeki `period` alanı (`YYYY-AA`) bu tarihten **türetilir** — sunum
+biçimi, saklama birimi değil.
+
+**Neden `portions_planned` ve `unit_price_kurus` de saklanıyor:** tutar
+`porsiyon × birim fiyat` çarpımıdır ve iki çarpan da sonradan değişebilir.
+Yalnız `amount_kurus` saklansaydı "neden 4.500 TL ödedim" sorusunun cevabı
+hiçbir yerde olmazdı.
+
+### 10.6 `veykemtu_invoices` + `veykemtu_invoice_counters` — belge
+
+> **BU BELGENİN MALİ DEĞERİ YOKTUR.** e-Fatura değil, e-Arşiv değil, GİB'e
+> gitmiyor, KDV hesaplamıyor. Müşterinin "bir belge verin" talebini
+> karşılayan, yazdırılabilir bir A4 dökümüdür (`docs/10` §4).
+
+Yine de numarası **boşluksuzdur**: gerçek entegrasyon bir gün buraya
+takılacaksa, o gün geriye dönük numaralandırma yapmak imkânsız olur.
+
+**`veykemtu_invoice_counters`** — `series` (varchar 8), `year` (smallint),
+`next_sequence` (default 1), timestamps. Birincil anahtar `(series, year)`.
+
+**`MAX(sequence)+1` ASLA.** Eşzamanlı iki kesimde aynı sayıyı döndürür: ikisi
+de aynı en büyük değeri okur, ikisi de bir ekler; sonra tekil indeks
+ikincisini reddeder ve kullanıcı yazdır düğmesinde 500 görür — hata
+ayıklamasının en zor anı, en yoğun andır. Sayaç tablosu bunun yerine TEK BİR
+SATIR kilitletir (`SELECT … FOR UPDATE`); ikinci kesim bekler ve artmış değeri
+okur. `next_sequence` "bir sonraki"dir, "son kesilen" değil: satır 1 ile doğar
+ve ilk kesim 1'i alır. Sıra **yıl başında sıfırlanır**, her seri kendi
+sayacını taşır.
+
+**`veykemtu_invoices`** — `invoice_no` (UNIQUE, `BLD-2026-000001`), parçaları
+ayrı kolonlarda (`series`, `year`, `sequence`), `type`
+(`order`\|`subscription`\|`void`), `status` (`issued`\|`void`, index),
+`replaces_invoice_id`, `order_id`, `subscription_id`,
+`subscription_payment_id`, `customer_id`, `issued_at` (index),
+`period_start`/`period_end` (dönem belgesinde dolu), `currency` (`TRY`),
+`subtotal_kurus`/`delivery_kurus`/`total_kurus`, `snapshot_json`, `pdf_path`,
+`void_at`, `void_reason`, `created_by_actor`, timestamps.
+
+`UNIQUE(series, year, sequence)` (`veykemtu_fatura_sira_essiz`) ·
+`INDEX(customer_id, issued_at)` (`veykemtu_fatura_musteri_tarih`)
+
+- **`type` ile `status` karıştırılmamalı:** `type` belgenin NE OLDUĞUNU,
+  `status` hâlâ geçerli olup olmadığını söyler.
+- **Fatura DÜZENLENMEZ.** Düzeltme, eskisini iptal edip yenisini kesmektir;
+  yeni belge hangisinin yerine geçtiğini `replaces_invoice_id` ile taşır.
+  Kolonu sonradan eklemek, o güne kadarki bütün düzeltmeleri elle geriye
+  doldurmak demekti.
+- **`snapshot_json` belgenin donmuş içeriğidir.** Belge canlı tablodan
+  çizilseydi, müşteri adı ya da ürün fiyatı değiştiğinde aynı belge iki farklı
+  kâğıt üretirdi. HTML render'ı YALNIZ buradan okuyor. Tutar kırılımı yine de
+  ayrı kolonlarda: rapor ve toplam sorguları JSON ayrıştırmasın.
+- **`pdf_path` bugün boş.** v1'de PDF üretilmiyor (dompdf/mpdf gibi yeni bir
+  bağımlılık `AGENTS.md` §4/§6.3 gereği ayrı bir karar); belge
+  `GET /api/control/invoices/{id}/html` ile basılıyor. Kolon, o karar
+  verildiğinde şema değişikliği gerekmesin diye şimdiden duruyor.
+- **`DELETE` yok.**
+
+### 10.7 SMS — `veykemtu_sms_templates`, `veykemtu_sms_log`, `customers.bld_sms_opt_out`
+
+İki tablo, iki ayrı soru: "hangi metin gidecek" ve "ne gitti". Sağlayıcının
+kendi paneli ikincisinin yerini tutmaz: orada bizim sipariş numaramız,
+abonelik kimliğimiz ve hangi şablondan çıktığı yoktur.
+
+**`veykemtu_sms_templates`** — `key` (UNIQUE), `title`, `body` (500),
+`enabled`, `locale` (default `tr`), `updated_by`, timestamps.
+
+> **ŞABLONLAR KAPALI DOĞAR (`enabled` default `0`)** — göçteki en önemli
+> seçim. Açık doğan bir şablon, tek bir dağıtımı binlerce SMS'e çevirir: göç
+> koştuğu anda durum tetikleyicileri canlanır ve o gün açık olan her siparişin
+> her geçişi müşteriye mesaj olarak gider. Geri alınamaz, özür dilenemez ve
+> faturası gelir. Kapalı doğan bir şablonun bedeli ise yalnızca "yönetici
+> anahtarı açmayı unuttu" — fark edilir ve düzeltilir.
+
+Tohumlama `insertOrIgnore`: göç yeniden koşarsa yöneticinin ELLE açtığı bir
+şablon tekrar kapanmaz, düzenlenmiş metin ezilmez. Kolon adı `title`
+(`name` değil): `Control\SmsController` bu ada zaten yazıyor ve ayrışsalardı
+`PATCH /templates/{key}` "Unknown column" ile — yalnız o uç çağrıldığında —
+patlardı.
+
+Tohumlanan anahtarlar: `order_created`, `order_confirmed`, `order_on_the_way`,
+`order_delivered`, `order_cancelled`, `order_revised`,
+`subscription_contract`, `subscription_payment_due`, `invoice_issued`,
+`announcement`, `dailymenu.announce`.
+
+**`otp_login` bu listede YOKTUR ve olmayacaktır:** giriş kodu metni
+`OtpService` içindedir. Panelden düzenlenebilir olsaydı, kodun kendisini
+metinden çıkarmak ya da metne bağlantı gömmek tek satırlık bir değişiklik
+olurdu.
+
+**`veykemtu_sms_log`** — `template_key` (null, index), `phone` (null,
+normalleştirilmiş 10 hane), `customer_id` (null, index), `order_id`,
+`subscription_id`, `body` (gönderilen metnin kendisi), `segments`, `status`
+(`sent`\|`failed`\|`skipped`\|`dry_run`), `provider_ref`, `error`, `context`
+(`auto`\|`test`\|`announcement`), `reference_type`, `reference_id`,
+`created_at` (index), `sent_at` (index).
+
+`UNIQUE(template_key, reference_type, reference_id)` (`veykemtu_sms_log_essiz`)
+
+**Bu kısıt bir işlev değil, bir KAPIDIR.** SMS gönderimi zaman aşımına
+uğrayabilen bir iştir; zaman aşımına uğrayan istek yeniden denenir, kuyruk işi
+tekrar koşar, kullanıcı düğmeye iki kez basar. Üçü de aynı sonuca çıkar: aynı
+sipariş geçişi için müşteriye beş mesaj. İdempotansı uygulamada kurmak
+("önce bak, sonra yaz") iki eşzamanlı işçi arasında hiçbir şey garanti etmez —
+kontrol ile yazma arasındaki pencere tam olarak o beş mesajın çıktığı yerdir.
+
+**NULL referanslar bilinçli olarak AYRI SAYILIR** (10.1'de reddedilen MySQL
+davranışı, burada tam olarak istenen şey): referansı olmayan bir gönderim
+(deneme SMS'i, toplu duyuru) tekilleştirilecek bir olaya bağlı değildir;
+500 alıcıya giden duyurunun 500 satır yazması gerekir.
+
+**İki zaman damgası, aynı an.** `created_at` satırın doğuşu, `sent_at` panelin
+sıraladığı ve `from`/`to` ile süzdüğü alan. Ayrışmıyorlar çünkü satır gönderim
+denemesiyle birlikte doğuyor; tek kolona indirmek iki kulvardan birinin
+sözleşmesini kırardı. **`sent_at` başarısız satırlarda da dolu:** boş
+bırakılsaydı `GET /log?status=failed&from=…` hiçbir şey döndürmezdi — yani tam
+da hataları aramaya gelen kişi hiçbir şey bulamazdı. `updated_at` yok: satır
+bir olay kaydıdır, düzenlenmez.
+
+**`customers.bld_sms_opt_out`** (bool, default `false`, indeksli
+`veykemtu_musteri_sms_ret`) — teknik bir ayar değil, **hukuki bir
+zorunluluk**. Sipariş durum SMS'i müşterinin kendi siparişinin
+bilgilendirmesidir ve izin gerektirmez; günün menüsü duyurusu
+(`dailymenu.announce`) ile toplu duyuru (`announcement`) ise **ticari
+elektronik iletidir**: İYS kaydı ve alıcının önceden onayı ister, her iletide
+çıkış hakkı sunmayı zorunlu kılar (6563 sayılı kanun + KVKK). Bu sunucunun
+çözebileceği bir sorun değil; onay ve İYS entegrasyonu iş tarafının imzasını
+bekliyor ve **`dailymenu.announce` şablonu o imza gelene kadar kapalı kalır**.
+
+**Varsayılan `false` = "reddetmedi", "onayladı" DEĞİL.** İkisi aynı şey
+değildir ve karıştırılması tam olarak yukarıdaki ihlali üretir. Onay kaydı
+ayrı bir alandır ve henüz yoktur.
+
+### 10.8 `veykemtu_announcements` + `veykemtu_announcement_reads`
+
+**PUSH (FCM) YOK.** Müşteriye ulaşmanın iki yolu kaldı: SMS ve bu tablo.
+Duyuru yalnız istemci açıkken çekilir; "teslim edildi" diye bir kavram yoktur,
+"ekranda çizildi" vardır.
+
+**`veykemtu_announcements`** — `title` (null), `body` (1000), `image_path`,
+`placement` (default `home`), `severity` (default `info`), `style` (default
+`banner`), `action_label`/`action_type`/`action_value`, `audience` (default
+`all`), `starts_at`, `ends_at`, `priority`, `status` (default `draft`),
+`dismissible` (default `true`), `created_by`, timestamps.
+İndeksler: `(status, placement)`, `starts_at`, `ends_at`.
+
+- **`placement` / `style` / `severity` üç ayrı soru:** hangi ekranda durduğu,
+  nasıl çizildiği (bant mı kart mı), tonu. Tek kolona sıkıştırılsalardı "ana
+  sayfada kart olarak duran kritik duyuru" ifade edilemezdi. `placement`
+  kapalı enum DEĞİL (`string`): yeni bir ekran açıldığında sözleşmeyi
+  beklemek, duyurunun haftalarca yayınlanamaması demek olurdu.
+- **Eylem üç parçadır.** `action_label` boşsa düğme çizilmez; `action_type`
+  hedefin cinsini söyler. Tek bir "url" kolonuna indirilseydi istemci
+  `/siparislerim` yolunu tarayıcıda açıp müşteriyi uygulamadan çıkarırdı.
+- **Kitle sunucuda süzülür** (`audience`). "Aboneliğinizi yenileyin"
+  duyurusunu abone olmayana göstermek kadar kötü tek şey, süzgeci üç istemcide
+  üç kez yazıp birinde unutmaktır.
+- **Görselin YOLU saklanıyor, URL değil.** Alan adı ya da şema değiştiğinde
+  (http → https, taşınma) tablodaki bütün satırlar bir anda kırık bağlantıya
+  dönerdi.
+- **`draft` doğar:** kaydedilir kaydedilmez yayına giren bir duyuru, yarım
+  yazılmış metni bütün müşterilere gösterirdi.
+
+**`veykemtu_announcement_reads`** — `announcement_id`, `customer_id`,
+`seen_at`, `dismissed_at`. `UNIQUE(announcement_id, customer_id)`
+(`veykemtu_duyuru_okuma_essiz`) · `INDEX(customer_id)`.
+
+Okuma tablosu bu özelliğin **yarısıdır**, süs değil. Duyuru "açılışta göster"
+mantığıyla çiziliyor; kapatma işareti sunucuda tutulmasaydı müşteri aynı bandı
+her açılışta, her cihazda yeniden görürdü. İstemci yerelinde tutulsaydı da
+web'de kapatılan duyuru mobilde yeniden açılırdı — üç istemcinin üç ayrı
+hafızası olurdu. Aynı satır Kontrol Merkezi'nin "kaç kişi gördü / kaç kişi
+kapattı" istatistiğini de besliyor.
+
+**`seen_at` duyuruyu listeden DÜŞÜRMEZ, `dismissed_at` düşürür.** Tek bayrağa
+indirilseydi ekranda çizilen her duyuru ilk karede kaybolur, müşteri okumaya
+fırsat bulamazdı. `seen_at` İLK görülme anıdır ve bir daha değişmez.
+
+### 10.9 `veykemtu_error_events` — durum monitörünün tek havuzu
+
+Dört bileşenin (sunucu, KDS kasası, mobil, site) hataları burada buluşuyor.
+"Bir şey çalışmıyor" şikâyeti geldiğinde bakılacak ilk ekran bu tabloyu okur
+(`docs/control/monitor.md`).
+
+`id`, `source` (index), `level` (index), `fingerprint` (**char(40) UNIQUE**),
+`type`, `message` (500), `stack` (text), `context` (json), `occurred_at`
+(index), `first_seen_at`, `last_seen_at` (index), `occurrences` (default 1),
+`resolved_at` (index), `resolved_by`.
+
+**`fingerprint` üzerindeki UNIQUE, tasarımın tamamıdır.** Tek bir çökme
+döngüsü aynı hatayı dakikada yüzlerce kez üretir: yazıcıya ulaşamayan bir kasa
+her yoklamada, sonsuz döngüye giren bir ekran her karede. Her tekrar ayrı satır
+olsaydı bir öğleden sonra bu tabloya bir milyon satır yazılır, monitör ekranı
+açılamaz hâle gelir ve GERÇEK hata — yanında duran, bir kez olmuş, kimsenin
+göremediği satır — kaybolurdu. Tekrar yalnızca `occurrences` sayacını
+artırıyor; "47 kez oldu" cümlesi 47 satırdan daha çok şey anlatır. SHA-1
+seçildi çünkü aranan kriptografik güç değil, aynı hatanın iki tekrarının aynı
+dizeyi üretmesi.
+
+**`first_seen_at` hiç değişmez** ("bu ne zamandır oluyor"), **`last_seen_at`
+her tekrarda ilerler** ("hâlâ oluyor mu"). Tek kolona indirilseydi üç haftadır
+süren bir arıza ile beş dakika önce başlayan bir arıza panelde aynı görünürdü.
+`occurred_at` ise hatanın İSTEMCİDE oluştuğu andır; sunucunun alış anıyla
+arasındaki fark, çevrimdışıyken biriktirilip sonra gönderilen raporları ayırt
+eden tek işarettir.
+
+`source` sunucuda türetilir (`X-App-Id`), gövdeden okunmaz. **`DELETE` yok:**
+bir hata kaydını silmek o hatanın hiç olmadığını iddia etmektir; çözülen olay
+işaretlenir ve varsayılan süzgeçten düşer. `resolved_by` serbest metin —
+Kontrol Merkezi ayrı bir depo, ayrı bir kullanıcı tablosu.
+
+**Saklama şart:** `veykemtu:hata-temizle` (03:30) çözülmüş satırları 30,
+çözülmemişleri 90 günden sonra siler. Saklama kuralı olmadan bu tablo, hiç
+kimsenin silmeyi düşünmediği için diski dolduran tablo olurdu.
+
+### 10.10 `veykemtu_kitchen_commands` — teslimat sayacı (additive)
+
+| Kolon | Tip | Ne |
+|---|---|---|
+| `attempts` | tinyint unsigned, default 0 | Kaç kez teslim edildi |
+| `expires_at` | timestamp null | Bu andan sonra komut anlamını yitirir |
+| `dedupe_key` | varchar(64) null | Yineleme koruması |
+
+`UNIQUE(device_id, dedupe_key)` (`kitchen_commands_dedupe_uq`) ·
+`INDEX(device_id, executed_at, expires_at)` (`kitchen_commands_pending_idx`)
+
+**Sahadaki belirti:** mutfak ekranı her on dakikada bir test fişi basıyordu.
+`KitchenCommand::pendingFor()` sonucu gelmemiş her komutu on dakikada bir
+yeniden teslim ediyor, `takeCommands()` de `delivered_at`'i yeniden damgalayıp
+saati sıfırlıyordu — kusursuz ve kalıcı bir on dakikalık döngü.
+
+**İki sayaç da gerekli, biri diğerini kapsamıyor:**
+
+- `attempts` **ulaşılabilen** ama komutu sürekli düşüren kasayı sınırlar. Kasa
+  sağlık bildiriyor, komutu alıyor, çalıştıramıyor ve sonucu bildiremiyor;
+  `expires_at` tek başına burada otuz dakika boyunca üç yerine altı kez fiş
+  bastırırdı.
+- `expires_at` **ulaşılamayan** kasayı sınırlar. Hafta sonu kapalı kalan bir
+  kasa pazartesi açıldığında `attempts` hâlâ sıfırdır ve cuma akşamından kalma
+  bir test fişi basılırdı.
+
+`dedupe_key` üçüncü kapı: aynı düğmeye iki kez basmak iki bağımsız döngü
+açıyordu. Anahtar YALNIZ idempotent komutlarda dolu; **`reprint` bilerek
+dışarıda** — aynı fişi ikinci kez basmak o düğmenin tek varlık sebebi.
+Kapsam cihaz başına: iki kasaya aynı anda test fişi göndermek meşru bir istek.
+
+Göç, o an döngüde olan satırları da kapatıyor (teslim edilmiş ama
+onaylanmamışlar `executed_at` alıyor); yalnız **en az bir kez teslim
+edilmişler** — hiç teslim edilmemiş bir komutu kapatmak, yöneticinin dakikalar
+önce bastığı düğmeyi sessizce yutmak olurdu.

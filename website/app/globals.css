@@ -366,6 +366,17 @@
   & a {
     @apply text-link underline underline-offset-4;
   }
+
+  /*
+   * Gövde HTML'i panelden geliyor (`lib/api/site-content.ts`) ve içindeki
+   * `<img>` etiketinin genişliğine kimse bakmıyor: izin listesi `width`
+   * özniteliğine izin veriyor ama değerini doğrulamıyor. Sınırsız bırakılan
+   * tek bir görsel, telefonda sayfanın tamamına yatay kaydırma açıyor.
+   * `height: auto` da şart — `width` verilmiş bir görselde oranı korur.
+   */
+  & img {
+    @apply h-auto max-w-full;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

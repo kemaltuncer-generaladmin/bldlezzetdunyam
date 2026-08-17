@@ -14,6 +14,28 @@ use Veykemtu\BridgeApi\Admin\DashboardWidgets\BldStatus;
  * ayrı bir dosyada durmasının sebebi `Extension.php`'nin API tarafıyla
  * (rotalar, ara katmanlar, oran sınırları) admin tarafını aynı dosyada
  * büyütmemesi; iki taraf farklı zamanlarda ve farklı sebeplerle değişiyor.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * BU DOSYADAKİ EKRANLARIN HİÇBİRİNE BUGÜN ULAŞILAMIYOR — ve bu doğrudur.
+ *
+ * Admin paneli 17.08.2026'da kapatıldı (F4): Kontrol Merkezi tek yönetim
+ * yüzeyi ve `/admin/*` yolları `RequireAdminPanel` ara katmanıyla `404`
+ * dönüyor. Şalter `BLD_ADMIN_ENABLED` ortam değişkeni, varsayılan kapalı;
+ * açma yordamı `docs/04-platform.md` §2.7.
+ *
+ * KAYITLAR YİNE DE SİLİNMEDİ. Sebep, kapatmanın kendisiyle aynı: panel bir
+ * YEDEK yüzey olarak duruyor ve yedeğin değeri, ihtiyaç anında EKSİKSİZ
+ * açılmasında. Menü girdileri, yetki kutuları ve gösterge paneli
+ * parçacıkları buradan silinseydi, şalter açıldığında yalnız adresi bilinen
+ * ekranlara gidilebilen, yan menüsü boş ve yetkileri personel rollerinden
+ * düşmüş bir panel açılırdı — yani "geri alınabilir" dediğimiz şey geri
+ * alınamaz olurdu.
+ *
+ * Bu yüzden aşağıdaki tanımlar, panel kapalıyken de doğru kalmak
+ * zorundadır: yeni bir admin ekranı eklendiğinde girdisi ve yetkisi
+ * buraya yine yazılır (`Tests\Feature\Admin*` paketleri şalteri açıp
+ * hepsini doğrulamaya devam ediyor).
+ * ─────────────────────────────────────────────────────────────────────────
  */
 final class AdminRegistrar
 {

@@ -1947,6 +1947,498 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'Servis yok'**
   String get dailyMenuNoServiceShort;
+
+  /// No description provided for @subscriptionPaymentTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Abonelik ödemesi'**
+  String get subscriptionPaymentTitle;
+
+  /// No description provided for @subscriptionPaymentPeriod.
+  ///
+  /// In tr, this message translates to:
+  /// **'Dönem'**
+  String get subscriptionPaymentPeriod;
+
+  /// No description provided for @subscriptionPaymentAmount.
+  ///
+  /// In tr, this message translates to:
+  /// **'Dönem tutarı'**
+  String get subscriptionPaymentAmount;
+
+  /// Tutarın altındaki açıklama. İstemci porsiyon × fiyat çarpımını tekrarlamıyor; kullanıcıya da rakamın nereden geldiği söyleniyor.
+  ///
+  /// In tr, this message translates to:
+  /// **'Tutarı sunucu hesaplar; atladığınız günler düşülür.'**
+  String get subscriptionPaymentServerCalculates;
+
+  /// No description provided for @subscriptionPaymentDueDate.
+  ///
+  /// In tr, this message translates to:
+  /// **'Son ödeme: {date}'**
+  String subscriptionPaymentDueDate(String date);
+
+  /// No description provided for @subscriptionPaymentNumber.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ödeme no'**
+  String get subscriptionPaymentNumber;
+
+  /// No description provided for @subscriptionPaymentIntro.
+  ///
+  /// In tr, this message translates to:
+  /// **'Dönem tutarı peşin tahsil edilir. Ödemeyi başlattığınızda bankanız ek bir doğrulama isteyebilir.'**
+  String get subscriptionPaymentIntro;
+
+  /// No description provided for @subscriptionPaymentStart.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ödemeyi başlat'**
+  String get subscriptionPaymentStart;
+
+  /// Açık bir ödeme varsa sunucu YENİSİNİ açmaz, mevcut kaydı döner; bu yüzden düğme aynı dönemi iki kez tahsil etme riski taşımaz.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ödemeyi yeniden dene'**
+  String get subscriptionPaymentRetry;
+
+  /// No description provided for @subscriptionPaymentStarting.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ödeme başlatılıyor…'**
+  String get subscriptionPaymentStarting;
+
+  /// No description provided for @subscriptionPaymentNotReady.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu abonelik henüz ödemeye hazır değil. Fiyat girildikten sonra dönem tutarı burada görünecek.'**
+  String get subscriptionPaymentNotReady;
+
+  /// No description provided for @subscriptionPaymentCancelled.
+  ///
+  /// In tr, this message translates to:
+  /// **'İptal edilmiş abonelik için ödeme alınmaz.'**
+  String get subscriptionPaymentCancelled;
+
+  /// No description provided for @subscriptionPaymentAlreadyPaid.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu dönem ödendi.'**
+  String get subscriptionPaymentAlreadyPaid;
+
+  /// No description provided for @subscriptionPaymentOtpTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'SMS kodunu girin'**
+  String get subscriptionPaymentOtpTitle;
+
+  /// No description provided for @subscriptionPaymentOtpBody.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bankanız kayıtlı telefonunuza bir doğrulama kodu gönderdi. Kodu biz üretmiyoruz, yalnızca iletiyoruz.'**
+  String get subscriptionPaymentOtpBody;
+
+  /// No description provided for @subscriptionPaymentOtpLabel.
+  ///
+  /// In tr, this message translates to:
+  /// **'Doğrulama kodu'**
+  String get subscriptionPaymentOtpLabel;
+
+  /// Sunucuya boş ya da kısa kod göndermemek için istemci tarafı denetim; sınır `docs/openapi.yaml` confirmSubscriptionPayment gövdesinden.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kod 4 ile 8 hane arasında olmalı.'**
+  String get subscriptionPaymentOtpLength;
+
+  /// No description provided for @subscriptionPaymentOtpSubmit.
+  ///
+  /// In tr, this message translates to:
+  /// **'Onayla'**
+  String get subscriptionPaymentOtpSubmit;
+
+  /// No description provided for @subscriptionPaymentOtpAttemptWarning.
+  ///
+  /// In tr, this message translates to:
+  /// **'Her yanlış deneme hakkınızdan düşer.'**
+  String get subscriptionPaymentOtpAttemptWarning;
+
+  /// No description provided for @subscriptionPaymentVerifying.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kod doğrulanıyor…'**
+  String get subscriptionPaymentVerifying;
+
+  /// Sözleşmede ilan edilmiş ama gövdesi olmayan dal. Kullanıcıya AÇIKÇA kapalı olduğu söyleniyor; sessizce atlanmıyor.
+  ///
+  /// In tr, this message translates to:
+  /// **'3-D Secure bu sürümde açık değil'**
+  String get subscriptionPaymentThreeDsTitle;
+
+  /// No description provided for @subscriptionPaymentThreeDsBody.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bankanızın doğrulama sayfası, ödeme sağlayıcısı bağlandığında bu ekranda açılacak. Ödeme kaydınız duruyor; sonucunu izliyoruz.'**
+  String get subscriptionPaymentThreeDsBody;
+
+  /// No description provided for @subscriptionPaymentWatching.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sonuç izleniyor…'**
+  String get subscriptionPaymentWatching;
+
+  /// Sınırlı yoklamanın kaçıncı denemede olduğu. Sonsuz bir bekleme çubuğu, ne kadar süreceğini söylemezdi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sonuç soruluyor ({attempt}/{total})'**
+  String subscriptionPaymentPollProgress(int attempt, int total);
+
+  /// No description provided for @subscriptionPaymentPollExhausted.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sonuç bu sürede gelmedi. Ekranı aşağı çekerek yenileyebilirsiniz.'**
+  String get subscriptionPaymentPollExhausted;
+
+  /// Sunucu ek adım istemedi (`next_action = none`) ama ödeme de `paid` değil. Sessizce başarılı saymak, ödenmemiş bir dönemi ödenmiş göstermek olurdu.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ödeme kesinleşmedi. Ekranı aşağı çekerek yenileyin.'**
+  String get subscriptionPaymentUnsettled;
+
+  /// No description provided for @subscriptionPaymentUnsupportedStep.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu ödeme adımı için uygulamayı güncellemeniz gerekiyor.'**
+  String get subscriptionPaymentUnsupportedStep;
+
+  /// Sunucu Türkçe bir gerekçe gönderdiyse onun yerine o gösterilir; bu metin gerekçesiz kalan durumun karşılığı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ödeme tamamlanamadı.'**
+  String get subscriptionPaymentDeclined;
+
+  /// No description provided for @subscriptionPaymentSucceededTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ödeme alındı'**
+  String get subscriptionPaymentSucceededTitle;
+
+  /// No description provided for @subscriptionPaymentSucceededBody.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu dönemin tutarı tahsil edildi. Aboneliğiniz kaldığı yerden sürüyor.'**
+  String get subscriptionPaymentSucceededBody;
+
+  /// No description provided for @subscriptionPaymentPaidAt.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ödeme anı'**
+  String get subscriptionPaymentPaidAt;
+
+  /// No description provided for @subscriptionPaymentReceipt.
+  ///
+  /// In tr, this message translates to:
+  /// **'Makbuz'**
+  String get subscriptionPaymentReceipt;
+
+  /// No description provided for @subscriptionPaymentReceiptNote.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu makbuzun mali değeri yoktur; fatura ayrıca düzenlenir.'**
+  String get subscriptionPaymentReceiptNote;
+
+  /// No description provided for @subscriptionPaymentBack.
+  ///
+  /// In tr, this message translates to:
+  /// **'Aboneliğe dön'**
+  String get subscriptionPaymentBack;
+
+  /// No description provided for @subscriptionPaymentRefresh.
+  ///
+  /// In tr, this message translates to:
+  /// **'Durumu yenile'**
+  String get subscriptionPaymentRefresh;
+
+  /// Tekil siparişte `next_action = otp`. Sözleşmede siparişe ait bir kod onay ucu YOK (yalnız abonelik ödemesinde var), bu yüzden kullanıcıya takip ekranı gösteriliyor.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ödemeniz banka doğrulaması bekliyor. Siparişiniz oluştu; ödeme durumunu bu ekrandan izleyebilirsiniz.'**
+  String get checkoutPaymentStepOtp;
+
+  /// No description provided for @checkoutPaymentStepThreeDs.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ödemeniz için banka doğrulaması gerekiyor. Doğrulama sayfası bu sürümde açılmıyor; siparişiniz oluştu ve ödeme durumunu bu ekrandan izleyebilirsiniz.'**
+  String get checkoutPaymentStepThreeDs;
+
+  /// No description provided for @checkoutPaymentStepUnsupported.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ödeme bir sonraki adımı bekliyor. Uygulamayı güncelledikten sonra ödemeyi tamamlayabilirsiniz.'**
+  String get checkoutPaymentStepUnsupported;
+
+  /// SMS ile gelen tek kullanımlık kodun alan etiketi. Ortak `OtpField` bileşeninin varsayılanı.
+  ///
+  /// In tr, this message translates to:
+  /// **'Onay kodu'**
+  String get otpFieldLabel;
+
+  /// Kod alanının doğrulama hatası. Uzunluk sözleşmeden geliyor (`code` minLength/maxLength 6).
+  ///
+  /// In tr, this message translates to:
+  /// **'Onay kodu 6 rakamdan oluşur.'**
+  String get validationOtpCode;
+
+  /// No description provided for @contractTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Abonelik sözleşmesi'**
+  String get contractTitle;
+
+  /// Sözleşme metninin sürümü. Fiyat ya da koşul değişince yeni sürüm üretilir ve yeniden onay istenir; abone hangi sürümü onayladığını görmelidir.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sürüm {version}'**
+  String contractVersion(int version);
+
+  /// No description provided for @contractStatusAwaiting.
+  ///
+  /// In tr, this message translates to:
+  /// **'Onay bekliyor'**
+  String get contractStatusAwaiting;
+
+  /// No description provided for @contractStatusApproved.
+  ///
+  /// In tr, this message translates to:
+  /// **'Onaylandı'**
+  String get contractStatusApproved;
+
+  /// No description provided for @contractStatusExpired.
+  ///
+  /// In tr, this message translates to:
+  /// **'Süresi doldu'**
+  String get contractStatusExpired;
+
+  /// No description provided for @contractStatusCancelled.
+  ///
+  /// In tr, this message translates to:
+  /// **'Geçersiz'**
+  String get contractStatusCancelled;
+
+  /// No description provided for @contractNotFoundTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sözleşme bulunamadı'**
+  String get contractNotFoundTitle;
+
+  /// Belirteç tanınmadı (404). SÜRESİ DOLMUŞ bağlantıdan ayrıdır — o `200` + `expired` ile gelir ve kendi cümlesini kurar.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu bağlantı tanınmadı. SMS ile gelen bağlantıyı olduğu gibi açtığınızdan emin olun.'**
+  String get contractNotFoundBody;
+
+  /// No description provided for @contractApprovedTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu sözleşme onaylandı'**
+  String get contractApprovedTitle;
+
+  /// No description provided for @contractApprovedBody.
+  ///
+  /// In tr, this message translates to:
+  /// **'Onayınız kayıtlara geçti. Yeniden onaylamanız gerekmiyor.'**
+  String get contractApprovedBody;
+
+  /// Onay anı biliniyorsa gösterilir; hukuki bir izdir ve silinmez.
+  ///
+  /// In tr, this message translates to:
+  /// **'Onayınız {moment} tarihinde kayıtlara geçti. Yeniden onaylamanız gerekmiyor.'**
+  String contractApprovedAt(String moment);
+
+  /// No description provided for @contractExpiredTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bağlantının süresi doldu'**
+  String get contractExpiredTitle;
+
+  /// Abonenin yapacağı iş YENİ BAĞLANTI İSTEMEK. `cancelled` metninden ayrı: orada yapacak bir şey yok.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sözleşmeyi bu bağlantıdan onaylayamazsınız. Bizimle iletişime geçip yeni bir onay bağlantısı isteyin.'**
+  String get contractExpiredBody;
+
+  /// No description provided for @contractCancelledTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu sözleşme geçersiz'**
+  String get contractCancelledTitle;
+
+  /// No description provided for @contractCancelledBody.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sözleşme iptal edildi ya da yerine yeni bir sürüm hazırlandı. Geçerli sürüm için gönderilen son bağlantıyı kullanın.'**
+  String get contractCancelledBody;
+
+  /// Onaylayan kişi neyi imzaladığını porsiyon fiyatından zihninde çarparak değil, yazılı bir rakamla görmelidir.
+  ///
+  /// In tr, this message translates to:
+  /// **'Aylık tahmini tutar'**
+  String get contractMonthlyEstimate;
+
+  /// No description provided for @contractQuantity.
+  ///
+  /// In tr, this message translates to:
+  /// **'Günlük porsiyon'**
+  String get contractQuantity;
+
+  /// No description provided for @contractBodyTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sözleşme metni'**
+  String get contractBodyTitle;
+
+  /// No description provided for @contractEmptyBody.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sözleşme metni boş görünüyor.'**
+  String get contractEmptyBody;
+
+  /// No description provided for @contractApproveTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sözleşmeyi onaylayın'**
+  String get contractApproveTitle;
+
+  /// Numara MASKELİ gelir ve değiştirilemez: kod sözleşmenin kayıtlı numarasına gider, istemciden numara alınmaz.
+  ///
+  /// In tr, this message translates to:
+  /// **'Onay kodunu {phone} numarasına göndereceğiz.'**
+  String contractCodeToPhone(String phone);
+
+  /// No description provided for @contractCodeToRegisteredPhone.
+  ///
+  /// In tr, this message translates to:
+  /// **'Onay kodunu sözleşmede kayıtlı cep telefonunuza göndereceğiz.'**
+  String get contractCodeToRegisteredPhone;
+
+  /// No description provided for @contractCodeSent.
+  ///
+  /// In tr, this message translates to:
+  /// **'Onay kodunu gönderdik.'**
+  String get contractCodeSent;
+
+  /// No description provided for @contractSendCode.
+  ///
+  /// In tr, this message translates to:
+  /// **'Onay kodu gönder'**
+  String get contractSendCode;
+
+  /// No description provided for @contractApprove.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sözleşmeyi onayla'**
+  String get contractApprove;
+
+  /// No description provided for @contractResend.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kodu yeniden gönder'**
+  String get contractResend;
+
+  /// Düğmeden ÖNCE yazılır: onaydan sonra söylenseydi kullanıcı bunu iş bittikten sonra öğrenirdi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Onaylamak, sözleşmeyi kabul ettiğiniz anlamına gelir ve geri alınamaz. Vazgeçmek isterseniz aboneliğinizi iptal edebilirsiniz.'**
+  String get contractIrreversible;
+
+  /// Bağlantının geçerlilik sonu; süresizse hiç gösterilmez.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu bağlantı {moment} tarihine kadar geçerli.'**
+  String contractExpiresAt(String moment);
+
+  /// No description provided for @subscriptionSkipTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Gün atlama'**
+  String get subscriptionSkipTitle;
+
+  /// Şeridin altındaki tek cümlelik açıklama. Kesim kuralı BURADA yazılı: kilitli hücreye dokunup tepki alamayan abone sebebini başka yerde arayamaz.
+  ///
+  /// In tr, this message translates to:
+  /// **'Gelmeyeceğiniz günü kapatın; o günün porsiyonu serbest satışa döner. Kesim saati geçen gün değiştirilemez.'**
+  String get subscriptionSkipHelp;
+
+  /// No description provided for @subscriptionSkipStateScheduled.
+  ///
+  /// In tr, this message translates to:
+  /// **'Teslimat var'**
+  String get subscriptionSkipStateScheduled;
+
+  /// No description provided for @subscriptionSkipStateSkipped.
+  ///
+  /// In tr, this message translates to:
+  /// **'Atlandı'**
+  String get subscriptionSkipStateSkipped;
+
+  /// No description provided for @subscriptionSkipStateLocked.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kesim geçti'**
+  String get subscriptionSkipStateLocked;
+
+  /// Aboneliğin servis günlerinde olmayan gün. Kapalı DEĞİL: mutfak açık, o gün bu aboneliğe teslimat yok.
+  ///
+  /// In tr, this message translates to:
+  /// **'Servis yok'**
+  String get subscriptionSkipStateOffDay;
+
+  /// Aboneliğin başlangıcından önce ya da bitişinden sonra kalan gün.
+  ///
+  /// In tr, this message translates to:
+  /// **'Dönem dışı'**
+  String get subscriptionSkipStateOutside;
+
+  /// Atlamanın karşılığı AÇIKÇA söyleniyor: abone porsiyonun kaybolmadığını, satışa döndüğünü bilmeli.
+  ///
+  /// In tr, this message translates to:
+  /// **'{date} atlandı. Porsiyon serbest satışa döndü.'**
+  String subscriptionSkipDone(String date);
+
+  /// No description provided for @subscriptionSkipUndone.
+  ///
+  /// In tr, this message translates to:
+  /// **'{date} yeniden teslim edilecek.'**
+  String subscriptionSkipUndone(String date);
+
+  /// No description provided for @announcementSeverityInfo.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bilgi'**
+  String get announcementSeverityInfo;
+
+  /// No description provided for @announcementSeverityWarning.
+  ///
+  /// In tr, this message translates to:
+  /// **'Uyarı'**
+  String get announcementSeverityWarning;
+
+  /// Duyurunun tonu ekran okuyucuya YAZIYLA gidiyor; rengi ve ikonu görmeyen kullanıcı uyarı ile bilgiyi başka türlü ayıramaz. Kritik değil Önemli: ton kapatılabilirlikten bağımsızdır ve kritik kelimesi kullanıcıya arıza duygusu veriyor.
+  ///
+  /// In tr, this message translates to:
+  /// **'Önemli'**
+  String get announcementSeverityCritical;
+
+  /// No description provided for @announcementDismiss.
+  ///
+  /// In tr, this message translates to:
+  /// **'Duyuruyu kapat'**
+  String get announcementDismiss;
+
+  /// No description provided for @announcementLinkFailed.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bağlantı açılamadı.'**
+  String get announcementLinkFailed;
 }
 
 class _AppLocalizationsDelegate

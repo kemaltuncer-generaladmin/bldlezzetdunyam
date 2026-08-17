@@ -176,7 +176,11 @@ final CustomerReceiptData customerMerged = CustomerReceiptData(
   printedAt: printedAt,
   requestedAt: requestedAt,
   lines: const [
-    CustomerReceiptLine(quantity: 10, name: 'Mercimek Çorbası', lineTotal: 85000),
+    CustomerReceiptLine(
+      quantity: 10,
+      name: 'Mercimek Çorbası',
+      lineTotal: 85000,
+    ),
     CustomerReceiptLine(
       quantity: 2,
       name: 'Tavuk Sote',
@@ -268,9 +272,7 @@ final KitchenReceiptData kitchenRevised = KitchenReceiptData(
   customerNote: 'Fatura kurumsal',
   revisionNo: 2,
   revisionSummary: const ['Mercimek Çorbası: 20 → 10', 'ÇIKARILDI: Ayran ×5'],
-  lines: const [
-    KitchenReceiptLine(quantity: 10, name: 'Mercimek Çorbası'),
-  ],
+  lines: const [KitchenReceiptLine(quantity: 10, name: 'Mercimek Çorbası')],
 );
 
 /// Kurye fişi — düzenlenmiş, kapıda ödemeli, haritalı sipariş (K-14).
@@ -293,7 +295,11 @@ final CourierReceiptData courierRevised = CourierReceiptData(
   paymentMethod: ReceiptPaymentMethod.cash,
   paymentStatus: ReceiptPaymentStatus.pending,
   lines: const [
-    CustomerReceiptLine(quantity: 10, name: 'Mercimek Çorbası', lineTotal: 85000),
+    CustomerReceiptLine(
+      quantity: 10,
+      name: 'Mercimek Çorbası',
+      lineTotal: 85000,
+    ),
   ],
   address: const ReceiptAddress(
     line1: 'Örnek Mah. 12. Sk No:3',
@@ -337,12 +343,18 @@ final ProductionPlanData productionPlan = ProductionPlanData(
     ProductionPlanTotal(name: 'Tavuk Sote', quantity: 85),
   ],
   deliveries: const [
-    ProductionPlanDelivery(label: 'Konya Sanayi A.Ş.', time: '11:30', itemCount: 60),
-    ProductionPlanDelivery(label: 'Meram Belediyesi', time: '12:00', itemCount: 45),
+    ProductionPlanDelivery(
+      label: 'Konya Sanayi A.Ş.',
+      time: '11:30',
+      itemCount: 60,
+    ),
+    ProductionPlanDelivery(
+      label: 'Meram Belediyesi',
+      time: '12:00',
+      itemCount: 45,
+    ),
   ],
-  warnings: const [
-    'Abonelik #7 — bugün atlanıyor (istisna).',
-  ],
+  warnings: const ['Abonelik #7 — bugün atlanıyor (istisna).'],
 );
 
 /// Boş gün — "ÜRETİM YOK" satırı.
@@ -446,7 +458,10 @@ void main() {
     });
 
     test('düzenlenmiş sipariş — GÜNCEL FİŞ bandı (K-20)', () {
-      expectGolden('receipt_mutfak_revize', buildKitchenReceipt(kitchenRevised));
+      expectGolden(
+        'receipt_mutfak_revize',
+        buildKitchenReceipt(kitchenRevised),
+      );
     });
   });
 
@@ -643,7 +658,10 @@ void main() {
       // Sıfırlık bir "tahsil edilecek" satırı, kuryenin bir sonraki fişte
       // gerçek tutarı gözden kaçırmasına yol açıyordu.
       expect(
-        _contains(buildCustomerReceipt(customerMergedPaid), Pc857.encode('TAHSİL')),
+        _contains(
+          buildCustomerReceipt(customerMergedPaid),
+          Pc857.encode('TAHSİL'),
+        ),
         isFalse,
       );
     });
@@ -938,19 +956,13 @@ void main() {
 
     test('kargo bilgisi yoksa boş "Kargo:" satırı basılmaz', () {
       // Boş bir başlık, paketleyene bir şeyin eksik olduğunu düşündürür.
-      expect(
-        _contains(buildBbdReceipt(bbdPickup), 'Kargo'.codeUnits),
-        isFalse,
-      );
+      expect(_contains(buildBbdReceipt(bbdPickup), 'Kargo'.codeUnits), isFalse);
     });
 
     test('TUTAR gönderilmediyse satır BASILMAZ', () {
       // Uydurulmuş ya da sıfır bir tutar, kapıda ödemede yanlış
       // tahsilata yol açar.
-      expect(
-        _contains(buildBbdReceipt(bbdPickup), 'TUTAR'.codeUnits),
-        isFalse,
-      );
+      expect(_contains(buildBbdReceipt(bbdPickup), 'TUTAR'.codeUnits), isFalse);
       expect(
         _contains(buildBbdReceipt(bbdDelivery), 'TUTAR'.codeUnits),
         isTrue,
@@ -961,9 +973,7 @@ void main() {
       // BBD'nin fiyatlandırması bizim değil; yanlış kaynaktan alınmış
       // bir sayı, paketleyene güvenilmez bilgi vermek olurdu.
       final bytes = buildBbdReceipt(bbdDelivery);
-      final text = String.fromCharCodes(
-        bytes.where((b) => b >= 32 && b < 127),
-      );
+      final text = String.fromCharCodes(bytes.where((b) => b >= 32 && b < 127));
 
       // Tek para tutarı toplam satırındaki olmalı.
       expect(',00'.allMatches(text).length, 1);
@@ -1053,7 +1063,10 @@ void main() {
           .split('\n')
           .firstWhere((row) => row.startsWith('Tel: '));
 
-      expect(line.length, lessThanOrEqualTo(ReceiptStyle.standard.doubleColumns));
+      expect(
+        line.length,
+        lessThanOrEqualTo(ReceiptStyle.standard.doubleColumns),
+      );
     });
 
     test('telefon yoksa Tel satırı hiç basılmaz', () {

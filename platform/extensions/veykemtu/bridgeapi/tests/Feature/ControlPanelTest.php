@@ -253,7 +253,7 @@ class ControlPanelTest extends KitchenTestCase
             'data' => [
                 'location_id', 'location_name', 'ordering_enabled', 'paused_until',
                 'pause_reason', 'is_open', 'order_cutoff', 'max_lookahead_days',
-                'subscription_release_time', 'min_order_total_kurus', 'delivery_fee_kurus',
+                'min_order_total_kurus', 'delivery_fee_kurus',
                 'payment_methods', 'busy', 'busy_message', 'prep_minutes',
                 'delivery_minutes', 'busy_extra_minutes', 'daily_menu_enabled',
                 'daily_package_menu_id', 'auto_invoice',
@@ -266,8 +266,41 @@ class ControlPanelTest extends KitchenTestCase
         // gömmesi, sunucu varsayılanı değiştiğinde iki farklı gerçek
         // üretirdi.
         $response->assertJsonPath('meta.defaults.max_lookahead_days', 7)
-            ->assertJsonPath('meta.defaults.subscription_release_time', '07:00')
             ->assertJsonPath('meta.available_payment_methods', ['online', 'cash']);
+    }
+
+    /**
+     * KALDIRILMIŞ AYAR YANITTA HİÇ GEÇMEZ.
+     *
+     * `subscription_release_time` 17.08.2026'da kaldırıldı; sipariş servis
+     * gününün kesim anında mutfağa düşüyor. Alan bir süre kalıntı olarak
+     * yayınlanmaya devam etti ve sabit `"07:00"` döndürdü — hata vermeyen,
+     * yalnızca YANLIŞ bir cevap. Bu iddia onun geri gelmesini engelliyor:
+     * anahtarın VARLIĞI aranıyor, değeri değil.
+     */
+    public function test_KALDIRILAN_serbest_birakma_saati_yanitta_YOK(): void
+    {
+        $body = $this->signed('GET', '/api/control/settings/sales')->assertOk()->json();
+
+        $this->assertArrayNotHasKey('subscription_release_time', $body['data']);
+        $this->assertArrayNotHasKey('subscription_release_time', $body['meta']['defaults']);
+    }
+
+    /**
+     * Kaldırılmış ayara yazma denemesi SESSİZCE YUTULMAZ, `422` verir.
+     *
+     * Alanı yalnızca yazılabilirler listesinden çıkarmak yetmezdi: eski bir
+     * panel derlemesi `200` ve boş bir `changed` görüp saati kaydettiğini
+     * sanardı. Kaldırılmış bir ayarın en tehlikeli hâli, yazılıyormuş gibi
+     * davranmasıdır.
+     */
+    public function test_KALDIRILAN_serbest_birakma_saati_YAZILAMAZ(): void
+    {
+        $this->signed('PUT', '/api/control/settings/sales', $this->intent([
+            'subscription_release_time' => '07:00',
+        ]))
+            ->assertStatus(422)
+            ->assertJsonPath('error.details.field', 'subscription_release_time');
     }
 
     public function test_KISMI_YAZMA_gonderilmeyen_alani_degistirmez(): void

@@ -41,16 +41,36 @@
 	#   /storage/*         yüklenen medya (ürün fotoğrafları)
 	#   /vendor/*          yayınlanan çekirdek varlıkları (CSS, ikon fontu)
 	#   /_assets/*         çekirdeğin varlık birleştiricisi
-	#   /odeme-simulasyon/* sanal POS simülasyonu (veykemtu.payment)
-	#   /cari-odeme-simulasyon/* cari borç ödeme simülasyonu (B-14/W-12)
+	#   /odeme-simulasyon/* sipariş ödemesi simülasyonu (veykemtu.payment)
+	#   /abonelik-odeme-simulasyon/* abonelik dönem ödemesi simülasyonu
+	#   /cari-odeme-simulasyon/* cari borç ödemesi — ROTA ARTIK YOK (cari
+	#                      hesap iş modelinden çıktı). Satır bilerek duruyor:
+	#                      aşağıdaki dersin kanıtı ve eşleşse bile 404 döner.
 	#   /teslimat/*        kuryenin fişteki QR'la açtığı teslim onayı (K-20)
+	#   /sozlesme/*        abonenin SMS'teki bağlantıyla açtığı sözleşme onayı
+	#   /abonelik-odemesi/* sanal POS'un aboneyi geri bıraktığı sonuç/iptal
 	#   /robots.txt, /favicon.svg  kökte duran statik dosyalar
 	#
-	# `/cari-odeme-simulasyon/*` LİSTEDE EKSİKTİ ve sayfa üretimde ana siteye
-	# yönleniyordu (14.08.2026'da fark edildi). `path` baştan eşleştiği için
-	# `/odeme-simulasyon/*` onu kapsamıyor — ayrı satır şart.
+	# BU LİSTE ÜÇ KEZ EKSİK KALDI; üçünde de arıza YALNIZ üretimde, YALNIZ
+	# gerçek müşteride göründü. Geliştirmede `Caddyfile.dev` bu yönlendirmeyi
+	# hiç kurmadığı için her şey çalışıyor gibi durur.
+	#
+	# 1) `/cari-odeme-simulasyon/*` eksikti, sayfa ana siteye yönleniyordu
+	#    (14.08.2026). `path` ÖNEKTEN eşleşir: `/odeme-simulasyon/*` onu
+	#    kapsamaz, çünkü adres o önekle BAŞLAMIYOR. Aynı tuzak
+	#    `/abonelik-odeme-simulasyon/*` için de geçerli — ayrı satır şart.
+	# 2) `/sozlesme/*` ve `/abonelik-odemesi/*` abonelik dalgasıyla geldi ve
+	#    yine listeye yazılmadı. İkisinin de istemcisi yok: birini abone
+	#    SMS'teki bağlantıdan, diğerini sanal POS geri yönlendirmeyle açıyor.
+	#    Yönlendirilselerdi abone sözleşmesini hiç onaylayamaz, ödeme dönüşü
+	#    sessizce kaybolurdu.
+	#
+	# TEK KAYNAK: `extensions/veykemtu/bridgeapi/routes/web.php` ile
+	# `extensions/veykemtu/payment/src/Extension.php`. Oralara sunucuda
+	# çizilen yeni bir sayfa eklendiğinde BURASI DA GÜNCELLENİR — ayrışma ne
+	# testte ne açılışta görünür.
 	@vitrinDisi {
-		not path /api/* /admin /admin/* /storage/* /vendor/* /_assets/* /odeme-simulasyon/* /cari-odeme-simulasyon/* /teslimat/* /robots.txt /favicon.svg
+		not path /api/* /admin /admin/* /storage/* /vendor/* /_assets/* /odeme-simulasyon/* /abonelik-odeme-simulasyon/* /cari-odeme-simulasyon/* /teslimat/* /sozlesme/* /abonelik-odemesi/* /robots.txt /favicon.svg
 	}
 	# Hedef ortamdan okunur; varsayılan üretim adresidir. Geliştirmede
 	# `SITE_PUBLIC_URL` verilerek yerel siteye yönlendirilebilir.

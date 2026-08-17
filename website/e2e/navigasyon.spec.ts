@@ -84,7 +84,6 @@ test.describe('Bilgi mimarisi (W-08)', () => {
     ['/menu-cozumleri', /\/menu$/],
     ['/kalite-hijyen', /\/kurumsal#kalite$|\/kurumsal$/],
     ['/calistigimiz-alanlar', /\/kurumsal#alanlar$|\/kurumsal$/],
-    ['/bilgi-merkezi', /\/kurumsal$/],
   ];
 
   for (const [from, to] of REDIRECTS) {
@@ -95,6 +94,22 @@ test.describe('Bilgi mimarisi (W-08)', () => {
       await expect(page).toHaveURL(to);
     });
   }
+
+  /**
+   * BİLGİ MERKEZİ LİSTEDEN ÇIKTI — M4. Ters yöne bakan bir test bıraktık.
+   *
+   * `/bilgi-merkezi` v2.0'da `/kurumsal`'a 308'liyordu; blog geri gelince
+   * yönlendirme `next.config.ts`'ten silindi. Yalnızca satırı listeden
+   * çıkarmak yetmez: yönlendirmeyi "unutulmuş temizlik" sanıp geri ekleyen
+   * biri hiçbir testi kırmadan blogun tamamını kapatabilirdi. Bu yüzden
+   * kural artık açıkça yazılı — adres KENDİ sayfasını açar.
+   */
+  test('/bilgi-merkezi artık yönlendirilmiyor, blogu açıyor', async ({ page }) => {
+    const response = await page.goto('/bilgi-merkezi');
+
+    expect(response?.status(), '/bilgi-merkezi 200 dönmeli').toBe(200);
+    await expect(page).toHaveURL(/\/bilgi-merkezi$/);
+  });
 
   /**
    * Bireysel kayıt kurumsala yönleniyor: sipariş kapısı kurumsal hesaplarda
@@ -124,8 +139,13 @@ test.describe('Bilgi mimarisi (W-08)', () => {
 
     // Yönlendirilen bir adresi haritada ilan etmek, arama motoruna "buraya
     // git" deyip kapıda başka yere göndermektir.
-    expect(body).not.toContain('/bilgi-merkezi');
     expect(body).not.toContain('/kalite-hijyen');
+    expect(body).not.toContain('/menu-cozumleri');
     expect(body).toContain('/menu');
+
+    // Blog geri geldiği için ARTIK ilan EDİLİYOR (M4): 200 dönen ve
+    // dizinlenmesini istediğimiz bir sayfanın haritada olmaması, yönlendirilen
+    // bir sayfanın haritada olması kadar tutarsız.
+    expect(body).toContain('/bilgi-merkezi');
   });
 });

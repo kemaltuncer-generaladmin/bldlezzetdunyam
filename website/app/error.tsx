@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { TriangleAlert } from 'lucide-react';
 import { StatePanel } from '@/components/state-panel';
 import { Button } from '@/components/ui/button';
+import { reportClientError } from '@/lib/report-error';
 
 /**
  * Rota hata sınırı.
@@ -28,6 +29,17 @@ import { Button } from '@/components/ui/button';
  * (`app/layout.tsx`) ve bu bir İSTEMCİ bileşeni — `getTranslations` burada
  * çağrılamaz. Sağlayıcıyı yalnızca hata ekranı için geri koymak, ICU
  * çalışma zamanını sitedeki her sayfaya indirmek demekti.
+ *
+ * ## Neden `console.error` değil?
+ *
+ * Konsola yazmak hatayı KULLANICININ tarayıcısında bırakır; biz onu asla
+ * görmeyiz. Rapor artık `POST /client-errors` ile durum monitörüne düşüyor
+ * (`lib/report-error.ts`). `digest` bağlama giriyor: sunucuda doğan bir
+ * hatanın istemciye ulaşan mesajı bilerek anlamsızlaştırılır ve sunucu
+ * günlüğüyle eşleştirmenin tek yolu o karmadır.
+ *
+ * Raportör kendi içinde susturulmuş (`void` döner, hiç fırlatmaz), yani
+ * buradaki `useEffect` ikinci bir hata sınırı tetiklemez.
  */
 export default function GlobalError({
   error,
@@ -37,7 +49,11 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    reportClientError({
+      error,
+      kind: 'render',
+      context: error.digest ? { digest: error.digest } : null,
+    });
   }, [error]);
 
   return (
