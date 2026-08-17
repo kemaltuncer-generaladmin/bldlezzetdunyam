@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Veykemtu\BridgeApi\Http\Controllers\Control;
 
 use Igniter\Cart\Models\Order;
+use Igniter\Local\Models\Location;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -13,10 +15,15 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
+use Throwable;
+use Veykemtu\BridgeApi\Admin\SettingsRepository;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
+use Veykemtu\BridgeApi\Models\ApiCustomer;
 use Veykemtu\BridgeApi\Models\ControlAudit;
 use Veykemtu\BridgeApi\Models\PaymentRefund;
+use Veykemtu\BridgeApi\Services\LocationGate;
 use Veykemtu\BridgeApi\Services\OrderEditor;
+use Veykemtu\BridgeApi\Services\OrderFactory;
 use Veykemtu\BridgeApi\Services\OrderPresenter;
 use Veykemtu\BridgeApi\Services\OrderStatusTransition;
 use Veykemtu\BridgeApi\Support\BusinessTime;
@@ -133,6 +140,284 @@ class OrderController extends ControlController
             ],
             'server_time' => $this->serverTime(),
         ]);
+    }
+
+    /**
+     * TELEFONLA ALINAN SİPARİŞİN ELLE GİRİLMESİ — `Admin\PhoneOrders`'ın devamı.
+     *
+     * Müşterilerin çoğu hâlâ telefonla arıyor ve o siparişleri sisteme
+     * sokmanın tek yolu admin panelindeki ekrandı; panel kapanıyor, akış
+     * buraya taşınıyor.
+     *
+     * FİYAT, SATIR ÇÖZÜMLEME, STOK VE SERBEST BIRAKMA BURADA DEĞİL:
+     * `OrderFactory::create()` çağrılıyor — vitrinin kullandığı metodun ta
+     * kendisi. İkinci bir hesap yazılsaydı panelin ve web'in zamanla ayrışan
+     * iki fiyatı olurdu ve fark ancak muhasebede görülürdü.
+     *
+     * `adminContext: true` sipariş penceresini (kesim saati, ileri görüş,
+     * satış şalteri, asgari tutar, menü üyeliği) BİLEREK ATLAR. Bu bir onay
+     * akışı değil KAYIT akışı: personel müşteriyle telefonda anlaştı,
+     * istisnayı insan verdi. Gerekçenin tamamı `OrderFactory::create()`
+     * yorumlarındadır. Atlanmayan tek kapı ödeme yöntemi — vitrinde tanımlı
+     * olmayan bir yöntem tahsilat tarafında karşılıksız kalır.
+     *
+     * GEREKÇE İSTENMİYOR (`reasonRequired: false`). Kural `control/menu`
+     * alanında konmuştu: gerekçe "müşteriye görünür + geri alınması zor"
+     * işlemlerde isteniyor, rutin veri girişinde değil. Telefon siparişi
+     * açmak rutin bir kayıttır ve personel müşteriyle konuşurken on karakter
+     * yazmak zorunda kalsaydı sınırın kaçındığı şeyin ta kendisi üretilirdi
+     * ("sipariş", "asdasd"). `actor` yine zorunlu, denetim satırı yine
+     * açılıyor: gerekçe seyreldi, iz seyrelmedi. İPTAL HÂLÂ GEREKÇE İSTİYOR
+     * ve bu tutarlı — iptal geri alınması zor ve müşteriye görünür.
+     */
+    public function store(
+        Request $request,
+        OrderFactory $factory,
+        SettingsRepository $settings,
+        LocationGate $gate,
+    ): JsonResponse {
+        $data = $request->validate([
+            // Müşteri: KAYITLI (`customer_id`) YA DA YENİ (`customer`).
+            // `exists` kuralı bilinmeyen kimliği 422 ile eliyor. Doğrulama
+            // `write()` kabuğundan ÖNCE koşuyor, yani kuru provada da aynı
+            // hatayı veriyor: "prova geçti" diyen ekran gerçek gönderimde
+            // bilinmeyen müşteriye takılamaz.
+            'customer_id' => [
+                'sometimes', 'nullable', 'integer', 'min:1',
+                Rule::exists('customers', 'customer_id'),
+            ],
+            'customer' => ['sometimes', 'nullable', 'array'],
+            'customer.name' => ['required_without:customer_id', 'string', 'min:2', 'max:120'],
+            'customer.phone' => [
+                'required_without:customer_id', 'string', 'max:24',
+                // EN AZ BİR RAKAM ŞART: yer tutucu e-posta numaranın
+                // rakamlarından türüyor ve rakamsız bir giriş
+                // `tel-@bld.invalid` üretirdi — o adres de rakamsız girilen
+                // İKİNCİ bir müşteriyle çakışır, ikisi tek kayda düşerdi.
+                'regex:/^[0-9 ()+-]*[0-9][0-9 ()+-]*$/',
+            ],
+            'location_id' => ['sometimes', 'integer', 'min:1'],
+            /*
+             * SERVİS GÜNÜ ZORUNLU VE TÜRETİLMİYOR. Sessizce bugüne düşmesi,
+             * yarına alınan bir siparişin bugün pişmesi demekti; personel
+             * telefonda günü zaten söylüyor. `requested_at` alanı da bu
+             * yüzden yok: saati `OrderFactory` çözüyor (bugünse "şimdi",
+             * ileriyse 12:00) ve ekrana hiçbir yerde okunmayan bir kutu
+             * koymak yanlış olurdu.
+             */
+            'service_date' => ['required', 'date_format:Y-m-d'],
+            'delivery_type' => ['required', Rule::in(['delivery', 'pickup'])],
+            'address' => ['sometimes', 'nullable', 'array'],
+            'address.line1' => ['required_if:delivery_type,delivery', 'string', 'max:255'],
+            /*
+             * HİZMET ALANI KURALI (`ServiceArea`) UYGULANMIYOR — vitrin
+             * ucundan (`Http\Controllers\OrderController::store`) bilinçli
+             * sapma. O kural müşterinin kendi kendine sipariş vermesini
+             * düzenler; telefonda "bu sefer oraya da götürürüz" diyen
+             * personeli aynı kuralla durdurmak, atlanan sipariş penceresiyle
+             * çelişirdi.
+             */
+            'address.district' => ['required_if:delivery_type,delivery', 'string', 'max:96'],
+            'address.city' => ['required_if:delivery_type,delivery', 'string', 'max:96'],
+            'address.note' => ['sometimes', 'nullable', 'string', 'max:255'],
+            // `account` KALDIRILDI (cari hesap iş modelinden çıktı). Liste
+            // `LocationGate::ALL_PAYMENT_METHODS` ile aynı olmalı.
+            'payment_method' => ['required', Rule::in(LocationGate::ALL_PAYMENT_METHODS)],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.menu_id' => ['required', 'integer', 'min:1'],
+            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:999'],
+            'items.*.option_value_ids' => ['sometimes', 'array'],
+            'items.*.option_value_ids.*' => ['integer', 'min:1'],
+            'items.*.note' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'customer_note' => ['sometimes', 'nullable', 'string', 'max:500'],
+        ], [
+            // MESAJ GEÇERLİ DEĞERLERİ SAYAR: Laravel'in varsayılanı
+            // ("seçilen değer geçersiz") `account` gönderen bir istemciye
+            // ne yapacağını söylemiyor.
+            'payment_method.in' => 'Geçerli ödeme yöntemleri: '
+                .implode(', ', LocationGate::ALL_PAYMENT_METHODS).'.',
+        ]);
+
+        $location = $this->orderLocation($request, $settings);
+
+        $deliveryType = $data['delivery_type'] === 'delivery' ? Order::DELIVERY : Order::COLLECTION;
+        $customerId = (int) ($data['customer_id'] ?? 0);
+        $newName = $this->trimmedOrNull($data['customer']['name'] ?? null);
+        $newPhone = $this->trimmedOrNull($data['customer']['phone'] ?? null);
+        $paymentMethod = (string) $data['payment_method'];
+        $serviceDate = (string) $data['service_date'];
+        /*
+         * KALEMLER OLDUĞU GİBİ GEÇİYOR, AYIKLANMIYOR. Bilinen alanları seçip
+         * gerisini atan bir dönüşüm `option_value_ids`'i düşürürdü: "ekstra
+         * peynir" silinir, sipariş ucuzlar, mutfak yanlış yemeği yapar ve
+         * hata hiçbir yerde görünmez. Aynı gerekçe `storeRevision()` içinde.
+         */
+        $items = array_values($data['items']);
+        $address = $deliveryType === Order::DELIVERY ? (array) ($data['address'] ?? []) : null;
+        $customerNote = $this->trimmedOrNull($data['customer_note'] ?? null);
+
+        // Yazma yolunda oluşan sipariş; kuru provada `null` kalır.
+        $created = null;
+
+        $response = $this->write(
+            $request,
+            'order.create',
+            ControlAudit::TARGET_ORDER,
+            /*
+             * HEDEF KİMLİĞİ HENÜZ YOK. Denetim satırı işlemden ÖNCE açılıyor
+             * (`write()` docblock'u) ve o an sipariş doğmamış. Satırı sonra
+             * açmak, yarıda kalan bir yazmayı izsiz bırakırdı. Kimlik
+             * aşağıda, sipariş kesinleştikten sonra bu satıra yazılıyor.
+             */
+            null,
+            [
+                'customer_id' => $customerId > 0 ? $customerId : null,
+                'new_customer_phone' => $newPhone,
+                'service_date' => $serviceDate,
+                'delivery_type' => $data['delivery_type'],
+                'payment_method' => $paymentMethod,
+                'item_count' => count($items),
+                'items' => $items,
+            ],
+            function () use (
+                $gate, $location, $paymentMethod, $customerId, $newPhone,
+                $serviceDate, $data, $items,
+            ): array {
+                /*
+                 * KURU PROVA GERÇEKTEN DENETLER — ama denetleyebildiği kadar.
+                 * Ödeme yöntemi kapısı burada da koşuyor; kalem geçerliliği,
+                 * fiyat ve stok KOŞMUYOR çünkü `OrderFactory::create()`'in
+                 * yan etkisiz bir yarısı yok ve onu ikiye bölmek fiyat
+                 * mantığını buraya kopyalamak olurdu. Sınır sözleşmede
+                 * açıkça yazılı (`docs/control/orders.md`).
+                 */
+                $gate->assertPaymentMethodAllowed($location, $paymentMethod);
+
+                return [
+                    'action' => 'order.create',
+                    'service_date' => $serviceDate,
+                    'delivery_type' => $data['delivery_type'],
+                    'payment_method' => $paymentMethod,
+                    'customer_id' => $customerId > 0 ? $customerId : null,
+                    'would_create_customer' => $customerId === 0
+                        && $this->placeholderCustomer($newPhone) === null,
+                    'item_count' => count($items),
+                    'items' => $items,
+                ];
+            },
+            function (array $intent) use (
+                &$created, $factory, $location, $deliveryType, $items, $address,
+                $paymentMethod, $customerNote, $serviceDate, $customerId,
+                $newName, $newPhone,
+            ): array {
+                /*
+                 * MÜŞTERİ VE SİPARİŞ TEK TRANSACTION'DA. Yeni müşteri
+                 * kaydedilip sipariş bir doğrulama hatasına takılsaydı
+                 * sistemde hiç sipariş vermemiş yetim bir kayıt kalırdı — ve
+                 * telefonu kapatmayan personel aynı müşteriyi bir kez daha
+                 * açardı.
+                 */
+                [$order, $customerCreated] = DB::transaction(function () use (
+                    $factory, $location, $deliveryType, $items, $address,
+                    $paymentMethod, $customerNote, $serviceDate, $customerId,
+                    $newName, $newPhone,
+                ): array {
+                    [$customer, $customerCreated] = $this->resolveCustomer(
+                        $customerId,
+                        $newName,
+                        $newPhone,
+                    );
+
+                    $order = $factory->create(
+                        customer: $customer,
+                        location: $location,
+                        deliveryType: $deliveryType,
+                        items: $items,
+                        address: $address,
+                        // Saat servis gününden türüyor; alan yok (yukarıda).
+                        requestedAt: null,
+                        paymentMethod: $paymentMethod,
+                        customerNote: $customerNote,
+                        adminContext: true,
+                        subscriptionId: null,
+                        serviceDate: $serviceDate,
+                    );
+
+                    return [$order, $customerCreated];
+                });
+
+                $created = $order;
+
+                /*
+                 * DURUM GEÇİŞİ TRANSACTION'IN DIŞINDA VE BİLİNÇLİ OLARAK
+                 * SONRA: `onaylandi` geçişi fiş tetikleyicisini çalıştırıyor.
+                 * Sipariş transaction'ı geri alınsaydı mutfakta var olmayan
+                 * bir siparişin fişi basılırdı.
+                 *
+                 * SİPARİŞ `onaylandi` DOĞAR — `yeni` bırakılsaydı mutfağa hiç
+                 * düşmez, tek belirtisi aç kalan bir müşteri olurdu; telefonda
+                 * teyit zaten alınmış.
+                 */
+                $warnings = [];
+
+                try {
+                    $order = $this->transitions->apply(
+                        $order,
+                        OrderStatusTransition::CONFIRMED,
+                        // `user_id` YOK: geçişi bir admin kullanıcısı değil,
+                        // Kontrol Merkezi yaptı ve o kişinin BLD'de hesabı yok.
+                        null,
+                        $this->actorLabel($intent['actor']),
+                    );
+                } catch (Throwable $e) {
+                    /*
+                     * GEÇİŞ PATLADI AMA SİPARİŞ VAR — HATA DÖNMÜYORUZ.
+                     * İstisnayı yukarı bırakmak panele "hiçbir şey olmadı"
+                     * dedirtirdi; personel siparişi ikinci kez girer ve
+                     * müşteriye iki kere yemek çıkardı. Sipariş `yeni` olarak
+                     * duruyor, kaybolmuyor ve uyarı onu elle onaylamayı
+                     * söylüyor. Aynı karar `Admin\PhoneOrders` içinde de var.
+                     */
+                    $warnings[] = 'Sipariş kaydedildi ama "onaylandı" durumuna'
+                        .' geçirilemedi ('.$e->getMessage().'). Mutfağa düşmesi'
+                        .' için sipariş ekranından elle onaylanmalı.';
+                }
+
+                return [
+                    // Satır biçimi `GET /` listesiyle AYNI: panel siparişi
+                    // listeye eklemek için ikinci bir istek atmak zorunda
+                    // kalmasın. `refresh()` şart — durum geçişi toplamları
+                    // ve damgaları yeniden yazıyor.
+                    'data' => $this->rows(new EloquentCollection([$order->refresh()]))[0],
+                    'customer' => [
+                        'id' => (int) $order->customer_id,
+                        'created' => $customerCreated,
+                    ],
+                    'warnings' => $warnings,
+                ];
+            },
+            reasonRequired: false,
+        );
+
+        if (!$created instanceof Order) {
+            // Kuru prova: hiçbir satır yazılmadı, `201 Created` yalan olurdu.
+            return $response;
+        }
+
+        /*
+         * DENETİM SATIRINA HEDEF KİMLİĞİ SONRADAN YAZILIYOR.
+         *
+         * "Kim hangi siparişi açtı" sorusunun cevabı denetim izinde durmalı;
+         * `target_id` boş kalsaydı iz yalnız "biri bir sipariş açtı" derdi.
+         * Satır işlemden önce açıldığı için kimlik ancak burada biliniyor.
+         * Bu güncelleme başarısız olsa bile sipariş ve iz yerinde kalır —
+         * eksilen tek şey iki kaydın bağı olurdu.
+         */
+        ControlAudit::query()
+            ->whereKey((int) $response->getData(true)['audit_id'])
+            ->update(['target_id' => (int) $created->order_id]);
+
+        return $response->setStatusCode(201);
     }
 
     /**
@@ -586,6 +871,180 @@ class OrderController extends ControlController
         return $order;
     }
 
+    /**
+     * Siparişin açılacağı vitrin.
+     *
+     * `SettingsRepository::location()` KULLANILIYOR, `Location::getDefault()`
+     * değil: o metot varsayılan işaretli kayıt yoksa ilk kaydı bulup
+     * İŞARETLİYOR, yani okuma sırasında veritabanına yazıyor. Aynı gerekçe
+     * `Control\DailyMenuController::location()` içinde de yazılı ve iki
+     * yüzeyin farklı vitrin seçmesi sessiz bir tuzak olurdu.
+     *
+     * @throws ApiException
+     */
+    private function orderLocation(Request $request, SettingsRepository $settings): Location
+    {
+        $raw = $request->input('location_id');
+
+        if ($raw !== null && $raw !== '') {
+            $model = Location::query()->where('location_id', (int) $raw)->first();
+
+            if (!$model instanceof Location) {
+                throw ApiException::notFound('Vitrin bulunamadı.');
+            }
+
+            return $model;
+        }
+
+        $default = $settings->location();
+
+        if (!$default instanceof Location) {
+            throw ApiException::serverError(
+                'Etkin bir vitrin tanımlı değil. `php artisan veykemtu:setup` çalıştırılmalı.',
+            );
+        }
+
+        return $default;
+    }
+
+    /**
+     * Kayıtlı müşteriyi bulur ya da telefonla yenisini açar.
+     *
+     * Kalıp `Admin\PhoneOrders::resolveCustomer()`'dan devralındı: yeni kayıt
+     * `corporate` etiketiyle ve YER TUTUCU e-postayla doğar. `customers.email`
+     * çekirdekte zorunlu ve tekil; telefonla arayan müşterinin e-postası çoğu
+     * zaman yok. `invalid.` alan adı RFC 6761 ile ayrılmıştır — oraya kazara
+     * posta gönderilse bile hiçbir yere ulaşmaz.
+     *
+     * AYNI TELEFONLA İKİNCİ ÇAĞRI İKİNCİ MÜŞTERİ YARATMAZ: yer tutucu adres
+     * telefonun ULUSAL BİÇİMİNDEN türüyor (`nationalPhone()`), yani
+     * "0532 123 45 67" ile "5321234567" aynı adrese düşer ve kayıt varsa
+     * döndürülür. Panelden devralınan hâlde bu arama hiç yoktu; ikinci çağrı
+     * tekil e-posta kısıtına çarpardı.
+     *
+     * ZATEN KAYITLI BİR MÜŞTERİNİN TELEFONU EŞLEŞTİRİLMİYOR ve bu bilinçli:
+     * `customers.telephone` tekil değil (kurumsal santral numarası birden çok
+     * kayıtta durabilir) ve birini seçmek siparişi YANLIŞ HESABA yazardı.
+     * Personel o müşteriyi `customer_id` ile seçer.
+     *
+     * @return array{0: ApiCustomer, 1: bool} müşteri ve "yeni açıldı mı"
+     *
+     * @throws ApiException
+     */
+    private function resolveCustomer(int $customerId, ?string $name, ?string $phone): array
+    {
+        if ($customerId > 0) {
+            $existing = ApiCustomer::query()->find($customerId);
+
+            if (!$existing instanceof ApiCustomer) {
+                throw ApiException::notFound('Müşteri bulunamadı.');
+            }
+
+            return [$existing, false];
+        }
+
+        if ($name === null || $phone === null) {
+            throw ApiException::validationFailed(
+                'Yeni müşteri için ad ve telefon zorunludur.',
+                ['field' => 'customer'],
+            );
+        }
+
+        $existing = $this->placeholderCustomer($phone);
+
+        if ($existing instanceof ApiCustomer) {
+            return [$existing, false];
+        }
+
+        $customer = new ApiCustomer;
+        // `customers.first_name` dar bir sütun; kırpma paneldeki kalıpla aynı.
+        $customer->first_name = mb_substr($name, 0, 48);
+        $customer->last_name = '';
+        $customer->email = self::placeholderEmail($phone);
+        /*
+         * NUMARA ULUSAL BİÇİMDE SAKLANIYOR, YAZILDIĞI GİBİ DEĞİL. Sistemin
+         * geri kalanı bu biçimi kullanıyor (`AuthController` kaydı on haneli
+         * ve sıfırsız bir numara dayatıyor) ve sipariş listesinin telefon
+         * araması rakam rakam eşleşiyor: "0532..." diye saklanan bir kayıt,
+         * "532..." diye aranınca hiç bulunmazdı.
+         */
+        $customer->telephone = self::nationalPhone($phone);
+        $customer->status = true;
+        // Etiket bir yetki değil, yalnız sınıflandırma: kurumsal sipariş
+        // kapısı kalktı. Personel gerekirse müşteri kartından değiştirir.
+        $customer->bld_account_type = 'corporate';
+        $customer->bld_org_name = $name;
+        $customer->bld_contact_person = $name;
+        $customer->bld_org_phone = self::nationalPhone($phone);
+        $customer->save();
+
+        return [$customer, true];
+    }
+
+    /**
+     * Telefondan türeyen yer tutucu kaydı — yoksa `null`.
+     *
+     * Kuru prova da bunu çağırıyor (`would_create_customer`); okuma olduğu
+     * için provada koşması güvenli.
+     */
+    private function placeholderCustomer(?string $phone): ?ApiCustomer
+    {
+        if ($phone === null) {
+            return null;
+        }
+
+        return ApiCustomer::query()
+            ->where('email', self::placeholderEmail($phone))
+            ->first();
+    }
+
+    private static function placeholderEmail(string $phone): string
+    {
+        return 'tel-'.self::nationalPhone($phone).'@bld.invalid';
+    }
+
+    /**
+     * Telefonu ULUSAL BİÇİME indirger: yalnız rakamlar, ülke kodu ve baştaki
+     * sıfır atılmış.
+     *
+     * NEDEN GEREKLİ: personel aynı numarayı bir gün "0532 123 45 67", ertesi
+     * gün "5321234567" yazıyor. Ham rakamlar kullanılsaydı ikisi İKİ AYRI yer
+     * tutucu e-posta üretir, aynı müşteri iki kez açılır ve "aynı telefonla
+     * ikinci çağrı mevcut kaydı döndürür" kuralı yalnız birebir aynı yazımda
+     * çalışırdı — yani hiç çalışmazdı.
+     *
+     * KIRPMA UZUNLUĞA BAĞLI, KÖRÜ KÖRÜNE DEĞİL: yalnız 12 hanenin başındaki
+     * "90" ve 11 hanenin başındaki "0" atılıyor. Türkiye'de ulusal numara on
+     * hanedir ve sıfırla başlamaz; koşulsuz bir kırpma, on haneli geçerli bir
+     * numaranın ilk hanesini yiyebilirdi. Kalıba uymayan giriş olduğu gibi
+     * kalıyor — bilinmeyen bir biçimi düzeltmeye çalışmak onu bozmaktır.
+     */
+    private static function nationalPhone(string $phone): string
+    {
+        $digits = preg_replace('/\D+/', '', $phone) ?? '';
+
+        if (strlen($digits) === 12 && str_starts_with($digits, '90')) {
+            return substr($digits, 2);
+        }
+
+        if (strlen($digits) === 11 && str_starts_with($digits, '0')) {
+            return substr($digits, 1);
+        }
+
+        return $digits;
+    }
+
+    private function trimmedOrNull(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $text = trim((string) $value);
+
+        return $text === '' ? null : $text;
+    }
+
     /** Liste ve dışa aktarımın ORTAK süzgeç doğrulaması. */
     private function validateFilters(Request $request): void
     {
@@ -710,7 +1169,7 @@ class OrderController extends ControlController
      * yirmi beş satırlık bir sayfa elli ek sorgu demek olurdu ve liste
      * on beş saniyede bir yokleniyor.
      *
-     * @param  \Illuminate\Database\Eloquent\Collection<int, Order>  $orders
+     * @param  EloquentCollection<int, Order>  $orders
      * @return list<array<string, mixed>>
      */
     private function rows($orders): array

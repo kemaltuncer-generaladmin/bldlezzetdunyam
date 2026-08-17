@@ -3,12 +3,14 @@
 Yol öneki: **`/api/control/orders`** · Sınır: `bld-control-panel` ·
 Ortak kurallar: `00-genel.md`
 
-Siparişi görme, düzenleme, durumunu ilerletme, iptal etme ve dışa aktarma.
+Sipariş açma, görme, düzenleme, durumunu ilerletme, iptal etme ve dışa aktarma.
 
-**İş mantığı bu uçlarda yoktur.** Revizyonu `Services\OrderEditor`, durum
-geçişini `Services\OrderStatusTransition` yürütür; bunlar mutfak kasasının
-kullandığı sınıfların ta kendisidir. Ayrı bir kopya yazılsaydı sipariş
-merkezden düzenlendiğinde iade kaydı sessizce oluşmayabilirdi.
+**İş mantığı bu uçlarda yoktur.** Siparişi `Services\OrderFactory`, revizyonu
+`Services\OrderEditor`, durum geçişini `Services\OrderStatusTransition`
+yürütür; bunlar vitrinin ve mutfak kasasının kullandığı sınıfların ta
+kendisidir. Ayrı bir kopya yazılsaydı sipariş merkezden düzenlendiğinde iade
+kaydı sessizce oluşmayabilir, merkezden açıldığında da panelin ve vitrinin
+zamanla ayrışan iki fiyatı olurdu.
 
 ---
 
@@ -18,13 +20,16 @@ merkezden düzenlendiğinde iade kaydı sessizce oluşmayabilirdi.
 `status`) **yayınlanmıştır ve olduğu yerde kalır.** Kontrol Merkezi'nin
 `bld_kds` modülü onları kullanıyor.
 
-> KARAR: Panel siparişlerinin evi **`/api/control/orders/*`**'dir ve sekiz ucun
+> KARAR: Panel siparişlerinin evi **`/api/control/orders/*`**'dir ve dokuz ucun
 > tamamını taşır. Beş uç iki yolda birden yayında olur (aynı denetleyici
 > metotları, ikinci bir rota kaydı). Bu ekleyicidir ve geri alınabilir: eski yol
 > silinirse `bld_kds` kırılırdı, yeni yol açılmazsa panel siparişleri KDS
 > bütçesinden (`bld-control`, 1200/saat) yerdi ve kasa yönetimini kilitlerdi.
 > İki yolun tek farkı hız sınırı kovasıdır; gövde, yanıt ve denetim eylem adları
 > aynıdır.
+
+`POST /` **yalnız bu yolda yayındadır**, `control/kds` altında karşılığı yoktur:
+mutfak kasası sipariş açmaz, açtığı an mutfak hem satıcı hem üretici olurdu.
 
 ---
 
@@ -33,6 +38,7 @@ merkezden düzenlendiğinde iade kaydı sessizce oluşmayabilirdi.
 | Metot | Yol | Amaç | İzin | dry_run | Gerekçe |
 |---|---|---|---|---|---|
 | GET | `/` | Sipariş listesi (**sayfalı**) | `bld_sales.view` | — | — |
+| POST | `/` | **Yeni sipariş** (telefonla alınan) | `bld_sales.manage` | ✔ | — (opsiyonel) |
 | GET | `/{order}` | Düzenlenebilir görünüm | `bld_sales.view` | — | — |
 | GET | `/{order}/revisions` | Revizyon geçmişi | `bld_sales.view` | — | — |
 | POST | `/{order}/revisions` | Yeni revizyon (**tam kalem listesi**) | `bld_sales.manage` | ✔ | ✔ (maks 160) |
@@ -109,6 +115,203 @@ daraltıldı.
 
 `payment_method` değerleri `online` ve `cash` (iş kararı 1). `payment_status`:
 `pending` · `paid` · `failed` · `refunded`.
+
+---
+
+## `POST /` — yeni sipariş (elle giriş)
+
+Müşteri telefonla arıyor, personel siparişi elle giriyor. Bu ucun devraldığı
+akış TastyIgniter admin panelindeki `Admin\PhoneOrders` ekranıdır; o panel
+kapatılıyor ve **elle sipariş girmenin başka yolu kalmıyor.**
+
+**Fiyat, satır çözümleme, stok düşümü ve serbest bırakma bu uçta DEĞİL.** Uç
+`Services\OrderFactory::create()`'i `adminContext: true` ile çağırır — web ve
+mobil siparişin kullandığı metodun ta kendisi.
+
+`adminContext: true` **sipariş penceresini bilerek atlar**: kesim saati, ileri
+görüş penceresi, sipariş alım şalteri, asgari sepet tutarı ve menü üyeliği.
+Bu bir **onay akışı değil, kayıt akışıdır** — personel müşteriyle telefonda
+anlaşmış, istisnayı insan vermiştir; sistemin aynı kararı ikinci kez sorgulaması
+işi yapılamaz kılardı. Gerekçenin tamamı `OrderFactory::create()` içindeki
+yorumlardadır. **Atlanmayan tek kapı ödeme yöntemidir**: vitrinde tanımlı
+olmayan bir yöntemle açılan sipariş tahsilat tarafında karşılıksız kalır.
+
+> KARAR — **gerekçe (`reason`) zorunlu değildir.** `00-genel.md` §3'ün
+> varsayılanı "evet"tir ve buradaki gevşetme bilinçlidir. Kural `menu`
+> alanında konmuştu: gerekçe *müşteriye görünür ve geri alınması zor*
+> işlemlerde istenir, rutin veri girişinde değil. Telefon siparişi açmak
+> rutin bir kayıt akışıdır; personel müşteriyle konuşurken on karakter
+> yazmak zorunda kalsaydı sınırın kaçındığı şeyin ta kendisi üretilirdi
+> ("sipariş", "asdasd"). **`actor` her hâlükârda zorunludur ve denetim satırı
+> her yazmada açılır** — gerekçe seyreldi, iz seyrelmedi. Gönderilirse yalnız
+> üst sınırı (500) denetlenir, on karakterlik alt sınır uygulanmaz.
+>
+> Sipariş **iptali** hâlâ gerekçe ister ve bu tutarlıdır: iptal geri alınması
+> zor ve müşteriye görünür bir işlemdir, sipariş kaydetmek değildir.
+
+### Gövde
+
+```json
+{
+  "actor": "Ayşe Yılmaz",
+  "reason": null,
+  "dry_run": false,
+  "customer_id": 312,
+  "customer": null,
+  "service_date": "2026-08-18",
+  "delivery_type": "delivery",
+  "address": {
+    "line1": "Örnek Mah. 12. Sk No:3",
+    "district": "Selçuklu",
+    "city": "Konya",
+    "note": "Zili çalmayın"
+  },
+  "payment_method": "cash",
+  "items": [
+    { "menu_id": 88, "quantity": 12, "option_value_ids": [], "note": null }
+  ],
+  "customer_note": "Fatura kuruma kesilecek"
+}
+```
+
+| Alan | Tip | Zorunlu | Not |
+|---|---|---|---|
+| `customer_id` | int | `customer` yoksa **evet** | `customers.customer_id`; yoksa `422` |
+| `customer` | nesne | `customer_id` yoksa **evet** | `{ "name": string, "phone": string }` |
+| `location_id` | int | hayır | Verilmezse etkin vitrin |
+| `service_date` | `YYYY-MM-DD` | **evet** | `orders.bld_service_date` |
+| `delivery_type` | `delivery`\|`pickup` | **evet** | |
+| `address` | nesne | `delivery` ise **evet** | `line1`, `district`, `city` zorunlu; `note` isteğe bağlı |
+| `payment_method` | `online`\|`cash` | **evet** | Başka değer → `422` |
+| `items[]` | dizi | **evet** (en az 1) | `menu_id`, `quantity` (1–999), `option_value_ids`, `note` |
+| `customer_note` | string | hayır | En çok 500 karakter |
+
+- **`items` olduğu gibi geçer, ayıklanmaz** — `option_value_ids` düşürülseydi
+  "ekstra peynir" silinir, sipariş ucuzlar, mutfak yanlış yemeği yapardı.
+  Aynı gerekçe `POST /{order}/revisions` içinde de yazılı.
+- **`service_date` zorunludur ve türetilmez.** Sessizce bugüne düşmesi, ertesi
+  güne alınan bir siparişin bugün pişmesi demekti; personel telefonda günü
+  zaten söylüyor.
+- **`requested_at` YOKTUR.** Saati `OrderFactory` çözer: servis günü bugünse
+  "şimdi", ileriyse 12:00. Saat alanı açmak, ekrana doldurulması zorunlu ama
+  hiçbir yerde okunmayan bir kutu koymak olurdu; gerekirse revizyon ucundan
+  yazılır (`requested_at` orada yayınlanmış bir alandır).
+- `payment_method` listesi `LocationGate::ALL_PAYMENT_METHODS` ile aynıdır;
+  **`account` kaldırılmıştır** (cari hesap iş modelinden çıktı) ve gönderilirse
+  `422 VALIDATION_FAILED` alır.
+
+### Yeni müşteri
+
+`customer_id` yerine `customer` gönderilirse kayıt **`Admin\PhoneOrders`
+kalıbıyla** açılır: `bld_account_type = corporate`, unvan ve irtibat kişisi
+gönderilen ada eşit, e-posta **yer tutucu** — `tel-<ulusal numara>@bld.invalid`.
+`customers.email` çekirdekte zorunlu ve tekildir; telefonla arayan müşterinin
+e-postası çoğu zaman yoktur. `invalid.` alan adı RFC 6761 ile ayrılmıştır,
+oraya kazara posta gönderilse bile hiçbir yere ulaşmaz.
+
+**Numara ulusal biçime indirgenir** ve `customers.telephone` sütununa da öyle
+yazılır: yalnız rakamlar, `+90`/`90` ülke kodu ve baştaki `0` atılmış.
+`0532 123 45 67`, `+90 532 123 45 67` ve `5321234567` **aynı numaradır**.
+Kırpma uzunluğa bağlıdır (12 hanenin başındaki `90`, 11 hanenin başındaki `0`),
+körü körüne değil — on haneli geçerli bir numaranın ilk hanesi yenmesin diye.
+Kalıba uymayan giriş olduğu gibi saklanır. Aynı biçim `POST /api/auth/register`
+ucunun dayattığı biçimdir; ayrışsaydı sipariş listesinin telefon araması
+(`q`) kaydı hiç bulamazdı.
+
+> KARAR — **aynı telefonla ikinci çağrı ikinci müşteri yaratmaz.** Yer tutucu
+> e-posta ulusal numaradan türediği için farklı yazımlar aynı adrese düşer;
+> kayıt varsa döndürülür, yoksa açılır. Yanıttaki `customer.created`
+> hangisinin olduğunu söyler.
+>
+> **Zaten kayıtlı bir müşterinin telefonu EŞLEŞTİRİLMEZ** ve bu bilinçlidir:
+> `customers.telephone` tekil değildir (kurumsal santral numarası birden çok
+> kayıtta durabilir) ve birini seçmek siparişi **yanlış hesaba** yazardı.
+> Personel o müşteriyi `customer_id` ile seçer; arama `GET /api/control/customers`
+> ucundadır.
+
+### Doğuş durumu ve mutfağa düşme
+
+Sipariş **`onaylandi` doğar.** `yeni` bırakılsaydı sipariş mutfağa hiç düşmez,
+tek belirtisi aç kalan bir müşteri olurdu — telefonda teyit zaten alınmıştır.
+Geçişi `OrderStatusTransition::apply()` yapar (fiş tetikleyicisi orada) ve
+`status_history` yorumuna `"Kontrol Merkezi · <actor>"` yazılır.
+
+**Serbest bırakma için ayrı bir dal yoktur** — karar `OrderFactory::releaseAtFor()`
+tek yerden verilir:
+
+| Servis günü | `bld_released_at` | Sonuç |
+|---|---|---|
+| Bugün (kesim ileride ya da **geçmiş**) | `null` | **Anında** KDS'te |
+| İleri tarih | O günün **kesim anı** | Kesimde tek yığın hâlinde düşer |
+
+Bugünün kesiminin geçmiş olması istisna üretmez: mutfak zaten o günün içinde
+çalışıyor ve siparişi bekletmenin karşılığı yok.
+
+### Stok
+
+`DailyStock::take()` **`allowOvershoot: true`** ile çağrılır: personel tavanı
+bilerek aşabilir ("bir porsiyon daha çıkarırız"). Sipariş reddedilmez, **aşım
+kayda geçer** (`veykemtu_daily_menu_stock.sold > capacity`) ve `control/menu`
+ekranında görünür.
+
+### Yanıt — `201 Created`
+
+```json
+{
+  "ok": true,
+  "dry_run": false,
+  "audit_id": 1830,
+  "data": { },
+  "customer": { "id": 312, "created": false },
+  "warnings": []
+}
+```
+
+`data` **`GET /` listesinin satır biçiminin aynısıdır** (`id`, `order_number`,
+`status`, `total_kurus`, …) — panel siparişi listeye eklemek ya da detayına
+gitmek için ikinci bir istek atmak zorunda kalmasın diye.
+
+`201` yalnız gerçekten yazıldığında döner; kuru provada `200`, çünkü hiçbir
+satır oluşmadı ve `201 Created` yalan olurdu.
+
+`warnings` bugün tek bir hâlde dolar: sipariş yazıldı ama `onaylandi` geçişi
+patladı. **O hâlde de `ok: true` ve `201` döner** — sipariş vardır, kaybolmaz,
+`POST /{order}/status` ile elle onaylanır. Hata dönmek panele "hiçbir şey
+olmadı" dedirtir, personel siparişi ikinci kez girer ve müşteriye iki kere
+yemek çıkardı.
+
+### Kuru prova
+
+```json
+{
+  "action": "order.create",
+  "service_date": "2026-08-18",
+  "delivery_type": "delivery",
+  "payment_method": "cash",
+  "customer_id": 312,
+  "would_create_customer": false,
+  "item_count": 1,
+  "items": [ { "menu_id": 88, "quantity": 12, "option_value_ids": [], "note": null } ]
+}
+```
+
+Kuru prova **ödeme yöntemi kapısını ve müşteri çözümlemesini gerçekten koşar**;
+kapalı bir yöntem burada da `422` alır.
+
+> BİLİNÇLİ EKSİK: kuru prova **kalem geçerliliğini, fiyatı ve stok durumunu
+> denetlemez.** `OrderFactory::create()`'in yan etkisiz bir yarısı yok ve onu
+> ikiye bölmek fiyat mantığını bu uca kopyalamak olurdu — sözleşmenin baştan
+> yasakladığı şey. Ekran kuru provayı "gövde doğru mu" sorusunun cevabı olarak
+> kullanmalı, "sipariş geçecek mi" sorusunun değil. Satılmayan bir ürün gerçek
+> gönderimde `422 ITEM_UNAVAILABLE` verir.
+
+### Hatalar
+
+| Durum | Kod | Ne zaman |
+|---|---|---|
+| `422` | `VALIDATION_FAILED` | Eksik/geçersiz alan, `payment_method: "account"`, bilinmeyen `customer_id` |
+| `422` | `ITEM_UNAVAILABLE` | Ürün satışta değil (tavan aşımı **bu hatayı üretmez**) |
+| `500` | `SERVER_ERROR` | Etkin vitrin tanımsız (`veykemtu:setup` koşmamış) |
 
 ---
 
@@ -419,6 +622,7 @@ oluşturulmamış.").
 
 | `action` | Uç | `target_type` / `target_id` |
 |---|---|---|
+| `order.create` | `POST /` | `order` / `order_id` (**sonradan yazılır**) |
 | `order.revise` | `POST /{order}/revisions` | `order` / `order_id` |
 | `order.status` | `POST /{order}/status` | `order` / `order_id` |
 | `order.cancel` | `POST /{order}/cancel` | `order` / `order_id` |
@@ -426,3 +630,28 @@ oluşturulmamış.").
 `order.revise` ve `order.status` **mevcut eylem adlarıdır ve değişmez** —
 `control/kds` yolundan gelen istekler de aynı adı yazıyor. Denetim ekranında iki
 yolun ayrı görünmesi gerekmiyor: eylem aynı eylem, aktör zaten yazılı.
+
+`order.create`'in `target_id`'si satır açılırken **`null`**: denetim satırı
+işlemden ÖNCE açılıyor (`ControlController::write()`) ve o an sipariş kimliği
+henüz yok. Satırı sonra açmak, yarıda kalan bir yazmayı izsiz bırakırdı;
+"denendi ve olmadı" tam da soruşturulması gereken hâldir.
+
+Kimlik **sipariş kesinleştikten sonra aynı satıra yazılır**: "kim hangi
+siparişi açtı" sorusunun cevabı denetim izinde durmalı, yoksa iz yalnız "biri
+bir sipariş açtı" derdi. Kuru provada satır `null` kalır — açılan sipariş yok.
+
+---
+
+## `00-genel.md` §4'e eklenmesi gereken yol
+
+`POST /` kuru prova farkındadır ve §4'teki **tam eşleşen yol listesi** onu
+taşımak zorundadır; taşımazsa Laravel `dry_run` alanını sessizce yok sayar ve
+"prova" sanılan istek **gerçek sipariş** açar:
+
+```
+^/api/control/orders$
+```
+
+Aynı satır Kontrol Merkezi geçidindeki `_DRY_RUN_AWARE` listesine de girer
+(`modules/bld_api/backend/client.py`). `00-genel.md` bu alan dosyasının
+kulvarı dışında olduğu için **ekleme yapılmadı, rapora yazıldı.**

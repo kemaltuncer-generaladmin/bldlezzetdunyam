@@ -523,6 +523,13 @@ Route::prefix('api')
              */
             $alan('orders', ControlOrderController::class, static function (): void {
                 Route::get('/', [ControlOrderController::class, 'panelIndex']);
+                /*
+                 * ELLE SİPARİŞ GİRİŞİ — `control/kds` altında KARŞILIĞI YOK.
+                 * Mutfak kasası sipariş açmaz; açtığı an mutfak hem satıcı
+                 * hem üretici olurdu. Beş ucun iki yolda yayında olması bu
+                 * uca genişletilmiyor.
+                 */
+                Route::post('/', [ControlOrderController::class, 'store']);
                 Route::get('export', [ControlOrderController::class, 'export']);
                 Route::get('{order}', [ControlOrderController::class, 'show']);
                 Route::get('{order}/revisions', [ControlOrderController::class, 'revisions']);
