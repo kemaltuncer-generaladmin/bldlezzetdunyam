@@ -26,6 +26,24 @@ use Veykemtu\BridgeApi\Support\Money;
  * adım 5). İstemcinin gösterdiği tutarla sunucunun hesabı ayrışırsa doğru
  * olan sunucununkidir.
  *
+ * ─────────────────────────────────────────────────────────────────────────
+ * TEK İSTİSNA — ANLAŞMALI SEPET TUTARI (`$agreedTotalKurus`)
+ *
+ * Yukarıdaki kural MÜŞTERİNİN kendi kendine sipariş vermesi içindir ve orada
+ * hiç gevşemez: `adminContext: false` iken fiyat alanı gönderilirse metot
+ * PATLAR (aşağıdaki kapı). Panelden telefonla girilen siparişte ise fiyatı
+ * belirleyen sunucu değil, müşteriyle telefonda pazarlık eden insandır —
+ * personel "size 400 lira" der ve sistemin katalogdan 480 yazması tam olarak
+ * "istemcinin gösterdiği tutarla sunucunun hesabı ayrıştı" hâlinin kendisi
+ * olurdu, sadece ters yönde.
+ *
+ * DESEN ABONELİKTEN GELİYOR ve birebir aynıdır (`createForSubscription`):
+ * para SEPET DÜZEYİNDE durur, kalemler `unit_price => 0, line_total => 0`
+ * yazılır. Kalemlerde de fiyat bırakmak, sipariş toplamı ile satır
+ * toplamlarının çeliştiği bir kayıt üretirdi; faturayı da mutfak ekranını da
+ * besleyen tablolar bunlar ve ikisi birbirini tutmalı.
+ * ─────────────────────────────────────────────────────────────────────────
+ *
  * Tüm yazma işi tek transaction içindedir: yarım kalmış bir sipariş
  * (kalemleri olmayan başlık, toplamı olmayan kalem) mutfağa düşer ve
  * telafisi elle olur.
@@ -47,6 +65,10 @@ class OrderFactory
      * @param  string|null  $serviceDate  Siparişin hangi gün için olduğu,
      *   `YYYY-AA-GG` (B-19). Verilmezse `requested_at`'in işletme günü, o da
      *   yoksa bugün.
+     * @param  int|null  $agreedTotalKurus  Müşteriye telefonda söylenen
+     *   ANLAŞMALI SEPET TUTARI, kuruş. Verilirse kalem toplamının yerine geçer
+     *   ve kalemler fiyatsız yazılır (sınıf docblock'u). YALNIZ
+     *   `$adminContext === true` iken kabul edilir.
      */
     public function create(
         ApiCustomer $customer,
@@ -60,7 +82,36 @@ class OrderFactory
         bool $adminContext = false,
         ?int $subscriptionId = null,
         ?string $serviceDate = null,
+        ?int $agreedTotalKurus = null,
     ): Order {
+        /*
+         * FİYAT KAPISI EN BAŞTA — HİÇBİR İŞ YAPILMADAN ÖNCE.
+         *
+         * Vitrin yolunda (`adminContext: false`) istemciden gelen bir tutarı
+         * kabul etmek, müşterinin kendi siparişinin fiyatını yazması demekti.
+         * Uç bugün bu alanı yalnız panel yolunda tanıyor; kapı yine de burada
+         * duruyor çünkü sözleşmeyi koruyan yer metodun kendisi olmalı — ileride
+         * açılacak ikinci bir çağıran, uçtaki doğrulamayı görmeden bu metodu
+         * çağırabilir.
+         */
+        if ($agreedTotalKurus !== null && !$adminContext) {
+            throw ApiException::validationFailed(
+                'Anlaşmalı sepet tutarı yalnız panelden girilen siparişte kabul edilir.',
+                ['agreed_total_kurus' => 'Vitrin siparişinde fiyat sunucuda hesaplanır.'],
+            );
+        }
+
+        if ($agreedTotalKurus !== null && $agreedTotalKurus < 1) {
+            // SIFIR DA REDDEDİLİR: "bedava" bir sipariş bir fiyat kararı değil,
+            // boş bırakılmış bir kutunun sessizce sıfıra düşmesidir. Gerçekten
+            // ikram edilen sipariş bugün de sistemde yok; olacaksa ayrı ve
+            // görünür bir karardır.
+            throw ApiException::validationFailed(
+                'Anlaşmalı sepet tutarı sıfırdan büyük olmalı.',
+                ['agreed_total_kurus' => (string) $agreedTotalKurus],
+            );
+        }
+
         /*
          * SERVİS GÜNÜ EN BAŞTA ÇÖZÜLÜYOR (S1).
          *
@@ -132,11 +183,51 @@ class OrderFactory
         );
         $subtotal = array_sum(array_column($lines, 'line_total'));
 
+        if ($agreedTotalKurus !== null) {
+            /*
+             * ANLAŞMALI TUTAR KALEM TOPLAMININ YERİNE GEÇER.
+             *
+             * Sıra önemli: `assertMeetsMinimum` AŞAĞIDA ve yalnız
+             * `!$adminContext` iken koşuyor; anlaşmalı fiyat ise yalnız
+             * `$adminContext` iken kabul ediliyor (yukarıdaki kapı). İkisi
+             * yapısal olarak birbirini dışlıyor — yani 400 liralık asgariyi
+             * 300 liraya kıran bir anlaşma o kapıya HİÇ uğramıyor. Bu bir
+             * tesadüf değil, aynı gerekçenin iki yüzü: telefonu açan yönetici
+             * asgariyi de fiyatı da bilerek esnetiyor.
+             */
+            $subtotal = $agreedTotalKurus;
+            // Kalemler fiyatsız yazılır; para sepet düzeyinde durur. Aynı
+            // desen `createForSubscription()` içinde.
+            $lines = self::withoutLinePrices($lines);
+        }
+
         if (!$adminContext) {
             $this->gate->assertMeetsMinimum($location, $subtotal);
         }
 
-        $deliveryFee = $deliveryType === Order::DELIVERY
+        /*
+         * TESLİMAT ÜCRETİ ANLAŞMALI TUTARA EKLENMEZ — DÂHİLDİR.
+         *
+         * Abonelik de böyle yapıyor (`createForSubscription`: `order_total =
+         * Money::toDecimal($subtotal)`, `rewriteTotals(..., 0)`) ve iki
+         * "anlaşmalı fiyat" kavramının teslimatta farklı davranması ikinci bir
+         * doğru kaynak üretirdi.
+         *
+         * ASIL GEREKÇE BU ALANIN VAR OLMA SEBEBİ: personel telefonda bir sayı
+         * söylüyor ve sistemin yazdığı tutar o sayı olmalı. Üstüne 25 lira
+         * teslimat eklemek, alanın önlemek için eklendiği sessiz ayrışmayı —
+         * "personel bir fiyat söyler, sistem başka tutar yazar" — geri getirir,
+         * üstelik her adrese teslim siparişte.
+         *
+         * KARAR GERİ ALINABİLİR YÖNDEDİR: teslimatı ayrıca almak isteyen
+         * personel ücreti anlaşmalı tutara ekleyip yazar (400 yerine 425).
+         * Tersi ekranda mümkün değil — eklenen bir ücreti negatif sayı yazarak
+         * geri almanın yolu yok.
+         *
+         * ALAN BOŞKEN BUGÜNKÜ DAVRANIŞ AYNEN KORUNUR: ücret hesaplanır ve
+         * eklenir.
+         */
+        $deliveryFee = ($deliveryType === Order::DELIVERY && $agreedTotalKurus === null)
             ? $this->gate->deliveryFee($location)
             : 0;
 
@@ -248,6 +339,61 @@ class OrderFactory
 
             return $order->refresh();
         });
+    }
+
+    /**
+     * Satır fiyatlarını sıfırlar — para SEPET DÜZEYİNDE durur.
+     *
+     * Anlaşmalı tutarlı siparişte kalemler `unit_price => 0, line_total => 0`
+     * yazılır; `createForSubscription()` yolundaki desenin aynısı. Kalemlerde
+     * katalog fiyatı bırakmak, `order_totals.order_total` ile `order_menus`
+     * satırlarının toplamının ÇELİŞTİĞİ bir kayıt üretirdi ve o çelişki
+     * kâğıda basılırdı: fatura satırları `order_menus`'tan, toplamı
+     * `order_totals`'tan okuyor (`InvoiceService::orderLines` ·
+     * `OrderPresenter::totals`).
+     *
+     * SEÇENEK FARKLARI DA SIFIRLANIR. `writeLines()` her seçeneği
+     * `order_menu_options.order_option_price` olarak yazıyor; satır sıfırken
+     * seçeneğin fiyatlı kalması "ekstra peynir 15 ₺" yazan ama satır toplamı
+     * 0 olan bir kalem demekti. Fiyatın tek yeri sepet toplamıdır.
+     *
+     * ÜRÜN ADI, ADET, NOT, SEÇENEK ADI VE BİLEŞEN YAPISI DOKUNULMADAN KALIR:
+     * mutfak ne pişireceğini bunlardan okuyor ve ADR-08 gereği fiyatı zaten
+     * hiç görmüyor. Sıfırlanan tek şey paradır.
+     *
+     * @param  list<array<string, mixed>>  $lines
+     * @return list<array<string, mixed>>
+     */
+    private static function withoutLinePrices(array $lines): array
+    {
+        $zeroed = [];
+
+        foreach ($lines as $line) {
+            $line['unit_price'] = 0;
+            $line['line_total'] = 0;
+
+            if (isset($line['options']) && is_array($line['options'])) {
+                $line['options'] = array_map(
+                    static function (array $option): array {
+                        $option['price_delta'] = 0;
+
+                        return $option;
+                    },
+                    $line['options'],
+                );
+            }
+
+            // Menü paketinin bileşenleri zaten sıfır fiyatlı doğuyor; yine de
+            // aynı süzgeçten geçiyorlar ki "fiyatsız satır" garantisi satır
+            // türüne bağlı kalmasın.
+            if (isset($line['components']) && is_array($line['components'])) {
+                $line['components'] = self::withoutLinePrices($line['components']);
+            }
+
+            $zeroed[] = $line;
+        }
+
+        return $zeroed;
     }
 
     /**
