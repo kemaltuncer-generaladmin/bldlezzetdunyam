@@ -170,7 +170,8 @@ olmayan bir yöntemle açılan sipariş tahsilat tarafında karşılıksız kal�
   "items": [
     { "menu_id": 88, "quantity": 12, "option_value_ids": [], "note": null }
   ],
-  "customer_note": "Fatura kuruma kesilecek"
+  "customer_note": "Fatura kuruma kesilecek",
+  "agreed_total_kurus": null
 }
 ```
 
@@ -185,6 +186,7 @@ olmayan bir yöntemle açılan sipariş tahsilat tarafında karşılıksız kal�
 | `payment_method` | `online`\|`cash` | **evet** | Başka değer → `422` |
 | `items[]` | dizi | **evet** (en az 1) | `menu_id`, `quantity` (1–999), `option_value_ids`, `note` |
 | `customer_note` | string | hayır | En çok 500 karakter |
+| `agreed_total_kurus` | int\|null | hayır | **Anlaşmalı sepet tutarı**, kuruş. `1`–`100000000`. Aşağıya bakın |
 
 - **`items` olduğu gibi geçer, ayıklanmaz** — `option_value_ids` düşürülseydi
   "ekstra peynir" silinir, sipariş ucuzlar, mutfak yanlış yemeği yapardı.
@@ -199,6 +201,62 @@ olmayan bir yöntemle açılan sipariş tahsilat tarafında karşılıksız kal�
 - `payment_method` listesi `LocationGate::ALL_PAYMENT_METHODS` ile aynıdır;
   **`account` kaldırılmıştır** (cari hesap iş modelinden çıktı) ve gönderilirse
   `422 VALIDATION_FAILED` alır.
+
+### Anlaşmalı sepet tutarı — `agreed_total_kurus`
+
+Personel müşteriyle telefonda bir fiyatta anlaşır ve o fiyat **sepetin tamamı
+içindir, kalem başına değil.** Alan gönderilirse `OrderFactory::create()` kalem
+toplamı yerine bu tutarı yazar ve **kalemleri fiyatsız bırakır**
+(`unit_price = 0`, `line_total = 0`, seçenek farkları dâhil). Para
+`orders.order_total` ve `order_totals` satırlarında, yani **sepet düzeyinde**
+durur.
+
+> KARAR — **desen abonelikten geliyor.** `subscriptions.agreed_unit_price_kurus`
+> aynı işi porsiyon başına yapıyor ve üretilen sipariş de kalemleri sıfır
+> fiyatla yazıyor (`createForSubscription`). Ad bu yüzden aynı aileden:
+> `agreed_…_kurus`. `unit_price` yerine `total` denmesi tek farkı söylüyor —
+> anlaşma sepetin tamamı için. `discount` denmedi (indirim bir yüzde ya da fark
+> çağrıştırır; buraya yazılan sayının kendisi geçer), `price` denmedi (tek bir
+> ürünün fiyatı sanılırdı).
+>
+> **Kalemlerde fiyat bırakılmamasının sebebi çelişki üretmemek:** fatura
+> satırlarını `order_menus`'tan, toplamı `order_totals`'tan okuyor
+> (`InvoiceService::orderLines` · `OrderPresenter::totals`). İkisi ayrışsaydı
+> aynı kâğıt kendi kendini yalanlardı.
+
+**Teslimat ücreti bu tutara EKLENMEZ, dâhildir.** Abonelik de böyle yapıyor
+(`order_total = Money::toDecimal($subtotal)`, teslimat satırı yok) ve iki
+"anlaşmalı fiyat" kavramının teslimatta farklı davranması ikinci bir doğru
+kaynak üretirdi. Asıl gerekçe alanın var olma sebebi: personel telefonda bir
+sayı söylüyor ve sisteme yazılan tutar o sayı olmalı; üstüne 25 lira eklemek
+önlenmek istenen sessiz ayrışmayı her adrese teslim siparişte geri getirirdi.
+Karar **geri alınabilir yöndedir** — teslimatı ayrıca almak isteyen personel
+ücreti tutara ekleyip yazar (400 yerine 425); tersini ekranda yapmanın yolu yok.
+
+**Alan gönderilmezse (ya da `null` ise) bugünkü davranış aynen korunur:** tutar
+katalogdan hesaplanır ve adrese teslimde teslimat ücreti eklenir. `null` ile
+alanın hiç gönderilmemesi eşdeğerdir — panel boş kutu için `null` gönderebilir.
+
+Sınırlar ve kapılar:
+
+- `min:1` — **sıfır reddedilir.** "Bedava sipariş" bir fiyat kararı değil, boş
+  bırakılmış bir kutunun sessizce sıfıra düşmesidir.
+- `max:100000000` (1.000.000 ₺) bir iş kuralı değil, **fazladan basılmış
+  sıfırlara karşı akıl sınırı.**
+- Alan **yalnız `adminContext: true` yolunda** kabul edilir. Vitrin ucundan
+  (`POST /api/orders`) gönderilirse `OrderFactory` `422` ile patlar: müşterinin
+  kendi siparişinin fiyatını yazması demekti. Kapı uçta değil **metodun
+  kendisinde** duruyor ki ileride açılacak ikinci bir çağıran onu atlayamasın.
+- **Asgari sepet tutarı bu tutarı engellemez.** `assertMeetsMinimum` yalnız
+  `!$adminContext` iken koşuyor, anlaşmalı fiyat ise yalnız `$adminContext`
+  iken kabul ediliyor — ikisi yapısal olarak birbirini dışlıyor.
+- Tutar **denetim izine yazılır** (`veykemtu_control_audit` → `payload_json.
+  agreed_total_kurus`) ve kuru provanın `would` bloğunda görünür. Katalogdan
+  sapan bir tutar izde durmazsa sapma ancak muhasebede fark edilir.
+
+**Yetki bu uçta denetlenmez** — uç imzayla korunuyor ve rol taşımıyor. Fiyat
+kırma yetkisi Kontrol Merkezi tarafında ayrı bir izin anahtarıdır
+(`bld_manual_order.price_override`).
 
 ### Yeni müşteri
 

@@ -154,6 +154,15 @@ class OrderController extends ControlController
      * kendisi. İkinci bir hesap yazılsaydı panelin ve web'in zamanla ayrışan
      * iki fiyatı olurdu ve fark ancak muhasebede görülürdü.
      *
+     * ANLAŞMALI SEPET TUTARI (`agreed_total_kurus`) BU KURALI BOZMAZ,
+     * GENİŞLETİR. Alan isteğe bağlıdır; gönderilirse `OrderFactory` kalem
+     * toplamı yerine bu tutarı yazar ve kalemleri fiyatsız bırakır (aboneliğin
+     * `agreed_unit_price_kurus` deseni, sepet düzeyine taşınmış hâli). Hesabı
+     * yine `OrderFactory` yapıyor; burada tek satır para mantığı yok.
+     * Gönderilmezse davranış BUGÜNKÜNÜN AYNISIDIR. Yetki denetimi Kontrol
+     * Merkezi tarafındadır (bu uç imzayla korunuyor, rol taşımıyor); sapma
+     * `veykemtu_control_audit` yükünde `agreed_total_kurus` olarak durur.
+     *
      * `adminContext: true` sipariş penceresini (kesim saati, ileri görüş,
      * satış şalteri, asgari tutar, menü üyeliği) BİLEREK ATLAR. Bu bir onay
      * akışı değil KAYIT akışı: personel müşteriyle telefonda anlaştı,
@@ -230,6 +239,28 @@ class OrderController extends ControlController
             'items.*.option_value_ids.*' => ['integer', 'min:1'],
             'items.*.note' => ['sometimes', 'nullable', 'string', 'max:255'],
             'customer_note' => ['sometimes', 'nullable', 'string', 'max:500'],
+            /*
+             * ANLAŞMALI SEPET TUTARI — İSTEĞE BAĞLI, KURUŞ, SEPET BAŞINA.
+             *
+             * AD ABONELİKTEN TÜRÜYOR. Sözleşme fiyatı orada
+             * `subscriptions.agreed_unit_price_kurus` adıyla duruyor ve
+             * PORSİYON BAŞINADIR. Burada anlaşma sepetin tamamı için, bu yüzden
+             * `unit_price` yerine `total`: aynı `agreed_…_kurus` ailesi, ama adı
+             * "kalem başına değil, sepet başına" ayrımını kendisi söylüyor.
+             * `discount`/`override` denmedi — indirim bir yüzde ya da fark
+             * tutarı çağrıştırır ve buraya YAZILAN SAYININ KENDİSİ geçer;
+             * `price` denmedi çünkü tek bir ürünün fiyatı sanılırdı.
+             *
+             * `nullable`: panel alanı boş bırakıldığında `null` gönderebilsin
+             * ve bugünkü davranış (katalogdan hesap) aynen koşsun.
+             *
+             * `min:1` — sıfır bir fiyat kararı değil, boş kalmış bir kutudur.
+             * `max` bir iş kuralı DEĞİL, fazladan basılmış sıfırlara karşı akıl
+             * sınırı: 1.000.000 ₺'lik tek bir telefon siparişi yok.
+             */
+            'agreed_total_kurus' => [
+                'sometimes', 'nullable', 'integer', 'min:1', 'max:100000000',
+            ],
         ], [
             // MESAJ GEÇERLİ DEĞERLERİ SAYAR: Laravel'in varsayılanı
             // ("seçilen değer geçersiz") `account` gönderen bir istemciye
@@ -255,6 +286,15 @@ class OrderController extends ControlController
         $items = array_values($data['items']);
         $address = $deliveryType === Order::DELIVERY ? (array) ($data['address'] ?? []) : null;
         $customerNote = $this->trimmedOrNull($data['customer_note'] ?? null);
+        /*
+         * `null` ile `0` AYNI ŞEY DEĞİL: `null` "anlaşma yok, katalogdan
+         * hesapla", `0` ise `OrderFactory`'de reddedilen bir tutar. `?? null`
+         * ile bırakılıyor, `(int)` ile ezilmiyor — `(int) null` sıfır üretir ve
+         * boş kutu sessizce "bedava sipariş"e dönerdi.
+         */
+        $agreedTotal = isset($data['agreed_total_kurus'])
+            ? (int) $data['agreed_total_kurus']
+            : null;
 
         // Yazma yolunda oluşan sipariş; kuru provada `null` kalır.
         $created = null;
@@ -278,10 +318,18 @@ class OrderController extends ControlController
                 'payment_method' => $paymentMethod,
                 'item_count' => count($items),
                 'items' => $items,
+                /*
+                 * FİYAT KIRMA DENETİM İZİNE YAZILIR. "Kim hangi siparişi açtı"
+                 * yetmez; katalogdan sapan bir tutar, sapmanın kendisi kayda
+                 * geçmezse ancak muhasebede fark edilir ve o noktada "kim
+                 * söyledi" sorusunun cevabı kalmaz. `null` da bilerek yazılıyor:
+                 * alanın hiç gönderilmediği, satırda görünsün.
+                 */
+                'agreed_total_kurus' => $agreedTotal,
             ],
             function () use (
                 $gate, $location, $paymentMethod, $customerId, $newPhone,
-                $serviceDate, $data, $items,
+                $serviceDate, $data, $items, $agreedTotal,
             ): array {
                 /*
                  * KURU PROVA GERÇEKTEN DENETLER — ama denetleyebildiği kadar.
@@ -303,12 +351,20 @@ class OrderController extends ControlController
                         && $this->placeholderCustomer($newPhone) === null,
                     'item_count' => count($items),
                     'items' => $items,
+                    /*
+                     * PROVADA DA GÖRÜNÜR. Provanın sınırı bellidir (kalem
+                     * geçerliliği, fiyat ve stok koşmaz) ama anlaşmalı tutarın
+                     * OKUNDUĞUNU söylemek provanın yapabildiği bir şey — ekran
+                     * "400 lira yazdım ama prova bundan hiç söz etmiyor"
+                     * belirsizliğiyle kalmasın.
+                     */
+                    'agreed_total_kurus' => $agreedTotal,
                 ];
             },
             function (array $intent) use (
                 &$created, $factory, $location, $deliveryType, $items, $address,
                 $paymentMethod, $customerNote, $serviceDate, $customerId,
-                $newName, $newPhone,
+                $newName, $newPhone, $agreedTotal,
             ): array {
                 /*
                  * MÜŞTERİ VE SİPARİŞ TEK TRANSACTION'DA. Yeni müşteri
@@ -320,7 +376,7 @@ class OrderController extends ControlController
                 [$order, $customerCreated] = DB::transaction(function () use (
                     $factory, $location, $deliveryType, $items, $address,
                     $paymentMethod, $customerNote, $serviceDate, $customerId,
-                    $newName, $newPhone,
+                    $newName, $newPhone, $agreedTotal,
                 ): array {
                     [$customer, $customerCreated] = $this->resolveCustomer(
                         $customerId,
@@ -341,6 +397,10 @@ class OrderController extends ControlController
                         adminContext: true,
                         subscriptionId: null,
                         serviceDate: $serviceDate,
+                        // Verilmişse kalem toplamının yerine geçer ve kalemler
+                        // fiyatsız yazılır; teslimat ücreti bu tutara DÂHİLDİR,
+                        // eklenmez (gerekçe `OrderFactory::create()` içinde).
+                        agreedTotalKurus: $agreedTotal,
                     );
 
                     return [$order, $customerCreated];

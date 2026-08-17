@@ -12,9 +12,11 @@ use Illuminate\Testing\TestResponse;
 use Tests\KitchenTestCase;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
 use Veykemtu\BridgeApi\Models\ControlAudit;
+use Veykemtu\BridgeApi\Services\InvoiceService;
 use Veykemtu\BridgeApi\Services\LocationGate;
 use Veykemtu\BridgeApi\Services\OrderStatusTransition;
 use Veykemtu\BridgeApi\Support\BusinessTime;
+use Veykemtu\BridgeApi\Support\Money;
 
 /**
  * `POST /api/control/orders` — telefonla alınan siparişin elle girilmesi.
@@ -32,6 +34,11 @@ use Veykemtu\BridgeApi\Support\BusinessTime;
  *     kesim geçmiş olsa bile anında düşer; ileri tarihli olan o günün kesim
  *     anına damgalanır. İkisi için ayrı dal yazmak, kesim ayarı
  *     değiştiğinde birinin sessizce ayrışması demekti.
+ *  4. **Anlaşmalı sepet tutarı yazılan tutarın ta kendisidir** (7. bölüm).
+ *     Personelin telefonda söylediği sayı ile siparişe düşen sayı arasındaki
+ *     her sessiz fark — katalogdan hesap, üstüne eklenen teslimat ücreti,
+ *     sıfıra düşen boş kutu — ancak müşteri başka bir tutar duyduğunda fark
+ *     edilir.
  *
  * Sır ortamdan okunuyor; test için sabitleniyor (`ControlPanelTest` deseni).
  */
@@ -356,6 +363,232 @@ class ControlOrderCreateTest extends KitchenTestCase
         // "Kim hangi siparişi açtı" sorusunun cevabı izin kendisinde durmalı;
         // kimlik satır açıldıktan sonra yazılıyor çünkü o an sipariş yoktu.
         $this->assertSame($orderId, (int) $audit->target_id);
+    }
+
+    // ── 7. Anlaşmalı sepet tutarı (`agreed_total_kurus`) ──────────────────
+    //
+    // Personel müşteriyle telefonda bir fiyatta anlaşıyor ve o fiyat sepetin
+    // TAMAMI içindir — kalem başına değil. Desen abonelikten geliyor
+    // (`agreed_unit_price_kurus` → porsiyon başına): para sepet düzeyinde
+    // durur, kalemler fiyatsız yazılır.
+    //
+    // BU BÖLÜMÜN ÇİVİLEDİĞİ ŞEY, ALANIN VAR OLMA SEBEBİ: personelin söylediği
+    // sayı ile siparişe yazılan sayı AYNI olmalı. Aradaki her sessiz fark
+    // (katalogdan hesap, üstüne eklenen teslimat ücreti, sıfıra düşen boş kutu)
+    // ancak müşteri farklı bir tutar duyduğunda fark edilir.
+
+    /** Telefonda anlaşılan sepet tutarı — 400,00 TL. */
+    private const int AGREED_TOTAL = 40000;
+
+    public function test_ANLASMALI_TUTAR_siparise_yazilir_ve_KALEMLER_FIYATSIZ_kalir(): void
+    {
+        $response = $this->signed('POST', self::PATH, $this->body([
+            'items' => [['menu_id' => $this->menuId('Tavuk Sote'), 'quantity' => 3]],
+            'agreed_total_kurus' => self::AGREED_TOTAL,
+        ]))->assertStatus(201);
+
+        $response->assertJsonPath('data.total_kurus', self::AGREED_TOTAL)
+            ->assertJsonPath('data.subtotal_kurus', self::AGREED_TOTAL)
+            ->assertJsonPath('data.delivery_fee_kurus', 0);
+
+        $orderId = (int) $response->json('data.id');
+
+        $this->assertSame(
+            self::AGREED_TOTAL,
+            Money::toKurus(Order::findOrFail($orderId)->order_total),
+            'orders.order_total anlaşmalı tutarı taşımalı.',
+        );
+
+        /*
+         * KALEMLER FİYATSIZ. Katalog fiyatı kalsaydı sipariş toplamı satır
+         * toplamlarıyla çelişirdi ve çelişki kâğıda basılırdı: fatura
+         * satırlarını `order_menus`tan, toplamı `order_totals`tan okuyor.
+         */
+        $lines = DB::table('order_menus')->where('order_id', $orderId)->get();
+        $this->assertNotEmpty($lines);
+
+        foreach ($lines as $line) {
+            $this->assertSame(0, Money::toKurus($line->price));
+            $this->assertSame(0, Money::toKurus($line->subtotal));
+        }
+
+        // ADET DOKUNULMADAN KALIR: mutfak ne pişireceğini buradan okuyor ve
+        // ADR-08 gereği fiyatı zaten hiç görmüyor. Sıfırlanan tek şey para.
+        $this->assertSame(3, (int) $lines->first()->quantity);
+
+        // Admin paneli ve fatura toplamı `order_totals`tan okuyor; o tablo da
+        // aynı sayıyı söylemeli.
+        $totals = DB::table('order_totals')->where('order_id', $orderId)
+            ->pluck('value', 'code');
+
+        $this->assertSame(self::AGREED_TOTAL, Money::toKurus($totals['subtotal']));
+        $this->assertSame(self::AGREED_TOTAL, Money::toKurus($totals['order_total']));
+    }
+
+    public function test_ALAN_GONDERILMEZSE_bugunku_davranis_AYNEN_korunur(): void
+    {
+        // GERİLEME TESTİ. Yeni alanın en pahalı arıza biçimi, hiç
+        // kullanılmadığında bir şeyi değiştirmesi olurdu: bugüne kadar açılmış
+        // her sipariş katalogdan hesaplanıyor ve öyle kalmalı.
+        $orderId = (int) $this->signed('POST', self::PATH, $this->body([
+            'items' => [['menu_id' => $this->menuId('Tavuk Sote'), 'quantity' => 3]],
+        ]))->assertStatus(201)->json('data.id');
+
+        $lines = DB::table('order_menus')->where('order_id', $orderId)->get();
+        $lineSum = 0;
+
+        foreach ($lines as $line) {
+            $this->assertGreaterThan(
+                0,
+                Money::toKurus($line->price),
+                'Alan yokken kalem fiyatı katalogdan gelmeli.',
+            );
+            $lineSum += Money::toKurus($line->subtotal);
+        }
+
+        $this->assertGreaterThan(0, $lineSum);
+        $this->assertSame(
+            $lineSum,
+            Money::toKurus(Order::findOrFail($orderId)->order_total),
+            'Gel-al siparişte toplam, kalem toplamlarının tam kendisi olmalı.',
+        );
+    }
+
+    public function test_NULL_gonderilmesi_alanin_HIC_GONDERILMEMESIYLE_aynidir(): void
+    {
+        // Panel kutuyu boş bırakınca `null` gönderebilir. `(int) null` sıfır
+        // üretir ve boş bir kutu sessizce "bedava sipariş"e dönerdi.
+        $orderId = (int) $this->signed('POST', self::PATH, $this->body([
+            'agreed_total_kurus' => null,
+        ]))->assertStatus(201)->json('data.id');
+
+        $this->assertGreaterThan(0, Money::toKurus(Order::findOrFail($orderId)->order_total));
+    }
+
+    public function test_TESLIMAT_UCRETI_anlasmali_tutara_EKLENMEZ_dahildir(): void
+    {
+        $fee = 2500;   // 25,00 TL
+        resolve(LocationGate::class)->setDeliveryFee($this->location(), $fee);
+
+        $address = [
+            'line1' => 'Örnek Mah. 12. Sk No:3',
+            'district' => 'Selçuklu',
+            'city' => 'Konya',
+        ];
+
+        // (1) ALAN YOKKEN ÜCRET EKLENİR — bugünkü davranış, aynen duruyor.
+        $plain = $this->signed('POST', self::PATH, $this->body([
+            'delivery_type' => 'delivery',
+            'address' => $address,
+        ]))->assertStatus(201);
+
+        $this->assertSame($fee, (int) $plain->json('data.delivery_fee_kurus'));
+
+        /*
+         * (2) ANLAŞMALI TUTAR VARKEN EKLENMEZ. Personel telefonda "400 lira"
+         * dedi; sistem 425 yazsaydı alanın önlemek için eklendiği sessiz
+         * ayrışma her adrese teslim siparişte geri gelirdi. Teslimatı ayrıca
+         * almak isteyen personel 425 yazar — karar geri alınabilir yöndedir.
+         */
+        $agreed = $this->signed('POST', self::PATH, $this->body([
+            'delivery_type' => 'delivery',
+            'address' => $address,
+            'agreed_total_kurus' => self::AGREED_TOTAL,
+        ]))->assertStatus(201);
+
+        $agreed->assertJsonPath('data.total_kurus', self::AGREED_TOTAL)
+            ->assertJsonPath('data.delivery_fee_kurus', 0);
+
+        $this->assertFalse(
+            DB::table('order_totals')
+                ->where('order_id', (int) $agreed->json('data.id'))
+                ->where('code', 'delivery')
+                ->exists(),
+            'Anlaşmalı tutarlı siparişte teslimat satırı hiç yazılmamalı.',
+        );
+    }
+
+    public function test_ASGARI_SEPET_TUTARI_anlasmali_fiyati_ENGELLEMEZ(): void
+    {
+        // Asgari 250,00 TL, anlaşma 100,00 TL. `adminContext: true` asgariyi
+        // zaten atlıyor; anlaşmalı fiyat da yalnız o bağlamda kabul edildiği
+        // için kapıya HİÇ uğramıyor. İkisi yapısal olarak birbirini dışlıyor.
+        resolve(LocationGate::class)->setMinOrderTotal($this->location(), 25000);
+
+        $this->signed('POST', self::PATH, $this->body([
+            'agreed_total_kurus' => 10000,
+        ]))->assertStatus(201)->assertJsonPath('data.total_kurus', 10000);
+    }
+
+    public function test_SIFIR_NEGATIF_ve_SAYI_OLMAYAN_tutar_reddedilir(): void
+    {
+        // SIFIR DA HATA: "bedava" bir sipariş bir fiyat kararı değil, boş
+        // bırakılmış bir kutunun sessizce sıfıra düşmesidir.
+        foreach ([0, -1, '400,00', 40000.5] as $value) {
+            $this->signed('POST', self::PATH, $this->body([
+                'agreed_total_kurus' => $value,
+            ]))->assertStatus(422)->assertJsonPath('error.code', 'VALIDATION_FAILED');
+        }
+
+        $this->assertSame(0, Order::query()->count());
+    }
+
+    public function test_ANLASMALI_TUTAR_denetim_izine_yazilir(): void
+    {
+        $this->signed('POST', self::PATH, $this->body([
+            'agreed_total_kurus' => self::AGREED_TOTAL,
+        ]))->assertStatus(201);
+
+        $payload = ControlAudit::query()->firstOrFail()->payload_json ?? [];
+
+        // Katalogdan sapan tutar izde durmazsa sapma ancak muhasebede fark
+        // edilir ve o noktada "kim söyledi" sorusunun cevabı kalmaz.
+        $this->assertSame(self::AGREED_TOTAL, (int) ($payload['agreed_total_kurus'] ?? 0));
+    }
+
+    public function test_KURU_PROVA_anlasmali_tutari_yansitir_ama_siparis_yazmaz(): void
+    {
+        $this->signed('POST', self::PATH, $this->body([
+            'dry_run' => true,
+            'agreed_total_kurus' => self::AGREED_TOTAL,
+        ]))->assertOk()
+            ->assertJsonPath('dry_run', true)
+            ->assertJsonPath('would.agreed_total_kurus', self::AGREED_TOTAL);
+
+        $this->assertSame(0, Order::query()->count());
+    }
+
+    public function test_FATURA_anlasmali_tutari_yazar_satirlar_SIFIR_kalir(): void
+    {
+        $orderId = (int) $this->signed('POST', self::PATH, $this->body([
+            'items' => [['menu_id' => $this->menuId('Tavuk Sote'), 'quantity' => 3]],
+            'agreed_total_kurus' => self::AGREED_TOTAL,
+        ]))->assertStatus(201)->json('data.id');
+
+        $order = Order::findOrFail($orderId);
+        $service = app(InvoiceService::class);
+        $preview = $service->previewOrder($order);
+
+        /*
+         * FATURA BOZULMUYOR ve sebebi yapısal: toplamı `OrderPresenter::totals`
+         * veriyor ve o da `order_totals` tablosunu okuyor — satır fiyatlarını
+         * DEĞİL. Sıfır fiyatlı kalemler bu yüzden faturayı sıfırlamıyor.
+         */
+        $this->assertSame(self::AGREED_TOTAL, $preview['subtotal_kurus']);
+        $this->assertSame(self::AGREED_TOTAL, $preview['total_kurus']);
+        $this->assertSame(0, $preview['delivery_kurus']);
+
+        // Kâğıtta kalemler DÖKÜM olarak durur, para tek satırda — abonelik
+        // dönem faturasının bugünkü hâliyle aynı şekil.
+        foreach ($preview['lines'] as $line) {
+            $this->assertSame(0, (int) $line['unit_price_kurus']);
+            $this->assertSame(0, (int) $line['line_total_kurus']);
+        }
+
+        $invoice = $service->issueForOrder($order, self::ACTOR);
+
+        $this->assertSame(self::AGREED_TOTAL, (int) $invoice->total_kurus);
+        $this->assertSame(0, (int) $invoice->delivery_kurus);
     }
 
     // ── Yardımcılar ───────────────────────────────────────────────────────
