@@ -178,7 +178,47 @@ class DailyMenus extends AdminController
             $date->format('d.m.Y'),
         ));
 
+        $this->warnIfPackageUnsellable($location, $menu);
+
         return $this->backToMonth($date);
+    }
+
+    /**
+     * Paket fiyatı girildi ama paket sitede SATILAMAZ — yöneticiye söyle.
+     *
+     * ## Düzeltilen gerçek kusur
+     *
+     * Yönetici güne 250 TL paket fiyatı giriyor, "kaydedildi" yazısını
+     * görüyor ve sitede paket kartını bulamıyordu: menü sayfası kalemleri tek
+     * tek listeliyordu. Sebep iki yapılandırma eksiğinden biri oluyordu
+     * (vitrinin paket ürünü tanımsız ya da güne zorunlu kalem girilmemiş) ve
+     * ikisi de HİÇBİR YERDE söylenmiyordu — ne kaydetme ekranında, ne
+     * günlükte. "Kaydedildi" diyen bir ekranın ardından çalışmayan bir
+     * özellik, hatanın en pahalı biçimi: yönetici sorunu kendinde arıyor.
+     *
+     * Uyarı kaydetmeyi ENGELLEMİYOR. Fiyat geçerli bir veri ve saklanması
+     * doğru; eksik olan onu satılabilir kılan yapılandırma. Kaydı reddetmek,
+     * yöneticinin girdiği veriyi çöpe atardı.
+     */
+    private function warnIfPackageUnsellable(Location $location, DailyMenu $menu): void
+    {
+        // Kalemler `replaceItems()` ile yeniden yazıldı; bellekteki bağıntı
+        // eski satırları taşıyor ve "zorunlu kalem var mı" sorusu ona sorulamaz.
+        $menu->load('items.menu');
+
+        // Sınıfın kendi kalıbı: vitrin kapısı yapıcıda değil, çağrı anında
+        // çözülüyor (bkz. `renderDayEditor`).
+        $packageMenuId = resolve(LocationGate::class)->dailyPackageMenuId($location);
+        $reason = $menu->packageBlockReason($packageMenuId);
+
+        if ($reason === null || $reason === DailyMenu::PACKAGE_BLOCK_NO_PRICE) {
+            return;
+        }
+
+        flash()->warning(lang(match ($reason) {
+            DailyMenu::PACKAGE_BLOCK_NO_PRODUCT => 'veykemtu.bridgeapi::dailymenu.alert_package_no_product',
+            default => 'veykemtu.bridgeapi::dailymenu.alert_package_no_components',
+        }));
     }
 
     /**

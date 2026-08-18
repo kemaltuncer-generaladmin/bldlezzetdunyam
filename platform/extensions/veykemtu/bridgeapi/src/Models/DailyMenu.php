@@ -32,6 +32,15 @@ class DailyMenu extends Model
     /** Paket ürünü kimliğinin `location_options` anahtarı (göç yazar). */
     public const string PACKAGE_OPTION_KEY = 'bld_daily_package_menu_id';
 
+    /** O güne paket fiyatı girilmemiş — paket satılmıyor, sorun da yok. */
+    public const string PACKAGE_BLOCK_NO_PRICE = 'no_price';
+
+    /** Vitrinin "Günün Menüsü" ürünü tanımsız (`veykemtu:setup` koşmamış). */
+    public const string PACKAGE_BLOCK_NO_PRODUCT = 'no_product';
+
+    /** Güne zorunlu kalem girilmemiş — paketin içi boş olurdu. */
+    public const string PACKAGE_BLOCK_NO_COMPONENTS = 'no_components';
+
     protected $table = 'veykemtu_daily_menus';
 
     public $timestamps = true;
@@ -99,6 +108,53 @@ class DailyMenu extends Model
     public function sellsPackage(): bool
     {
         return $this->package_price_kurus !== null && $this->package_price_kurus > 0;
+    }
+
+    /**
+     * Paket neden satılamıyor? Satılabiliyorsa `null`.
+     *
+     * ## Neden bu metot var — SESSİZ ÜÇ KAPI
+     *
+     * `CatalogController::packagePayload()` üç ayrı sebeple `null` dönüyordu ve
+     * üçü de dışarıdan AYNI görünüyordu: menü sayfasında paket kartı hiç
+     * çizilmiyor, kalemler tek tek listeleniyor. Yönetici 250 TL'lik paket
+     * fiyatını girmiş, kaydetmiş, "kaydedildi" yazısını görmüş ve sitede paketi
+     * bulamamış oluyordu — hangi ayarın eksik olduğuna dair tek bir işaret yok.
+     *
+     * Sebepler burada AYRIŞIYOR ve iki yerden okunuyor: gün düzenleyici
+     * kaydetme anında uyarı basıyor, katalog ucu da günlüğe yazıyor. Karar
+     * mantığı tek yerde durmalı, yoksa ikisi zamanla ayrışır ve uyarı gerçek
+     * sebebi söylemez hâle gelir.
+     *
+     * `$packageMenuId` dışarıdan geliyor: vitrin ayarını `LocationGate`
+     * okuyor ve modelin vitrin ayarlarına bağımlı olması, gün kaydını
+     * yapılandırmaya bağlamak olurdu.
+     *
+     * @param  int|null  $packageMenuId  `LocationGate::dailyPackageMenuId()`
+     */
+    public function packageBlockReason(?int $packageMenuId): ?string
+    {
+        if (!$this->sellsPackage()) {
+            return self::PACKAGE_BLOCK_NO_PRICE;
+        }
+
+        if ($packageMenuId === null) {
+            return self::PACKAGE_BLOCK_NO_PRODUCT;
+        }
+
+        /*
+         * ÜRÜNÜ ÇÖZÜLEBİLEN en az bir zorunlu kalem gerekiyor — sayılan şey
+         * satır değil, gerçekten gönderilebilecek yemek. Silinmiş bir ürüne
+         * bağlı zorunlu satır `packagePayload()` içinde atlanıyor; burada
+         * sayılsaydı "içindekiler var" der, paket yine boş çıkardı.
+         */
+        foreach ($this->items as $item) {
+            if ($item->is_required && $item->menu !== null) {
+                return null;
+            }
+        }
+
+        return self::PACKAGE_BLOCK_NO_COMPONENTS;
     }
 
     /**

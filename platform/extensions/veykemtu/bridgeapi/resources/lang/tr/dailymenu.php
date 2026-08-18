@@ -122,6 +122,8 @@ return [
     'confirm_bulk_draft' => 'Bu ayın bütün menüleri taslağa çekilecek ve satıştan kalkacak. Devam edilsin mi?',
 
     // ── Sonuç bildirimleri ─────────────────────────────────────────────
+    'alert_package_no_product' => 'Paket fiyatı kaydedildi ama menü sitede PAKET OLARAK GÖRÜNMEYECEK: vitrinin "Günün Menüsü" ürünü tanımlı değil. Sunucuda \'php artisan veykemtu:setup\' komutunu çalıştırın; komut tekrar çalıştırılabilir ve mevcut veriyi bozmaz.',
+    'alert_package_no_components' => 'Paket fiyatı kaydedildi ama menü sitede PAKET OLARAK GÖRÜNMEYECEK: güne zorunlu kalem girilmemiş, paketin içi boş olurdu. En az bir kalemin "zorunlu" kutusunu işaretleyin.',
     'alert_saved' => '%s günü kaydedildi.',
     'alert_saved_locked' => '%s günü kaydedildi (yalnız başlık, açıklama ve iç not — gün siparişli olduğu için kilitli).',
     'alert_published' => '%s günü yayına alındı.',

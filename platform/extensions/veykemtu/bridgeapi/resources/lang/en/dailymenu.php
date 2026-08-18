@@ -114,6 +114,8 @@ return [
     'confirm_bulk_publish' => 'Every menu in this month will be published and visible to customers. Continue?',
     'confirm_bulk_draft' => 'Every menu in this month will move to draft and leave the storefront. Continue?',
 
+    'alert_package_no_product' => 'Package price saved, but the menu will NOT be sold as a package on the site: this location has no "Daily Menu" product configured. Run \'php artisan veykemtu:setup\' on the server; the command is idempotent.',
+    'alert_package_no_components' => 'Package price saved, but the menu will NOT be sold as a package on the site: the day has no required items, so the package would be empty. Tick "required" on at least one item.',
     'alert_saved' => 'Day %s saved.',
     'alert_saved_locked' => 'Day %s saved (title, description and internal note only — the day is locked because it has orders).',
     'alert_published' => 'Day %s published.',

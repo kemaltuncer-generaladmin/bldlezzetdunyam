@@ -9,6 +9,8 @@ use Igniter\Local\Models\Location;
 use Igniter\Main\Classes\MediaLibrary;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
 use Veykemtu\BridgeApi\Models\DailyMenu;
@@ -287,16 +289,20 @@ class CatalogController extends ApiController
         array $soldOutReasons,
         array $remaining = [],
     ): ?array {
-        if (!$menu->sellsPackage()) {
-            return null;
-        }
-
         $packageMenuId = $this->gate->dailyPackageMenuId($location);
+        $blocked = $menu->packageBlockReason($packageMenuId);
 
-        if ($packageMenuId === null) {
-            // Paket ürünü yapılandırılmamış — fiyat girilmiş olsa bile
-            // sipariş edilemez. Sessizce fiyatlı göstermek, sepete
-            // eklenemeyen bir kart üretirdi.
+        if ($blocked !== null) {
+            /*
+             * Paket ürünü yapılandırılmamış ya da içi boşsa fiyat girilmiş
+             * olsa bile sipariş edilemez. Sessizce fiyatlı göstermek, sepete
+             * eklenemeyen bir kart üretirdi — bu yüzden `null` dönüyor.
+             *
+             * Ama SESSİZ KALMIYOR ARTIK: yönetici fiyatı girdiği hâlde paketi
+             * sitede bulamadığında bakacak bir yer olmalı.
+             */
+            $this->reportPackageBlocked($location, $menu, $blocked);
+
             return null;
         }
 
@@ -363,6 +369,59 @@ class CatalogController extends ApiController
             'remaining_portions' => $remaining[$packageMenuId] ?? null,
             'components' => $components,
         ];
+    }
+
+    /**
+     * Paket fiyatı girilmiş ama paket satılamıyor — günlüğe yaz.
+     *
+     * ## Neden kısılıyor
+     *
+     * Menü ucu sipariş kararı veren her yolda çağrılıyor: menü sayfası, sepet
+     * özeti, sepete ekleme, ödeme. Her çağrıda satır yazmak, yapılandırma
+     * eksikliğini bir günlük seline çevirir ve asıl hatalar görünmez olur.
+     * Vitrin + gün + sebep başına saatte bir satır yeterli: mesaj bir kez
+     * okunacak, tekrarı bilgi taşımıyor.
+     *
+     * `Cache::add()` yalnız anahtar YOKSA yazıyor ve `true` dönüyor; aynı
+     * kalıbı `VerifyControlSignature` nonce'ları için kullanıyor.
+     *
+     * FİYAT GİRİLMEMİŞ GÜN BURAYA HİÇ GELMİYOR (çağıran eleme yapmıyor,
+     * `PACKAGE_BLOCK_NO_PRICE` burada süzülüyor): çoğu gün yalnız kalem
+     * satıyor olabilir ve bu bir arıza değil, normal iş akışı.
+     */
+    private function reportPackageBlocked(Location $location, DailyMenu $menu, string $reason): void
+    {
+        if ($reason === DailyMenu::PACKAGE_BLOCK_NO_PRICE) {
+            return;
+        }
+
+        $locationId = (int) $location->location_id;
+        $date = $menu->menu_date->toDateString();
+
+        if (!Cache::add("veykemtu.package-blocked.{$locationId}.{$date}.{$reason}", true, 3600)) {
+            return;
+        }
+
+        $explanation = match ($reason) {
+            DailyMenu::PACKAGE_BLOCK_NO_PRODUCT =>
+                'Vitrinin "Günün Menüsü" paket ürünü tanımsız '
+                .'(location_options.'.DailyMenu::PACKAGE_OPTION_KEY.' yok). '
+                .'Düzeltmek için: php artisan veykemtu:setup',
+            DailyMenu::PACKAGE_BLOCK_NO_COMPONENTS =>
+                'Güne ürünü çözülebilen zorunlu kalem girilmemiş; paketin içi boş olurdu. '
+                .'Gün düzenleyicide en az bir kalemin "zorunlu" kutusu işaretli olmalı.',
+            default => 'Bilinmeyen sebep.',
+        };
+
+        Log::warning(
+            "Günün menüsü paketi satışa açılamadı ({$date}): {$explanation}",
+            [
+                'location_id' => $locationId,
+                'service_date' => $date,
+                'reason' => $reason,
+                'package_price_kurus' => $menu->package_price_kurus,
+            ],
+        );
     }
 
     /** @throws ApiException */

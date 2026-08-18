@@ -87,6 +87,94 @@ class DailyMenuTest extends KitchenTestCase
         $this->assertSame('not_published', $data['unavailable_reason']);
     }
 
+    /**
+     * PAKET FİYATI GİRİLİ AMA VİTRİNİN PAKET ÜRÜNÜ YOK → paket satılmıyor.
+     *
+     * Sahada yaşandı: yönetici güne 250 TL paket fiyatı girdi, panel
+     * "kaydedildi" dedi, sitede paket kartı hiç çıkmadı ve menü kalem kalem
+     * göründü. Sebep `location_options.bld_daily_package_menu_id` satırının
+     * hiç yazılmamış olmasıydı (`veykemtu:setup` o kurulumda koşmamıştı) ve
+     * bunu söyleyen tek bir işaret yoktu.
+     *
+     * Yanıt biçimi DEĞİŞMİYOR — `package: null` doğru cevap, çünkü sipariş
+     * edilemeyen bir paketi fiyatıyla göstermek sepete eklenemeyen bir kart
+     * üretirdi. Kilitlenen şey SEBEBİN AYRIŞMASI: `packageBlockReason()`
+     * hangi kapının kapalı olduğunu söylüyor ve panel ile günlük onu okuyor.
+     */
+    public function test_paket_urunu_tanimsizsa_paket_satilmaz_ve_sebep_ayrisir(): void
+    {
+        $menu = $this->publishDay(BusinessTime::now(), 25000, [['Tavuk Sote', 9000]]);
+
+        // Vitrinin paket ürünü ayarını kaldır — `veykemtu:setup` koşmamış kurulum.
+        DB::table('location_options')
+            ->where('location_id', $this->locationId())
+            ->where('item', DailyMenu::PACKAGE_OPTION_KEY)
+            ->delete();
+
+        $data = $this->getJson($this->dailyMenuUrl(), self::HEADERS)
+            ->assertOk()
+            ->json('data');
+
+        // Kalemler görünmeye devam ediyor: müşteri hâlâ tek tek sipariş verebilir.
+        $this->assertNull($data['package']);
+        $this->assertCount(1, $data['items']);
+
+        $this->assertSame(
+            DailyMenu::PACKAGE_BLOCK_NO_PRODUCT,
+            $menu->refresh()->packageBlockReason(null),
+        );
+    }
+
+    /**
+     * ZORUNLU KALEMİ OLMAYAN GÜN → paketin içi boş olurdu.
+     *
+     * `packagePayload()` yalnız `is_required` kalemleri paketin içine
+     * koyuyor; hiçbiri işaretli değilse paket "içindekiler" bölümü boş bir
+     * fiyat etiketine dönerdi.
+     */
+    public function test_zorunlu_kalemi_olmayan_gunde_paket_satilmaz(): void
+    {
+        $menu = $this->publishDay(BusinessTime::now(), 25000, [['Tavuk Sote', 9000]]);
+
+        DailyMenuItem::query()
+            ->where('daily_menu_id', $menu->id)
+            ->update(['is_required' => false]);
+
+        $data = $this->getJson($this->dailyMenuUrl(), self::HEADERS)
+            ->assertOk()
+            ->json('data');
+
+        $this->assertNull($data['package']);
+        $this->assertSame(
+            DailyMenu::PACKAGE_BLOCK_NO_COMPONENTS,
+            $menu->refresh()->packageBlockReason($this->packageMenuId()),
+        );
+    }
+
+    /**
+     * Fiyatı olmayan gün ARIZA DEĞİL — o gün yalnız kalemler satılıyor.
+     *
+     * Ayrı bir sebep kodu taşıması gerekiyor, yoksa günlük ve panel uyarısı
+     * her normal günde de öterdi.
+     */
+    public function test_paket_fiyati_yoksa_sebep_ariza_degil(): void
+    {
+        $menu = $this->publishDay(BusinessTime::now(), null, [['Tavuk Sote', 9000]]);
+
+        $this->assertSame(
+            DailyMenu::PACKAGE_BLOCK_NO_PRICE,
+            $menu->packageBlockReason($this->packageMenuId()),
+        );
+    }
+
+    /** Her şey yerindeyse kapı açık. */
+    public function test_yapilandirma_tamsa_paket_engellenmiyor(): void
+    {
+        $menu = $this->publishDay(BusinessTime::now(), 25000, [['Tavuk Sote', 9000]]);
+
+        $this->assertNull($menu->packageBlockReason($this->packageMenuId()));
+    }
+
     /** Menü olmayan gün bir hata değil, bir cevaptır. */
     public function test_menusu_olmayan_gun_200_doner(): void
     {
