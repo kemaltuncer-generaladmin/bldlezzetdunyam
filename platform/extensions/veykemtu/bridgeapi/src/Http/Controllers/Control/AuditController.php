@@ -161,6 +161,7 @@ class AuditController extends ControlController
         'sms.send_test' => 'Deneme SMS\'i gönderildi',
         'sms.announcement.update' => 'SMS duyurusu yazıldı',
         'sms.announcement.run' => 'SMS duyurusu gönderildi',
+        'sms.netgsm.update' => 'SMS gönderici başlığı değiştirildi',
 
         // ── Uygulama içi duyuru ───────────────────────────────────────
         'notification.create' => 'Duyuru oluşturuldu',

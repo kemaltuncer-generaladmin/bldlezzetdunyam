@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Override;
@@ -51,6 +52,7 @@ use Veykemtu\BridgeApi\Services\Geocoding\FakeGeocoder;
 use Veykemtu\BridgeApi\Services\Geocoding\Geocoder;
 use Veykemtu\BridgeApi\Services\Geocoding\NominatimGeocoder;
 use Veykemtu\BridgeApi\Services\Sms\LogSmsSender;
+use Veykemtu\BridgeApi\Services\Sms\NetgsmSettings;
 use Veykemtu\BridgeApi\Services\Sms\NetgsmSmsSender;
 use Veykemtu\BridgeApi\Services\Sms\SmsSender;
 use Veykemtu\BridgeApi\Support\BusinessTime;
@@ -414,31 +416,60 @@ class Extension extends BaseExtension
     }
 
     /**
-     * SMS göndericisini seçer — B-18.
+     * SMS göndericisini seçer — B-18, F ile gözden geçirildi.
      *
      * SAĞLAYICI SIRLARI ORTAM DEĞİŞKENİNDE, VERİTABANINDA DEĞİL. Panelden
      * girilebilir bir ayar olsaydı sır her veritabanı yedeğine girerdi;
      * yedekler ise sırlardan çok daha kolay dolaşıyor.
      *
+     * ─────────────────────────────────────────────────────────────────────
+     * BAŞLIK BU KURALIN DIŞINDADIR VE AYARDAN DA OKUNUR (`NetgsmSettings`).
+     *
+     * Gönderici adı (`BLEZZETDNYM`) bir sır değil; müşterinin telefonunda
+     * görünen, Netgsm panelinde onaylı bir addır. Yalnız ortam değişkeninde
+     * durduğu sürece yönetici onu göremiyor, düzeltemiyor ve yanlış
+     * olduğunda tek belirti "SMS gitmiyor" oluyordu — üstelik düzeltmek
+     * Coolify'a girip konteyneri yeniden başlatmayı gerektiriyordu.
+     * Öncelik bbdkantin'inkiyle aynı: AYAR ÖNCE, ORTAM SONRA.
+     * ─────────────────────────────────────────────────────────────────────
+     *
      * ÜÇÜ BİRDEN TANIMLI DEĞİLSE GÜNLÜĞE DÜŞER, PATLAMAZ. Yarım
      * yapılandırmayla ayağa kalkmayı reddetmek, tek bir eksik değişken
      * yüzünden bütün siteyi indirmek olurdu — oysa SMS yalnızca ikinci bir
-     * giriş yolu; e-posta + şifre çalışmaya devam ediyor. `LogSmsSender`
-     * ayrıca `warning` seviyesinde yazıyor, yani eksiklik günlükte
-     * gözden kaçmıyor.
+     * giriş yolu; e-posta + şifre çalışmaya devam ediyor.
+     *
+     * UYARI ARTIK HANGİ ALANIN EKSİK OLDUĞUNU SÖYLÜYOR. Eski hâlde tek iz
+     * `LogSmsSender`'ın gönderim ANINDA yazdığı satırdı; yani yapılandırma
+     * eksikliği ancak biri SMS beklerken fark ediliyordu ve o satır da
+     * hangi alanın boş olduğunu yazmıyordu. Kontrol Merkezi aynı bilgiyi
+     * `GET /control/sms/netgsm` ile ekranda gösteriyor (`missing`).
      */
     private function registerSmsSender(): void
     {
         $this->app->singleton(SmsSender::class, static function (): SmsSender {
-            $username = (string) env('NETGSM_USERNAME', '');
-            $password = (string) env('NETGSM_PASSWORD', '');
-            $header = (string) env('NETGSM_HEADER', '');
+            $missing = NetgsmSettings::missing();
 
-            if ($username === '' || $password === '' || $header === '') {
+            if ($missing !== []) {
+                Log::warning(
+                    'Netgsm yapılandırması eksik — SMS GÖNDERİLMEYECEK, mesajlar yalnız günlüğe yazılacak.',
+                    [
+                        'missing' => $missing,
+                        // Parola ASLA günlüğe girmez; başlık bir sır değil ve
+                        // "hangi başlıkla gidiyor" sorusu tam da burada
+                        // sorulacak soru.
+                        'header' => NetgsmSettings::header(),
+                        'header_source' => NetgsmSettings::source(),
+                    ],
+                );
+
                 return new LogSmsSender;
             }
 
-            return new NetgsmSmsSender($username, $password, $header);
+            return new NetgsmSmsSender(
+                NetgsmSettings::username(),
+                NetgsmSettings::password(),
+                NetgsmSettings::header(),
+            );
         });
     }
 

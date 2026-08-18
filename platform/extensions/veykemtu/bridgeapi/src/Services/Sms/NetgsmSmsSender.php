@@ -81,8 +81,24 @@ final class NetgsmSmsSender implements SmsSender
             return;
         }
 
-        throw new SmsException(
-            self::ERRORS[$code] ?? ('SMS sağlayıcısı beklenmeyen yanıt döndü: '.$body),
-        );
+        /*
+         * `40` HATASI KULLANILAN BAŞLIĞI DA SÖYLER.
+         *
+         * "Mesaj başlığı sistemde tanımlı değil" cümlesi tek başına
+         * yöneticiye HANGİ başlığın reddedildiğini söylemiyordu; oysa bu
+         * hatanın tek sebebi Netgsm panelindeki onaylı ad ile bizim
+         * gönderdiğimizin ayrışmasıdır ve düzeltmenin ilk adımı ikisini yan
+         * yana görmektir. Diğer kodlarda başlığı eklemek gürültü olurdu.
+         */
+        $message = self::ERRORS[$code] ?? ('SMS sağlayıcısı beklenmeyen yanıt döndü: '.$body);
+
+        if ($code === '40') {
+            $message .= ' Gönderilen başlık: "'.$this->header.'".';
+        }
+
+        // KOD AYRI ALANDA TAŞINIR: panel `40` durumunu diğer hatalardan
+        // ayırıp ne yapılacağını yazacak ve bunu Türkçe cümlenin içinde
+        // metin arayarak yapması, cümle düzeltildiği gün sessizce bozulurdu.
+        throw new SmsException($message, 0, null, $code);
     }
 }

@@ -652,6 +652,18 @@ Route::prefix('api')
                 Route::get('announcement', [ControlSmsController::class, 'announcement']);
                 Route::put('announcement', [ControlSmsController::class, 'updateAnnouncement']);
                 Route::post('announcement/run', [ControlSmsController::class, 'runAnnouncement']);
+
+                /*
+                 * Gönderici başlığı — F. `templates` yolundan AYRI durur
+                 * çünkü şablon değil, SAĞLAYICI ayarıdır: metni düzeltmekle
+                 * bütün gönderimlerin görünen adını değiştirmek aynı iş
+                 * değil ve panelde de ayrı bir sekmede duruyor.
+                 *
+                 * Kullanıcı adı/parola BURADAN YAZILMAZ ve okunmaz; ikisi de
+                 * ortam değişkeninde (`Services\Sms\NetgsmSettings`).
+                 */
+                Route::get('netgsm', [ControlSmsController::class, 'netgsm']);
+                Route::put('netgsm', [ControlSmsController::class, 'updateNetgsm']);
             });
 
             // ── Uygulama içi duyuru — `docs/control/notifications.md` ─────

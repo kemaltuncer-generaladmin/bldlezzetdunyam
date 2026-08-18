@@ -17,7 +17,9 @@ use Veykemtu\BridgeApi\Models\ControlAudit;
 use Veykemtu\BridgeApi\Models\SmsLog;
 use Veykemtu\BridgeApi\Models\SmsTemplate;
 use Veykemtu\BridgeApi\Models\Subscription;
+use Veykemtu\BridgeApi\Services\Sms\NetgsmSettings;
 use Veykemtu\BridgeApi\Services\Sms\NetgsmSmsSender;
+use Veykemtu\BridgeApi\Services\Sms\SmsException;
 use Veykemtu\BridgeApi\Services\Sms\SmsSender;
 use Veykemtu\BridgeApi\Support\TurkishText;
 
@@ -203,6 +205,18 @@ class SmsController extends ControlController
                  * olur.
                  */
                 'sender_configured' => $this->sender instanceof NetgsmSmsSender,
+                /*
+                 * BAŞLIK AÇILIŞ OKUMASINDA DA DÖNER — F.
+                 *
+                 * `sender_configured: false` tek başına "bir şey eksik" diyor
+                 * ama HANGİSİ olduğunu söylemiyordu; yönetici de eksik olan
+                 * parolayken başlığı düzeltmeye çalışıyordu. Üç alanın hangisi
+                 * boşsa `missing` onu adıyla söylüyor ve panel Netgsm sekmesine
+                 * yönlendiriyor.
+                 */
+                'sender_header' => NetgsmSettings::header(),
+                'sender_header_source' => NetgsmSettings::source(),
+                'sender_missing' => NetgsmSettings::missing(),
             ],
             'server_time' => $this->serverTime(),
         ]);
@@ -400,6 +414,108 @@ class SmsController extends ControlController
                 ...$this->metrics($message),
             ],
             fn(): array => ['data' => $this->deliver($phone, $message, $key, 'test')],
+        );
+    }
+
+    // ── GET /netgsm ───────────────────────────────────────────────────────
+
+    /**
+     * Netgsm gönderici ayarı — F.
+     *
+     * PAROLA VE KULLANICI ADI BU YANITTA YOKTUR ve olmayacak: ikisi de
+     * ortam değişkeninde yaşıyor (`Services\Sms\NetgsmSettings` sınıf
+     * yorumu), bir uçtan geri dönmeleri sırrı istemci günlüklerine, tarayıcı
+     * önbelleğine ve Kontrol Merkezi'nin denetim izine yayardı. Panelin
+     * bilmesi gereken tek şey "dolu mu" — o da `missing` içinde.
+     *
+     * BAŞLIK İSE AÇIK DÖNER çünkü düzeltilecek olan odur ve Netgsm'in `40`
+     * hatası ("başlık sistemde tanımlı değil") ancak gönderilen ad ile
+     * panelde onaylı ad yan yana görülünce anlaşılır.
+     */
+    public function netgsm(): JsonResponse
+    {
+        return $this->json([
+            'data' => [
+                'header' => NetgsmSettings::header(),
+                // Panelden yazılmış değer; boşsa ortamdan gelen kullanılıyor.
+                // İkisini ayırmadan göstermek, yöneticinin "ayar boş demek ki
+                // başlık yok" diye düşünüp ÇALIŞAN bir yapılandırmayı
+                // bozmasına yol açardı.
+                'stored_header' => NetgsmSettings::storedHeader(),
+                'env_header' => NetgsmSettings::envHeader(),
+                'source' => NetgsmSettings::source(),
+                'header_max' => NetgsmSettings::HEADER_MAX,
+                'username_configured' => NetgsmSettings::username() !== '',
+                'password_configured' => NetgsmSettings::password() !== '',
+                'missing' => NetgsmSettings::missing(),
+                'driver' => $this->senderDriver(),
+            ],
+            'server_time' => $this->serverTime(),
+        ]);
+    }
+
+    // ── PUT /netgsm ───────────────────────────────────────────────────────
+
+    /**
+     * Gönderici başlığını yazar.
+     *
+     * BOŞ DİZE AYARI SİLER ve ortam değişkenine döner — bir "geri al" yolu
+     * olmasaydı, panelden bir kez yazılan yanlış başlık ortamdaki doğru
+     * değeri kalıcı olarak gölgelerdi.
+     *
+     * BÜYÜK HARF ZORLANMAZ. Netgsm başlıkları geleneksel olarak büyük harf
+     * ama sağlayıcı bunu şart koşmuyor; sessizce dönüştürmek, yöneticinin
+     * panelde onaylattığı adı BAŞKA bir ada çevirip yine `40` hatası
+     * üretebilirdi.
+     */
+    public function updateNetgsm(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'header' => [
+                'present', 'string', 'max:'.NetgsmSettings::HEADER_MAX,
+                // Netgsm gönderici adı yalnız harf/rakam/boşluk kabul ediyor;
+                // Türkçe karakterli bir başlık sağlayıcıda zaten onaylanamaz
+                // ve buradan geçmesi "kaydedildi ama hiç gitmiyor" hâlini
+                // üretirdi.
+                'regex:/^[A-Za-z0-9 ]*$/',
+            ],
+        ]);
+
+        $header = trim((string) $data['header']);
+        $before = NetgsmSettings::header();
+
+        return $this->write(
+            $request,
+            'sms.netgsm.update',
+            ControlAudit::TARGET_SMS_TEMPLATE,
+            null,
+            ['header_from' => $before, 'header_to' => $header],
+            static fn(): array => [
+                'action' => 'sms.netgsm.update',
+                'header' => $header,
+                'cleared' => $header === '',
+            ],
+            function () use ($header): array {
+                NetgsmSettings::setHeader($header);
+
+                return [
+                    'data' => [
+                        'header' => NetgsmSettings::header(),
+                        'stored_header' => NetgsmSettings::storedHeader(),
+                        'env_header' => NetgsmSettings::envHeader(),
+                        'source' => NetgsmSettings::source(),
+                        'missing' => NetgsmSettings::missing(),
+                    ],
+                    /*
+                     * GÖNDERİCİ TEKİLİ BU İSTEK İÇİN ZATEN ÇÖZÜLMÜŞ OLABİLİR;
+                     * yeni başlık ANCAK BİR SONRAKİ İSTEKTE yürürlüğe girer.
+                     * Ekranın bunu söylemesi gerekiyor, aksi hâlde yönetici
+                     * hemen deneme SMS'i gönderip eski başlıkla `40` alır ve
+                     * kaydın işlemediğini sanır.
+                     */
+                    'warnings' => ['netgsm_header_applies_next_request'],
+                ];
+            },
         );
     }
 
@@ -681,11 +797,17 @@ class SmsController extends ControlController
          */
         $message = TurkishText::toGsm7($message);
         $error = null;
+        $providerCode = null;
 
         try {
             $this->sender->send($phone, $message);
         } catch (Throwable $exception) {
             $error = mb_strimwidth($exception->getMessage(), 0, 255, '…', 'UTF-8');
+            // SAĞLAYICI KODU AYRI TAŞINIR: panel `40` (başlık tanımlı değil)
+            // durumunu diğer hatalardan ayırıp yöneticiye ne yapacağını
+            // yazıyor. Türkçe cümlenin içinde metin aramak, cümle
+            // düzeltildiği gün o kapıyı sessizce kapatırdı.
+            $providerCode = $exception instanceof SmsException ? $exception->providerCode : null;
         }
 
         $logId = $this->writeLog([
@@ -705,6 +827,11 @@ class SmsController extends ControlController
             'segments' => $this->metrics($message)['segments'],
             'status' => $error === null ? SmsLog::STATUS_SENT : SmsLog::STATUS_FAILED,
             'error' => $error,
+            'provider_code' => $providerCode,
+            // `40` HATASINDA GÖNDERİLEN BAŞLIK DA DÖNER. Hatanın tek sebebi
+            // Netgsm panelindeki onaylı ad ile bizimkinin ayrışmasıdır ve
+            // düzeltmenin ilk adımı ikisini yan yana görmektir.
+            'header' => $providerCode === '40' ? NetgsmSettings::header() : null,
         ];
     }
 

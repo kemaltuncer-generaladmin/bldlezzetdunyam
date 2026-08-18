@@ -98,14 +98,28 @@ services:
       # Gerçek sanal POS bağlanana kadar fişte ödeme QR'ı görünmeyecek.
       POS_ALLOW_SIMULATION: ${POS_ALLOW_SIMULATION:-}
 
-      # SMS sağlayıcısı — telefonla giriş kodu (B-18).
+      # SMS sağlayıcısı — telefonla giriş kodu (B-18) ve bildirimler (B1).
       #
-      # BOŞ BIRAKILIRSA KOD SMS OLARAK GİTMEZ, yalnızca sunucu günlüğüne
-      # yazılır; e-posta + şifre girişi çalışmaya devam eder. Değerler
-      # Coolify ortam değişkenlerinde tutulur, ASLA burada değil.
+      # HESAP BBD KANTİN İLE AYNIDIR: aynı Netgsm aboneliği, aynı kullanıcı
+      # kodu ve parola. Ayrı bir hesap açmak iki ayrı kredi havuzu ve iki
+      # ayrı fatura demekti.
+      #
+      # TEK FARK BAŞLIKTIR: BLD'den giden her SMS `BLEZZETDNYM` gönderici
+      # adıyla gider. Başlık Netgsm panelinde ONAYLI olmalı; onaysız bir
+      # başlıkta sağlayıcı `40` döner ve tek mesaj bile ulaşmaz.
+      #
+      # BOŞ BIRAKILIRSA HİÇBİR SMS GİTMEZ, mesajlar yalnızca sunucu
+      # günlüğüne yazılır; e-posta + şifre girişi çalışmaya devam eder.
+      # Değerler Coolify ortam değişkenlerinde tutulur, ASLA burada değil.
+      #
+      # `NETGSM_HEADER` artık YEDEK KAYNAKTIR: Kontrol Merkezi'nin SMS
+      # Paneli → "Netgsm ayarları" sekmesinden yazılan başlık bunun ÖNÜNE
+      # geçer (`Services\Sms\NetgsmSettings`). Kullanıcı adı ve parola için
+      # böyle bir yol YOKTUR — sırlar veritabanı yedeğine girmesin diye
+      # yalnız burada yaşarlar.
       NETGSM_USERNAME: ${NETGSM_USERNAME:-}
       NETGSM_PASSWORD: ${NETGSM_PASSWORD:-}
-      NETGSM_HEADER: ${NETGSM_HEADER:-}
+      NETGSM_HEADER: ${NETGSM_HEADER:-BLEZZETDNYM}
     volumes:
       # Yüklenen medya ve loglar imajda değil, kalıcı birimde durur —
       # yeni sürüm dağıtıldığında silinmemeleri gerekir.

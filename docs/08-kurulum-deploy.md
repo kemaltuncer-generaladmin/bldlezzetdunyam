@@ -391,13 +391,39 @@ oturum hiç açılmasa bile servisi ayakta tutmak içindir.
 |---|---|---|
 | `NETGSM_USERNAME` | `app` | **SMS gönderilmez.** Giriş kodu yalnızca `storage/logs` içine `warning` olarak yazılır; e-posta + parola girişi çalışmaya devam eder |
 | `NETGSM_PASSWORD` | `app` | aynı |
-| `NETGSM_HEADER` | `app` | aynı — Netgsm panelinde **onaylı** gönderici adı olmalı, onaysız başlıkta sağlayıcı `40` döner ve tek mesaj bile ulaşmaz |
+| `NETGSM_HEADER` | `app` | aynı — BLD için değeri **`BLEZZETDNYM`**; Netgsm panelinde **onaylı** olmalı, onaysız başlıkta sağlayıcı `40` döner ve tek mesaj bile ulaşmaz |
 | `SITE_PUBLIC_URL` | `web` | Varsayılan `https://benimlezzetdunyam.com.tr`; api.* kökünün yönleneceği adres |
 | `FRONTEND_URL` | `app` | **Ödeme dönüşü ve fiş QR'ları çalışmaz.** Ayrıntı aşağıda |
 
 Üçü birden dolu olmadıkça uygulama **ayağa kalkmayı reddetmez** — tek eksik
 değişken yüzünden bütün siteyi indirmek doğru olmazdı. SMS ikinci bir giriş
 yolu; eksikliğin izi günlükteki uyarı satırıdır.
+
+#### Netgsm hesabı kantinle ortak, başlık BLD'ye özel (18.08.2026)
+
+`NETGSM_USERNAME` / `NETGSM_PASSWORD` **BBD Kantin ile aynı Netgsm
+aboneliğinindir** — aynı kredi havuzu, tek fatura. BLD'yi ayıran tek ayar
+gönderici adıdır: **`NETGSM_HEADER=BLEZZETDNYM`**. Bu ad Netgsm panelinde
+onaylı olmalıdır; onaysızsa sağlayıcı her gönderimde `40` döner ve tek mesaj
+bile ulaşmaz. Gerçek parola repoda hiçbir dosyada durmaz, yalnızca Coolify
+ortam değişkenlerinde.
+
+**Başlığın ikinci ve öncelikli kaynağı var.** `Services\Sms\NetgsmSettings`
+önce `location_options` içindeki `bld_sms_netgsm_header` ayarına bakar, yoksa
+`NETGSM_HEADER`'a düşer. Ayar Kontrol Merkezi → **SMS Paneli → Netgsm
+ayarları** sekmesinden yazılır (`PUT /api/control/sms/netgsm`) ve konteyneri
+yeniden başlatmayı gerektirmez. Boş bırakılırsa ortam değişkeni yeniden
+yürürlüğe girer.
+
+Kullanıcı adı ve parola için böyle bir yol **yoktur ve açılmayacaktır**: sır
+her veritabanı yedeğine girerdi, yedekler ise sırlardan çok daha kolay
+dolaşıyor. Başlık bir sır değildir — müşterinin telefonunda görünen addır.
+
+Üç alandan biri boşsa `Extension::registerSmsSender()` artık **hangisinin**
+boş olduğunu günlüğe yazıyor (`missing: ["header"]`) ve aynı liste
+`GET /api/control/sms/netgsm` ile Kontrol Merkezi ekranında görünüyor. Eski
+hâlde tek belirti "SMS gitmiyor" idi ve nedeni ancak koda bakılarak
+anlaşılıyordu.
 
 #### `FRONTEND_URL` hiçbir yerde tanımlı değildi (12.08.2026)
 
