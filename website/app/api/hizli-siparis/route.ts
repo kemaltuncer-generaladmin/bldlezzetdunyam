@@ -4,6 +4,9 @@ import { fetchMe } from '@/lib/api/auth';
 import { fetchOrders } from '@/lib/api/orders';
 import { fetchPrimaryLocation } from '@/lib/api/catalog';
 import { canOrderDay, fetchDailyMenu } from '@/lib/api/daily-menu';
+import { dayStock } from '@/lib/api/daily-menu';
+import { maxAddable } from '@/lib/stock-policy';
+import { readCart } from '@/lib/cart';
 import { businessToday } from '@/lib/business-date';
 import { readToken } from '@/lib/session';
 
@@ -32,6 +35,25 @@ type TodaySummary = {
   has_menu: boolean;
   is_orderable: boolean;
   package_price: number | null;
+  /**
+   * Paketin sipariş kimliği — `DailyMenu.package.menu_id`.
+   *
+   * FİYAT TEK BAŞINA İŞE YARAMIYORDU: kutu "menü şu kadar" diyebiliyor ama
+   * satamıyordu, çünkü sepete ekleme `menu_id` istiyor. Menü fiyatı girilmiş
+   * olmasına rağmen müşterinin o fiyattan alabilmesi için `/menu` sayfasına
+   * gidip paketi orada bulması gerekiyordu.
+   */
+  package_menu_id: number | null;
+  /** Paketin adı — düğmede "Menüyü sepete ekle" yerine gerçek ad yazılabilsin. */
+  package_name: string | null;
+  /**
+   * Bugün için sepete daha kaç paket eklenebilir (`lib/stock-policy.ts`).
+   *
+   * Sunucuda hesaplanıyor: müşterinin o güne bağlı sepetindeki adet ile
+   * günün ve paketin tavanı birlikte gerekiyor ve ikisi de istemcide yok.
+   * `0` ise paket bugünlük tükenmiştir.
+   */
+  package_max_addable: number;
 };
 
 /** Menü okunamazsa kutu menüsüz çalışmaya devam eder — `null` döner. */
@@ -42,6 +64,22 @@ async function readToday(): Promise<TodaySummary | null> {
     if (!location) return null;
 
     const menu = await fetchDailyMenu(location.id, date, 'fresh');
+    const daily = menu.package ?? null;
+
+    /*
+     * TAVAN `/menu` SAYFASIYLA AYNI ARİTMETİKTEN ÇIKIYOR (`lib/stock-policy.ts`).
+     * Sepet BAŞKA bir güne bağlıysa hiçbir şey düşmüyor: salı için dolu bir
+     * sepet çarşambanın kontenjanını yemez.
+     */
+    const cart = await readCart();
+    const lines = cart.serviceDate === date ? cart.lines : [];
+    const inCartForDay = lines.reduce((total, line) => total + line.quantity, 0);
+    const inCartForPackage = daily
+      ? lines.reduce(
+          (total, line) => (line.menuId === daily.menu_id ? total + line.quantity : total),
+          0,
+        )
+      : 0;
 
     return {
       date,
@@ -50,7 +88,18 @@ async function readToday(): Promise<TodaySummary | null> {
       // Gün kapısı VE anlık şalter birlikte: kutu "sipariş verilebilir mi"
       // sorusuna tek bir cevap istiyor.
       is_orderable: canOrderDay(location, menu),
-      package_price: menu.package?.price ?? null,
+      package_price: daily?.price ?? null,
+      package_menu_id: daily?.menu_id ?? null,
+      package_name: daily?.name ?? null,
+      package_max_addable:
+        daily && daily.is_available
+          ? maxAddable({
+              dayRemaining: dayStock(menu),
+              itemRemaining: daily.remaining_portions ?? null,
+              alreadyInCartForDay: inCartForDay,
+              alreadyInCartForItem: inCartForPackage,
+            })
+          : 0,
     };
   } catch {
     return null;

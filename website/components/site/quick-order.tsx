@@ -7,6 +7,8 @@ import { repeatOrderAction } from '@/app/actions/order';
 import { IDLE_CART_STATE } from '@/lib/action-state';
 import { Button } from '@/components/ui/button';
 import { Money } from '@/components/money';
+import { AddToDayCart } from '@/components/menu/add-to-day-cart';
+import { parseBusinessDate } from '@/lib/business-date';
 import { CART_CHANGED_EVENT } from '@/lib/cart-events';
 
 type QuickOrderData = {
@@ -27,6 +29,9 @@ type QuickOrderData = {
     has_menu: boolean;
     is_orderable: boolean;
     package_price: number | null;
+    package_menu_id: number | null;
+    package_name: string | null;
+    package_max_addable: number;
   } | null;
 };
 
@@ -86,6 +91,50 @@ export function QuickOrder() {
   const todayClosed = data.today !== null && !data.today.is_orderable;
   const todayTitle = data.today?.has_menu ? data.today.title : null;
 
+  /*
+   * MENÜ FİYATIYLA TEK TIKLA SATIN ALMA.
+   *
+   * Yönetici menüye bir PAKET FİYATI giriyor ve o fiyat kalemlerin toplamından
+   * ucuz; işletmenin satmak istediği şey bu. Ama paketi almanın tek yolu
+   * `/menu` sayfasına gidip kartı orada bulmaktı — ana sayfadaki kutu paket
+   * fiyatını zaten okuyordu (`package_price`) ve HİÇ KULLANMIYORDU. Yani
+   * müşteri fiyatı görmeden önce iki sayfa geziyor, gördüğünde de dört ürünü
+   * tek tek eklemeye çalışıyordu.
+   *
+   * Ekleme kendi formunu kurmuyor: `/menu` ile AYNI bileşen (`AddToDayCart`)
+   * ve aynı sunucu eylemi kullanılıyor. Gün çakışması, stok kırpma ve
+   * "sepeti sıfırla" onayı orada zaten çözülmüş; ikinci bir kopya o üç
+   * davranışın ayrışması demekti.
+   */
+  const packageDate = parseBusinessDate(data.today?.date);
+  const packageId = data.today?.package_menu_id ?? null;
+  const packagePrice = data.today?.package_price ?? null;
+  const packageAddable = data.today?.package_max_addable ?? 0;
+
+  const menuQuickBuy =
+    packageId !== null && packageDate !== null && packagePrice !== null ? (
+      <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <p className="font-medium">{data.today?.package_name ?? 'Günün menüsü'}</p>
+          <Money kurus={packagePrice} size="lg" />
+        </div>
+        {todayTitle && <p className="mt-0.5 text-sm text-muted-foreground">{todayTitle}</p>}
+        <div className="mt-3">
+          <AddToDayCart
+            menuId={packageId}
+            serviceDate={packageDate}
+            label="Menüyü sepete ekle"
+            maxAddable={packageAddable}
+            disabled={todayClosed || packageAddable === 0}
+            disabledReason={
+              todayClosed ? 'Bugün için sipariş alınmıyor' : 'Bugünlük tükendi'
+            }
+            showMessage
+          />
+        </div>
+      </div>
+    ) : null;
+
   return (
     <div className="rounded-xl border bg-card p-5 shadow-sm sm:p-6">
       {state.message && (
@@ -136,6 +185,8 @@ export function QuickOrder() {
           <h2 className="text-lg font-semibold">
             {data.first_name ? `Hoş geldiniz, ${data.first_name}` : 'Hoş geldiniz'}
           </h2>
+
+          {menuQuickBuy}
 
           {data.last_order ? (
             <>
