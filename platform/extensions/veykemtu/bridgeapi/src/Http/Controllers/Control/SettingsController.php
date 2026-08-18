@@ -60,6 +60,61 @@ class SettingsController extends ControlController
 
     public function __construct(private readonly SettingsRepository $settings) {}
 
+    // ── Şubeler ───────────────────────────────────────────────────────────
+
+    /**
+     * Vitrin (şube) listesi — I1.
+     *
+     * ═════════════════════════════════════════════════════════════════════
+     * NEDEN AÇILDI: `location_id` ZORUNLU AMA SEÇİLEBİLİR DEĞİLDİ.
+     *
+     * `POST /subscriptions` ve `POST /requests/{id}/convert` gövdesinde
+     * `location_id` zorunlu (`exists:locations,location_id`). Kontrol
+     * Merkezi panelinde ise şube seçici YOKTU: alan sabit sıfırla
+     * gönderiliyor, servis sıfırı `None`'a çeviriyor ve geçit `None`'ı
+     * gövdeye hiç koymuyordu. Sonuç: HER abonelik açma denemesi 422.
+     *
+     * Kimliği ekrana gömmek çözüm değildi — kurulumdan kuruluma değişir ve
+     * yanlış bir sabit, siparişleri başka bir mutfağa yollardı. Seçici
+     * gerçek listeyi göstermeli, liste de sunucudan gelmeli.
+     * ═════════════════════════════════════════════════════════════════════
+     *
+     * SAYFALANMAZ VE SÜZÜLMEZ: bugün tek vitrin var, yarın birkaç tane
+     * olur. Sayfalama, bir açılır listenin hiçbir zaman ihtiyaç duymayacağı
+     * bir karmaşıklık.
+     *
+     * `GET /catalog/locations` İLE KARIŞTIRILMAMALI: o müşteriye açık
+     * vitrin listesidir ve menü/çalışma saatleri taşır. Bu uç yalnız
+     * "hangi şube, hangi kimlik" sorusunu cevaplıyor ve imzalı alanda
+     * duruyor.
+     */
+    public function locations(): JsonResponse
+    {
+        $default = $this->settings->location();
+
+        $rows = Location::query()
+            ->orderBy('location_id')
+            ->get(['location_id', 'location_name', 'location_status']);
+
+        return $this->json([
+            'data' => $rows->map(static fn(Location $row): array => [
+                'id' => (int) $row->location_id,
+                'name' => (string) $row->location_name,
+                // KAPALI VİTRİN DE DÖNER ama işaretli. Listeden çıkarmak,
+                // o vitrine bağlı var olan abonelikleri "bilinmeyen şube"
+                // diye gösterirdi.
+                'enabled' => (bool) $row->location_status,
+            ])->values()->all(),
+            'meta' => [
+                // Panelin ön seçimi. Yönetici hiçbir şey seçmeden
+                // kaydettiğinde varsayılan vitrine düşmesi, bugünkü tek
+                // vitrinli kurulumda ekstra bir tıklamayı kaldırıyor.
+                'default_location_id' => $default === null ? null : (int) $default->location_id,
+            ],
+            'server_time' => $this->serverTime(),
+        ]);
+    }
+
     // ── Satış ayarları ────────────────────────────────────────────────────
 
     public function sales(Request $request): JsonResponse

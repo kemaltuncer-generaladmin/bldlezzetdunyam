@@ -35,6 +35,7 @@ use Veykemtu\BridgeApi\Console\PurgeOrdersCommand;
 use Veykemtu\BridgeApi\Console\SetupCommand;
 use Veykemtu\BridgeApi\Console\SiteContentImportCommand;
 use Veykemtu\BridgeApi\Console\SubscriptionGenerateCommand;
+use Veykemtu\BridgeApi\Console\SubscriptionRenewCommand;
 use Veykemtu\BridgeApi\Console\TranslationAuditCommand;
 use Veykemtu\BridgeApi\Exceptions\ApiExceptionRenderer;
 use Veykemtu\BridgeApi\Http\Middleware\AuthenticateToken;
@@ -110,6 +111,7 @@ class Extension extends BaseExtension
         // kalıyor ki arşiv, göçten bağımsız olarak tekrar alınabilsin.
         $this->registerConsoleCommand('veykemtu.cariArsivle', AccountArchiveCommand::class);
         $this->registerConsoleCommand('veykemtu.abonelikUret', SubscriptionGenerateCommand::class);
+        $this->registerConsoleCommand('veykemtu.abonelikYenile', SubscriptionRenewCommand::class);
         $this->registerConsoleCommand('veykemtu.surum', AppReleaseCommand::class);
 
         $this->registerPendingConsoleCommands();
@@ -292,7 +294,7 @@ class Extension extends BaseExtension
      *   21:30  `veykemtu:stok-tazele`   yarının stok tablosunu hazırlar
      *   22:00  `veykemtu:abonelik-uret` abonelik siparişlerini üretir
      *   03:30  `veykemtu:hata-temizle`  eskimiş hata olaylarını kapatır
-     *   09:00  `veykemtu:menu-duyur`    günün menüsünü SMS ile duyurur
+     *   09:00  `veykemtu:menu-duyur`    YARININ menüsünü SMS ile duyurur
      *
      * STOK TAZELEME ÜRETİMDEN ÖNCE OLMAK ZORUNDA. Abonelikler stoku ÖNCE
      * REZERVE EDİYOR (iş kuralı); rezervasyonun yazılacağı gün satırı
@@ -335,6 +337,27 @@ class Extension extends BaseExtension
             ->withoutOverlapping()
             ->runInBackground();
 
+        /*
+         * ABONELİK DÖNEM YENİLEME — I4.
+         *
+         * ÜRETİMDEN ÖNCE (21:45) KOŞUYOR VE BU BİLİNÇLİ. Üretim işi
+         * (`22:00`) ödenmiş dönemi bitmiş aboneliği duraklatıyor; yenileme
+         * ondan SONRA koşsaydı, borç açılmadan önce abonelik çoktan
+         * durdurulmuş ve o günün yemeği düşmüş olurdu. Yenileme dönem
+         * bitmeden N gün önce borcu açtığı için pratikte ikisi aynı gecede
+         * karşılaşmaz — ama sıralamayı şansa bırakmak, sadece bir kez
+         * gerçekleşmesi yeten bir arıza demekti.
+         *
+         * Stok tazeleme (21:30) ile arasında 15 dakika var: ikisi de
+         * `withoutOverlapping` ve ayrı komutlar, çakışmaları beklenmiyor.
+         */
+        $schedule->command('veykemtu:abonelik-yenile')
+            ->name('BLD abonelik dönem yenileme')
+            ->dailyAt('21:45')
+            ->timezone(BusinessTime::ZONE)
+            ->withoutOverlapping()
+            ->runInBackground();
+
         $schedule->command('veykemtu:hata-temizle')
             ->name('BLD hata temizliği')
             ->dailyAt('03:30')
@@ -357,8 +380,14 @@ class Extension extends BaseExtension
          * şablonu açan yönetici ertesi gün hiçbir şey gelmediğini görür ve
          * sebebini başka yerde arardı.
          */
+        /*
+         * DUYURU BİR GÜN ÖNCEDEN. Pazartesi koşan iş SALI'nın menüsünü
+         * duyurur (18.08.2026 kullanıcı kararı) — müşterinin kesim saatinden
+         * önce sipariş verecek vakti olsun diye. Saat yine ayardan gelir;
+         * değişen "hangi gün" sorusunun cevabı, "saat kaçta" değil.
+         */
         $schedule->command('veykemtu:menu-duyur')
-            ->name('BLD günün menüsü duyurusu')
+            ->name('BLD yarının menüsü duyurusu')
             ->dailyAt(self::menuAnnounceTime())
             ->timezone(BusinessTime::ZONE)
             ->withoutOverlapping()

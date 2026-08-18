@@ -494,6 +494,10 @@ Route::prefix('api')
             // gerekçesiz ve süresiz çevirmek, durdurmanın en sık hatasını
             // (açmayı unutmak) üretirdi. Kendi uçları var.
             $alan('settings', ControlSettingsController::class, static function (): void {
+                // Şube listesi — abonelik açarken `location_id` seçilebilsin
+                // diye (I1). Kimliği ekrana gömmek, kurulumdan kuruluma
+                // değişen bir sabiti donduracaktı.
+                Route::get('locations', [ControlSettingsController::class, 'locations']);
                 Route::get('sales', [ControlSettingsController::class, 'sales']);
                 Route::put('sales', [ControlSettingsController::class, 'updateSales']);
                 Route::post('ordering/pause', [ControlSettingsController::class, 'pause']);

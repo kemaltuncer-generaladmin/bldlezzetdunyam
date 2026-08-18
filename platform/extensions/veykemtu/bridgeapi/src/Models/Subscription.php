@@ -22,18 +22,70 @@ class Subscription extends Model
     /** Talep: müşteri açtı, admin fiyatlandırıp `active` yapacak. */
     public const string STATUS_PENDING = 'pending';
 
+    /**
+     * Sözleşme hazırlandı, imza bekleniyor.
+     *
+     * `pending` ile aynı şey DEĞİL: `pending` "henüz fiyatlanmadı" der, bu
+     * ise "fiyat kesinleşti, müşterinin imzası bekleniyor". Ayrım
+     * tahsilat ekibinin listesini ikiye böler.
+     */
+    public const string STATUS_AWAITING_CONTRACT = 'awaiting_contract';
+
+    /**
+     * Sözleşme imzalandı, ilk dönem ödemesi bekleniyor.
+     *
+     * ═════════════════════════════════════════════════════════════════
+     * BU DURUM ZATEN YAZILIYORDU — SÖZLÜKTE OLMADAN.
+     *
+     * `ContractService::handOver()` sözleşme onaylandığında durumu
+     * `awaiting_payment` yapıyor ve kolon da (32 karakter) bunu kabul
+     * ediyor. Ama değer `STATUSES` içinde olmadığı için:
+     *   · `POST /activate` "bu durumdayken bu eylem yapılamaz" diye 409,
+     *   · `GET /?status=awaiting_payment` "bilinmeyen durum" diye 422,
+     *   · liste ekranı hiçbir sekmede göstermiyordu.
+     * Yani imzayı almış, parasını bekleyen abonelik SİSTEMDEN KAYBOLUYORDU.
+     * Sözlüğe eklemek bir özellik değil, var olan yazmanın karşılığını
+     * tanımaktır.
+     * ═════════════════════════════════════════════════════════════════
+     */
+    public const string STATUS_AWAITING_PAYMENT = 'awaiting_payment';
+
     public const string STATUS_ACTIVE = 'active';
 
     public const string STATUS_PAUSED = 'paused';
 
     public const string STATUS_CANCELLED = 'cancelled';
 
-    /** @var list<string> */
+    /**
+     * SIRA İŞ AKIŞININ SIRASIDIR, alfabetik değil: talep → sözleşme → ödeme
+     * → üretim. Panelin sekme sırası da bunu okuyor ve alfabetik bir liste
+     * "iptal edildi"yi en başa koyardı.
+     *
+     * @var list<string>
+     */
     public const array STATUSES = [
         self::STATUS_PENDING,
+        self::STATUS_AWAITING_CONTRACT,
+        self::STATUS_AWAITING_PAYMENT,
         self::STATUS_ACTIVE,
         self::STATUS_PAUSED,
         self::STATUS_CANCELLED,
+    ];
+
+    /**
+     * Henüz üretime girmemiş, girmesi beklenen durumlar.
+     *
+     * Tek yerde duruyor çünkü üç ayrı yer aynı soruyu soruyor
+     * (`activate()` kabul listesi, sözleşme devri, panel sekmesi) ve üçü
+     * ayrı ayrı sayılsaydı yeni bir ara durum eklendiğinde biri unutulur,
+     * o durumdaki abonelikler yine görünmez olurdu.
+     *
+     * @var list<string>
+     */
+    public const array STATUSES_BEFORE_ACTIVE = [
+        self::STATUS_PENDING,
+        self::STATUS_AWAITING_CONTRACT,
+        self::STATUS_AWAITING_PAYMENT,
     ];
 
     public const string MENU_FIXED_LIST = 'fixed_list';
@@ -94,6 +146,8 @@ class Subscription extends Model
     {
         return [
             self::STATUS_PENDING => 'lang:veykemtu.bridgeapi::subscription.status_pending',
+            self::STATUS_AWAITING_CONTRACT => 'lang:veykemtu.bridgeapi::subscription.status_awaiting_contract',
+            self::STATUS_AWAITING_PAYMENT => 'lang:veykemtu.bridgeapi::subscription.status_awaiting_payment',
             self::STATUS_ACTIVE => 'lang:veykemtu.bridgeapi::subscription.status_active',
             self::STATUS_PAUSED => 'lang:veykemtu.bridgeapi::subscription.status_paused',
             self::STATUS_CANCELLED => 'lang:veykemtu.bridgeapi::subscription.status_cancelled',
@@ -105,6 +159,7 @@ class Subscription extends Model
         return match ($this->status) {
             self::STATUS_ACTIVE => 'success',
             self::STATUS_PENDING => 'info',
+            self::STATUS_AWAITING_CONTRACT, self::STATUS_AWAITING_PAYMENT => 'info',
             self::STATUS_PAUSED => 'warning',
             default => 'secondary',
         };
@@ -266,18 +321,58 @@ class Subscription extends Model
             return false;
         }
 
-        foreach ($this->pauses as $pause) {
-            if ($day->betweenIncluded(
-                $pause->start_date->copy()->startOfDay(),
-                $pause->end_date->copy()->startOfDay(),
-            )) {
-                return false;
-            }
+        if ($this->pauseCovering($day) !== null) {
+            return false;
         }
 
         $exception = $this->exceptionFor($date);
 
         return !($exception !== null && (bool) $exception->skip);
+    }
+
+    /**
+     * Verilen günü kapsayan YÜRÜRLÜKTEKİ duraklatma (yoksa `null`).
+     *
+     * ─────────────────────────────────────────────────────────────────
+     * İKİ SORU AYRILDI: "duraklatma satırı var mı" ve "o gün duraklatma
+     * yürürlükte mi".
+     *
+     * Eskiden `runsOnDate()` yalnız `status !== active` diye bakıyordu ve
+     * `pause()` durumu HEMEN `paused` yapıyordu. Sonuç: yönetici yarın
+     * için duraklatma girdiğinde BUGÜNÜN üretimi de sessizce kesiliyordu —
+     * panelin varsayılanı da yarındı, yani en sık yapılan hareket en
+     * pahalı hatayı üretiyordu. Mutfak siparişi hiç görmüyor, kimse hata
+     * almıyor ve eksik yemek ancak teslimatta anlaşılıyordu.
+     *
+     * `cancelled_at` DOLU OLAN SATIR SAYILMAZ: başlamadan geri alınmış bir
+     * duraklatma hiç yaşanmamıştır (`resume()` sınıf yorumu).
+     * ─────────────────────────────────────────────────────────────────
+     */
+    public function pauseCovering(Carbon $date): ?SubscriptionPause
+    {
+        $day = $date->copy()->startOfDay();
+
+        foreach ($this->pauses as $pause) {
+            if ($pause->cancelled_at !== null) {
+                continue;
+            }
+
+            $start = $pause->start_date->copy()->startOfDay();
+            $end = $pause->end_date->copy()->startOfDay();
+
+            // TERS ARALIK GÜVENLİĞİ: `end < start` olan eski satırlar
+            // (`cancelled_at` göçünden önce `resume()` ile bozulmuş olanlar)
+            // hiçbir günü kapsamamalı; `betweenIncluded` orada tanımsız.
+            if ($end->lt($start)) {
+                continue;
+            }
+
+            if ($day->betweenIncluded($start, $end)) {
+                return $pause;
+            }
+        }
+
+        return null;
     }
 
     /** Verilen gün için üretilecek adet (istisna varsa onu, yoksa varsayılanı). */

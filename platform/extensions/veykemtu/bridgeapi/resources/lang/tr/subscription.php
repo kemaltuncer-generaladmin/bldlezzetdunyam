@@ -66,6 +66,8 @@ return [
     'column_payment' => 'Ödeme',
 
     'status_pending' => 'Talep (fiyat bekliyor)',
+    'status_awaiting_contract' => 'Sözleşme bekliyor',
+    'status_awaiting_payment' => 'Ödeme bekliyor',
     'status_active' => 'Aktif',
     'status_paused' => 'Duraklatıldı',
     'status_cancelled' => 'İptal',

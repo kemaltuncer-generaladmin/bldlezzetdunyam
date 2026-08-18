@@ -15,6 +15,7 @@ Kapalı günler ayrı tablodadır: `veykemtu_closed_days` (`Models\ClosedDay`).
 
 | Metot | Yol | Amaç | İzin | dry_run | Gerekçe |
 |---|---|---|---|---|---|
+| GET | `/locations` | Şube (vitrin) listesi | `bld_sales.view` | — | — |
 | GET | `/sales` | Tüm satış ayarları | `bld_sales.view` | — | — |
 | PUT | `/sales` | Ayarları yaz (**kısmi**) | `bld_sales.manage` | ✔ | ✔ |
 | POST | `/ordering/pause` | Satışı durdur | `bld_sales.manage` | ✔ | ✔ |
@@ -26,6 +27,39 @@ Kapalı günler ayrı tablodadır: `veykemtu_closed_days` (`Models\ClosedDay`).
 Hepsinde isteğe bağlı `location_id`; verilmezse varsayılan vitrin.
 Kapalı günler **global**'dir (tabloda `location_id` yok) ve `location_id`
 parametresi orada yok sayılır.
+
+---
+
+## `GET /locations` — şube listesi
+
+```json
+{
+  "data": [ { "id": 1, "name": "BLD Merkez Mutfak", "enabled": true } ],
+  "meta": { "default_location_id": 1 },
+  "server_time": "2026-08-18T09:00:00Z"
+}
+```
+
+**ABONELİK AÇMANIN ÖN ŞARTI** (18.08.2026'da eklendi). `POST /subscriptions`
+ve `POST /subscriptions/requests/{id}/convert` gövdesinde `location_id`
+zorunlu; Kontrol Merkezi panelinde şube seçici yoktu ve alan sabit sıfırla
+gidiyordu — geçit de sıfırı gövdeye hiç koymuyordu. Sonuç: **her abonelik
+açma denemesi 422** ve abonelik Kontrol Merkezi'nden hiç açılamıyordu.
+
+Kimliği ekrana gömmek çözüm değildi: kurulumdan kuruluma değişir ve yanlış bir
+sabit siparişleri başka bir mutfağa yollar.
+
+- Sayfalanmaz ve süzülmez: bugün tek vitrin var, yarın birkaç tane olur ve bir
+  açılır liste sayfalamaya hiçbir zaman ihtiyaç duymaz.
+- **Kapalı vitrin de döner**, `enabled: false` ile işaretli. Listeden
+  çıkarmak, o vitrine bağlı var olan abonelikleri "bilinmeyen şube" diye
+  gösterirdi.
+- `meta.default_location_id` panelin ön seçimidir; tek vitrinli kurulumda
+  fazladan bir tıklamayı kaldırıyor.
+
+`GET /api/catalog/locations` ile **karıştırılmamalı**: o müşteriye açık vitrin
+listesidir ve menü/çalışma saatleri taşır. Bu uç yalnız "hangi şube, hangi
+kimlik" sorusunu cevaplıyor ve imzalı alanda duruyor.
 
 ---
 

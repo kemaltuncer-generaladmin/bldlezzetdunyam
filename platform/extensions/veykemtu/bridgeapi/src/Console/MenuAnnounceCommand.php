@@ -20,6 +20,24 @@ use Veykemtu\BridgeApi\Support\BusinessTime;
  * (`bld_menu_announce_time`, varsayılan 09:00) koşturur.
  *
  * ═════════════════════════════════════════════════════════════════════════
+ * DUYURU BİR GÜN ÖNCEDEN GİDER (18.08.2026, kullanıcı kararı).
+ *
+ * Pazartesi koşan iş SALI'nın menüsünü duyurur. Sebep işin kendi mantığı:
+ * müşteri menüyü görüp sipariş verecek, ama siparişin bir KESİM SAATİ var
+ * (`bld_order_cutoff`). Aynı günün menüsü sabah duyurulduğunda müşteriye
+ * karar vermek için birkaç saat kalıyor ve kesim saatini kaçıranlar için
+ * duyuru bir işe yaramıyordu — okunduğunda sipariş verilemeyen bir menü.
+ *
+ * BU YÜZDEN MENÜNÜN BİR GÜN ÖNCEDEN YAYINLANMIŞ OLMASI GEREKİR. Yayınlanmamış
+ * bir gün için duyuru GİTMEZ (aşağıdaki `STATUS_PUBLISHED` süzgeci) ve komut
+ * bunu uyarı olarak yazar — sessizce boş geçmez. Yani menü girilmemişse
+ * müşteriye "yarın şu var" diyen bir SMS asla çıkmaz.
+ *
+ * `--date` verilirse o gün duyurulur; bir gün ekleme YAPILMAZ. Elle koşan
+ * kişi hangi günü istediğini zaten söylemiştir.
+ * ═════════════════════════════════════════════════════════════════════════
+ *
+ * ═════════════════════════════════════════════════════════════════════════
  * ŞABLON (`dailymenu.announce`) İMZA GELENE KADAR **KAPALI** KALIR.
  *
  * Bu bir teknik eksiklik değil, HUKUKİ bir sınırdır. Sipariş durum SMS'i
@@ -55,18 +73,30 @@ class MenuAnnounceCommand extends Command
      */
     private const int RECENT_ORDER_DAYS = 180;
 
+    /**
+     * Duyuru kaç gün sonrasının menüsünü anlatır.
+     *
+     * 1 = YARIN. Sabit tutuluyor: ayara bağlansaydı "0" yazan bir kurulum
+     * aynı günü duyurur ve kesim saatini kaçıran müşteriye işe yaramaz bir
+     * SMS gönderirdi — kaçtığımız davranış tam olarak buydu.
+     */
+    private const int ANNOUNCE_DAYS_AHEAD = 1;
+
     protected $signature = 'veykemtu:menu-duyur
-        {--date= : Menü günü YYYY-AA-GG (varsayılan: bugün, Istanbul)}
+        {--date= : Menü günü YYYY-AA-GG (varsayılan: YARIN, Istanbul)}
         {--dry-run : Hiçbir SMS göndermeden kimlere gideceğini yaz}
         {--limit= : En çok bu kadar alıcıya gönder}';
 
-    protected $description = 'Günün menüsünü, son siparişi olan müşterilere SMS ile duyurur.';
+    protected $description = 'YARININ menüsünü, son siparişi olan müşterilere SMS ile duyurur.';
 
     public function handle(SmsDispatcher $sms): int
     {
+        // Varsayılan YARIN. `--date` verildiyse ona dokunulmaz: elle koşan
+        // kişi hangi günü istediğini söylemiştir, üstüne bir gün eklemek
+        // "istediğim gün gitmedi" demenin en kolay yoluydu.
         $date = $this->option('date') !== null
             ? Carbon::parse((string) $this->option('date'))->startOfDay()
-            : BusinessTime::now()->startOfDay();
+            : BusinessTime::now()->startOfDay()->addDays(self::ANNOUNCE_DAYS_AHEAD);
 
         $dryRun = (bool) $this->option('dry-run');
         $limit = $this->option('limit') !== null ? (int) $this->option('limit') : null;
@@ -87,9 +117,12 @@ class MenuAnnounceCommand extends Command
              * FAILURE dönseydi zamanlayıcı her hafta sonu iki kez alarm
              * üretir, gerçek arızalar o gürültünün içinde kaybolurdu.
              */
-            $this->components->warn(
-                $date->toDateString().' için yayınlanmış menü yok — duyuru atlandı.',
-            );
+            $this->components->warn(sprintf(
+                '%s için YAYINLANMIŞ menü yok — duyuru atlandı. Duyuru bir gün '
+                .'önceden gittiği için o günün menüsünün bugün yayınlanmış '
+                .'olması gerekir (taslak yetmez).',
+                $date->toDateString(),
+            ));
 
             return self::SUCCESS;
         }

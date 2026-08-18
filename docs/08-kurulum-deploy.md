@@ -399,6 +399,45 @@ oturum hiç açılmasa bile servisi ayakta tutmak içindir.
 değişken yüzünden bütün siteyi indirmek doğru olmazdı. SMS ikinci bir giriş
 yolu; eksikliğin izi günlükteki uyarı satırıdır.
 
+#### Site önbelleği tazeleme — menü etiketi eklendi (18.08.2026)
+
+| Değişken | Servis | Boş bırakılırsa |
+|---|---|---|
+| `SITE_REVALIDATE_URL` | `app` | Tazeleme isteği **hiç gönderilmez**; site kendi ISR süresi dolunca toparlar (veri kaybı yok, yalnız gecikme) |
+| `SITE_REVALIDATE_SECRET` | `app` | aynı — değer site tarafındaki `CONTENT_REVALIDATE_SECRET` ile **birebir aynı** olmalı |
+
+İkisinden biri boşsa tetikleme hiç denenmez ve bu bir hata değildir (geliştirme
+makinesinde site ayakta olmayabilir); süreç başına **bir kez** bilgi satırı
+yazılır. Gerçek değerler repoda hiçbir dosyada durmaz, Coolify ortam
+değişkenlerinden gelir.
+
+**Sözleşme** (`Services\SiteRevalidator`, site tarafındaki uç bunu uygular):
+
+```
+POST  {SITE_REVALIDATE_URL}
+Authorization: Bearer {SITE_REVALIDATE_SECRET}
+Content-Type: application/json
+
+{"tag": "daily-menu"}
+```
+
+Beklenen yanıt `2xx`; gövdesine bakılmaz. `tag` alanı **gönderilmezse** site
+içeriği etiketi düşürülür — `revalidate()` (CMS akışı) hâlâ böyle çağırıyor.
+İzin verilen etiketler beyaz listededir (`site-content`, `daily-menu`); listede
+olmayan bir etiket istek gönderilmeden günlüğe yazılır.
+
+**Neden eklendi:** site günün menüsünü Next.js ISR ile önbelleğe alıyor
+(`daily-menu` etiketi) ve o etiket hiçbir yerden düşürülmüyordu. Menü panelde
+değişiyor, site ISR süresi dolana kadar eski menüyü göstermeye devam ediyordu.
+Belirtisi "menüdeki değişiklikler siteye çok geç yansıyor" idi ve hiçbir hata
+satırı üretmiyordu — çünkü hata yoktu, yalnız yapılmayan bir çağrı vardı.
+
+**Tetikleyen yazmalar** (`Control\DailyMenuController`): gün oluştur/güncelle/
+sil, yayınla/yayından çek, kopyala, kalem ekle/güncelle/sil, stok tavanı yaz.
+Kuru provada tetiklenmez. Çağrı **yanıt gönderildikten sonra** koşuyor
+(`App::terminating`), yani menü kaydetmek siteyi beklemiyor; hata yutuluyor ve
+`report()` ile günlüğe düşüyor. Site ulaşılamazsa menü yine kaydedilmiş olur.
+
 #### Netgsm hesabı kantinle ortak, başlık BLD'ye özel (18.08.2026)
 
 `NETGSM_USERNAME` / `NETGSM_PASSWORD` **BBD Kantin ile aynı Netgsm

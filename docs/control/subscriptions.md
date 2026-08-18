@@ -89,7 +89,7 @@ işaretlendi.
 | `customer_id` | int | `customer_id` | |
 | `customer_label` | string | *türetilir* | Kurum adı veya ad soyad |
 | `location_id` | int | `location_id` | |
-| `status` | `pending`\|`active`\|`paused`\|`cancelled` | `status` | |
+| `status` | `pending`\|`awaiting_contract`\|`awaiting_payment`\|`active`\|`paused`\|`cancelled` | `status` | |
 | `start_date` | `YYYY-MM-DD` | `start_date` | |
 | `end_date` | `YYYY-MM-DD`\|null | `end_date` | `null` = süresiz |
 | `delivery_type` | `delivery`\|`pickup` | `delivery_type` | |
@@ -179,7 +179,11 @@ Sorgu: `status` (virgüllü), `customer_id`, `q` (kurum/ad/telefon),
 }
 ```
 
-`unpaid_periods` ve `unpaid_total_kurus` **listede vardır** çünkü bu ekranın
+`unpaid_periods` ve `unpaid_total_kurus` **hem listede hem `GET /{id}` tekil
+yanıtında** vardır (ikincisi 18.08.2026'da eklendi: abonelik çekmecesi tekil
+ucu okuduğu için "ödenmemiş dönem" kutusu daima `0` gösteriyordu — borcu olan
+aboneliği listede görüp detayına giren yönetici borcun kaybolduğunu
+sanıyordu). Listede olmalarının sebebi ise bu ekranın
 asıl sorusu "kim ödemedi"dir; her satır için ayrı bir ödeme çağrısı yapmak
 dokuz abonelikte dokuz istek demekti.
 
@@ -277,14 +281,38 @@ revizyon yapar. Yanıt bunu `warnings` ile söyler:
 
 ---
 
+## Durum sözlüğü — `awaiting_*` eklendi (18.08.2026)
+
+`awaiting_contract` ve `awaiting_payment` **yeni değil, tanınmamış**
+durumlardı: `ContractService::handOver()` imza onaylandığında zaten
+`awaiting_payment` yazıyordu ama değer `Subscription::STATUSES` içinde
+olmadığı için
+
+- `POST /{id}/activate` → `409 CONFLICT` (`conflict: "status"`),
+- `GET /?status=awaiting_payment` → `422` ("bilinmeyen abonelik durumu"),
+- liste ekranı bu abonelikleri **hiçbir sekmede** göstermiyordu.
+
+Yani imzayı almış, parasını bekleyen abonelik sistemden kayboluyordu.
+
+| Durum | Anlamı | Üretim yapar mı |
+|---|---|---|
+| `pending` | Talep karşılığı doğdu, fiyat bekliyor | hayır |
+| `awaiting_contract` | Fiyat kesin, imza bekleniyor | hayır |
+| `awaiting_payment` | İmza alındı, ilk dönem ödemesi bekleniyor | hayır |
+| `active` | Servis günlerinde sipariş üretir | **evet** |
+| `paused` | Duraklatma penceresi yürürlükte ya da ödenmiş dönem bitti | hayır |
+| `cancelled` | Sonlandırıldı — geri dönüşü yok | hayır |
+
+Üretim komutu yalnız `active` süzüyor; ara durumlar oraya hiç girmiyor.
+
 ## Durum uçları
 
 | Uç | Kaynak durum | Hedef | Ek gövde |
 |---|---|---|---|
-| `activate` | `pending`, `paused` | `active` | — |
-| `pause` | `active` | `paused` | `start_date`, `end_date`, `pause_reason` |
-| `resume` | `paused` | `active` | — |
-| `cancel` | `pending`, `active`, `paused` | `cancelled` | `effective_date` |
+| `activate` | `pending`, `awaiting_contract`, `awaiting_payment`, `paused` | `active` | — |
+| `pause` | `active` | `paused` **ya da değişmez** (aşağı bakın) | `start_date`, `end_date`, `pause_reason` |
+| `resume` | `paused`, `active` (ileri tarihli duraklatmayı geri almak için) | `active` | — |
+| `cancel` | `pending`, `awaiting_*`, `active`, `paused` | `cancelled` | `effective_date` |
 
 ### `POST /{id}/activate`
 
@@ -343,11 +371,34 @@ listeler ve yönetici tek tek karar verir:
 }
 ```
 
+#### İleri tarihli duraklatma durumu HEMEN değiştirmez (18.08.2026)
+
+Önceden `pause` durumu koşulsuz `paused` yapıyordu. `runsOnDate()` ilk
+kontrolü `status !== active` olduğu için **yarın için girilen bir duraklatma
+bugünün üretimini de kesiyordu** — ve panelin varsayılanı yarındı, yani en sık
+yapılan hareket en pahalı hatayı üretiyordu. Kimse hata almıyor, mutfak
+siparişi hiç görmüyor ve eksik yemek ancak teslimatta anlaşılıyordu.
+
+Artık durum **yalnız pencere bugünü kapsıyorsa** `paused` olur. Aksi hâlde
+abonelik `active` kalır, aralıktaki günler `Subscription::pauseCovering()` ile
+elenir ve yanıt `warnings` içinde `{"code": "pause_scheduled", "starts_on": …}`
+döner. Yanıt ayrıca `data.effective_now` (bool) taşır. Pencere geldiğinde
+durumu gece işi ilerletir (`SubscriptionGenerateCommand::syncPauseStates()`).
+
 ### `POST /{id}/resume`
 
-Açık duraklamayı **bugün itibarıyla kapatır** (`end_date = dün`) ve durumu
+**Başlamış** duraklamayı bugün itibarıyla kapatır (`end_date = dün`) ve durumu
 `active` yapar. Satırı silmez: "ne zaman duraklatıldı, ne zaman devam edildi"
 sorusunun cevabı kalmalı.
+
+**Henüz başlamamış** duraklatmada tarihlere dokunulmaz; satır `cancelled_at`
+ile "yürürlüğe girmeden iptal edildi" diye işaretlenir. Eski davranış
+`end_date = dün` yazıyordu ve gelecekteki satırda bu `end_date < start_date`
+bırakıyordu — ekranda "12.09 – 10.09" diye okunan, aralık karşılaştırmasında
+tanımsız davranan bir kayıt.
+
+Abonelik `active` iken de çağrılabilir (ileri tarihli duraklatmayı geri almak
+için); geri alınacak duraklatma yoksa `409` (`conflict: "no_pause"`).
 
 ### `POST /{id}/cancel`
 
@@ -813,13 +864,26 @@ Tek sözleşme, yukarıdaki gövde. `token` ve `sign_url` **dönmez**.
 
 ### `POST /contracts/{contract}/resend`
 
-Aynı sözleşmenin bağlantısını yeniden gönderir ve `expires_at`'i tazeler.
-Yeni token **üretilmez**: müşterinin elindeki eski SMS'in çalışmaya devam
-etmesi, "hangi linke tıklayacağım" sorusunu ortadan kaldırır.
+Aynı sözleşmenin bağlantısını yeniden gönderir.
+
+**`expires_in_days` GÖNDERİLMEZSE SÜREYE DOKUNULMAZ ve token korunur.**
+Belirteç `{id}-{bitiş}-{imza}` biçiminde türetiliyor ve imza bitiş anını da
+kapsıyor: süre tazelendiği anda **müşterinin elindeki link ölür**. "Yeni token
+üretilmez" sözü ancak alan hiç gönderilmediğinde tutulur — çağıranlar uzun
+süre her seferinde bir gün sayısı gönderdiği için tam tersi oluyordu ve
+müşteri eski SMS'e tıkladığında geçersiz bir sayfa buluyordu (18.08.2026).
 
 ```json
-{ "actor": "Ayşe Yılmaz", "reason": "Müşteri SMS'i bulamadı, link yeniden gönderildi", "expires_in_days": 7 }
+{ "actor": "Ayşe Yılmaz", "reason": "Müşteri SMS'i bulamadı, link yeniden gönderildi" }
 ```
+
+`expires_in_days` verilirse **yeni bağlantı doğar ve eskisi ölür**; çağıran
+bunu bilerek yapar ve ekran kullanıcıya söylemek zorundadır. Kuru prova
+yanıtı `would.renews_link` (bool) ile hangi dalın işleyeceğini önceden
+bildirir.
+
+**Süresi dolmuş bağlantı istisnadır:** sunucu onu zorunlu olarak tazeler (ölü
+bir bağlantıyı yeniden göndermenin anlamı yok) ve `renews_link: true` döner.
 
 `signed` ya da `cancelled` bir sözleşmede → `409 CONFLICT`.
 
@@ -840,7 +904,14 @@ kılmaktır; yeni koşullar yeni bir sözleşme gerektirir.
 Dönem borcu ve tahsilat kaydı. Cari hesap kalktığı için (iş kararı 1) bu
 tablo, aboneliğin **tek** para defteridir.
 
-> **BAŞKA AJANIN KULVARI — yeni tablo gerekiyor.**
+> **Tablo açıldı** (`2026_08_21_000003`); `due_date` ve `note` sütunları
+> `2026_08_25_000002` göçüyle eklendi ve eski satırlarda `due_date` geriye
+> dönük olarak `period_start` ile dolduruldu (o günün kuralı buydu).
+> `invoice_id` sütunu **açılmadı ve açılmayacak**: bağ fatura tarafında
+> (`veykemtu_invoices.subscription_payment_id`) ve aynı ilişkiyi iki yerde
+> tutmak, biri güncellenmediğinde "belgesi var ama görünmüyor" hâli üretirdi.
+> Yanıttaki `invoice_id` o tablodan çözülüyor (iptal edilmiş belge sayılmaz).
+>
 > `veykemtu_subscription_payments`:
 > `id`, `subscription_id` (indeks), `period_start` (date),
 > `period_end` (date), `amount_kurus` (bigInteger), `due_date` (date),
@@ -910,8 +981,19 @@ dönerdi.
   ve iptal edilmemiş siparişlerin toplamı. Elle tutar yazmak serbesttir ama
   varsayılan hesaplanmış olmalı — yönetici her ay çarpma yapmamalı.
 - `period_end` `period_start`'tan sonra olmalı; aralık en çok 62 gün.
+  **Gönderilirse artık SAYGI GÖRÜR** (18.08.2026): önceden yok sayılıp
+  `period_end_derived` uyarısı dönüyordu, yani sözleşmede yayınlanmış bir alan
+  her yazmada sessizce çöpe gidiyordu. Dönem 30 gün **varsayılanıdır**,
+  dayatması değil: sözleşmesi ayın 15'inde başlayan bir kurumun ilk dönemi
+  kısadır. Porsiyon ve tutar yeniden hesaplanır.
 - Aynı dönem varsa → `409 CONFLICT` (tekil kısıt).
-- `due_date` `period_start`'tan önce olamaz.
+- `due_date` `period_start`'tan önce olamaz. **Artık saklanır**
+  (`veykemtu_subscription_payments.due_date`); gönderilmezse dönem başı
+  yazılır, yani eski davranış. Türetilmiş bir tarih, ayın 15'inde ödeyen
+  sözleşmeli müşteriyi her dönem başında haksız yere "gecikmiş" gösteriyordu.
+- `note` **artık saklanır** (`…payments.note`, 255 karakter). Denetim izinin
+  gerekçesi bunun yerine geçmiyor: o İŞLEMİ yapan kişinin gerekçesi, bu ise
+  BORCUN kendisine iliştirilen not.
 
 ```json
 {
@@ -948,8 +1030,24 @@ döner — yöneticinin borcu yazmadan önce görmesi gereken tam olarak budur.
 - Zaten `paid` ise → `409 CONFLICT`. İkinci kez tahsil işaretlemek, tutarı
   iki kez saydırırdı.
 - `create_invoice: true` ise dönem için fatura belgesi de üretilir
-  (`invoices.md`) ve `invoice_id` dolar. Varsayılan `false` — fatura
-  yazdırılabilir bir belgedir ve her tahsilatta üretmek gereksiz.
+  (`invoices.md` → `InvoiceService::issueForPeriod`) ve `invoice_id` /
+  `invoice_no` dolar. Varsayılan `false` — fatura yazdırılabilir bir belgedir
+  ve her tahsilatta üretmek gereksiz.
+
+  **18.08.2026'ya kadar bu onay kutusu hiçbir şey yapmıyordu:** yanıt daima
+  `invoice_id: null` döndürüyor ve `invoice_not_created` uyarısı bırakıyordu —
+  o uyarı da `data` içine gömülü olduğu için hiçbir ekrana ulaşmıyordu. Yani
+  yönetici belge kesildiğini sanıyordu.
+
+  **BELGE KESİMİ TAHSİLATI DÜŞÜREMEZ.** Fatura üretimi kendi doğrulamalarını
+  taşıyor ("bu dönemde teslim edilmiş porsiyon yok", "aynı dönemin belgesi
+  zaten var"); bunlardan biri patlarsa para hareketi geri **alınmaz** — hata
+  bir uyarıya çevrilir (`invoice_not_created` / `invoice_already_issued`) ve
+  belge sonradan Fatura ekranından kesilir.
+
+- **Uyarılar üst düzey `warnings` anahtarında döner**, `data` içinde değil.
+  Kontrol Merkezi geçidi uyarıları oradan okuyor; `data` içine gömülen bir
+  uyarı hiçbir ekranda görünmüyordu.
 - Ödemeyi **geri almak için uç yoktur.** Yanlış işaretlenen bir tahsilat, yeni
   bir dönem kaydıyla düzeltilir; para defterinde silme yoktur.
 

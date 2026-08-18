@@ -36,6 +36,8 @@ tanımsızsa `LogSmsSender`. Bu alan sağlayıcıyı bilmez, yalnız gönderim i
 | GET | `/announcement` | Duyuru taslağı | `bld_comms.view` | — | — |
 | PUT | `/announcement` | Duyuruyu yaz | `bld_comms.manage` | ✔ | ✔ |
 | POST | `/announcement/run` | Duyuruyu gönder | `bld_comms.manage` | ✔ | ✔ |
+| GET | `/netgsm` | Gönderici ayarı (parola DÖNMEZ) | `bld_comms.view` | — | — |
+| PUT | `/netgsm` | Gönderici başlığını yaz | `bld_comms.manage` | ✔ | ✔ |
 
 `preview` bir okuma gibi görünür ama **POST**'tur: örnek veriyi gövdeyle
 taşıyor ve gövdesiz bir GET onu sorgu dizesine, yani imzanın dışına koyardı.
@@ -98,6 +100,84 @@ değişken, müşteriye "Sayın , siparişiniz…" diye giden bir SMS üretirdi.
 `meta.sender_configured` `false` ise sağlayıcı sırrı tanımsızdır ve gönderimler
 yalnız günlüğe yazılır (`LogSmsSender`). Panel bunu açıkça göstermeli; aksi
 hâlde "SMS gitti" diyen bir ekran hiçbir şey göndermemiş olur.
+
+`meta` ayrıca `sender_header`, `sender_header_source`
+(`setting`\|`env`\|`none`) ve `sender_missing` (eksik alan adları:
+`username`\|`password`\|`header`) taşır. `sender_configured: false` tek başına
+"bir şey eksik" diyor ama hangisi olduğunu söylemiyordu; yönetici de eksik
+olan parolayken başlığı düzeltmeye çalışıyordu.
+
+---
+
+## `GET /netgsm` — gönderici ayarı
+
+```json
+{
+  "data": {
+    "header": "BLEZZETDNYM",
+    "stored_header": "",
+    "env_header": "BLEZZETDNYM",
+    "source": "env",
+    "header_max": 11,
+    "username_configured": true,
+    "password_configured": true,
+    "missing": [],
+    "driver": "netgsm"
+  },
+  "server_time": "2026-08-18T09:00:00Z"
+}
+```
+
+**PAROLA VE KULLANICI ADI BU YANITTA YOKTUR** ve olmayacak: ikisi de ortam
+değişkeninde yaşıyor (`Services\Sms\NetgsmSettings`) ve bir uçtan geri
+dönmeleri sırrı istemci günlüklerine, tarayıcı önbelleğine ve Kontrol
+Merkezi'nin denetim izine yayardı. Panelin bilmesi gereken tek şey "dolu mu" —
+o da `*_configured` ve `missing` alanlarında.
+
+`stored_header` (panelden yazılmış) ile `env_header` (Coolify değişkeni) AYRI
+döner. Tek alana indirilseydi yönetici boş ayarı görüp "demek ki başlık yok"
+diye düşünür ve **çalışan** bir yapılandırmayı bozardı.
+
+## `PUT /netgsm` — gönderici başlığını yaz
+
+```json
+{ "actor": "Ayşe Yılmaz", "reason": "BLD başlığı BLEZZETDNYM olarak ayarlandı", "header": "BLEZZETDNYM" }
+```
+
+- `header` **zorunlu alan** (`present`), en çok 11 karakter, yalnız
+  `[A-Za-z0-9 ]`. Türkçe karakterli bir başlık Netgsm'de zaten onaylanamaz ve
+  buradan geçmesi "kaydedildi ama hiç gitmiyor" hâlini üretirdi.
+- **Boş dize ayarı SİLER** ve başlık `NETGSM_HEADER` ortam değişkenine geri
+  döner. Bir "geri al" yolu olmasaydı, panelden bir kez yazılan yanlış başlık
+  oradaki doğru değeri kalıcı olarak gölgelerdi.
+- Yanıt `warnings: ["netgsm_header_applies_next_request"]` taşır: gönderici
+  istek başına çözülen bir tekil ve **yeni başlık bir sonraki istekte**
+  yürürlüğe girer. Ekran bunu söylemezse yönetici hemen deneme SMS'i gönderip
+  eski başlıkla `40` alır ve kaydın işlemediğini sanır.
+
+**Öncelik: AYAR ÖNCE, ORTAM SONRA** (bbdkantin `NetgsmClient` deseni). Yalnız
+ortam değişkenine bağlı kalmak sessiz bir arıza üretiyordu: değer boşsa
+`LogSmsSender`'a düşülüyor, hiç SMS gitmiyor ve tek iz `storage/logs` içindeki
+bir satır oluyordu. Düzeltmek de Coolify'a girip konteyneri yeniden başlatmayı
+gerektiriyordu — yani yöneticinin elinden gelmeyen bir iş.
+
+**Sırlar bu yola girmez.** Kullanıcı adı ve parola yalnız ortamdan okunur;
+gerekçesi `Extension::registerSmsSender()` yorumunda: sağlayıcı sırrı her
+veritabanı yedeğine girer ve yedekler sırlardan çok daha kolay dolaşır. Başlık
+bir sır değildir — müşterinin telefonunda görünen addır.
+
+### Netgsm hata `40`
+
+`POST /send-test` yanıtı sağlayıcı hatasında `ok: true` + `data.status:
+"failed"` döner ve artık `data.provider_code` alanını da taşır. `"40"` ise
+`data.header` de dolu gelir (gönderilen başlık).
+
+`40` = **"Mesaj başlığı sistemde tanımlı değil"** ve tek bir şey demektir:
+gönderdiğimiz ad Netgsm panelinde ONAYLI değil. Aynı hata sipariş, abonelik ve
+fatura bildirimlerinde de tekrarlanır — tek bir yanlış harf bütün SMS trafiğini
+sessizce düşürür. Panel bu kodu diğer hatalardan **ayırıp** ne yapılacağını
+yazmalı; Türkçe hata cümlesinin içinde metin aramak, cümle düzeltildiği gün o
+kapıyı sessizce kapatırdı.
 
 ### Uzunluk ve segment
 

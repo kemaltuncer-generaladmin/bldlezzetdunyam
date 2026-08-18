@@ -22,6 +22,7 @@ use Veykemtu\BridgeApi\Services\DailyMenuService;
 use Veykemtu\BridgeApi\Services\LocationGate;
 use Veykemtu\BridgeApi\Services\OrderingWindow;
 use Veykemtu\BridgeApi\Services\OrderStatusTransition;
+use Veykemtu\BridgeApi\Services\SiteRevalidator;
 use Veykemtu\BridgeApi\Support\BusinessTime;
 
 /**
@@ -145,7 +146,39 @@ class DailyMenuController extends ControlController
         private readonly OrderingWindow $window,
         private readonly LocationGate $gate,
         private readonly SettingsRepository $settings,
+        /*
+         * ═════════════════════════════════════════════════════════════════
+         * SİTEYE HABER VER — MENÜ DEĞİŞİKLİKLERİ GEÇ YANSIYORDU.
+         *
+         * Kurumsal site günün menüsünü Next.js ISR ile önbelleğe alıyor
+         * (`daily-menu` etiketi) ve o etiket HİÇBİR YERDEN düşürülmüyordu.
+         * Yönetici menüyü değiştiriyor, site ISR süresi dolana kadar eski
+         * menüyü göstermeye devam ediyordu; hiçbir hata satırı yoktu çünkü
+         * hata da yoktu — yalnız yapılmayan bir çağrı vardı.
+         *
+         * TETİKLEME İŞİ KESMEZ: yanıt gönderildikten sonra koşuyor
+         * (`afterResponse`), hataları yutuluyor ve site tanımsızsa hiç
+         * denenmiyor. Menü her hâlükârda kaydedilmiş olur.
+         * ═════════════════════════════════════════════════════════════════
+         */
+        private readonly SiteRevalidator $revalidator,
     ) {}
+
+    /**
+     * Yazma yanıtını olduğu gibi döndürür ve siteye tazeleme sözü verir.
+     *
+     * KURU PROVADA TETİKLENMEZ: prova hiçbir şey değiştirmedi ve sitenin
+     * önbelleğini boşaltmak, olmayan bir değişiklik için gereksiz bir tam
+     * yeniden çizim demekti.
+     */
+    private function withSiteRefresh(Request $request, JsonResponse $response): JsonResponse
+    {
+        if (!$request->boolean('dry_run')) {
+            $this->revalidator->afterResponse(SiteRevalidator::TAG_DAILY_MENU);
+        }
+
+        return $response;
+    }
 
     // ── Takvim ve okuma ───────────────────────────────────────────────────
 
@@ -416,7 +449,10 @@ class DailyMenuController extends ControlController
 
         // 201 yalnız GERÇEKTEN oluşturulduğunda: kuru provada hiçbir kayıt
         // doğmadı ve `Created` demek yanlış olurdu.
-        return $request->boolean('dry_run') ? $response : $response->setStatusCode(201);
+        return $this->withSiteRefresh(
+            $request,
+            $request->boolean('dry_run') ? $response : $response->setStatusCode(201),
+        );
     }
 
     /**
@@ -460,7 +496,7 @@ class DailyMenuController extends ControlController
             $fields[] = 'capacity_total';
         }
 
-        return $this->write(
+        return $this->withSiteRefresh($request, $this->write(
             $request,
             'menu.day.update',
             ControlAudit::TARGET_DAILY_MENU,
@@ -511,7 +547,7 @@ class DailyMenuController extends ControlController
              * yazdırmak, yöneticiyi düzeltmemeye iterdi.
              */
             reasonRequired: false,
-        );
+        ));
     }
 
     /**
@@ -525,7 +561,7 @@ class DailyMenuController extends ControlController
         $day = $this->parseDate($date, 'date');
         $model = $this->requireDay($location, $day);
 
-        return $this->write(
+        return $this->withSiteRefresh($request, $this->write(
             $request,
             'menu.day.delete',
             ControlAudit::TARGET_DAILY_MENU,
@@ -568,7 +604,7 @@ class DailyMenuController extends ControlController
              * tıklama.
              */
             reasonRequired: true,
-        );
+        ));
     }
 
     // ── Yayın ─────────────────────────────────────────────────────────────
@@ -586,7 +622,7 @@ class DailyMenuController extends ControlController
         $day = $this->parseDate($date, 'date');
         $model = $this->requireDay($location, $day);
 
-        return $this->write(
+        return $this->withSiteRefresh($request, $this->write(
             $request,
             'menu.publish',
             ControlAudit::TARGET_DAILY_MENU,
@@ -624,7 +660,7 @@ class DailyMenuController extends ControlController
             },
             // Menüyü müşteriye açan eylem bu: gerekçe ZORUNLU.
             reasonRequired: true,
-        );
+        ));
     }
 
     /**
@@ -639,7 +675,7 @@ class DailyMenuController extends ControlController
         $day = $this->parseDate($date, 'date');
         $model = $this->requireDay($location, $day);
 
-        return $this->write(
+        return $this->withSiteRefresh($request, $this->write(
             $request,
             'menu.unpublish',
             ControlAudit::TARGET_DAILY_MENU,
@@ -675,7 +711,7 @@ class DailyMenuController extends ControlController
             // Müşteriden bir günü geri çekmek de görünürlüğü değiştiriyor:
             // gerekçe ZORUNLU.
             reasonRequired: true,
-        );
+        ));
     }
 
     // ── Kalemler ──────────────────────────────────────────────────────────
@@ -698,7 +734,7 @@ class DailyMenuController extends ControlController
         $menuId = (int) $data['menu_id'];
         $sortOrder = (int) ($data['sort_order'] ?? $this->nextSortOrder($model));
 
-        return $this->write(
+        return $this->withSiteRefresh($request, $this->write(
             $request,
             'menu.item.create',
             ControlAudit::TARGET_DAILY_MENU,
@@ -743,7 +779,7 @@ class DailyMenuController extends ControlController
             // Sahibin asıl şikâyeti buydu: bir güne beş ürün koymak beş kez
             // gerekçe diyaloğu demekti. Gerekçesiz.
             reasonRequired: false,
-        );
+        ));
     }
 
     /**
@@ -775,7 +811,7 @@ class DailyMenuController extends ControlController
             'capacity' => ['sometimes', 'nullable', 'integer', 'min:0'],
         ]);
 
-        return $this->write(
+        return $this->withSiteRefresh($request, $this->write(
             $request,
             'menu.item.update',
             ControlAudit::TARGET_DAILY_MENU,
@@ -825,7 +861,7 @@ class DailyMenuController extends ControlController
                 return ['data' => $this->dayPayload($location, $this->requireDay($location, $day))];
             },
             reasonRequired: false,
-        );
+        ));
     }
 
     /**
@@ -865,7 +901,7 @@ class DailyMenuController extends ControlController
         $model = $this->requireDay($location, $day);
         $row = $this->requireItem($model, $item);
 
-        return $this->write(
+        return $this->withSiteRefresh($request, $this->write(
             $request,
             'menu.item.delete',
             ControlAudit::TARGET_DAILY_MENU,
@@ -900,7 +936,7 @@ class DailyMenuController extends ControlController
              * kilitliyor. Gün silmek ise gün + bütün kalemleri götürüyor.
              */
             reasonRequired: false,
-        );
+        ));
     }
 
     // ── Stok ──────────────────────────────────────────────────────────────
@@ -946,7 +982,7 @@ class DailyMenuController extends ControlController
         $capacityTotal = $this->nullableInt($data['capacity_total'] ?? null);
         $byItemId = $this->itemCapacities($model, array_values($data['items'] ?? []));
 
-        return $this->write(
+        return $this->withSiteRefresh($request, $this->write(
             $request,
             'menu.stock',
             ControlAudit::TARGET_DAILY_MENU,
@@ -997,7 +1033,7 @@ class DailyMenuController extends ControlController
              * istemek o uyarıyı daha okunur yapmıyordu.
              */
             reasonRequired: false,
-        );
+        ));
     }
 
     // ── Kopyalama ─────────────────────────────────────────────────────────
@@ -1049,7 +1085,7 @@ class DailyMenuController extends ControlController
 
         $existing = $this->findDay($location, $targetDate);
 
-        return $this->write(
+        return $this->withSiteRefresh($request, $this->write(
             $request,
             'menu.duplicate',
             ControlAudit::TARGET_DAILY_MENU,
@@ -1097,7 +1133,7 @@ class DailyMenuController extends ControlController
              * gerekçe ZORUNLU.
              */
             reasonRequired: true,
-        );
+        ));
     }
 
     // ── Ön denetimler ─────────────────────────────────────────────────────

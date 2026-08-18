@@ -63,6 +63,11 @@ class SubscriptionGenerateCommand extends Command
             return self::SUCCESS;
         }
 
+        // DURUM ÖNCE HİZAYA GETİRİLİR: ileri tarihli duraklatma bugün
+        // başlamış ya da dün bitmiş olabilir (aşağıdaki metodun kutusuna
+        // bakın). Üretim listesi çıkarılmadan önce koşmak zorunda.
+        $this->syncPauseStates($dryRun);
+
         $subscriptions = Subscription::query()
             ->active()
             ->with(['lines', 'delivery_points', 'pauses', 'exceptions', 'customer'])
@@ -234,6 +239,96 @@ class SubscriptionGenerateCommand extends Command
         }
 
         return $missing;
+    }
+
+    /**
+     * Duraklatma penceresine göre abonelik durumunu hizalar — I2.
+     *
+     * ═════════════════════════════════════════════════════════════════════
+     * NEDEN GEREKLİ: `pause()` ARTIK DURUMU HEMEN DEĞİŞTİRMİYOR.
+     *
+     * Eskiden ileri tarihli bir duraklatma aboneliği ANINDA `paused`
+     * yapıyordu ve `runsOnDate()` ilk kontrolü `status !== active` olduğu
+     * için BUGÜNÜN üretimi de sessizce kesiliyordu. Kural düzeltildi:
+     * durum yalnız pencere gerçekten yürürlükteyken değişiyor.
+     *
+     * Bunun bedeli, pencerenin BAŞLADIĞI günü birinin fark etmesi. O iş
+     * buraya düştü çünkü zaten her gece koşan ve üretim listesini çıkaran
+     * yer burası; ayrı bir zamanlanmış iş yazmak, iki işin sırasına bağlı
+     * yeni bir yarış açardı.
+     * ═════════════════════════════════════════════════════════════════════
+     *
+     * İKİ YÖN DE İŞLENİYOR:
+     *   · pencere bugün kapsıyor + abonelik `active` → `paused`,
+     *   · pencere bitti + abonelik `paused` + AÇIK duraklatma yok → `active`.
+     *
+     * İKİNCİ YÖN NEDEN GÜVENLİ: `paused` iki sebepten olabiliyor (yönetici
+     * duraklattı / ödenmiş dönem bitti). Geri açma YALNIZ duraklatma satırı
+     * gerçekten bitmişse yapılıyor; dönem bitişiyle duraklatılan abonelikte
+     * hiç duraklatma satırı YOKTUR ve buraya hiç girmez. Girseydi ödemesiz
+     * üretim açardı — bu dosyadaki en pahalı hata.
+     */
+    private function syncPauseStates(bool $dryRun): void
+    {
+        $today = BusinessTime::now()->startOfDay();
+
+        $subscriptions = Subscription::query()
+            ->whereIn('status', [Subscription::STATUS_ACTIVE, Subscription::STATUS_PAUSED])
+            ->with('pauses')
+            ->get();
+
+        $started = [];
+        $ended = [];
+
+        foreach ($subscriptions as $subscription) {
+            $covering = $subscription->pauseCovering($today);
+            $status = (string) $subscription->status;
+
+            if ($covering !== null && $status === Subscription::STATUS_ACTIVE) {
+                $started[] = (int) $subscription->id;
+
+                if (!$dryRun) {
+                    $subscription->status = Subscription::STATUS_PAUSED;
+                    $subscription->save();
+                }
+
+                continue;
+            }
+
+            if ($covering !== null || $status !== Subscription::STATUS_PAUSED) {
+                continue;
+            }
+
+            // BİTMİŞ BİR DURAKLATMA SATIRI ŞART. Yoksa bu `paused` başka bir
+            // sebeptendir (ödenmiş dönem bitti) ve dokunulmaz.
+            $hadPause = $subscription->pauses->contains(
+                static fn($p): bool => $p->cancelled_at === null
+                    && $p->end_date->copy()->startOfDay()->lt($today),
+            );
+
+            if (!$hadPause) {
+                continue;
+            }
+
+            $ended[] = (int) $subscription->id;
+
+            if (!$dryRun) {
+                $subscription->status = Subscription::STATUS_ACTIVE;
+                $subscription->save();
+            }
+        }
+
+        foreach ([['duraklatma başladı', $started], ['duraklatma bitti', $ended]] as [$label, $ids]) {
+            if ($ids !== []) {
+                $this->components->info(sprintf(
+                    '%s — %d abonelik (#%s)%s',
+                    $label,
+                    count($ids),
+                    implode(', #', $ids),
+                    $dryRun ? ' (kuru koşum — durum DEĞİŞTİRİLMEDİ)' : '',
+                ));
+            }
+        }
     }
 
     /**

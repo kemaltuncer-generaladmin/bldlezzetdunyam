@@ -6,10 +6,13 @@ namespace Veykemtu\BridgeApi\Services;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Veykemtu\BridgeApi\Exceptions\ApiException;
 use Veykemtu\BridgeApi\Models\ApiCustomer;
+use Veykemtu\BridgeApi\Models\SmsTemplate;
 use Veykemtu\BridgeApi\Models\Subscription;
 use Veykemtu\BridgeApi\Models\SubscriptionContract;
+use Veykemtu\BridgeApi\Services\Sms\SmsDispatcher;
 use Veykemtu\BridgeApi\Services\Sms\SmsSender;
 use Veykemtu\BridgeApi\Support\BusinessTime;
 use Veykemtu\BridgeApi\Support\Money;
@@ -51,41 +54,43 @@ final class ContractService
     public const int DEFAULT_TERM_DAYS = 30;
 
     /**
-     * A4'ün yazdığı abonelik yaşam döngüsü servisi.
+     * Abonelik yaşam döngüsü servisi.
      *
-     * DİZE OLARAK TUTULUYOR ÇÜNKÜ SINIF HENÜZ YOK. `use` ile içe aktarıp
-     * doğrudan çağırsaydık, A4 kulvarı inmeden bu dosya ölümcül hata
-     * verirdi. `class_exists` denetimi `routes/api.php`'deki desenin aynısı.
+     * DİZE OLARAK TUTULUYOR: `class_exists`/`method_exists` denetimi
+     * `routes/api.php`'deki desenin aynısı ve sınıf bir kulvar geç indiğinde
+     * bu dosyanın ölümcül hata vermesini engelliyor.
      *
-     * VARSAYILAN ARAYÜZ: `contractApproved(Subscription, SubscriptionContract): void`.
+     * ARAYÜZ: `contractApproved(Subscription, SubscriptionContract)`. METOT
+     * ARTIK VAR (I1) — uzun süre yoktu ve aşağıdaki yedek yol, "durumu
+     * değiştiren tek yer yaşam döngüsüdür" kuralını tam da en kritik
+     * geçişte deliyordu.
      */
     private const string LIFECYCLE = 'Veykemtu\\BridgeApi\\Services\\SubscriptionLifecycle';
 
     /**
-     * Yaşam döngüsü servisi yokken aboneliğin geçeceği durum.
+     * Sözleşme SMS'inin şablon anahtarı — `veykemtu_sms_templates`.
      *
-     * `docs/03-api-sozlesmesi.md` §15.1: `Subscription.status` sözlüğüne
-     * `awaiting_contract` ve `awaiting_payment` eklendi. Onay geldiğinde
-     * aboneliği HİÇ ELLEMESEYDİK akış ölürdü: sözleşme onaylı, abonelik
-     * hâlâ `pending` ve ödeme ekranı hiç açılmazdı.
+     * Metin ARTIK KODA GÖMÜLÜ DEĞİL (I4). Anahtar göçte tohumlanıyor ve
+     * Kontrol Merkezi'nin SMS Paneli'nden düzenlenebiliyor; gömülü metin,
+     * yöneticinin panelde yaptığı değişikliğin hiçbir işe yaramaması
+     * demekti.
      */
-    private const string STATUS_AWAITING_PAYMENT = 'awaiting_payment';
-
-    /**
-     * Aboneliğin sözleşme beklediği durum — A4 ile paylaşılan sözlük.
-     *
-     * DİKKAT: bu değer 17 KARAKTER ve `veykemtu_subscriptions.status`
-     * kolonu `varchar(16)`. Yani bu durum bugün o kolona YAZILAMAZ; buradaki
-     * karşılaştırma yalnız kolon genişletildikten sonra tutar. Kolonu
-     * genişletmek abonelik kulvarının (A4) işi — sözleşme kulvarı başka bir
-     * kulvarın tablosunu değiştirmez. `awaiting_payment` 16 karakter, yani
-     * yedek yol bugün de çalışıyor.
-     */
-    private const string STATUS_AWAITING_CONTRACT = 'awaiting_contract';
+    private const string SMS_TEMPLATE = 'subscription_contract';
 
     public function __construct(
         private readonly OtpService $otp,
         private readonly SmsSender $sms,
+        /*
+         * ŞABLONLU GÖNDERİM İSTEĞE BAĞLI BAĞLANIYOR.
+         *
+         * `SmsDispatcher` konteynerden çözülüyor ve bu servis konsol
+         * komutlarından da örnekleniyor; zorunlu bir bağımlılık, gönderici
+         * tanımsız bir kurulumda sözleşme servisinin hiç kurulamaması
+         * demekti. `null` ise gömülü metne düşülür ve bu düşüş GÜNLÜĞE
+         * yazılır — sessiz bir geri adım, panelde yapılan düzeltmenin neden
+         * işlemediğini hiç açıklamazdı.
+         */
+        private readonly ?SmsDispatcher $dispatcher = null,
     ) {}
 
     // ── Üretim ────────────────────────────────────────────────────────────
@@ -209,11 +214,33 @@ final class ContractService
     /**
      * Bağlantıyı SMS ile gönderir ve kaydı `sent` yapar.
      *
-     * SMS ŞABLON SİSTEMİNDEN GEÇMİYOR. `docs/control/sms.md` bir
-     * `subscription_contract` şablonu tanımlıyor ama şablonlar **varsayılan
-     * kapalı doğuyor**; kapalı bir şablon, yöneticinin "gönder" dediği
-     * bağlantının hiç gitmemesi demek olurdu. Şablon kulvarı indiğinde bu
-     * çağrı oraya bağlanmalı — mesaj metni o zaman panelden yönetilir.
+     * ═════════════════════════════════════════════════════════════════════
+     * METİN ARTIK ŞABLON SİSTEMİNDEN GELİYOR (I4).
+     *
+     * Eskiden cümle burada, kodun içinde gömülüydü. Gerekçesi vardı:
+     * şablonlar KAPALI doğuyor ve kapalı bir şablon, yöneticinin "gönder"
+     * dediği bağlantının hiç gitmemesi demek olurdu. Ama bedeli daha ağır
+     * çıktı: `veykemtu_sms_templates.subscription_contract` Kontrol
+     * Merkezi'nin SMS Paneli'nde DÜZENLENEBİLİR görünüyor, yönetici metni
+     * değiştiriyor, kaydediyor ve müşteriye yine eski cümle gidiyordu.
+     * "Düzenlenebilir görünen ama hiçbir etkisi olmayan alan", eksik bir
+     * alandan daha kötüdür.
+     *
+     * KAPALI ŞABLON TUZAĞI YİNE DE AÇIK BIRAKILMADI: şablon kapalıysa ya da
+     * hiç yoksa GÖMÜLÜ METNE düşülür ve bağlantı yine gider. Düşüş
+     * `Log::notice` ile yazılır — sessiz bir geri adım, panelde yapılan
+     * düzeltmenin neden işlemediğini hiç açıklamazdı.
+     * ═════════════════════════════════════════════════════════════════════
+     *
+     * ŞABLON DEĞİŞKENLERİ SÖZLEŞMEDEN (`docs/control/sms.md`):
+     * `{customer_name}`, `{link}`, `{expires_at}`. Panel bu üçü dışında bir
+     * değişkeni zaten kaydettirmiyor.
+     *
+     * İDEMPOTANS REFERANSI `('subscription', id)`: yeniden gönderim aynı
+     * aboneliğe ikinci bir satır yazamaz ve `SmsDispatcher` sessizce döner.
+     * Bu YENİDEN GÖNDERİMİ ENGELLEMEZ — `resend()` çağrıldığında gövde
+     * gerçekten gitmeli — bu yüzden referans BİLEREK verilmiyor; kayıt
+     * satırı her gönderimde yeniden doğuyor (`refType = null`).
      */
     public function send(SubscriptionContract $contract): void
     {
@@ -222,19 +249,93 @@ final class ContractService
             throw ApiException::validationFailed('Sözleşmede telefon numarası yok.');
         }
 
-        // ASCII: operatör GSM-7 dışına çıkan mesajı çok parçalı gönderiyor
-        // ve maliyet ikiye katlanıyor (`OtpService` ile aynı üslup).
-        $this->sms->send($phone, sprintf(
-            'Benim Lezzet Dunyam abonelik sozlesmeniz hazir. Okuyup onaylamak icin: %s '
-            .'Baglanti %s tarihine kadar gecerlidir.',
-            $this->signUrl($contract),
-            BusinessTime::at(Carbon::createFromTimestamp($this->expiresTimestamp($contract)))
-                ->format('d.m.Y'),
-        ));
+        $expiresAt = BusinessTime::at(
+            Carbon::createFromTimestamp($this->expiresTimestamp($contract)),
+        )->format('d.m.Y');
+
+        if (!$this->sendViaTemplate($contract, $phone, $expiresAt)) {
+            /*
+             * GÖMÜLÜ YEDEK METİN. ASCII: operatör GSM-7 dışına çıkan mesajı
+             * çok parçalı gönderiyor ve maliyet ikiye katlanıyor
+             * (`OtpService` ile aynı üslup).
+             */
+            $this->sms->send($phone, sprintf(
+                'Benim Lezzet Dunyam abonelik sozlesmeniz hazir. Okuyup onaylamak icin: %s '
+                .'Baglanti %s tarihine kadar gecerlidir.',
+                $this->signUrl($contract),
+                $expiresAt,
+            ));
+        }
 
         $contract->sent_at = BusinessTime::forStorage(BusinessTime::now());
         $contract->status = SubscriptionContract::STATUS_SENT;
         $contract->save();
+    }
+
+    /**
+     * Şablonlu gönderimi dener. Şablon yoksa/kapalıysa `false` döner.
+     *
+     * NEDEN ÖNCE ŞABLONA BAKILIYOR AMA `SmsDispatcher`'A "GÖNDER" DENMİYOR:
+     * `SmsDispatcher::send()` kapalı şablonda SESSİZCE döner ve çağırana
+     * hiçbir şey söylemez (üç sözünden biri). Buradan çağrılsaydı "gönderdim
+     * sandık, hiçbir şey gitmedi" hâli doğardı — sözleşme bağlantısı bir
+     * bildirim değil, akışın kendisi. Bu yüzden şablonun AÇIK olduğu ÖNCE
+     * doğrulanıyor; ancak o zaman gönderim ona devrediliyor.
+     */
+    private function sendViaTemplate(SubscriptionContract $contract, string $phone,
+                                     string $expiresAt): bool
+    {
+        if ($this->dispatcher === null) {
+            return false;
+        }
+
+        $template = SmsTemplate::findByKey(self::SMS_TEMPLATE);
+
+        if ($template === null || !$template->enabled) {
+            Log::notice(
+                'Sözleşme SMS şablonu kapalı ya da yok — gömülü metne düşüldü. '
+                .'Panelde yapılan metin değişikliği bu gönderimde GÖRÜNMEZ.',
+                ['template_key' => self::SMS_TEMPLATE, 'contract_id' => (int) $contract->id],
+            );
+
+            return false;
+        }
+
+        $this->dispatcher->send(self::SMS_TEMPLATE, $phone, [
+            'customer_name' => $this->customerName($contract),
+            'link' => $this->signUrl($contract),
+            'expires_at' => $expiresAt,
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Şablonun `{customer_name}` karşılığı.
+     *
+     * Kurum adı varsa o kazanır: abone çoğunlukla bir kurum ve mesajı okuyan
+     * kişi kendi adını değil kurumunun adını bekliyor. Hiçbiri yoksa boş
+     * dize DÖNMEZ — `SmsTemplate::render()` boş bir değişkeni metne
+     * "Sayın , sözleşmeniz…" diye yazardı.
+     */
+    private function customerName(SubscriptionContract $contract): string
+    {
+        $subscription = Subscription::query()->find($contract->subscription_id);
+        $customer = $subscription?->customer;
+
+        if ($customer === null) {
+            return 'Müşterimiz';
+        }
+
+        $organisation = trim((string) ($customer->bld_org_name ?? ''));
+
+        if ($organisation !== '') {
+            return $organisation;
+        }
+
+        $full = trim((string) ($customer->first_name ?? '').' '.(string) ($customer->last_name ?? ''));
+
+        return $full !== '' ? $full : 'Müşterimiz';
     }
 
     /**
@@ -481,6 +582,22 @@ final class ContractService
         $subscription->agreed_unit_price_kurus = (int) $contract->agreed_unit_price_kurus;
         $subscription->save();
 
+        /*
+         * ─────────────────────────────────────────────────────────────────
+         * ÖNCE YAŞAM DÖNGÜSÜ, SONRA YEDEK YOL — VE ARTIK BİRİNCİSİ ÇALIŞIYOR.
+         *
+         * `contractApproved()` uzun süre YOKTU; `method_exists` denetimi
+         * hep başarısız oluyor ve aşağıdaki yedek yol durumu doğrudan
+         * yazıyordu. Görünürde aynı sonuç ama iki fark ölümcüldü:
+         *   1. Geçiş kuralı atlanıyordu — `active` bir aboneliğin
+         *      sözleşmesi yenilendiğinde hata yerine sessiz bir hiçlik,
+         *   2. yazılan `awaiting_payment` değeri `Subscription::STATUSES`
+         *      sözlüğünde OLMADIĞI için abonelik hiçbir ekranda
+         *      görünmüyordu.
+         * İkisi de I1 ile kapatıldı; yedek yol yalnız sınıf hiç
+         * yüklenemediğinde diye duruyor.
+         * ─────────────────────────────────────────────────────────────────
+         */
         if (class_exists(self::LIFECYCLE)) {
             /** @var object{contractApproved: callable} $lifecycle */
             $lifecycle = app(self::LIFECYCLE);
@@ -492,15 +609,18 @@ final class ContractService
         }
 
         /*
-         * YEDEK YOL — A4 (`SubscriptionLifecycle`) henüz inmediyse.
+         * YEDEK YOL — yaşam döngüsü servisi hiç yüklenemediyse.
          *
          * YALNIZ SÖZLEŞME BEKLEYEN DURUMLARDAN ÇIKAR. `active`, `paused` ya
          * da `cancelled` bir aboneliğe dokunmak, çalışan bir üretimi
          * durdurmak olurdu; sözleşme yenilemesi bunu yapmamalı.
          */
         $current = (string) $subscription->status;
-        if (in_array($current, [Subscription::STATUS_PENDING, self::STATUS_AWAITING_CONTRACT], true)) {
-            $subscription->status = self::STATUS_AWAITING_PAYMENT;
+        if (in_array($current, [
+            Subscription::STATUS_PENDING,
+            Subscription::STATUS_AWAITING_CONTRACT,
+        ], true)) {
+            $subscription->status = Subscription::STATUS_AWAITING_PAYMENT;
             $subscription->save();
         }
     }

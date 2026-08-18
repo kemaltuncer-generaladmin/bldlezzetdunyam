@@ -18,11 +18,17 @@ use Veykemtu\Payment\Payments\PaymentResult;
  * Abonelik yaşam döngüsü — durumu değiştiren TEK yer.
  *
  * ```
- * pending --sözleşme onaylandı--> pending (ödeme bekleniyor)
- *         --ilk ödeme başarılı--> active
- * active  --ödenmiş dönem doldu--> paused   (gece denetlenir, GÜRÜLTÜLÜ uyarır)
- * paused  --yeni dönem ödendi---> active
+ * pending           --sözleşme hazırlandı--> awaiting_contract
+ * awaiting_contract --sözleşme onaylandı--> awaiting_payment
+ * awaiting_payment  --ilk ödeme başarılı--> active
+ * active            --ödenmiş dönem doldu--> paused  (gece denetlenir)
+ * paused            --yeni dönem ödendi---> active
  * ```
+ *
+ * `awaiting_contract` / `awaiting_payment` SONRADAN EKLENDİ (I1) ve bir
+ * özellik değil, var olan bir yazmanın karşılığıdır: `ContractService`
+ * `awaiting_payment` yazıyordu, sözlük tanımıyordu ve o abonelikler hiçbir
+ * ekranda görünmüyordu.
  *
  * NEDEN TEK GEÇİŞ FONKSİYONU: aboneliği `active` yapan üç ayrı çağıran var
  * (sözleşme onayı, ödeme mutabakatı, Kontrol Merkezi'nden elle
@@ -219,13 +225,37 @@ final class SubscriptionLifecycle
     public function quote(Subscription $subscription, Carbon $periodStart): array
     {
         $start = $periodStart->copy()->startOfDay();
-        $end = $start->copy()->addDays(SubscriptionPayment::PERIOD_DAYS - 1);
+
+        return $this->quoteRange(
+            $subscription,
+            $start,
+            $start->copy()->addDays(SubscriptionPayment::PERIOD_DAYS - 1),
+        );
+    }
+
+    /**
+     * Belirtilen aralığın fiyat dökümü — 30 gün DAYATILMAZ.
+     *
+     * `quote()` varsayılan 30 günlük dönemi kurar; bu metot ise dönemin iki
+     * ucunu da çağırandan alır. Ayrılmalarının sebebi I2: `period_end`
+     * gönderilebilen bir alan ve sözleşmesi ayın 15'inde başlayan bir
+     * kurumun ilk dönemi kısa olur. Uzunluğu değiştirip PORSİYONU ve TUTARI
+     * eski bırakmak, ödenen gün sayısı ile üretilen sipariş sayısını
+     * ayrıştırırdı — ve ayrışmayı fark edeceğimiz yer yine mutfak olurdu.
+     *
+     * @return array{start: Carbon, end: Carbon, portions: int, unit_price: int, amount: int}
+     */
+    public function quoteRange(Subscription $subscription, Carbon $periodStart,
+                               Carbon $periodEnd): array
+    {
+        $start = $periodStart->copy()->startOfDay();
+        $end = $periodEnd->copy()->startOfDay();
 
         $unitPrice = $subscription->agreed_unit_price_kurus !== null
             ? (int) $subscription->agreed_unit_price_kurus
             : 0;
 
-        $portions = $this->plannedPortions($subscription, $start, $end);
+        $portions = $end->lt($start) ? 0 : $this->plannedPortions($subscription, $start, $end);
 
         return [
             'start' => $start,
@@ -298,25 +328,59 @@ final class SubscriptionLifecycle
 
     private function onContractApproved(string $from): string
     {
-        if ($from !== Subscription::STATUS_PENDING) {
+        if (!in_array($from, [
+            Subscription::STATUS_PENDING,
+            Subscription::STATUS_AWAITING_CONTRACT,
+        ], true)) {
             throw ApiException::invalidTransition(
                 $from,
-                Subscription::STATUS_PENDING,
-                'Sözleşme yalnızca talep aşamasındaki abonelikte onaylanabilir.',
+                Subscription::STATUS_AWAITING_PAYMENT,
+                'Sözleşme yalnızca talep ya da sözleşme bekleyen abonelikte onaylanabilir.',
             );
         }
 
         /*
-         * DURUM DEĞİŞMİYOR ve bu bir eksiklik değil.
+         * ═════════════════════════════════════════════════════════════════
+         * DURUM ARTIK DEĞİŞİYOR — ESKİ YORUM YANLIŞTI (I1).
          *
-         * Sözleşmenin onaylanması aboneliği başlatmaz, yalnız ödemenin
-         * ÖNÜNÜ AÇAR. `awaiting_payment` diye ayrı bir durum eklemek,
-         * `status = active` süzen üretim komutundan KDS'e, panelden mobil
-         * rozetlere kadar her yerde dördüncü bir dal açardı; oysa dışarıdan
-         * bakınca ikisi de aynı şeydir: henüz başlamamış abonelik.
-         * "Ödeme bekliyor" bilgisi ödeme kaydının kendisinde duruyor.
+         * Burası "durum değişmiyor, ödeme bekliyor bilgisi ödeme kaydında
+         * duruyor" diyordu. Ama ödeme kaydı sözleşme onayında AÇILMIYOR;
+         * ilk borç kaydını yönetici elle açıyor. Yani imzalanmış ama borcu
+         * henüz açılmamış abonelik hiçbir yerde "ödeme bekliyor" demiyordu.
+         *
+         * Daha kötüsü: `ContractService::handOver()` bu metot BULUNAMADIĞI
+         * için yedek yola düşüyor ve durumu ZATEN `awaiting_payment`
+         * yapıyordu. Yani sistem bu durumu yazıyor, sözlük tanımıyordu —
+         * `activate()` 409, `?status=awaiting_payment` 422 ve abonelik
+         * hiçbir sekmede görünmüyordu.
+         *
+         * Ara durumun bedeli olarak sayılan "her yerde dördüncü dal" da
+         * gerçekleşmiyor: üretim `status = active` süzüyor ve `awaiting_*`
+         * durumlar oraya hiç girmiyor. Değişen tek şey, imzayı almış ama
+         * parası gelmemiş aboneliğin GÖRÜNÜR olması.
+         * ═════════════════════════════════════════════════════════════════
          */
-        return Subscription::STATUS_PENDING;
+        return Subscription::STATUS_AWAITING_PAYMENT;
+    }
+
+    /**
+     * `ContractService::handOver()` bunu arıyordu ve BULAMIYORDU.
+     *
+     * Metot yoktu; sözleşme servisi `method_exists()` denetiminden geçemeyip
+     * kendi yedek yoluna düşüyor ve durumu doğrudan yazıyordu. Yani
+     * "durumu değiştiren TEK yer bu sınıftır" kuralı, tam da en kritik
+     * geçişte delinmişti. İmza artık buradan geçiyor.
+     *
+     * `$contract` imzası ÇAĞIRANIN sözleşmesidir ve bilerek kullanılmıyor:
+     * geçiş kararı yalnız aboneliğin durumuna bakar. Parametre duruyor ki
+     * `ContractService` tarafındaki çağrı biçimi (`$lifecycle->
+     * contractApproved($subscription, $contract)`) değişmesin.
+     */
+    public function contractApproved(Subscription $subscription, mixed $contract = null): Subscription
+    {
+        unset($contract);
+
+        return $this->transition($subscription, self::EVENT_CONTRACT_APPROVED);
     }
 
     private function onPaymentSettled(string $from): string

@@ -19,6 +19,7 @@ use Veykemtu\BridgeApi\Models\ApiCustomer;
 use Veykemtu\BridgeApi\Models\ClosedDay;
 use Veykemtu\BridgeApi\Models\ControlAudit;
 use Veykemtu\BridgeApi\Models\DailyMenu;
+use Veykemtu\BridgeApi\Models\Invoice;
 use Veykemtu\BridgeApi\Models\QuoteRequest;
 use Veykemtu\BridgeApi\Models\Subscription;
 use Veykemtu\BridgeApi\Models\SubscriptionContract;
@@ -30,6 +31,7 @@ use Veykemtu\BridgeApi\Models\SubscriptionPayment;
 use Veykemtu\BridgeApi\Models\SubscriptionRun;
 use Veykemtu\BridgeApi\Services\ContractService;
 use Veykemtu\BridgeApi\Services\DailyStock;
+use Veykemtu\BridgeApi\Services\InvoiceService;
 use Veykemtu\BridgeApi\Services\OrderFactory;
 use Veykemtu\BridgeApi\Services\OrderingWindow;
 use Veykemtu\BridgeApi\Services\OrderPresenter;
@@ -150,6 +152,17 @@ class SubscriptionController extends ControlController
      */
     private array $schemaCache = [];
 
+    /**
+     * Dönem ödemesi → belge kimliği belleği.
+     *
+     * `payments()` bir aboneliğin bütün dönemlerini döndürüyor ve satır
+     * başına bir sorgu, yirmi dönemlik bir abonelikte yirmi gereksiz sorgu
+     * demekti. `schemaCache` ile aynı gerekçe: istek ömürlü, statik değil.
+     *
+     * @var array<int, int|null>
+     */
+    private array $invoiceIds = [];
+
     public function __construct(
         private readonly OrderPresenter $presenter,
         private readonly OrderStatusTransition $transitions,
@@ -167,6 +180,21 @@ class SubscriptionController extends ControlController
         // hangisine baktığını düşünmeye zorlardı.
         private readonly ContractService $contractService,
         private readonly SubscriptionLifecycle $lifecycle,
+        /*
+         * FATURA BU ALANIN İŞİ DEĞİL AMA BU ALANDAN TETİKLENİYOR (I2).
+         *
+         * `mark-paid` gövdesindeki `create_invoice` onay kutusu uzun süre
+         * HİÇBİR ŞEY YAPMIYORDU: yanıt `invoice_id: null` döndürüyor ve
+         * `invoice_not_created` uyarısı bırakıyordu — panel de o uyarıyı
+         * göstermediği için yönetici belge kesildiğini sanıyordu. Oysa
+         * dönem faturası ucu (`Control\InvoiceController`) ve servisi
+         * ZATEN VARDI ve `subscription_payment_id` bağını destekliyordu.
+         * Eksik olan tek şey bu satırdı.
+         *
+         * Belge kesimi yine `InvoiceService` içinde kalıyor; bu sınıf ona
+         * yalnız "şu dönemi kes" diyor.
+         */
+        private readonly InvoiceService $invoices,
     ) {}
 
     // ── Abonelik ─────────────────────────────────────────────────────────
@@ -410,7 +438,20 @@ class SubscriptionController extends ControlController
     {
         $model = $this->find($subscription);
 
-        $this->assertStatusIn($model, [Subscription::STATUS_PENDING, Subscription::STATUS_PAUSED]);
+        /*
+         * KABUL LİSTESİ GENİŞLEDİ (I1).
+         *
+         * Eskiden yalnız `pending` ve `paused` geçiyordu; oysa sözleşme
+         * onaylandığında `ContractService` aboneliği `awaiting_payment`
+         * yapıyor. Yani "imzalı sözleşme şart" diyen bu uç, tam da imzayı
+         * almış aboneliği 409 ile geri çeviriyordu — akışın en sık
+         * yürüdüğü yol tıkalıydı. `STATUSES_BEFORE_ACTIVE` üç ara durumu
+         * TEK YERDE sayıyor ki dördüncüsü eklendiğinde burası unutulmasın.
+         */
+        $this->assertStatusIn($model, [
+            ...Subscription::STATUSES_BEFORE_ACTIVE,
+            Subscription::STATUS_PAUSED,
+        ]);
 
         if ($model->agreed_unit_price_kurus === null) {
             throw ApiException::validationFailed(
@@ -527,6 +568,35 @@ class SubscriptionController extends ControlController
         $reason = $this->trimmedOrNull($request->input('pause_reason'));
         $warnings = $this->generatedOrderWarnings($model, 'generated_orders_in_range', $start, $end);
 
+        /*
+         * ═════════════════════════════════════════════════════════════════
+         * DURUM YALNIZ PENCERE **BUGÜN** YÜRÜRLÜKTEYSE DEĞİŞİR (I2).
+         *
+         * Eskiden `status = paused` koşulsuz yazılıyordu. `runsOnDate()` ilk
+         * kontrolü `status !== active` olduğu için, YARIN için girilen bir
+         * duraklatma BUGÜNÜN üretimini de kesiyordu — ve Kontrol Merkezi
+         * panelinin varsayılanı yarındı, yani en sık yapılan hareket en
+         * pahalı hatayı üretiyordu. Kimse hata almıyor, mutfak siparişi hiç
+         * görmüyor ve eksik yemek ancak teslimatta anlaşılıyordu.
+         *
+         * Gelecekteki pencere için abonelik `active` KALIR; o günleri
+         * `Subscription::pauseCovering()` zaten eliyor. Pencere geldiğinde
+         * durumu gece işi ilerletiyor
+         * (`SubscriptionGenerateCommand::syncPauseStates()`).
+         * ═════════════════════════════════════════════════════════════════
+         */
+        $effectiveNow = $start->lte($today) && $end->gte($today);
+        $nextStatus = $effectiveNow ? Subscription::STATUS_PAUSED : (string) $model->status;
+
+        if (!$effectiveNow) {
+            // SESSİZ GEÇİLMEZ: ekranda "duraklatıldı" rozeti beklerken
+            // "aktif" görmek, yöneticiye isteğin işlemediğini düşündürür.
+            $warnings[] = [
+                'code' => 'pause_scheduled',
+                'starts_on' => $start->toDateString(),
+            ];
+        }
+
         return $this->write(
             $request,
             'subscription.pause',
@@ -540,14 +610,15 @@ class SubscriptionController extends ControlController
             fn(): array => [
                 'action' => 'subscription.pause',
                 'id' => (int) $model->id,
-                'status' => Subscription::STATUS_PAUSED,
+                'status' => $nextStatus,
+                'effective_now' => $effectiveNow,
                 'pause' => [
                     'start_date' => $start->toDateString(),
                     'end_date' => $end->toDateString(),
                 ],
                 'warnings' => $warnings,
             ],
-            function () use ($model, $start, $end, $reason, $warnings): array {
+            function () use ($model, $start, $end, $reason, $warnings, $nextStatus, $effectiveNow): array {
                 $pause = new SubscriptionPause;
                 $pause->subscription_id = $model->id;
                 $pause->start_date = $start->toDateString();
@@ -555,13 +626,18 @@ class SubscriptionController extends ControlController
                 $pause->reason = $reason;
                 $pause->save();
 
-                $model->status = Subscription::STATUS_PAUSED;
-                $model->save();
+                if ($effectiveNow) {
+                    $model->status = $nextStatus;
+                    $model->save();
+                }
 
                 return [
                     'data' => [
                         'id' => (int) $model->id,
-                        'status' => Subscription::STATUS_PAUSED,
+                        'status' => (string) $model->status,
+                        // EKRAN İKİSİNİ AYIRMALI: "şimdi durdu" ile
+                        // "ileride duracak" farklı cümlelerdir.
+                        'effective_now' => $effectiveNow,
                         'pause' => [
                             'id' => (int) $pause->id,
                             'start_date' => $start->toDateString(),
@@ -580,15 +656,44 @@ class SubscriptionController extends ControlController
      * SATIR SİLİNMEZ, `end_date` düne çekilir: "ne zaman duraklatıldı, ne
      * zaman devam edildi" sorusunun cevabı kalmalı. Silinseydi geçmişteki
      * boş günlerin sebebi kaybolurdu.
+     *
+     * ─────────────────────────────────────────────────────────────────────
+     * HENÜZ BAŞLAMAMIŞ DURAKLATMA `end_date` İLE KAPATILAMAZ (I2).
+     *
+     * Yarın başlayacak bir duraklamada `end_date = dün` yazmak
+     * `end_date < start_date` olan bir satır bırakıyordu: ekranda
+     * "12.09 – 10.09" diye okunuyor ve aralık karşılaştırması ters aralıkta
+     * tanımsız davranıyordu. Doğru cevap tarihleri bozmak değil, satırı
+     * "yürürlüğe girmeden iptal edildi" diye işaretlemek — `cancelled_at`.
+     *
+     * BAŞLAMIŞ duraklatma bu yolu KULLANMAZ: o günler gerçekten boş kaldı
+     * ve `end_date`'i düne çekmek onu doğru anlatıyor.
+     * ─────────────────────────────────────────────────────────────────────
+     *
+     * ABONELİK `active` DEĞİLKEN DE ÇAĞRILABİLİR: ileri tarihli bir
+     * duraklatma girildiğinde durum artık hemen `paused` olmuyor
+     * (`pause()`), yani "vazgeçtim" diyen yönetici aboneliği `active`
+     * bulacak. Eski kabul listesi orada 409 verirdi ve girdiği duraklatmayı
+     * geri alamazdı.
      */
     public function resume(Request $request, string $subscription): JsonResponse
     {
         $model = $this->find($subscription);
 
-        $this->assertStatusIn($model, [Subscription::STATUS_PAUSED]);
+        $this->assertStatusIn($model, [
+            Subscription::STATUS_PAUSED,
+            Subscription::STATUS_ACTIVE,
+        ]);
 
         $today = $this->today();
         $open = $this->openPause($model, $today);
+
+        if ($open === null && $model->status === Subscription::STATUS_ACTIVE) {
+            throw $this->conflict(
+                'Geri alınacak bir duraklatma yok; abonelik zaten çalışıyor.',
+                ['conflict' => 'no_pause', 'status' => (string) $model->status],
+            );
+        }
 
         return $this->write(
             $request,
@@ -604,7 +709,15 @@ class SubscriptionController extends ControlController
             ],
             function () use ($model, $open, $today): array {
                 if ($open !== null) {
-                    $open->end_date = $today->copy()->subDay()->toDateString();
+                    if ($open->start_date->copy()->startOfDay()->gt($today)) {
+                        // HENÜZ BAŞLAMADI: tarihlere dokunulmaz, satır
+                        // iptal işaretlenir. `end_date`'i düne çekmek
+                        // `end_date < start_date` bırakırdı.
+                        $open->cancelled_at = BusinessTime::forStorage(BusinessTime::now());
+                    } else {
+                        $open->end_date = $today->copy()->subDay()->toDateString();
+                    }
+
                     $open->save();
                 }
 
@@ -1156,8 +1269,20 @@ class SubscriptionController extends ControlController
      */
     public function requests(Request $request): JsonResponse
     {
+        /*
+         * ═════════════════════════════════════════════════════════════════
+         * `status` ARTIK VİRGÜLLÜ LİSTE (I4-16).
+         *
+         * `Rule::in` TEKİLDİ ve Kontrol Merkezi geçidi bu alanı `_csv()` ile
+         * gönderiyor. Bugün panel tek değer yolladığı için patlamıyordu; ekrana
+         * ikinci bir süzgeç eklendiği gün SESSİZCE 422 verecekti — ve hata
+         * "çoklu süzgeç desteklenmiyor" demeyecek, "geçersiz durum" diyecekti.
+         * `subscriptions` listesi zaten virgüllü liste kabul ediyor; iki uç
+         * arasındaki bu ayrım bir sözleşme tutarsızlığıydı.
+         * ═════════════════════════════════════════════════════════════════
+         */
         $request->validate([
-            'status' => ['sometimes', Rule::in(QuoteRequest::STATUSES)],
+            'status' => ['sometimes', 'string', 'max:120'],
             'q' => ['sometimes', 'string', 'max:120'],
             'from' => ['sometimes', 'string', 'regex:'.self::DATE_PATTERN],
             'to' => ['sometimes', 'string', 'regex:'.self::DATE_PATTERN],
@@ -1168,7 +1293,18 @@ class SubscriptionController extends ControlController
         $query = QuoteRequest::query();
 
         if ($request->filled('status')) {
-            $query->where('status', (string) $request->query('status'));
+            $statuses = $this->csv((string) $request->query('status'));
+
+            foreach ($statuses as $status) {
+                if (!in_array($status, QuoteRequest::STATUSES, true)) {
+                    throw ApiException::validationFailed(
+                        'Bilinmeyen talep durumu: '.$status.'.',
+                        ['field' => 'status', 'allowed' => QuoteRequest::STATUSES],
+                    );
+                }
+            }
+
+            $query->whereIn('status', $statuses);
         }
 
         if ($request->filled('q')) {
@@ -1363,7 +1499,7 @@ class SubscriptionController extends ControlController
 
         $this->assertSubscriptionShape($body, $customerId, 'subscription.');
 
-        $preview = $this->createPreview($body);
+        $preview = $this->createPreview($body, $customerId);
 
         return $this->write(
             $request,
@@ -1667,10 +1803,14 @@ class SubscriptionController extends ControlController
     {
         $model = $this->find($subscription);
 
+        /*
+         * `status` VİRGÜLLÜ LİSTE KABUL EDER (I4-16) — `requests()` ile aynı
+         * gerekçe: Kontrol Merkezi geçidi bu alanı `_csv()` ile gönderiyor ve
+         * `Rule::in` tekil kaldığı sürece ikinci bir süzgeç eklendiği gün
+         * sessizce 422 çıkardı.
+         */
         $request->validate([
-            'status' => ['sometimes', Rule::in([
-                self::PAYMENT_PENDING, self::PAYMENT_PAID, self::PAYMENT_VOID,
-            ])],
+            'status' => ['sometimes', 'string', 'max:60'],
             'from' => ['sometimes', 'string', 'regex:'.self::DATE_PATTERN],
             'to' => ['sometimes', 'string', 'regex:'.self::DATE_PATTERN],
         ]);
@@ -1678,7 +1818,31 @@ class SubscriptionController extends ControlController
         $query = SubscriptionPayment::query()->where('subscription_id', $model->id);
 
         if ($request->filled('status')) {
-            $query->whereIn('status', $this->rawPaymentStatuses((string) $request->query('status')));
+            $panel = $this->csv((string) $request->query('status'));
+            $raw = [];
+
+            foreach ($panel as $value) {
+                if (!in_array($value, [
+                    self::PAYMENT_PENDING, self::PAYMENT_PAID, self::PAYMENT_VOID,
+                ], true)) {
+                    throw ApiException::validationFailed(
+                        'Bilinmeyen ödeme durumu: '.$value.'.',
+                        [
+                            'field' => 'status',
+                            'allowed' => [
+                                self::PAYMENT_PENDING, self::PAYMENT_PAID, self::PAYMENT_VOID,
+                            ],
+                        ],
+                    );
+                }
+
+                // ÇEVİRİ TEK YERDE (`rawPaymentStatuses`): panel sözlüğü
+                // `pending|paid|void`, kayıt sözlüğü
+                // `pending|succeeded|failed|refunded`.
+                $raw = [...$raw, ...$this->rawPaymentStatuses($value)];
+            }
+
+            $query->whereIn('status', array_values(array_unique($raw)));
         }
         if ($request->filled('from')) {
             $query->whereDate(
@@ -1752,6 +1916,35 @@ class SubscriptionController extends ControlController
 
         $quote = $this->lifecycle->quote($model, $start);
 
+        /*
+         * ═════════════════════════════════════════════════════════════════
+         * `period_end` ARTIK SAYGI GÖRÜYOR (I2).
+         *
+         * Eskiden gönderilen değer yok sayılıp `period_end_derived` uyarısı
+         * dönüyordu; yani sözleşmede yayınlanmış bir alan her yazmada
+         * sessizce çöpe gidiyordu. Dönem 30 GÜN varsayılanıdır, DAYATMASI
+         * değil: sözleşmesi 15'inde başlayan bir kurumun ilk dönemi kısa
+         * olur ve o dönemi 30 güne yuvarlamak müşteriden fazla gün için
+         * para istemek olurdu.
+         *
+         * PORSİYON VE TUTAR YENİDEN HESAPLANIR: dönem kısaldıysa daha az
+         * gün üretilir. Uzunluğu değiştirip tutarı eski bırakmak, ödenen
+         * gün sayısı ile üretilen sipariş sayısını ayrıştırırdı.
+         * ═════════════════════════════════════════════════════════════════
+         */
+        if ($request->filled('period_end')) {
+            $end = $this->parseDate((string) $request->input('period_end'), 'period_end');
+
+            if ($end->lt($quote['start'])) {
+                throw ApiException::validationFailed(
+                    'Dönem bitişi başlangıcından önce olamaz.',
+                    ['field' => 'period_end', 'period_start' => $quote['start']->toDateString()],
+                );
+            }
+
+            $quote = $this->lifecycle->quoteRange($model, $quote['start'], $end);
+        }
+
         if ($quote['portions'] < 1) {
             throw ApiException::validationFailed(
                 'Bu dönemde servis günü yok; ödenecek bir tutar oluşmuyor.',
@@ -1775,7 +1968,21 @@ class SubscriptionController extends ControlController
         $amount = $manual ?? $quote['amount'];
         $source = $manual !== null ? 'manual' : 'calculated';
         $orderCount = $this->generatedOrderCount($model, $quote['start'], $quote['end']);
-        $warnings = $this->periodWarnings($request, $quote);
+
+        /*
+         * SON ÖDEME GÜNÜ ARTIK GÖNDERİLEBİLİYOR (I2) — kolonu var.
+         *
+         * VARSAYILAN DEĞİŞMEDİ: alan gelmezse dönemin ilk günü yazılır,
+         * yani 30 günlük peşin tahsilat kuralı. Değişen tek şey, sözleşmeli
+         * müşterinin farklı bir ödeme günü olabilmesi; türetilmiş tarih onu
+         * her dönem başında haksız yere "gecikmiş" gösteriyordu.
+         */
+        $due = $request->filled('due_date')
+            ? $this->parseDate((string) $request->input('due_date'), 'due_date')
+            : $quote['start']->copy();
+
+        $note = $this->trimmedOrNull($request->input('note'));
+        $warnings = $this->periodWarnings($request, $quote, $due);
 
         $summary = [
             'period_start' => $quote['start']->toDateString(),
@@ -1785,7 +1992,8 @@ class SubscriptionController extends ControlController
             'portions_planned' => $quote['portions'],
             'unit_price_kurus' => $quote['unit_price'],
             'order_count' => $orderCount,
-            'due_date' => $quote['start']->toDateString(),
+            'due_date' => $due->toDateString(),
+            'note' => $note,
         ];
 
         return $this->write(
@@ -1800,7 +2008,7 @@ class SubscriptionController extends ControlController
                 ...$summary,
                 'warnings' => $warnings,
             ],
-            function () use ($model, $quote, $amount, $summary, $warnings): array {
+            function () use ($model, $quote, $amount, $summary, $warnings, $due, $note): array {
                 $payment = new SubscriptionPayment;
                 $payment->subscription_id = (int) $model->id;
                 $payment->period_start = $quote['start']->toDateString();
@@ -1809,6 +2017,17 @@ class SubscriptionController extends ControlController
                 $payment->unit_price_kurus = $quote['unit_price'];
                 $payment->amount_kurus = $amount;
                 $payment->status = SubscriptionPayment::STATUS_PENDING;
+
+                // KOLON VARSA YAZILIR: göç uygulanmamış bir kurulumda
+                // `Unknown column` ile borç açılışını düşürmek, eksik bir
+                // alandan çok daha pahalı olurdu.
+                if ($this->hasColumn('veykemtu_subscription_payments', 'due_date')) {
+                    $payment->due_date = $due->toDateString();
+                }
+
+                if ($this->hasColumn('veykemtu_subscription_payments', 'note')) {
+                    $payment->note = $note;
+                }
                 /*
                  * ADRES TAHMİN EDİLEMEZ OLMALI: ödeme sayfasının yolu bu
                  * özeti taşıyor ve sıralı bir kimlik olsaydı bağlantıyı
@@ -1942,21 +2161,49 @@ class SubscriptionController extends ControlController
                     'invoice_no' => null,
                 ];
 
+                $warnings = [];
+
                 if ($wantsInvoice) {
                     /*
-                     * FATURA ÜRETİMİ BU KULVARIN DIŞINDA (`invoices.md`) ve
-                     * ödeme kaydında `invoice_id` sütunu da yok. Tahsilat
-                     * kaydediliyor ama belge üretilmiyor ve bu yanıtta
-                     * AÇIKÇA söyleniyor: sessizce `invoice_id: null` dönmek,
-                     * yöneticiye ürettiğini sandığı bir belgeyi aratırdı.
+                     * ═════════════════════════════════════════════════════
+                     * ONAY KUTUSU ARTIK BİR ŞEY YAPIYOR (I2).
+                     *
+                     * Buraya kadar `create_invoice: true` yalnızca
+                     * `invoice_not_created` uyarısı üretiyordu — ve panel o
+                     * uyarıyı hiç göstermediği için yönetici belge
+                     * kesildiğini sanıyordu. Oysa dönem faturası servisi
+                     * (`InvoiceService::issueForPeriod`) vardı ve zaten
+                     * `subscription_payment_id` bağını destekliyordu.
+                     *
+                     * BELGE KESİMİ TAHSİLATI DÜŞÜREMEZ. Fatura üretimi
+                     * kendi doğrulamalarını taşıyor ("bu dönemde teslim
+                     * edilmiş porsiyon yok", "aynı dönemin belgesi zaten
+                     * var") ve bunlardan biri patlarsa PARA HAREKETİ GERİ
+                     * ALINMAMALI: tahsilat gerçekten yapıldı. Hata bir
+                     * uyarıya çevriliyor ve belge sonradan `invoices`
+                     * ekranından kesiliyor.
+                     * ═════════════════════════════════════════════════════
                      */
-                    $data['warnings'] = [[
-                        'code' => 'invoice_not_created',
-                        'reason' => 'invoice_link_missing',
-                    ]];
+                    $invoice = $this->issuePeriodInvoice($row, $intent['actor'], $warnings);
+
+                    if ($invoice !== null) {
+                        $data['invoice_id'] = (int) $invoice->id;
+                        $data['invoice_no'] = (string) $invoice->invoice_no;
+                    }
                 }
 
-                return ['data' => $data];
+                /*
+                 * UYARI ÜST DÜZEYDE DÖNER, `data` İÇİNDE DEĞİL (I3).
+                 *
+                 * Kontrol Merkezi geçidi uyarıları YALNIZ üst düzey
+                 * `warnings` anahtarından okuyor (`sb.warnings_of()`);
+                 * `data` içine gömülen uyarı hiçbir ekranda görünmüyordu.
+                 * Yani "belge kesilmedi" bilgisi tam da göründüğü sanılan
+                 * yerde kayboluyordu.
+                 */
+                return $warnings === []
+                    ? ['data' => $data]
+                    : ['data' => $data, 'warnings' => $warnings];
             },
         );
     }
@@ -2149,7 +2396,7 @@ class SubscriptionController extends ControlController
      * @param  array<string, mixed>  $body
      * @return array<string, mixed>
      */
-    private function createPreview(array $body): array
+    private function createPreview(array $body, ?int $customerId = null): array
     {
         $days = array_map(intval(...), (array) $body['service_days']);
         $start = Carbon::parse((string) $body['start_date'])->startOfDay();
@@ -2173,7 +2420,16 @@ class SubscriptionController extends ControlController
         }
 
         return [
-            'customer_id' => (int) ($body['customer_id'] ?? 0),
+            /*
+             * MÜŞTERİ KİMLİĞİ DIŞARIDAN DA GELEBİLİR (I3).
+             *
+             * `convertRequest()` gövdesinde `customer_id` `subscription`
+             * bloğunun DIŞINDA duruyor; burada yalnız blok içine bakmak
+             * kuru provanın `customer_id: 0` döndürmesi demekti — yönetici
+             * de aboneliğin hangi müşteriye açılacağını göremeden
+             * onaylıyordu.
+             */
+            'customer_id' => $customerId ?? (int) ($body['customer_id'] ?? 0),
             'service_days' => $days,
             'first_service_dates' => $dates,
             'monthly_estimate_kurus' => $monthly * $quantity * ($price ?? 0),
@@ -2753,7 +3009,16 @@ class SubscriptionController extends ControlController
          * bir fark, ödenmemiş bir dönemin üretim yapmasına izin verilen bir
          * pencere demek olurdu.
          */
-        $due = Carbon::parse($p->period_start->toDateString())->startOfDay();
+        /*
+         * KOLON VARSA ONDAN, YOKSA DÖNEM BAŞINDAN. Geriye dönük doldurma
+         * göçte yapıldı; `?? period_start` yalnız göç uygulanmamış kurulum
+         * için duruyor ve o kurulumda eski davranışı birebir sürdürüyor.
+         */
+        $due = Carbon::parse(
+            $p->due_date !== null
+                ? $p->due_date->toDateString()
+                : $p->period_start->toDateString(),
+        )->startOfDay();
         $today = $this->today();
         $overdue = $status === self::PAYMENT_PENDING && $due->lt($today);
 
@@ -2771,10 +3036,14 @@ class SubscriptionController extends ControlController
             'method' => $this->trimmedOrNull($p->gateway),
             'paid_at' => self::ts($p->settled_at),
             'reference' => $this->trimmedOrNull($p->provider_ref),
-            // Sütunları yok; alanlar sözleşmede yayınlandığı için biçim
-            // korunuyor, veri uydurulmuyor.
-            'note' => null,
-            'invoice_id' => null,
+            'note' => $this->trimmedOrNull($p->note ?? null),
+            /*
+             * BAĞ FATURA TARAFINDA: `veykemtu_invoices.subscription_payment_id`.
+             * Ödeme tablosuna ikinci bir kolon açmak, aynı ilişkiyi iki
+             * yerde tutmak ve biri güncellenmediğinde "belgesi var ama
+             * görünmüyor" hâli üretmek olurdu.
+             */
+            'invoice_id' => $this->invoiceIdOf((int) $p->id),
             'overdue' => $overdue,
             'overdue_days' => $overdue ? (int) $due->diffInDays($today) : 0,
             'portions_planned' => (int) $p->portions_planned,
@@ -2828,11 +3097,19 @@ class SubscriptionController extends ControlController
      * @param  array{start: Carbon, end: Carbon, portions: int, unit_price: int, amount: int}  $quote
      * @return list<array<string, mixed>>
      */
-    private function periodWarnings(Request $request, array $quote): array
+    private function periodWarnings(Request $request, array $quote, Carbon $due): array
     {
         $warnings = [];
 
-        if ($request->filled('period_end')
+        /*
+         * UYARILAR ARTIK YALNIZ GERÇEKTEN TÜRETİLDİĞİNDE ÇIKIYOR (I2).
+         *
+         * Üç alan da (`period_end`, `due_date`, `note`) sunucuda karşılık
+         * bulduğu için normal yolda hiçbir uyarı doğmuyor. Uyarılar
+         * SİLİNMEDİ çünkü göç uygulanmamış bir kurulumda kolonlar hâlâ
+         * yok olabilir — ve orada "yazdım sandım" hâli en pahalısı.
+         */
+        if ((string) $request->input('period_end', '') !== ''
             && (string) $request->input('period_end') !== $quote['end']->toDateString()
         ) {
             $warnings[] = [
@@ -2842,7 +3119,7 @@ class SubscriptionController extends ControlController
         }
 
         if ($request->filled('due_date')
-            && (string) $request->input('due_date') !== $quote['start']->toDateString()
+            && !$this->hasColumn('veykemtu_subscription_payments', 'due_date')
         ) {
             $warnings[] = [
                 'code' => 'due_date_derived',
@@ -2850,9 +3127,13 @@ class SubscriptionController extends ControlController
             ];
         }
 
-        if ($request->filled('note')) {
+        if ($request->filled('note')
+            && !$this->hasColumn('veykemtu_subscription_payments', 'note')
+        ) {
             $warnings[] = ['code' => 'note_not_stored'];
         }
+
+        unset($due);
 
         return $warnings;
     }
@@ -2906,6 +3187,80 @@ class SubscriptionController extends ControlController
         return $map;
     }
 
+    /**
+     * Tahsil edilen dönemin faturasını keser — I2.
+     *
+     * `null` DÖNMEK BAŞARISIZLIK DEĞİL, "kesilmedi" demektir ve sebebi
+     * `$warnings` içine yazılır. Belge kesimi tahsilatı DÜŞÜREMEZ: para
+     * gerçekten alındı ve bir doğrulama hatası ("bu dönemde teslim edilmiş
+     * porsiyon yok") yüzünden işlemi geri sarmak, yöneticiye ödemeyi
+     * ikinci kez işaretletirdi.
+     *
+     * AYNI DÖNEMİN BELGESİ VARSA YENİSİ KESİLMEZ ve bu bir hata değil:
+     * belge zaten elde. `existing_invoice_id` ile birlikte döner ki ekran
+     * "zaten kesilmiş" diyebilsin.
+     *
+     * @param  list<array<string, mixed>>  $warnings
+     */
+    private function issuePeriodInvoice(SubscriptionPayment $payment, string $actor,
+                                        array &$warnings): ?Invoice
+    {
+        $subscription = Subscription::query()
+            ->with(['pauses', 'exceptions', 'delivery_points'])
+            ->find((int) $payment->subscription_id);
+
+        if ($subscription === null) {
+            $warnings[] = ['code' => 'invoice_not_created', 'reason' => 'subscription_missing'];
+
+            return null;
+        }
+
+        $from = $payment->period_start->toDateString();
+        $to = $payment->period_end->toDateString();
+
+        $existing = $this->invoices->issuedForPeriod((int) $subscription->id, $from, $to);
+
+        if ($existing !== null) {
+            $warnings[] = [
+                'code' => 'invoice_already_issued',
+                'invoice_id' => (int) $existing->id,
+                'invoice_no' => (string) $existing->invoice_no,
+            ];
+
+            return $existing;
+        }
+
+        try {
+            return $this->invoices->issueForPeriod($subscription, $from, $to,
+                (int) $payment->id, $actor);
+        } catch (Throwable $e) {
+            $warnings[] = [
+                'code' => 'invoice_not_created',
+                'reason' => mb_strimwidth($e->getMessage(), 0, 200, '…', 'UTF-8'),
+            ];
+
+            return null;
+        }
+    }
+
+    /**
+     * Bu dönem ödemesine bağlı GEÇERLİ belgenin kimliği.
+     *
+     * İptal edilmiş belge sayılmaz (`issued()`): iptal edilmiş bir belgeyi
+     * "faturası var" diye göstermek, yöneticinin ikinci belgeyi hiç
+     * kesmemesi demekti.
+     */
+    private function invoiceIdOf(int $paymentId): ?int
+    {
+        return $this->invoiceIds[$paymentId] ??= $this->nullableInt(
+            Invoice::query()
+                ->issued()
+                ->where('subscription_payment_id', $paymentId)
+                ->orderByDesc('id')
+                ->value('id'),
+        );
+    }
+
     private function findPayment(string $id): SubscriptionPayment
     {
         $row = SubscriptionPayment::query()->find((int) $id);
@@ -2936,6 +3291,8 @@ class SubscriptionController extends ControlController
     private function row(Subscription $s): array
     {
         $contract = $this->latestContract((int) $s->id);
+        $unpaid = $this->unpaidMap([(int) $s->id])[(int) $s->id]
+            ?? ['periods' => 0, 'total_kurus' => 0];
 
         return [
             'id' => (int) $s->id,
@@ -2980,6 +3337,18 @@ class SubscriptionController extends ControlController
                 'note' => $this->trimmedOrNull($e->note),
             ])->all(),
             'contract' => $contract !== null ? $this->contractRow($contract) : null,
+            /*
+             * ÖDENMEMİŞ DÖNEM TEKİL YANITTA DA VAR (I3).
+             *
+             * İki alan yalnız LİSTE ucunda dönüyordu; abonelik çekmecesi
+             * tekil `GET /{id}` okuduğu için "ödenmemiş dönem" kutusu
+             * DAİMA 0 gösteriyordu. Yani borcu olan aboneliği listede
+             * görüp detayına giren yönetici, borcun kaybolduğunu
+             * sanıyordu. `unpaidMap()` tek satır için de çalışıyor;
+             * ikinci bir sorgu yazmaya gerek yok.
+             */
+            'unpaid_periods' => $unpaid['periods'],
+            'unpaid_total_kurus' => $unpaid['total_kurus'],
             'created_at' => self::ts($s->created_at),
             'updated_at' => self::ts($s->updated_at),
         ];
@@ -3160,10 +3529,18 @@ class SubscriptionController extends ControlController
         );
     }
 
+    /**
+     * Bugün ya da sonrasını kapsayan, İPTAL EDİLMEMİŞ en son duraklatma.
+     *
+     * `cancelled_at` süzgeci olmasaydı bir kez geri alınmış duraklatma
+     * `resume()` tarafından ikinci kez bulunur ve "geri alınacak duraklatma
+     * yok" kapısı hiç kapanmazdı.
+     */
     private function openPause(Subscription $model, Carbon $today): ?SubscriptionPause
     {
         return $model->pauses
-            ->filter(static fn(SubscriptionPause $p): bool => $p->end_date->copy()->startOfDay()->gte($today))
+            ->filter(static fn(SubscriptionPause $p): bool => $p->cancelled_at === null
+                && $p->end_date->copy()->startOfDay()->gte($today))
             ->sortByDesc('id')
             ->first();
     }

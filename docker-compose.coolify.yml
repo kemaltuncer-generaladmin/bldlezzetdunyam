@@ -41,10 +41,15 @@ services:
       SESSION_DRIVER: file
       MAIL_MAILER: log
       # ── Kurumsal site tazeleme ────────────────────────────────────────
-      # Panelde içerik kaydedilince siteye "önbelleğini tazele" isteği gider.
-      # Boş bırakılırsa istek gönderilmez ve site içeriği kendi ISR süresi
-      # (5 dk) dolunca toparlar — veri kaybı YOK, yalnızca gecikme olur.
-      # Sır, site tarafındaki CONTENT_REVALIDATE_SECRET ile AYNI olmalı.
+      # Panelde içerik VE GÜNÜN MENÜSÜ kaydedilince siteye "önbelleğini
+      # tazele" isteği gider. Boş bırakılırsa istek gönderilmez ve site kendi
+      # ISR süresi dolunca toparlar — veri kaybı YOK, yalnızca gecikme olur.
+      # Sır, site tarafındaki CONTENT_REVALIDATE_SECRET ile AYNI olmalı ve
+      # ASLA burada yazılı olmaz; değer Coolify ortam değişkeninden gelir.
+      #
+      # İstek: POST {url} · Authorization: Bearer {sır} · {"tag":"daily-menu"}
+      # Menü etiketi sonradan eklendi; o zamana kadar menü değişiklikleri
+      # siteye ancak ISR süresi dolunca yansıyordu.
       SITE_REVALIDATE_URL: ${SITE_REVALIDATE_URL:-}
       SITE_REVALIDATE_SECRET: ${CONTENT_REVALIDATE_SECRET:-}
 

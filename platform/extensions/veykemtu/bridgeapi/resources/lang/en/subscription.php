@@ -63,6 +63,8 @@ return [
     'column_payment' => 'Payment',
 
     'status_pending' => 'Request (awaiting price)',
+    'status_awaiting_contract' => 'Awaiting contract',
+    'status_awaiting_payment' => 'Awaiting payment',
     'status_active' => 'Active',
     'status_paused' => 'Paused',
     'status_cancelled' => 'Cancelled',
