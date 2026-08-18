@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { CalendarDays, ChevronRight, ShoppingBasket, Truck, UtensilsCrossed } from 'lucide-react';
 import { clearCartAction } from '@/app/actions/cart';
+import { BulkQuoteNotice } from '@/components/bulk-quote-notice';
 import { CartLineControls } from '@/components/cart-line-controls';
 import { EtaSummary } from '@/components/delivery-eta';
 import { EmptyState } from '@/components/empty-state';
@@ -89,6 +90,12 @@ export default async function CartPage() {
    */
   const eta = isToday ? readLocationEta(cart.location) : null;
   const dayBlocked = cart.lines.length > 0 && !cart.dayOrderable;
+  /*
+   * Toplu alım işareti: SATIRLARIN EN KALABALIĞI. Gerekçe
+   * `components/bulk-quote-notice.tsx` başlığında — sepet toplamıyla ölçmek
+   * dört çeşit yemek alan dört kişilik masayı da toplu alım sayardı.
+   */
+  const largestLineQuantity = cart.lines.reduce((most, line) => Math.max(most, line.quantity), 0);
   const canCheckout =
     cart.lines.length > 0 && orderingOpen && !cart.hasUnavailable && !belowMinimum && !dayBlocked;
 
@@ -303,6 +310,17 @@ export default async function CartPage() {
                 Sepetinizde tükenen ürün var. Devam etmek için çıkarın.
               </p>
             )}
+
+            {/*
+              Teklif önerisi TAMAMLA DÜĞMESİNİN ÜSTÜNDE: kararın verildiği yer
+              burası. Aşağıya koysaydık müşteri düğmeye basıp geçtikten sonra
+              görürdü, yani hiç görmezdi.
+            */}
+            <BulkQuoteNotice
+              quantity={largestLineQuantity}
+              headcount={cart.itemCount}
+              className="mt-4"
+            />
 
             {canCheckout ? (
               <Button asChild className="mt-5 w-full">

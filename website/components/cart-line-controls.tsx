@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useRef } from 'react';
+import { useActionState, useEffect, useOptimistic, useRef } from 'react';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { removeLineAction, updateQuantityAction } from '@/app/actions/cart';
 import type { DayCartState } from '@/app/actions/cart-state';
@@ -35,6 +35,22 @@ type Props = {
  * Silme YERİNDE bir yıkıcı eylem: dolu kırmızı buton değil, `danger` metinli
  * sessiz bir düğme. Listede dolu kırmızı bir buton primary'den daha çok göze
  * batıyor ve yanlışlıkla tıklanıyor (marka kılavuzu).
+ *
+ * ## ADET İYİMSER GÜNCELLENİYOR
+ *
+ * Sayaç eskiden sunucu turunu bekliyordu: müşteri artıya basıyor, sayı
+ * saniyelerce eski değerde kalıyor, düğme de o süre boyunca kapalı oluyordu.
+ * Ekranda hiçbir şey olmadığı için "site kasıyor" hissi buradan doğuyordu —
+ * oysa istek gitmişti, sadece görünmüyordu.
+ *
+ * Artık sayı ANINDA değişiyor (`useOptimistic`) ve düğme AÇIK KALIYOR: adet
+ * mutlak bir sayı olarak gönderiliyor (`quantity=<hedef>`), yani üst üste
+ * basmak sırayla 3, 4, 5 gönderir ve son yanıt kazanır. Sunucu tavanı
+ * aşarsa adedi kırpıyor; sepet yeniden çizildiğinde iyimser değer gerçek
+ * değere geri düşüyor ve sebep zaten mesaj satırında yazıyor.
+ *
+ * KALDIRMA düğmesi bunun DIŞINDA: yıkıcı ve geri alınamaz, iyimser
+ * gösterilmiyor ve istek uçarken kapalı kalıyor.
  */
 export function CartLineControls({ lineKey, quantity, itemName }: Props) {
   const [updateState, updateAction, updating] = useActionState(
@@ -46,33 +62,55 @@ export function CartLineControls({ lineKey, quantity, itemName }: Props) {
   useAnnounce(updateState);
   useAnnounce(removeState);
 
+  const [shownQuantity, showQuantity] = useOptimistic(quantity);
+
+  /**
+   * Form eylemi: önce ekrandaki sayıyı hedef değere taşı, sonra sunucuya
+   * gönder. İkisi de aynı geçişin içinde olduğu için React iyimser değeri
+   * eylem bitene kadar tutuyor.
+   */
+  const submitQuantity = (formData: FormData) => {
+    const target = Number.parseInt(String(formData.get('quantity') ?? ''), 10);
+    if (Number.isSafeInteger(target)) showQuantity(Math.max(0, target));
+    updateAction(formData);
+  };
+
   const busy = updating || removing;
 
   return (
     <div className="flex flex-wrap items-center gap-3">
       {/* Adet sayacı `pill`: marka kılavuzunda çip/avatar/adet sayacı tam yarıçap. */}
-      <form action={updateAction} className="flex items-center rounded-full border border-input">
+      {/*
+        Düğme değerleri EKRANDAKİ sayıdan türüyor, sunucudan gelen sayıdan
+        değil: peş peşe basan müşteri 3 → 4 → 5 gönderebilsin diye. İkisini
+        ayırmasaydık ikinci tıklama da ilkiyle aynı hedefi yollardı.
+      */}
+      <form action={submitQuantity} className="flex items-center rounded-full border border-input">
         <input type="hidden" name="line_key" value={lineKey} />
         <button
           type="submit"
           name="quantity"
-          value={quantity - 1}
-          disabled={busy}
+          value={shownQuantity - 1}
+          disabled={removing}
           aria-label={`${itemName} adedini azalt`}
           className="grid size-11 cursor-pointer place-items-center rounded-full text-foreground transition-colors duration-(--duration-fast) hover:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground"
         >
           <Minus strokeWidth={1.75} aria-hidden="true" className="size-4" />
         </button>
 
-        <span aria-live="polite" className="min-w-8 px-1 text-center text-label bld-money">
-          {quantity}
+        <span
+          aria-live="polite"
+          data-testid="cart-line-quantity"
+          className="min-w-8 px-1 text-center text-label bld-money"
+        >
+          {shownQuantity}
         </span>
 
         <button
           type="submit"
           name="quantity"
-          value={quantity + 1}
-          disabled={busy || quantity >= 99}
+          value={shownQuantity + 1}
+          disabled={removing || shownQuantity >= 99}
           aria-label={`${itemName} adedini artır`}
           className="grid size-11 cursor-pointer place-items-center rounded-full text-foreground transition-colors duration-(--duration-fast) hover:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground"
         >

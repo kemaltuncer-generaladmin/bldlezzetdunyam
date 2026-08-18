@@ -1,7 +1,6 @@
 'use client';
 
 import { useActionState, useEffect, useRef, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
 import { Check, TriangleAlert } from 'lucide-react';
 import { addToCartAction } from '@/app/actions/cart';
 import { Button } from '@/components/ui/button';
@@ -71,35 +70,35 @@ export function AddToDayCart({
   children,
   showMessage = false,
 }: Props) {
-  const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(addToCartAction, IDLE_CART_STATE);
   const [confirming, startConfirm] = useTransition();
   const lastHandled = useRef(0);
 
+  /*
+   * `router.refresh()` KALDIRILDI — sayfayı ikinci kez çizdiriyordu.
+   *
+   * Sunucu eylemi `revalidatePath` çağırıyor; Next.js bunu gördüğünde eylemin
+   * YANITINA mevcut rotanın yeniden çizilmiş RSC yükünü koyuyor ve istemci
+   * router önbelleğini düşürüyor. Yani ekrandaki kalan porsiyon sayısı ve gün
+   * başlığı zaten tazeleniyordu. Üstüne `router.refresh()` çağırmak, aynı
+   * sayfanın SUNUCUDA ikinci kez üretilmesi demekti: `/menu` için vitrin,
+   * günün menüsü ve takvim uçlarına üç istek daha. Tek bir tıklamada iki tam
+   * render, iki kat veritabanı işi.
+   *
+   * Duyuru (`announceCartChanged`) duruyor: o ağ isteği değil, sepet
+   * göstergelerine "çerezi tekrar oku" sinyali.
+   */
   useEffect(() => {
     if (state.at === 0 || state.at === lastHandled.current) return;
     lastHandled.current = state.at;
 
-    if (state.status === 'limit') {
-      // Rozet yalnız sepet gerçekten değiştiyse duyuruluyor: tavana takılıp
-      // hiçbir şey eklenemeyen istekte "güncellendi" demek yalan olur.
-      if (state.addedQuantity > 0) announceCartChanged();
-      /*
-       * Yenileme tavanda DA yapılıyor, hatta özellikle: ekranda yazan kalan
-       * porsiyon sayısı artık eskimiş demektir ve müşteri aynı düğmeye bir
-       * kez daha basacak.
-       */
-      router.refresh();
-      return;
+    // Rozet yalnız sepet gerçekten değiştiyse duyuruluyor: tavana takılıp
+    // hiçbir şey eklenemeyen istekte "güncellendi" demek yalan olur.
+    if (state.status === 'limit' ? state.addedQuantity > 0 : state.status === 'ok') {
+      announceCartChanged();
     }
-
-    if (state.status !== 'ok') return;
-
-    announceCartChanged();
-    // Sunucu bileşenleri sepet rozetini ve gün başlığını yeniden çizsin.
-    router.refresh();
-  }, [state, router]);
+  }, [state]);
 
   /** Onay: aynı form verisi + `confirm_reset`. */
   const confirmReset = () => {

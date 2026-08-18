@@ -140,6 +140,22 @@ class DailyMenu extends Model
             : max(0, LiraField::toKurus($value));
     }
 
+    /**
+     * ÜRÜNÜN YANIT İÇİN GEREKEN HER ŞEYİ — sözleşmedeki `MenuItem` bu kadarını
+     * istiyor (`docs/openapi.yaml`).
+     *
+     * Bağıntı adları `CatalogController::menu()` ile birebir aynı; oradaki not
+     * geçerli: `MenuItemOption`'ın değerleri `menu_option_values`'tır,
+     * `option_values` değil.
+     *
+     * @var list<string>
+     */
+    private const array ITEM_PRODUCT_RELATIONS = [
+        'items.menu.allergens',
+        'items.menu.menu_options.option',
+        'items.menu.menu_options.menu_option_values.option_value',
+    ];
+
     public static function findPublished(int $locationId, Carbon $date): ?self
     {
         return self::query()
@@ -147,7 +163,21 @@ class DailyMenu extends Model
             // yemek → pilav → tatlı) bağıntı tanımından geliyor. Burada da
             // tekrarlansaydı iki doğruluk kaynağı olurdu ve biri değişince
             // öteki sessizce eskirdi.
-            ->with(['items', 'items.menu'])
+            /*
+             * ÜRÜN BAĞINTILARI DA ÖNDEN YÜKLENİYOR.
+             *
+             * Önceden yalnız `items` ve `items.menu` yükleniyordu; ama
+             * `CatalogController::menuItemPayload()` her kalem için
+             * `menu_options`, her seçenek için `option` ve
+             * `menu_option_values`, her değer için `option_value` ve ayrıca
+             * `allergens` okuyor. Hepsi tembel bağıntı: sekiz kalemli bir
+             * günde bu kırk küstü ayrı sorgu ediyordu ve sayı menü büyüdükçe
+             * doğrusal artıyordu.
+             *
+             * Paket bölümü (`packagePayload`) aynı ürünlerin alerjenlerini bir
+             * kez daha okuyor — o da bu yüklemeden besleniyor artık.
+             */
+            ->with(['items', 'items.menu', ...self::ITEM_PRODUCT_RELATIONS])
             ->where('location_id', $locationId)
             ->whereDate('menu_date', $date->toDateString())
             ->where('status', self::STATUS_PUBLISHED)

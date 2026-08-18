@@ -28,6 +28,19 @@ use Veykemtu\BridgeApi\Support\Money;
  */
 class CatalogController extends ApiController
 {
+    /**
+     * Ürün görseli adreslerinin istek ömürlü belleği (`menu_id => adres`).
+     *
+     * `getThumb()` ucuz değil: küçük resmin diskte olup olmadığına bakıyor,
+     * yoksa üretip yazıyor. Aynı ürün ise bir yanıtta birden fazla kez
+     * soruluyor — kalem listesinde bir kez, ızgara görsellerinde bir kez,
+     * paketin içindekilerde bir kez daha. Aynı soruya aynı yanıtta üç kez
+     * disk erişimiyle cevap vermenin sebebi yok.
+     *
+     * @var array<int, string|null>
+     */
+    private array $imageUrls = [];
+
     public function __construct(
         private readonly LocationGate $gate,
         private readonly EtaService $eta,
@@ -431,18 +444,24 @@ class CatalogController extends ApiController
      */
     private function imageUrl(Menu $menu): ?string
     {
+        $menuId = (int) $menu->menu_id;
+
+        if (array_key_exists($menuId, $this->imageUrls)) {
+            return $this->imageUrls[$menuId];
+        }
+
         $thumb = $menu->getThumb(['width' => 800, 'height' => 600]);
 
         if ($thumb === null || $thumb === '') {
-            return null;
+            return $this->imageUrls[$menuId] = null;
         }
 
         // Medya diski `APP_URL` tabanlı mutlak adres üretir. Yine de
         // göreli gelirse mutlaklaştırıyoruz: istemcilerin biri Flutter,
         // göreli adresi çözecek bir sayfa bağlamı yok.
-        return str_starts_with($thumb, 'http://') || str_starts_with($thumb, 'https://')
-            ? $thumb
-            : url($thumb);
+        $absolute = str_starts_with($thumb, 'http://') || str_starts_with($thumb, 'https://');
+
+        return $this->imageUrls[$menuId] = $absolute ? $thumb : url($thumb);
     }
 
     /**

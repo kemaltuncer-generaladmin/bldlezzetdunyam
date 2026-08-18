@@ -1,78 +1,37 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { ShoppingBasket } from 'lucide-react';
 import { MinOrderProgress } from '@/components/min-order-progress';
 import { Button } from '@/components/ui/button';
-import { CART_CHANGED_EVENT } from '@/lib/cart-events';
 import { Money } from '@/components/money';
+import {
+  getCartSummary,
+  getCartSummaryServerSnapshot,
+  subscribeCartSummary,
+  type CartSummary,
+} from '@/lib/cart-summary-store';
 import { businessToday, isBusinessDate, serviceDayTitle } from '@/lib/business-date';
 
-type CartSummary = {
-  count: number;
-  subtotal: number;
-  minOrderTotal: number;
-  remainingToMinimum: number;
-  hasUnavailable: boolean;
-  orderingOpen: boolean;
-  /** Sepetin bağlı olduğu servis günü (`YYYY-AA-GG`); boş sepette `null`. */
-  serviceDate: string | null;
-  dayOrderable: boolean;
-};
-
-function parseSummary(value: unknown): CartSummary | null {
-  if (typeof value !== 'object' || value === null) return null;
-  const raw = value as Record<string, unknown>;
-  const num = (key: string): number => (typeof raw[key] === 'number' ? raw[key] : 0);
-
-  return {
-    count: num('count'),
-    subtotal: num('subtotal'),
-    minOrderTotal: num('min_order_total'),
-    remainingToMinimum: num('remaining_to_minimum'),
-    hasUnavailable: raw.has_unavailable === true,
-    orderingOpen: raw.ordering_open === true,
-    serviceDate: typeof raw.service_date === 'string' ? raw.service_date : null,
-    dayOrderable: raw.day_orderable === true,
-  };
-}
-
 /**
- * Sepet özetini `/api/sepet-ozeti` üzerinden okur.
+ * Sepet özetini paylaşılan depodan okur (`lib/cart-summary-store.ts`).
  *
  * Sepet `httpOnly` cookie'de olduğu için tarayıcı tutarı kendisi hesaplayamaz;
- * ayrıntılı gerekçe uç noktanın başındaki notta. Yoklama yok — yalnızca ilk
- * yükleme, sepet değişimi ve sekmeye dönüş.
+ * ayrıntılı gerekçe `/api/sepet-ozeti` başındaki notta. Yoklama yok — yalnızca
+ * ilk yükleme, sepet değişimi ve sekmeye dönüş.
+ *
+ * ESKİDEN HER BİLEŞEN KENDİ İSTEĞİNİ ATIYORDU. Kutu ve çubuk aynı sayfada
+ * daima birlikte monteli (görünürlükleri yalnız CSS ile ayrılıyor), yani her
+ * tazelemede uç noktaya iki istek gidiyor ve platformda `resolveCart()` iki
+ * kez koşuyordu. Depo isteği tekilleştiriyor.
  */
 function useCartSummary(): CartSummary | null {
-  const [summary, setSummary] = useState<CartSummary | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load(): Promise<void> {
-      try {
-        const response = await fetch('/api/sepet-ozeti', { cache: 'no-store' });
-        if (!response.ok) return;
-        const parsed = parseSummary(await response.json());
-        if (!cancelled && parsed) setSummary(parsed);
-      } catch {
-        // Ağ hatasında son bilinen özet korunur; sepeti boş göstermek yanıltıcı.
-      }
-    }
-
-    void load();
-    window.addEventListener(CART_CHANGED_EVENT, load);
-    window.addEventListener('focus', load);
-    return () => {
-      cancelled = true;
-      window.removeEventListener(CART_CHANGED_EVENT, load);
-      window.removeEventListener('focus', load);
-    };
-  }, []);
-
-  return summary;
+  return useSyncExternalStore(
+    subscribeCartSummary,
+    getCartSummary,
+    getCartSummaryServerSnapshot,
+  );
 }
 
 /** Masaüstünde menünün yanında duran yapışkan sepet kutusu. */

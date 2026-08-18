@@ -71,7 +71,20 @@ function Field({ id, label, error, hint, required, children }: FieldProps) {
   );
 }
 
-export function QuoteForm() {
+/**
+ * @param defaultHeadcount Sepetten gelen kişi sayısı önerisi.
+ *
+ * SEPETTEN GELEN MÜŞTERİ SAYIYI ZATEN SÖYLEDİ. On porsiyonun üzerine çıkan
+ * sepette "özel teklif istiyorum" kutusu çıkıyor
+ * (`components/bulk-quote-notice.tsx`) ve bağlantı adete `?kisi=` olarak
+ * taşıyor. Alanı boş açmak, müşteriye kendi yazdığı sayıyı ikinci kez
+ * yazdırmak olurdu.
+ *
+ * `defaultValue` — `value` DEĞİL: sayı bir TAHMİN ve müşteri sepetteki
+ * porsiyon adedinden farklı bir kalabalık için teklif isteyebilir. Kontrollü
+ * alan yapsaydık kendi bildiği sayıyı yazamazdı.
+ */
+export function QuoteForm({ defaultHeadcount }: { defaultHeadcount?: number }) {
   const [state, formAction, pending] = useActionState(submitQuote, IDLE_QUOTE_STATE);
   const summaryRef = useRef<HTMLDivElement>(null);
   const formId = useId();
@@ -213,6 +226,7 @@ export function QuoteForm() {
                 type="number"
                 inputMode="numeric"
                 min={1}
+                defaultValue={defaultHeadcount}
                 aria-describedby={aria.describedBy}
                 aria-invalid={aria.invalid}
                 className="h-11"

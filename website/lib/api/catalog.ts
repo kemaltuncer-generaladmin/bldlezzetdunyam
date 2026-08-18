@@ -1,6 +1,8 @@
 import 'server-only';
+import { cache } from 'react';
 
 import { apiFetch, REVALIDATE_SECONDS, type RequestOptions } from './client';
+import { freshRead } from './fresh-cache';
 import type { Location, LocationListResponse } from './types';
 
 export const CATALOG_TAG = 'catalog';
@@ -33,21 +35,38 @@ function cacheFor(freshness: CatalogFreshness): NonNullable<RequestOptions['cach
  *
  * Vitrinler. Faz 1'de tek vitrin döner ama dizi biçimi korunur
  * (`docs/openapi.yaml` `/locations`).
+ *
+ * `'isr'` okumaları Next.js'in Data Cache'ine düşüyor; `'fresh'` okumaları
+ * ise `lib/api/fresh-cache.ts`'teki iki saniyelik pencereye ve tek-uçuşa.
+ * İkisi ayrı anahtar uzayında: aynı istek içinde bir yer taze, bir yer
+ * önbellekli okuduğunda birbirlerinin cevabını görmemeliler.
  */
 export async function fetchLocations(freshness: CatalogFreshness = 'isr'): Promise<Location[]> {
-  const body = await apiFetch<LocationListResponse>('/locations', {
-    cache: cacheFor(freshness),
-  });
-  return body.data;
+  const load = async (): Promise<Location[]> => {
+    const body = await apiFetch<LocationListResponse>('/locations', {
+      cache: cacheFor(freshness),
+    });
+    return body.data;
+  };
+
+  return freshness === 'fresh' ? freshRead('locations', load) : load();
 }
 
-/** Sitenin çalıştığı vitrin. Liste boşsa sözleşme ihlalidir; `null` döneriz. */
-export async function fetchPrimaryLocation(
-  freshness: CatalogFreshness = 'isr',
-): Promise<Location | null> {
-  const locations = await fetchLocations(freshness);
-  return locations[0] ?? null;
-}
+/**
+ * Sitenin çalıştığı vitrin. Liste boşsa sözleşme ihlalidir; `null` döneriz.
+ *
+ * `cache()` ile sarılı: aynı render içinde bu fonksiyon dört beş yerden
+ * çağrılıyor (sayfa, `resolveCart`, `fetchDailyMenuSnapshot`) ve `'fresh'`
+ * okumada Next.js'in kendi istek belleklemesi devre dışı kalıyor. Mikro-
+ * önbellek zaten HTTP'yi eliyor; bu katman bir adım öncesini, JSON'un
+ * yeniden dolaşılmasını da eliyor.
+ */
+export const fetchPrimaryLocation = cache(
+  async (freshness: CatalogFreshness = 'isr'): Promise<Location | null> => {
+    const locations = await fetchLocations(freshness);
+    return locations[0] ?? null;
+  },
+);
 
 /** Sipariş alınabilir mi? İki şalter de açık olmalı (`docs/06` §3). */
 export function isOrderingOpen(location: Location | null): boolean {

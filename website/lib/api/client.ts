@@ -116,6 +116,50 @@ function toDetails(value: unknown): Record<string, unknown> | null {
 }
 
 /**
+ * Taze okumanın en fazla bekleyeceği süre.
+ *
+ * YALNIZCA `no-store` İSTEKLERE UYGULANIYOR. Bir `AbortSignal` vermek Next.js'in
+ * Data Cache'ini devre dışı bırakabiliyor; ISR ile okunan yüzeylerde (ana sayfa,
+ * kurumsal içerik) bunu göze alamayız — orada zaten önbellek var ve tıkanan bir
+ * istek bir sonraki ziyaretçiyi bekletmiyor.
+ *
+ * Süre dolduğunda istek ağ hatası sayılıyor ve GET ise yeniden deneniyor.
+ * Sınırsız beklemek, platform tıkandığında sitenin de onunla birlikte
+ * kilitlenmesi demekti: Next.js işçisi yanıt bekleyerek duruyor ve arkadaki
+ * bütün istekler kuyruğa giriyordu.
+ */
+const FRESH_TIMEOUT_MS = Number.parseInt(process.env.API_TIMEOUT_MS ?? '', 10) || 8000;
+
+/**
+ * GET yeniden deneme aralıkları (ms). Dizi uzunluğu = ek deneme sayısı.
+ *
+ * KISA VE AZ. Amaç dayanıklılık değil, TEK SEFERLİK bir hıçkırığı yutmak:
+ * platform yeniden başlarken ya da bağlantı havuzu bir an dolduğunda gelen
+ * 502/503, müşteriye "Günün menüsü yüklenemedi" diye görünüyordu. Uzun
+ * beklemeler bunu düzeltmez, sadece hatayı geciktirir.
+ */
+const RETRY_DELAYS_MS = [120, 320] as const;
+
+/**
+ * Hangi durum kodları yeniden denenir.
+ *
+ * `429` BİLEREK YOK: hız sınırına takılan isteği tekrarlamak sınırı daha da
+ * doldurur. `4xx` de yok — istek yanlışsa ikincisi de yanlış olur.
+ */
+const RETRYABLE_STATUS = new Set([500, 502, 503, 504]);
+
+/** YALNIZCA GET yeniden denenir; sipariş oluşturmayı tekrarlamak çift sipariş demek. */
+function isRetryable(method: NonNullable<RequestOptions['method']>): boolean {
+  return method === 'GET';
+}
+
+/** `attempt`inci denemeden sonraki bekleme. Dizi biterse son değeri kullanır. */
+function retryDelay(attempt: number): Promise<void> {
+  const ms = RETRY_DELAYS_MS[attempt] ?? RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1] ?? 0;
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
  * Sözleşmeye uygun tek HTTP girişi. Zorunlu başlıkları (`X-App-Id`,
  * `X-App-Version`, `Accept-Language`) her istekte ekler — eksikse sunucu `422`
  * döner (`docs/03` §1.1).
@@ -141,7 +185,6 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   const init: RequestInit = {
     method,
     headers,
-    signal,
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     ...(directive.kind === 'no-store'
       ? { cache: 'no-store' as const }
@@ -153,11 +196,55 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
         }),
   };
 
-  let response: Response;
-  try {
-    response = await fetch(buildUrl(path, query), init);
-  } catch (cause) {
-    if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
+  const url = buildUrl(path, query);
+  const attempts = isRetryable(method) ? RETRY_DELAYS_MS.length + 1 : 1;
+
+  let response: Response | null = null;
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    /*
+     * Zaman aşımı yalnız taze okumalarda; gerekçesi `FRESH_TIMEOUT_MS`'te.
+     * Çağıranın kendi sinyali varsa ikisi birleştiriliyor — biri iptal
+     * ederse istek düşüyor.
+     */
+    const deadline = directive.kind === 'no-store' ? AbortSignal.timeout(FRESH_TIMEOUT_MS) : null;
+    const attemptSignal =
+      deadline === null
+        ? signal
+        : signal === undefined
+          ? deadline
+          : AbortSignal.any([signal, deadline]);
+
+    try {
+      response = await fetch(url, { ...init, signal: attemptSignal });
+    } catch (cause) {
+      /*
+       * ÇAĞIRANIN İPTALİ YENİDEN DENENMEZ ve olduğu gibi yukarı çıkar:
+       * "vazgeçildi" bir arıza değil. Kendi zaman aşımımız ise ağ hatası
+       * sayılıyor ve bir kez daha deneniyor.
+       */
+      if (signal?.aborted === true) throw cause;
+
+      response = null;
+
+      if (attempt === attempts - 1) {
+        throw new ApiError(0, 'NETWORK', 'Sunucuya ulaşılamadı, tekrar deneyin.');
+      }
+
+      await retryDelay(attempt);
+      continue;
+    }
+
+    if (!RETRYABLE_STATUS.has(response.status) || attempt === attempts - 1) break;
+
+    // Gövdeyi okumadan bırakmak bağlantıyı açık tutar; atılan denemenin
+    // gövdesi kapatılıyor.
+    await response.body?.cancel().catch(() => {});
+    await retryDelay(attempt);
+  }
+
+  // Döngü her yolda ya `response` atar ya fırlatır; tip daraltma için.
+  if (response === null) {
     throw new ApiError(0, 'NETWORK', 'Sunucuya ulaşılamadı, tekrar deneyin.');
   }
 

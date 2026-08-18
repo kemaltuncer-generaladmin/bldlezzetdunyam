@@ -46,8 +46,44 @@ const WHAT_HAPPENS_NEXT = [
   },
 ] as const;
 
-export default async function TeklifAlPage() {
-  const { contact } = await fetchSiteContent();
+/**
+ * `?kisi=` — sepetteki toplu alım kutusundan gelen kişi sayısı önerisi.
+ *
+ * ## Sayfa bu yüzden İSTEK BAŞINA çiziliyor
+ *
+ * `searchParams` okumak sayfayı dinamik yapıyor; alternatifi değeri istemcide
+ * `useSearchParams` ile okumaktı ve o yol Suspense sınırı gerektiriyor —
+ * yani form SSR çıktısında hiç bulunmazdı. Bu form JavaScript kapalıyken de
+ * çalışacak şekilde yazıldı (`components/site/quote-form.tsx`); onu sunucu
+ * HTML'inden çıkarmak, çalışan bir özelliği önbellek uğruna feda etmek
+ * olurdu.
+ *
+ * Bedel küçük: sayfanın tek veri kaynağı `fetchSiteContent` ve o zaten ISR
+ * önbellekli, yani dinamik çizim platforma ek bir istek doğurmuyor. `metadata`
+ * ve JSON-LD sunucuda üretilmeye devam ediyor.
+ *
+ * ADRESTEN GELEN SAYI DOĞRULANIYOR. Değer kullanıcının değiştirebileceği bir
+ * yerden geliyor; olduğu gibi forma yazmak, alana "abc" ya da eksi bir sayı
+ * düşürmenin yolu olurdu. Şemanın kabul ettiği aralığın dışındaki her şey
+ * yok sayılıyor ve alan boş açılıyor (`lib/validation/quote.ts`).
+ */
+function readHeadcount(raw: string | string[] | undefined): number | undefined {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof value !== 'string') return undefined;
+
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > 100000) return undefined;
+
+  return parsed;
+}
+
+export default async function TeklifAlPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ kisi?: string | string[] }>;
+}) {
+  const [{ contact }, params] = await Promise.all([fetchSiteContent(), searchParams]);
+  const defaultHeadcount = readHeadcount(params.kisi);
 
   return (
     <>
@@ -63,7 +99,7 @@ export default async function TeklifAlPage() {
 
       <div className="mx-auto grid max-w-content gap-12 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-[1.6fr_1fr]">
         <div>
-          <QuoteForm />
+          <QuoteForm defaultHeadcount={defaultHeadcount} />
         </div>
 
         <aside className="space-y-8">

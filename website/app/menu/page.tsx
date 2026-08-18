@@ -13,7 +13,7 @@ import { OrderingClosedBanner } from '@/components/ordering-banner';
 import { DayPicker, findCalendarDay, nextOrderableDay } from '@/components/menu/day-picker';
 import { ServiceDaysBanner } from '@/components/menu/service-days-banner';
 import { DailyMenuItemCard, DailyMenuPackageCard } from '@/components/menu/daily-menu-cards';
-import { SITE_URL } from '@/lib/api/client';
+import { ApiError, SITE_URL } from '@/lib/api/client';
 import {
   canOrderDay,
   dayStock,
@@ -143,13 +143,28 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   let snapshot: DailyMenuSnapshot;
   try {
     snapshot = await fetchDailyMenuSnapshot(requestedDay);
-  } catch {
+  } catch (error) {
+    /*
+     * SEBEP AYRILIYOR. Eskiden her hata aynı cümleye düşüyordu ("Günün menüsü
+     * yüklenemedi") ve müşteri de destek de ne olduğunu bilmiyordu — sunucu mu
+     * kapalı, menü mi girilmemiş, ağ mı koptu. Üstelik en sık sebep geçici bir
+     * ağ hıçkırığıydı ve o durumda söylenecek doğru şey "tekrar deneyin".
+     *
+     * Geçici hatalar artık `apiFetch` içinde iki kez yeniden deneniyor; buraya
+     * düşen bir istek gerçekten cevap alamamış demektir.
+     */
+    const offline = error instanceof ApiError && error.code === 'NETWORK';
+
     return (
       <div className="mx-auto max-w-content px-4 py-16">
         <ErrorState
-          title="Menü yüklenemedi"
-          message="Günün menüsü yüklenemedi, tekrar deneyin."
-          retryHref="/menu"
+          title={offline ? 'Sunucuya ulaşılamadı' : 'Menü yüklenemedi'}
+          message={
+            offline
+              ? 'Menü sunucusuna şu anda ulaşamıyoruz. Bağlantınızı kontrol edip tekrar deneyin; sorun bizdeyse kısa sürede düzelir.'
+              : 'Günün menüsü yüklenemedi, tekrar deneyin.'
+          }
+          retryHref={requestedDay ? `/menu?gun=${requestedDay}` : '/menu'}
         />
       </div>
     );

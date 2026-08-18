@@ -102,6 +102,52 @@ test.describe('Sipariş akışı', () => {
     // Middleware çerez yokluğunu görüp girişe atıyor.
     await expect(page).toHaveURL(/\/giris\?next=%2Fodeme/);
   });
+
+  /**
+   * TOPLU ALIM EŞİĞİ — `components/bulk-quote-notice.tsx`.
+   *
+   * On porsiyonun ÜZERİNE çıkan müşteriye özel teklif öneriliyor. Test iki
+   * şeyi birden sınıyor ve ikincisi asıl olan:
+   *
+   *  1. Kutu eşiğin altında ÇIKMIYOR. Yalnızca "çıkıyor mu" diye baksaydık
+   *     her sepette görünen bir kutu da testi geçerdi.
+   *  2. Kutu SUNUCU tarafından çiziliyor, yani göründüğü an sunucudaki adet
+   *     gerçekten 11. Sayaç iyimser güncelleniyor (ekranda sunucu turunu
+   *     beklemeden artıyor); sayacın 11 yazması tek başına sunucunun da 11
+   *     bildiğini KANITLAMAZ. Kutunun görünmesi kanıtlar.
+   *
+   * Kişi sayısının teklif formuna taşındığı da doğrulanıyor: bağlantı bir
+   * adres parametresi taşıyor ve o parametrenin forma bir şey yapması
+   * gerekiyor, yoksa müşteri sayıyı ikinci kez yazar.
+   */
+  test('on porsiyonun üzerinde özel teklif kutusu çıkar', async ({ page }) => {
+    await page.goto('/menu');
+    await page.getByRole('button', { name: /Sepete ekle/ }).first().click();
+    await expect(cartHasItems(page)).toBeVisible();
+
+    await page.goto('/sepet');
+
+    const quoteLink = page.getByRole('link', { name: /Özel teklif istiyorum/ });
+    await expect(quoteLink).toHaveCount(0);
+
+    const counter = page.getByTestId('cart-line-quantity').first();
+    const increase = page.getByRole('button', { name: /adedini artır/ }).first();
+
+    await expect(counter).toHaveText('1');
+
+    // Adım adım: her tıklamadan sonra sayacın gerçekten arttığını doğrula.
+    // Toplu tıklamak, sayacın hiç değişmediği bir kusuru gizlerdi.
+    for (let target = 2; target <= 11; target++) {
+      await increase.click();
+      await expect(counter).toHaveText(String(target));
+    }
+
+    await expect(quoteLink).toBeVisible();
+    await quoteLink.click();
+
+    await expect(page).toHaveURL(/\/teklif-al\?kisi=11$/);
+    await expect(page.getByLabel(/Kaç kişi/)).toHaveValue('11');
+  });
 });
 
 test.describe('Ana sayfa hızlı sipariş', () => {

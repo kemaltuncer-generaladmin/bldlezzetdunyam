@@ -590,20 +590,67 @@ class LocationGate
         }
     }
 
-    private function option(Location $location, string $key, mixed $default): mixed
-    {
-        $raw = DB::table('location_options')
-            ->where('location_id', $location->location_id)
-            ->where('item', $key)
-            ->value('value');
+    /**
+     * `location_options` satırlarının vitrin başına çözülmüş hâli.
+     *
+     * İSTEK ÖMÜRLÜ — sınıf isteğe özel çözülüyor ve PHP süreci istekler
+     * arasında durum taşımıyor. Yönetici bir ayarı değiştirdiğinde bir
+     * sonraki istek tabloyu yeniden okur.
+     *
+     * @var array<int, array<string, mixed>>
+     */
+    private array $optionBags = [];
 
-        if ($raw === null) {
-            return $default;
+    /**
+     * Vitrinin TÜM ayarlarını TEK sorguda okur.
+     *
+     * ## Neden anahtar başına sorgu değil
+     *
+     * `option()` her çağrıldığında ayrı bir `SELECT` atıyordu ve `/locations`
+     * yanıtı on beş ayrı ayar okuyor (`ordering`, `cutoff`, `min_total`,
+     * `payments`, `delivery_fee`, `busy`, `busy_message`, `paused_until`,
+     * `pause_reason`, `daily_menu`, `lookahead`, `package_menu`, `prep`,
+     * `delivery`, `busy_extra`). Yani vitrin kimliğini bile içermeyen bu
+     * küçük yanıt, tek başına on beş gidiş-dönüş demekti.
+     *
+     * Site bu ucu sipariş kararı veren HER yolda taze okuyor: menü sayfası,
+     * sepet özeti, sepete ekleme, adet güncelleme, ödeme. Tek bir "sepete
+     * ekle" tıklamasında uç birkaç kez çağrılıyordu — çarpımın sonucu yüzlerce
+     * gereksiz sorgu.
+     *
+     * Satır sayısı vitrin başına bir avuç; hepsini çekmenin maliyeti tek bir
+     * anahtarı çekmekle aynı.
+     *
+     * @return array<string, mixed>
+     */
+    private function optionBag(Location $location): array
+    {
+        $locationId = (int) $location->location_id;
+
+        if (array_key_exists($locationId, $this->optionBags)) {
+            return $this->optionBags[$locationId];
         }
 
-        $decoded = json_decode((string) $raw, true);
+        $bag = [];
 
-        return $decoded ?? $default;
+        foreach (
+            DB::table('location_options')
+                ->where('location_id', $locationId)
+                ->get(['item', 'value']) as $row
+        ) {
+            // Çözülemeyen değer `null` olur ve `option()` orada varsayılana
+            // düşer — eski davranışın aynısı. Tabloda bizim olmayan
+            // anahtarlar da var (TastyIgniter'ın kendi ayarları); onları
+            // okumuyoruz, sadece taşıyoruz.
+            $bag[(string) $row->item] = json_decode((string) $row->value, true);
+        }
+
+        return $this->optionBags[$locationId] = $bag;
+    }
+
+    private function option(Location $location, string $key, mixed $default): mixed
+    {
+        return $this->optionBag($location)[$key] ?? $default;
     }
 
     private function setOption(Location $location, string $key, mixed $value): void
@@ -612,6 +659,18 @@ class LocationGate
             ['location_id' => $location->location_id, 'item' => $key],
             ['value' => json_encode($value)],
         );
+
+        /*
+         * Okunmuş torbayı YERİNDE güncelliyoruz, düşürmüyoruz: `pauseOrdering`
+         * gibi metotlar arka arkaya birkaç ayar yazıyor ve her yazmada torbayı
+         * atmak, aradaki her okumada tabloyu yeniden okutmak olurdu. Yazılan
+         * değer zaten elimizde.
+         */
+        $locationId = (int) $location->location_id;
+
+        if (array_key_exists($locationId, $this->optionBags)) {
+            $this->optionBags[$locationId][$key] = $value;
+        }
     }
 
     /**

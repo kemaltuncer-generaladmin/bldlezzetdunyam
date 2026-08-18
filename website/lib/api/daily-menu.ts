@@ -2,6 +2,7 @@ import 'server-only';
 
 import { apiFetch, REVALIDATE_SECONDS, type RequestOptions } from './client';
 import { fetchPrimaryLocation, type CatalogFreshness } from './catalog';
+import { freshRead } from './fresh-cache';
 import { businessToday, addDays, type BusinessDate } from '@/lib/business-date';
 import type {
   DailyMenu,
@@ -48,11 +49,23 @@ export async function fetchDailyMenu(
   date?: BusinessDate,
   freshness: CatalogFreshness = 'fresh',
 ): Promise<DailyMenu> {
-  const body = await apiFetch<DailyMenuResponse>(`/locations/${locationId}/daily-menu`, {
-    query: date ? { date } : undefined,
-    cache: cacheFor(freshness),
-  });
-  return body.data;
+  const load = async (): Promise<DailyMenu> => {
+    const body = await apiFetch<DailyMenuResponse>(`/locations/${locationId}/daily-menu`, {
+      query: date ? { date } : undefined,
+      cache: cacheFor(freshness),
+    });
+    return body.data;
+  };
+
+  /*
+   * Taze okuma iki saniyelik pencereye ve tek-uçuşa bağlanıyor
+   * (`lib/api/fresh-cache.ts`). Anahtara GÜN de giriyor: sepet salıya bağlı
+   * bir sepetin menüsünü okurken menü sayfası çarşambayı gösteriyor
+   * olabilir ve ikisi aynı cevabı paylaşamaz.
+   */
+  return freshness === 'fresh'
+    ? freshRead(`daily-menu:${locationId}:${date ?? 'today'}`, load)
+    : load();
 }
 
 /**
@@ -67,11 +80,17 @@ export async function fetchMenuCalendar(
   to: BusinessDate,
   freshness: CatalogFreshness = 'isr',
 ): Promise<MenuCalendarDay[]> {
-  const body = await apiFetch<MenuCalendarResponse>(`/locations/${locationId}/menu-calendar`, {
-    query: { from, to },
-    cache: cacheFor(freshness),
-  });
-  return body.data;
+  const load = async (): Promise<MenuCalendarDay[]> => {
+    const body = await apiFetch<MenuCalendarResponse>(`/locations/${locationId}/menu-calendar`, {
+      query: { from, to },
+      cache: cacheFor(freshness),
+    });
+    return body.data;
+  };
+
+  return freshness === 'fresh'
+    ? freshRead(`menu-calendar:${locationId}:${from}:${to}`, load)
+    : load();
 }
 
 /** Sunucunun izin verdiği en uzak gün — takvim bundan ötesini çizmez. */
