@@ -48,6 +48,53 @@ export interface WorkingHours {
   readonly value: string;
 }
 
+export interface LegalIdentity {
+  /** Ticari unvan. Şahıs işletmesinde ad-soyad. */
+  readonly tradeName: Nullable<string>;
+  readonly legalForm: Nullable<string>;
+  /** Vergi levhasındaki merkez adresi — iletişim adresinden ayrı. */
+  readonly registeredAddress: Nullable<string>;
+  readonly taxOffice: Nullable<string>;
+  readonly taxNumber: Nullable<string>;
+  /** Ticaret siciline kayıtlı olmayan işletmelerde yoktur. */
+  readonly mersisNo: Nullable<string>;
+  readonly kepAddress: Nullable<string>;
+  /** Kart verisini işleyen sağlayıcı. Gerçek POS yokken `null`. */
+  readonly paymentProvider: Nullable<string>;
+}
+
+/**
+ * İşletmenin yasal kimliği — **YEDEK / BAŞLANGIÇ DEĞERİ**, tek kaynak panel.
+ *
+ * Dosyanın başındaki "doğrulanmamış hiçbir değeri yazma" kuralı burada da
+ * geçerli ve İHLAL EDİLMİYOR: aşağıdaki değerler 2024 vergi levhasından
+ * (Gelir İdaresi Başkanlığı onay kodu WVVA0KN3E20) birebir alınmıştır. BLD,
+ * BBD ile aynı gerçek kişi işletmesi altında faaliyet gösterir.
+ *
+ * `null` kalanlar gerçekten yok:
+ *  - `mersisNo` / `kepAddress` — işletme gerçek kişi tacirdir, ticaret
+ *    siciline kayıtlı bir tüzel kişi değildir; bu numaralar mevcut değildir.
+ *    Mesafeli Sözleşmeler Yönetmeliği bunları "varsa" kaydıyla ister.
+ *  - `paymentProvider` — kodda gerçek bir sanal POS entegrasyonu YOK;
+ *    `veykemtu/payment` altında yalnız nakit, havale ve SİMÜLASYON geçidi var
+ *    (bkz. `docs/03-api-sozlesmesi.md` §"Faz 1 notu"). Gerçek geçit devreye
+ *    girmeden gizlilik metninde sağlayıcı adı iddia edilmez.
+ *
+ * `contact` bloğundan neden ayrı: iletişim bilgisi eksikse yalnızca bir kanal
+ * gizlenir; yasal kimlik eksikse sayfa yayına uygun değildir. İkisi farklı
+ * arayüz davranışı gerektiriyor.
+ */
+export const LEGAL: LegalIdentity = {
+  tradeName: 'Hasan Hüseyin Bardakcı',
+  legalForm: 'Gerçek kişi (şahıs) işletmesi',
+  registeredAddress: 'Parsana Mah. Kaletaş Cad. No: 102/A, Selçuklu / Konya',
+  taxOffice: 'Meram',
+  taxNumber: '1420702970',
+  mersisNo: null,
+  kepAddress: null,
+  paymentProvider: null,
+};
+
 export const BRAND = {
   name: 'Benim Lezzet Dünyam',
   shortName: 'BLD',

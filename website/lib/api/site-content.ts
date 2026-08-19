@@ -19,14 +19,20 @@ import { POSTS } from '@/content/posts';
 import { ALLERGEN_APPROACH, CERTIFICATIONS, QUALITY_CHAIN } from '@/content/quality';
 import { SECTORS } from '@/content/sectors';
 import { SERVICES } from '@/content/services';
-import { BRAND, CONTACT, LOGO, SOCIAL } from '@/content/site';
+import { BRAND, CONTACT, LEGAL, LOGO, SOCIAL } from '@/content/site';
 import type { Differentiator, FaqItem, ProcessStep, Value } from '@/content/company';
 import type { MenuCourse, MenuSolution } from '@/content/menus';
 import type { Post } from '@/content/posts';
 import type { QualityPrinciple } from '@/content/quality';
 import type { Sector } from '@/content/sectors';
 import type { Service } from '@/content/services';
-import type { ContactChannel, Nullable, PostalAddress, WorkingHours } from '@/content/site';
+import type {
+  ContactChannel,
+  LegalIdentity,
+  Nullable,
+  PostalAddress,
+  WorkingHours,
+} from '@/content/site';
 
 /**
  * Kurumsal site içeriğinin tek okuma noktası.
@@ -137,6 +143,12 @@ export type SitePost = Post & { readonly bodyHtml: Nullable<string> };
 export interface SiteContent {
   readonly brand: SiteBrand;
   readonly contact: SiteContact;
+  /**
+   * İşletmenin yasal kimliği — yasal sayfaların (KVKK, mesafeli satış,
+   * gizlilik, çerez) zorunlu alanları. Eksik alan `null` kalır ve sayfa onu
+   * uydurmak yerine "girilmesi gerekiyor" olarak gösterir.
+   */
+  readonly legal: LegalIdentity;
   readonly company: SiteCompany;
   readonly faq: readonly FaqItem[];
   readonly sectors: readonly Sector[];
@@ -313,6 +325,22 @@ const companySchema = z.object({
   differentiators: z.array(iconCardSchema).nullish(),
 });
 
+/**
+ * Yasal kimlik. Her alan `nullish` — panelde doldurulmamış olabilir ve bu bir
+ * sözleşme ihlali değil, bilinen bir durumdur. Sayfalar eksikliği kendileri
+ * anlatır.
+ */
+const legalSchema = z.object({
+  trade_name: z.string().nullish(),
+  legal_form: z.string().nullish(),
+  registered_address: z.string().nullish(),
+  tax_office: z.string().nullish(),
+  tax_number: z.string().nullish(),
+  mersis_no: z.string().nullish(),
+  kep_address: z.string().nullish(),
+  payment_provider: z.string().nullish(),
+});
+
 const faqSchema = z.object({ question: z.string(), answer: z.string() });
 
 const sectorSchema = z.object({
@@ -410,6 +438,7 @@ const siteContentSchema = z.object({
   brand: brandSchema.nullish().catch(null),
   contact: contactSchema.nullish().catch(null),
   company: companySchema.nullish().catch(null),
+  legal: legalSchema.nullish().catch(null),
   faq: z.array(faqSchema).nullish().catch(null),
   sectors: z.array(sectorSchema).nullish().catch(null),
   menus: menusSchema.nullish().catch(null),
@@ -449,6 +478,7 @@ const FALLBACK_CONTENT: SiteContent = {
     workingHours: CONTACT.workingHours,
     social: SOCIAL,
   },
+  legal: LEGAL,
   company: {
     mission: MISSION,
     vision: VISION,
@@ -559,6 +589,30 @@ function mergeContact(input: SiteContentResponse['contact']): SiteContact {
       : null,
     workingHours: input.working_hours ?? fallback.workingHours,
     social: input.social ?? fallback.social,
+  };
+}
+
+/**
+ * Yasal kimlik birleştirme.
+ *
+ * `mergeContact` ile aynı mantık DEĞİL: orada panelin `null`'ı "bu kanal yok"
+ * demek ve yedeği ezer. Burada panelin `null`'ı "henüz girilmedi" demek, bu
+ * yüzden yedekteki doğrulanmış değer korunur — vergi numarası gibi bir alan
+ * panel boş diye sitede kaybolmamalı. Panel dolu bir değer verdiğinde o kazanır.
+ */
+function mergeLegal(input: SiteContentResponse['legal']): LegalIdentity {
+  const fallback = FALLBACK_CONTENT.legal;
+  if (!input) return fallback;
+
+  return {
+    tradeName: optionalText(input.trade_name, fallback.tradeName),
+    legalForm: optionalText(input.legal_form, fallback.legalForm),
+    registeredAddress: optionalText(input.registered_address, fallback.registeredAddress),
+    taxOffice: optionalText(input.tax_office, fallback.taxOffice),
+    taxNumber: optionalText(input.tax_number, fallback.taxNumber),
+    mersisNo: optionalText(input.mersis_no, fallback.mersisNo),
+    kepAddress: optionalText(input.kep_address, fallback.kepAddress),
+    paymentProvider: optionalText(input.payment_provider, fallback.paymentProvider),
   };
 }
 
@@ -703,6 +757,7 @@ function merge(input: SiteContentResponse): SiteContent {
   return {
     brand: mergeBrand(input.brand),
     contact: mergeContact(input.contact),
+    legal: mergeLegal(input.legal),
     company: mergeCompany(input.company),
     faq: mapList(
       input.faq,

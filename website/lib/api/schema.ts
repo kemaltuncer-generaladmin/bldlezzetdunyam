@@ -4774,6 +4774,38 @@ export interface components {
              */
             primary_color?: string | null;
         };
+        /**
+         * @description İşletmenin yasal kimliği. Mesafeli Sözleşmeler Yönetmeliği ve KVKK, satıcının/veri sorumlusunun bu bilgilerini yayınlamayı zorunlu kılar.
+         *     `contact` bloğundan AYRI: iletişim bilgisi pazarlama amaçlıdır ve sık değişir; yasal kimlik nadiren değişir ve yanlış yazılması hukuki sonuç doğurur.
+         *     Panelde doldurulmamış her alan `null` döner. İstemci `null` alanı UYDURULMUŞ bir değerle DOLDURMAZ; eksikliği açıkça gösterir. Bu, `contact` bloğunun "boşsa hiç gösterme" davranışından bilinçli olarak farklıdır: eksik telefon yalnızca bir kanalın yokluğudur, eksik vergi numarası ise sayfayı yayına uygunsuz kılar.
+         */
+        SiteLegal: {
+            /**
+             * @description Ticari unvan. Şahıs işletmesinde ad-soyad.
+             * @example Hasan Hüseyin Bardakcı
+             */
+            trade_name?: string | null;
+            /** @example Gerçek kişi (şahıs) işletmesi */
+            legal_form?: string | null;
+            /**
+             * @description Vergi levhasındaki merkez (iş yeri) adresi, tek satır. `contact.address` ile AYNI ŞEY DEĞİLDİR: o, müşteriye gösterilen ziyaret/iletişim adresidir ve mutfak başka bir yerdeyse farklı olur. Yasal metinler merkez adresini ister.
+             * @example Parsana Mah. Kaletaş Cad. No: 102/A, Selçuklu / Konya
+             */
+            registered_address?: string | null;
+            /** @example Meram */
+            tax_office?: string | null;
+            /**
+             * @description VKN (10 hane) ya da şahıs işletmesinde TCKN (11 hane).
+             * @example 1420702970
+             */
+            tax_number?: string | null;
+            /** @description Yalnızca ticaret siciline kayıtlı işletmelerde bulunur. Gerçek kişi tacirde `null` döner ve yasal metinlerde satır hiç gösterilmez. */
+            mersis_no?: string | null;
+            /** @description Kayıtlı elektronik posta adresi. Yoksa `null`. */
+            kep_address?: string | null;
+            /** @description Kart verisini işleyen ödeme hizmeti sağlayıcısının ticari adı. Gerçek bir sanal POS devreye girene kadar `null` — gizlilik metni o hâlde ödeme sağlayıcısı iddiasında bulunmaz. */
+            payment_provider?: string | null;
+        };
         SiteContact: {
             phone?: components["schemas"]["ContactChannel"] | null;
             whatsapp?: components["schemas"]["ContactChannel"] | null;
@@ -4834,6 +4866,7 @@ export interface components {
         SiteContent: {
             brand?: components["schemas"]["SiteBrand"] | null;
             contact?: components["schemas"]["SiteContact"] | null;
+            legal?: components["schemas"]["SiteLegal"] | null;
             company?: {
                 mission?: string;
                 vision?: string;
@@ -5695,6 +5728,7 @@ export type SchemaCourierReceipt = components['schemas']['CourierReceipt'];
 export type SchemaPublicOrderTracking = components['schemas']['PublicOrderTracking'];
 export type SchemaContactChannel = components['schemas']['ContactChannel'];
 export type SchemaSiteBrand = components['schemas']['SiteBrand'];
+export type SchemaSiteLegal = components['schemas']['SiteLegal'];
 export type SchemaSiteContact = components['schemas']['SiteContact'];
 export type SchemaSiteService = components['schemas']['SiteService'];
 export type SchemaSitePost = components['schemas']['SitePost'];

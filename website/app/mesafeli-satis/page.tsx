@@ -5,6 +5,12 @@ import { JsonLd } from '@/components/json-ld';
 import { PageHero, type Crumb } from '@/components/site/page-hero';
 import { Section } from '@/components/site/section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  LegalIdentityTable,
+  PendingLegalNotice,
+  identityFields,
+  pendingLegalFields,
+} from '@/components/site/legal-identity';
 import { fetchSiteContent } from '@/lib/api/site-content';
 import { breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
 
@@ -38,12 +44,15 @@ export async function generateMetadata(): Promise<Metadata> {
  *
  * ## Ticari kimlik bilgileri
  *
- * Unvan, merkez adresi, vergi dairesi/numarası, MERSİS ve KEP hâlâ
- * işletmeden alınmadı. Uydurulmuyor: metnin başındaki uyarı eksikliği açıkça
- * söylüyor ve bilgiler girilene kadar sayfa yayına çıkmamalı.
+ * Artık `/site-content`in `legal` bloğundan geliyor ve 1. maddenin altındaki
+ * tabloda gösteriliyor. Panelde doldurulmamış bir alan hâlâ UYDURULMUYOR:
+ * `PendingLegalNotice` onu "yayın öncesi tamamlanacak" listesinde sayıyor,
+ * liste boşaldığında kutu kendiliğinden kayboluyor.
  */
 export default async function MesafeliSatisPage() {
-  const { brand } = await fetchSiteContent();
+  const { brand, contact, legal } = await fetchSiteContent();
+  const seller = identityFields(contact, legal);
+  const pending = pendingLegalFields(seller, legal);
 
   return (
     <>
@@ -61,18 +70,25 @@ export default async function MesafeliSatisPage() {
             Uyarı sayfanın EN ÜSTÜNDE: aşağı kaydırmadan görülmezse işlevi
             kalmıyor. `variant="warning"` tint + metin adımını birlikte
             getiriyor; kutunun rengi elle yazılmıyor.
+
+            Metin, "kimlik bilgileri eklenecek" demiyor artık: bilgiler
+            `/site-content`in `legal` bloğundan geliyor ve aşağıdaki SATICI
+            tablosunda görünüyor. Eksik kalan varsa onu `PendingLegalNotice`
+            listeliyor ve liste boşalınca kutu kendiliğinden kayboluyor.
           */}
           <Alert variant="warning">
             <TriangleAlert strokeWidth={1.75} aria-hidden="true" />
-            <AlertTitle>Yayın öncesi tamamlanacak</AlertTitle>
+            <AlertTitle>Hukuk danışmanı onayı gerekir</AlertTitle>
             <AlertDescription>
               <p>
-                İşletmenin ticari unvanı, merkez adresi, vergi dairesi ve numarası, MERSİS numarası
-                ile KEP adresi bu metne eklenecektir. Bilgiler işletmeden alınmadan yayına çıkılmaz.
-                Metin ayrıca bir hukuk danışmanı tarafından incelenmelidir.
+                Bu metin siparişin gerçekte nasıl kurulduğunu ve tarafların yükümlülüklerini
+                anlatmak için hazırlandı; hukuki danışmanlık değildir. Yayına çıkmadan önce bir
+                hukuk danışmanı tarafından incelenmesi gerekir.
               </p>
             </AlertDescription>
           </Alert>
+
+          <PendingLegalNotice items={pending} />
 
           <div className="bld-prose mt-10">
             <h2>1. Taraflar ve konu</h2>
@@ -81,6 +97,11 @@ export default async function MesafeliSatisPage() {
               arasında, siparişe konu yiyecek ürünlerinin satışı ve teslimi hakkındadır.
             </p>
 
+          </div>
+
+          <LegalIdentityTable fields={seller} />
+
+          <div className="bld-prose mt-10">
             <h2>2. Sipariş ve fiyat</h2>
             <p>
               Sipariş, o hizmet günü için yayınlanan günün menüsü üzerinden verilir: menünün tamamı

@@ -5,7 +5,13 @@ import { JsonLd } from '@/components/json-ld';
 import { PageHero, type Crumb } from '@/components/site/page-hero';
 import { Section } from '@/components/site/section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { fetchSiteContent, type SiteContact } from '@/lib/api/site-content';
+import {
+  LegalIdentityTable,
+  PendingLegalNotice,
+  identityFields,
+  pendingLegalFields,
+} from '@/components/site/legal-identity';
+import { fetchSiteContent } from '@/lib/api/site-content';
 import { breadcrumbJsonLd, pageMetadata } from '@/lib/seo';
 
 const TITLE = 'Gizlilik Politikası';
@@ -25,69 +31,10 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-/**
- * Veri sorumlusu kimlik bilgileri.
- *
- * Değerler admin panelinden geliyor; girilmemiş bir alan burada uydurulmuş bir
- * metinle değil, "girilmesi gerekiyor" işaretiyle görünür. Firma sahibi
- * iletişim alanlarını doldurduğu anda gerçek değer basılır — bu yüzden liste
- * modül düzeyinde sabit değil, her istekte içerikten üretiliyor.
- *
- * Ticari unvan, vergi dairesi, MERSİS ve KEP sözleşmede henüz yok — bu
- * satırlar bilgi gelene kadar her hâlükârda eksik görünür. Alanlar
- * `/site-content` sözleşmesine eklendiğinde buradaki `value` ifadeleri de
- * bağlanmalıdır.
- */
-function controllerFields(
-  contact: SiteContact,
-): readonly { readonly label: string; readonly value: string | null }[] {
-  return [
-    { label: 'Ticari unvan', value: null },
-    {
-      label: 'Merkez adresi',
-      value: contact.address
-        ? `${contact.address.streetAddress}, ${contact.address.district} / ${contact.address.city}`
-        : null,
-    },
-    { label: 'Vergi dairesi ve numarası', value: null },
-    { label: 'MERSİS numarası', value: null },
-    { label: 'KEP adresi', value: null },
-    { label: 'Telefon', value: contact.phone ? contact.phone.display : null },
-    { label: 'E-posta', value: contact.email ? contact.email.display : null },
-  ];
-}
-
-/** Kimlik alanlarına ek olarak, metnin kendisinde netleşmesi gereken başlıklar. */
-const OPEN_ITEMS: readonly string[] = [
-  'Ödeme hizmeti sağlayıcısının ticari adı',
-  'Barındırma (hosting) sağlayıcısı ve sunucu konumu',
-  'Sunucu erişim kayıtlarının (log) saklama süresi',
-  'Sipariş kayıtları için uygulanacak saklama süreleri',
-];
-
-function pendingFields(
-  fields: readonly { readonly label: string; readonly value: string | null }[],
-): readonly string[] {
-  return [
-    ...fields.filter((field) => field.value === null).map((field) => field.label),
-    ...OPEN_ITEMS,
-  ];
-}
-
-/** `null` alanlar için ortak işaret — sahte değer basmak yerine eksikliği söyler. */
-function MissingValue() {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-xs bg-warning-surface px-2 py-0.5 text-caption font-semibold text-warning-foreground">
-      <TriangleAlert strokeWidth={1.75} aria-hidden="true" className="size-3.5" />
-      Girilmesi gerekiyor
-    </span>
-  );
-}
-
 export default async function GizlilikPage() {
-  const { brand, contact } = await fetchSiteContent();
-  const controller = controllerFields(contact);
-  const pending = pendingFields(controller);
+  const { brand, contact, legal } = await fetchSiteContent();
+  const controller = identityFields(contact, legal);
+  const pending = pendingLegalFields(controller, legal);
 
   return (
     <>
@@ -115,29 +62,7 @@ export default async function GizlilikPage() {
             </AlertDescription>
           </Alert>
 
-          {pending.length > 0 && (
-            <div className="mt-6 rounded-md border p-5">
-              <h2 className="font-display text-h3 font-semibold text-heading">
-                Yayın öncesi tamamlanacak bilgiler
-              </h2>
-              <p className="mt-1 text-body text-muted-foreground">
-                Aşağıdaki bilgiler işletmeden alınmadığı için metne yazılmadı. Bilgi girildiğinde bu
-                kutu kendiliğinden kaybolur.
-              </p>
-              <ul className="mt-3 grid gap-1.5 text-body-sm sm:grid-cols-2">
-                {pending.map((field) => (
-                  <li key={field} className="flex items-start gap-2">
-                    <TriangleAlert
-                      strokeWidth={1.75}
-                      aria-hidden="true"
-                      className="mt-0.5 size-3.5 shrink-0 text-warning"
-                    />
-                    {field}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          <PendingLegalNotice items={pending} />
 
           <div className="bld-prose mt-10">
             <h2>1. Bu politika neyi kapsar?</h2>
@@ -160,17 +85,7 @@ export default async function GizlilikPage() {
             </p>
           </div>
 
-          <dl className="mt-6 divide-y rounded-md border">
-            {controller.map((field) => (
-              <div
-                key={field.label}
-                className="grid gap-1 px-4 py-3 sm:grid-cols-[15rem_1fr] sm:items-center sm:gap-4"
-              >
-                <dt className="text-label">{field.label}</dt>
-                <dd className="text-body">{field.value ?? <MissingValue />}</dd>
-              </div>
-            ))}
-          </dl>
+          <LegalIdentityTable fields={controller} />
 
           <div className="bld-prose">
             <h2>3. Hangi veriler toplanıyor?</h2>
