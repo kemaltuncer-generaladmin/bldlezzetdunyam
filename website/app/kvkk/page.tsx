@@ -122,12 +122,36 @@ export default async function KvkkPage() {
               hâlinde yetkili kamu kurumlarına aktarılabilir. Mutfak ekranına düşen sipariş kaydında
               fiyat ve iletişim bilgisi bulunmaz; adres yalnızca müşteri fişinde yer alır.
             </p>
+            {/*
+              KVKK md.9 yurt dışına aktarımın AÇIKÇA bildirilmesini istiyor.
+              Sunucu Hetzner Online GmbH'nin Finlandiya veri merkezinde
+              (`docs/08-kurulum-deploy.md` §1, IP whois: netname CLOUD-HEL1) —
+              yani veriler fiilen yurt dışında tutuluyor. Burada yalnızca OLGU
+              yazılıyor; aktarımın hangi hukuki sebebe dayandığı (açık rıza,
+              yeterlilik kararı, standart sözleşme) hukuk danışmanının
+              belirleyeceği bir konu ve metinde iddia edilmiyor.
+            */}
+            <p>
+              Site ve veritabanı, barındırma sağlayıcısı <strong>Hetzner Online GmbH</strong>&apos;nin{' '}
+              <strong>Finlandiya</strong>&apos;daki veri merkezinde barındırılmaktadır. Kişisel
+              verileriniz bu nedenle yurt dışında bulunan sunucularda tutulmaktadır.
+            </p>
 
             <h2>6. Saklama süresi</h2>
             <p>
               Veriler, ilgili mevzuatta öngörülen zamanaşımı ve saklama süreleri boyunca tutulur;
-              süre dolduğunda silinir, yok edilir veya anonim hâle getirilir.
+              süre dolduğunda silinir, yok edilir veya anonim hâle getirilir. Uygulanan süreler:
             </p>
+            <ul>
+              <li>
+                Sipariş ve fatura kayıtları: <strong>10 yıl</strong> (ticari ve vergisel belge
+                saklama yükümlülüğü)
+              </li>
+              <li>
+                Sunucu erişim kayıtları (log): <strong>15 gün</strong>
+              </li>
+              <li>Hesap bilgileri: hesap açık kaldığı sürece</li>
+            </ul>
 
             <h2>7. Haklarınız</h2>
             <p>

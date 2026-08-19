@@ -127,10 +127,30 @@ export const LOGO = {
   height: 0,
 } as const;
 
+/**
+ * İletişim kanalları — **YEDEK**, tek kaynak panel.
+ *
+ * Telefon ve e-posta 19.08.2026'da işletme sahibi tarafından doğrulandı: BLD,
+ * BBD ile aynı gerçek kişi işletmesi olduğu için aynı hattı ve aynı destek
+ * kutusunu kullanıyor. Dosyanın başındaki "doğrulanmamış hiçbir değeri yazma"
+ * kuralı ihlal edilmiyor — burada uydurulmuş değil, teyit edilmiş bir değer var.
+ *
+ * E-posta `bbdstore.com.tr` alanında: işletme sahibinin kararı. BLD kendi
+ * alanında bir kutu açtığında panelden değiştirilir, koda dokunmak gerekmez.
+ *
+ * `whatsapp`, `address` ve `workingHours` HÂLÂ `null`/boş: bunlar için
+ * doğrulanmış bir değer yok. Yasal metinlerin ihtiyaç duyduğu merkez adresi
+ * ayrı bir alandan geliyor (bkz. `LEGAL.registeredAddress`) — buradaki adres
+ * müşteriye gösterilecek ziyaret adresidir ve catering mutfağının nerede
+ * olduğu teyit edilmedi.
+ */
 export const CONTACT = {
-  phone: null as Nullable<ContactChannel>,
+  phone: { display: '0543 943 9725', href: 'tel:+905439439725' } as Nullable<ContactChannel>,
   whatsapp: null as Nullable<ContactChannel>,
-  email: null as Nullable<ContactChannel>,
+  email: {
+    display: 'destek@bbdstore.com.tr',
+    href: 'mailto:destek@bbdstore.com.tr',
+  } as Nullable<ContactChannel>,
   address: null as Nullable<PostalAddress>,
   workingHours: [] as readonly WorkingHours[],
 } as const;

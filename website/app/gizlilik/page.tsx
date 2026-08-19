@@ -113,8 +113,9 @@ export default async function GizlilikPage() {
               </li>
               <li>
                 <strong>Sunucu kayıtları:</strong> barındırma altyapısı düzeyinde istek kayıtları
-                (tarih-saat, IP adresi gibi) oluşabilir. Bu kayıtların saklama süresi yukarıdaki
-                tamamlanacak bilgiler listesindedir.
+                (tarih-saat, IP adresi gibi) oluşur. Bu kayıtlar <strong>15 gün</strong> saklanır ve
+                sürenin sonunda silinir; güvenlik olaylarının incelenmesi ve arıza teşhisi dışında
+                bir amaçla kullanılmaz.
               </li>
             </ul>
             <p>
@@ -143,7 +144,11 @@ export default async function GizlilikPage() {
                 Teslimatı yapan görevliyle, teslimat adresi ve sipariş içeriğiyle sınırlı olarak
               </li>
               <li>Ödeme hizmeti sağlayıcısıyla, ödeme işleminin gerçekleştirilmesi için</li>
-              <li>Barındırma sağlayıcısıyla, verilerin sunucu üzerinde tutulması kapsamında</li>
+              <li>
+                Barındırma sağlayıcısı <strong>Hetzner Online GmbH</strong> ile, verilerin sunucu
+                üzerinde tutulması kapsamında. Sunucu <strong>Finlandiya</strong>&apos;dadır; veriler
+                bu nedenle yurt dışında barındırılır.
+              </li>
               <li>Yetkili kamu kurumlarıyla, yasal bir talep olduğunda</li>
             </ul>
             <p>
@@ -152,12 +157,20 @@ export default async function GizlilikPage() {
             </p>
 
             <h2>6. Veriler ne kadar süre saklanıyor?</h2>
-            <p>
-              Sipariş ve fatura kayıtları, mevzuatın öngördüğü saklama ve zamanaşımı süreleri
-              boyunca tutulur. Hesabınızı sildirdiğinizde, yasal saklama yükümlülüğü kapsamında
-              tutulması gerekenler dışındaki veriler silinir veya anonim hâle getirilir. Uygulanacak
-              somut süreler, hukuki inceleme sonrasında bu bölüme eklenecektir.
-            </p>
+            <ul>
+              <li>
+                <strong>Sipariş ve fatura kayıtları:</strong> ticari ve vergisel belge saklama
+                yükümlülüğü gereği <strong>10 yıl</strong>.
+              </li>
+              <li>
+                <strong>Sunucu erişim kayıtları (log):</strong> <strong>15 gün</strong>.
+              </li>
+              <li>
+                <strong>Hesap bilgileri:</strong> hesabınız açık kaldığı sürece. Hesabınızı
+                sildirdiğinizde, yukarıdaki yasal saklama yükümlülüğü kapsamına girenler dışındaki
+                veriler silinir veya anonim hâle getirilir.
+              </li>
+            </ul>
             <p>
               Çerezlerin süreleri ayrıdır ve <Link href="/cerez-politikasi">Çerez Politikası</Link>{' '}
               sayfasındaki tabloda tek tek belirtilmiştir.

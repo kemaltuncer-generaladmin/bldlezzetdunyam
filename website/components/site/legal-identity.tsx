@@ -72,18 +72,19 @@ export function identityFields(
 /**
  * Kimlik alanlarına ek olarak metnin kendisinde netleşmesi gereken başlıklar.
  *
- * Ödeme sağlayıcısı listeye YALNIZCA gerçek bir sanal POS devreye girmemişse
- * eklenir: `veykemtu/payment` altında şu an nakit, havale ve bir SİMÜLASYON
- * geçidi var (bkz. `docs/03-api-sozlesmesi.md` §"Faz 1 notu"), yani ortada
- * kart verisi işleyen bir sağlayıcı yok. Panelde sağlayıcı adı girildiğinde
- * madde kendiliğinden listeden düşer.
+ * Listede TEK madde kaldı. Barındırma sağlayıcısı/konumu ve sunucu kayıtlarının
+ * saklama süresi 19.08.2026'da netleşti ve gizlilik metnine doğrudan yazıldı —
+ * bunlar mühendislik gerçekleri, yöneticinin panelden düzenleyeceği iş verisi
+ * değil; sunucu taşınırsa zaten kod/altyapı değişikliği olur.
+ *
+ * Ödeme sağlayıcısı listede KALIYOR çünkü gerçekten yok: `veykemtu/payment`
+ * altında nakit, havale ve bir SİMÜLASYON geçidi var (bkz.
+ * `docs/03-api-sozlesmesi.md` §"Faz 1 notu"), yani kart verisi işleyen bir
+ * sağlayıcı ortada değil. Panelde sağlayıcı adı girildiğinde madde
+ * kendiliğinden listeden düşer ve kutu tamamen kaybolur.
  */
 export function openLegalItems(legal: LegalIdentity): readonly string[] {
-  return [
-    ...(legal.paymentProvider === null ? ['Ödeme hizmeti sağlayıcısının ticari adı'] : []),
-    'Barındırma (hosting) sağlayıcısı ve sunucu konumu',
-    'Sunucu erişim kayıtlarının (log) saklama süresi',
-  ];
+  return legal.paymentProvider === null ? ['Ödeme hizmeti sağlayıcısının ticari adı'] : [];
 }
 
 export function pendingLegalFields(
