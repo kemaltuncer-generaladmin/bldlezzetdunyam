@@ -100,8 +100,8 @@ final class SiteContentSeed
             'phone' => ['display' => '0543 943 9725', 'href' => 'tel:+905439439725'],
             'whatsapp' => null,
             'email' => [
-                'display' => 'huseiyn.bardakci@benimlezzetdunyam.com.tr',
-                'href' => 'mailto:huseiyn.bardakci@benimlezzetdunyam.com.tr',
+                'display' => 'huseyin.bardakci@benimlezzetdunyam.com.tr',
+                'href' => 'mailto:huseyin.bardakci@benimlezzetdunyam.com.tr',
             ],
             /*
              * `address` HÂLÂ null: buradaki adres müşteriye gösterilecek ziyaret

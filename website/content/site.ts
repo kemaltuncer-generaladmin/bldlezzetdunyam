@@ -148,8 +148,8 @@ export const CONTACT = {
   phone: { display: '0543 943 9725', href: 'tel:+905439439725' } as Nullable<ContactChannel>,
   whatsapp: null as Nullable<ContactChannel>,
   email: {
-    display: 'huseiyn.bardakci@benimlezzetdunyam.com.tr',
-    href: 'mailto:huseiyn.bardakci@benimlezzetdunyam.com.tr',
+    display: 'huseyin.bardakci@benimlezzetdunyam.com.tr',
+    href: 'mailto:huseyin.bardakci@benimlezzetdunyam.com.tr',
   } as Nullable<ContactChannel>,
   address: null as Nullable<PostalAddress>,
   workingHours: [] as readonly WorkingHours[],
