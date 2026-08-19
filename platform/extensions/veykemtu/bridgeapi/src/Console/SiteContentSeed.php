@@ -83,9 +83,31 @@ final class SiteContentSeed
     private static function contact(): array
     {
         return [
-            'phone' => null,
+            /*
+             * Telefon ve e-posta 19.08.2026'da işletme sahibince doğrulandı:
+             * BLD, BBD ile aynı gerçek kişi işletmesi olduğu için aynı hattı ve
+             * aynı destek kutusunu kullanıyor. Dosya başlığındaki "uydurulmuş
+             * hiçbir değer yok" kuralı bozulmuyor — teyit edilmiş değerler.
+             *
+             * DİKKAT — bu tohum ZATEN KURULMUŞ bir ortamı DEĞİŞTİRMEZ.
+             * `SiteContentRepository` panelden gelen `null`ı "bu kanal yok"
+             * olarak kabul eder ve site yedeğiyle ezmez (bilinçli karar, bkz.
+             * `website/lib/api/site-content.ts` `mergeContact`). Canlıda
+             * `contact` satırı boş değerlerle zaten var; oraya bu numaraların
+             * düşmesi için panelden **Site İçeriği → İletişim** kaydedilmelidir.
+             */
+            'phone' => ['display' => '0543 943 9725', 'href' => 'tel:+905439439725'],
             'whatsapp' => null,
-            'email' => null,
+            'email' => [
+                'display' => 'destek@bbdstore.com.tr',
+                'href' => 'mailto:destek@bbdstore.com.tr',
+            ],
+            /*
+             * `address` HÂLÂ null: buradaki adres müşteriye gösterilecek ziyaret
+             * adresidir ve catering mutfağının nerede olduğu teyit edilmedi.
+             * Yasal metinlerin istediği merkez adresi ayrı alandan geliyor
+             * (`legal.registered_address`).
+             */
             'address' => null,
             'working_hours' => [],
             'social' => [],
