@@ -135,8 +135,8 @@ export const LOGO = {
  * kutusunu kullanıyor. Dosyanın başındaki "doğrulanmamış hiçbir değeri yazma"
  * kuralı ihlal edilmiyor — burada uydurulmuş değil, teyit edilmiş bir değer var.
  *
- * E-posta `bbdstore.com.tr` alanında: işletme sahibinin kararı. BLD kendi
- * alanında bir kutu açtığında panelden değiştirilir, koda dokunmak gerekmez.
+ * E-posta BLD'nin kendi alanında (`benimlezzetdunyam.com.tr`, Google Workspace
+ * MX kayıtlı). 20.08.2026'da işletme sahibi tarafından bu yazımla verildi.
  *
  * `whatsapp`, `address` ve `workingHours` HÂLÂ `null`/boş: bunlar için
  * doğrulanmış bir değer yok. Yasal metinlerin ihtiyaç duyduğu merkez adresi
@@ -148,8 +148,8 @@ export const CONTACT = {
   phone: { display: '0543 943 9725', href: 'tel:+905439439725' } as Nullable<ContactChannel>,
   whatsapp: null as Nullable<ContactChannel>,
   email: {
-    display: 'destek@bbdstore.com.tr',
-    href: 'mailto:destek@bbdstore.com.tr',
+    display: 'huseiyn.bardakci@benimlezzetdunyam.com.tr',
+    href: 'mailto:huseiyn.bardakci@benimlezzetdunyam.com.tr',
   } as Nullable<ContactChannel>,
   address: null as Nullable<PostalAddress>,
   workingHours: [] as readonly WorkingHours[],

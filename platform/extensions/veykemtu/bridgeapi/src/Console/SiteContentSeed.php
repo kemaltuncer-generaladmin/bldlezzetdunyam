@@ -86,8 +86,9 @@ final class SiteContentSeed
             /*
              * Telefon ve e-posta 19.08.2026'da işletme sahibince doğrulandı:
              * BLD, BBD ile aynı gerçek kişi işletmesi olduğu için aynı hattı ve
-             * aynı destek kutusunu kullanıyor. Dosya başlığındaki "uydurulmuş
+             * kendi alan adındaki kutusunu kullanıyor. Dosya başlığındaki "uydurulmuş
              * hiçbir değer yok" kuralı bozulmuyor — teyit edilmiş değerler.
+             * (E-posta 20.08.2026'da sahibi tarafından bu biçimde verildi.)
              *
              * DİKKAT — bu tohum ZATEN KURULMUŞ bir ortamı DEĞİŞTİRMEZ.
              * `SiteContentRepository` panelden gelen `null`ı "bu kanal yok"
@@ -99,8 +100,8 @@ final class SiteContentSeed
             'phone' => ['display' => '0543 943 9725', 'href' => 'tel:+905439439725'],
             'whatsapp' => null,
             'email' => [
-                'display' => 'destek@bbdstore.com.tr',
-                'href' => 'mailto:destek@bbdstore.com.tr',
+                'display' => 'huseiyn.bardakci@benimlezzetdunyam.com.tr',
+                'href' => 'mailto:huseiyn.bardakci@benimlezzetdunyam.com.tr',
             ],
             /*
              * `address` HÂLÂ null: buradaki adres müşteriye gösterilecek ziyaret
