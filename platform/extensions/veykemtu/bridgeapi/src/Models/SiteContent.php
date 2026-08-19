@@ -27,6 +27,19 @@ class SiteContent extends Model
 
     public const string KEY_COMPANY = 'company';
 
+    /**
+     * İşletmenin YASAL kimliği — ticari unvan, vergi dairesi/numarası, MERSİS,
+     * KEP, ödeme hizmeti sağlayıcısı.
+     *
+     * `KEY_CONTACT`ten ayrı tutuluyor: iletişim bilgisi pazarlama amaçlı
+     * (telefon, WhatsApp, sosyal medya) ve sık değişir; yasal kimlik ise
+     * Mesafeli Sözleşmeler Yönetmeliği ile KVKK'nın zorunlu kıldığı, nadiren
+     * değişen ve yanlış yazılması hukuki sonuç doğuran bir kümedir. Aynı
+     * anahtarda tutmak, telefon güncellerken vergi numarasını silme riski
+     * demekti.
+     */
+    public const string KEY_LEGAL = 'legal';
+
     public const string KEY_FAQ = 'faq';
 
     public const string KEY_SECTORS = 'sectors';
@@ -40,6 +53,7 @@ class SiteContent extends Model
         self::KEY_BRAND,
         self::KEY_CONTACT,
         self::KEY_COMPANY,
+        self::KEY_LEGAL,
         self::KEY_FAQ,
         self::KEY_SECTORS,
         self::KEY_MENUS,

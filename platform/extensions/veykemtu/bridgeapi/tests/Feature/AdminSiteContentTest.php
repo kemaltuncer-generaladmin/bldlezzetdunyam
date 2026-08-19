@@ -10,6 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
+use Veykemtu\BridgeApi\Admin\SiteContentSettings;
 use Veykemtu\BridgeApi\Http\Middleware\RequireAdminPanel;
 use Veykemtu\BridgeApi\Models\SitePost;
 use Veykemtu\BridgeApi\Models\SiteService;
@@ -304,6 +305,68 @@ class AdminSiteContentTest extends TestCase
 
         $this->assertNotNull($published);
         $this->assertSame(['Ofisler'], $published['audience']);
+    }
+
+    // ── Yasal kimlik ──────────────────────────────────────────────────────
+
+    /**
+     * Panelden girilen yasal kimlik site paketine düşer.
+     *
+     * NEDEN AYRI TEST: bu alanlar Mesafeli Sözleşmeler Yönetmeliği ve KVKK
+     * gereği sitede yayınlanmak ZORUNDA. Sessizce kaybolduklarında site
+     * çalışmaya devam eder — yalnız yasal metinler eksik yayınlanır ve bunu
+     * fark eden olmaz.
+     */
+    public function test_yasal_kimlik_site_paketinde_gorunur(): void
+    {
+        $this->actingAsAdmin();
+
+        $settings = new SiteContentSettings;
+        $settings->set([
+            'brand_name' => 'Benim Lezzet Dünyam',
+            'legal_trade_name' => 'Hasan Hüseyin Bardakcı',
+            'legal_form' => 'Gerçek kişi (şahıs) işletmesi',
+            'legal_registered_address' => 'Parsana Mah. Kaletaş Cad. No: 102/A, Selçuklu / Konya',
+            'legal_tax_office' => 'Meram',
+            'legal_tax_number' => '1420702970',
+        ]);
+
+        $legal = resolve(SiteContentRepository::class)->bundle()['legal'];
+
+        $this->assertSame('Hasan Hüseyin Bardakcı', $legal['trade_name']);
+        $this->assertSame('Meram', $legal['tax_office']);
+        $this->assertSame('1420702970', $legal['tax_number']);
+        $this->assertSame(
+            'Parsana Mah. Kaletaş Cad. No: 102/A, Selçuklu / Konya',
+            $legal['registered_address'],
+        );
+    }
+
+    /**
+     * Doldurulmamış alan boş dize değil `null` döner.
+     *
+     * Site `null`ı "girilmesi gerekiyor" uyarısıyla gösteriyor; boş dizeyi ise
+     * doldurulmuş sayıp yanına hiçbir şey basmadan geçerdi — eksik bir vergi
+     * numarası görünmez olurdu.
+     */
+    public function test_bos_yasal_alan_null_kaydedilir(): void
+    {
+        $this->actingAsAdmin();
+
+        $settings = new SiteContentSettings;
+        $settings->set([
+            'brand_name' => 'Benim Lezzet Dünyam',
+            'legal_trade_name' => 'Hasan Hüseyin Bardakcı',
+            'legal_mersis_no' => '',
+            'legal_kep_address' => '   ',
+            'legal_payment_provider' => '',
+        ]);
+
+        $legal = resolve(SiteContentRepository::class)->bundle()['legal'];
+
+        $this->assertNull($legal['mersis_no']);
+        $this->assertNull($legal['kep_address']);
+        $this->assertNull($legal['payment_provider']);
     }
 
     // ── Yetki ─────────────────────────────────────────────────────────────

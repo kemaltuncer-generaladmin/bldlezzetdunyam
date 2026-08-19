@@ -72,6 +72,7 @@ final class SiteContentRepository
             'brand' => $values[SiteContent::KEY_BRAND],
             'contact' => $values[SiteContent::KEY_CONTACT],
             'company' => $values[SiteContent::KEY_COMPANY],
+            'legal' => $values[SiteContent::KEY_LEGAL],
             'faq' => $values[SiteContent::KEY_FAQ] ?? [],
             'sectors' => $values[SiteContent::KEY_SECTORS] ?? [],
             'menus' => $values[SiteContent::KEY_MENUS],

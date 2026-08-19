@@ -6428,6 +6428,58 @@ components:
             `#RRGGBB`. Kaydedilmeden önce beyaz metinle kontrastı ölçülür;
             WCAG AA eşiğini (4,5:1) geçmeyen renk reddedilir.
 
+    SiteLegal:
+      type: object
+      description: >
+        İşletmenin yasal kimliği. Mesafeli Sözleşmeler Yönetmeliği ve KVKK,
+        satıcının/veri sorumlusunun bu bilgilerini yayınlamayı zorunlu kılar.
+
+        `contact` bloğundan AYRI: iletişim bilgisi pazarlama amaçlıdır ve sık
+        değişir; yasal kimlik nadiren değişir ve yanlış yazılması hukuki sonuç
+        doğurur.
+
+        Panelde doldurulmamış her alan `null` döner. İstemci `null` alanı
+        UYDURULMUŞ bir değerle DOLDURMAZ; eksikliği açıkça gösterir. Bu,
+        `contact` bloğunun "boşsa hiç gösterme" davranışından bilinçli olarak
+        farklıdır: eksik telefon yalnızca bir kanalın yokluğudur, eksik vergi
+        numarası ise sayfayı yayına uygunsuz kılar.
+      properties:
+        trade_name:
+          type: [string, 'null']
+          description: Ticari unvan. Şahıs işletmesinde ad-soyad.
+          example: Hasan Hüseyin Bardakcı
+        legal_form:
+          type: [string, 'null']
+          example: Gerçek kişi (şahıs) işletmesi
+        registered_address:
+          type: [string, 'null']
+          description: >
+            Vergi levhasındaki merkez (iş yeri) adresi, tek satır. `contact.address`
+            ile AYNI ŞEY DEĞİLDİR: o, müşteriye gösterilen ziyaret/iletişim
+            adresidir ve mutfak başka bir yerdeyse farklı olur. Yasal metinler
+            merkez adresini ister.
+          example: 'Parsana Mah. Kaletaş Cad. No: 102/A, Selçuklu / Konya'
+        tax_office:
+          type: [string, 'null']
+          example: Meram
+        tax_number:
+          type: [string, 'null']
+          description: VKN (10 hane) ya da şahıs işletmesinde TCKN (11 hane).
+          example: '1420702970'
+        mersis_no:
+          type: [string, 'null']
+          description: >
+            Yalnızca ticaret siciline kayıtlı işletmelerde bulunur. Gerçek kişi
+            tacirde `null` döner ve yasal metinlerde satır hiç gösterilmez.
+        kep_address:
+          type: [string, 'null']
+          description: Kayıtlı elektronik posta adresi. Yoksa `null`.
+        payment_provider:
+          type: [string, 'null']
+          description: >
+            Kart verisini işleyen ödeme hizmeti sağlayıcısının ticari adı.
+            Gerçek bir sanal POS devreye girene kadar `null` — gizlilik metni
+            o hâlde ödeme sağlayıcısı iddiasında bulunmaz.
     SiteContact:
       type: object
       properties:
@@ -6515,6 +6567,8 @@ components:
           oneOf: [{ $ref: '#/components/schemas/SiteBrand' }, { type: 'null' }]
         contact:
           oneOf: [{ $ref: '#/components/schemas/SiteContact' }, { type: 'null' }]
+        legal:
+          oneOf: [{ $ref: '#/components/schemas/SiteLegal' }, { type: 'null' }]
         company:
           type: [object, 'null']
           properties:

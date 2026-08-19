@@ -203,6 +203,57 @@ return [
                 ],
             ],
 
+            // ── Yasal kimlik ───────────────────────────────────────────────
+            'legal_section' => [
+                'type' => 'section',
+                'label' => 'lang:veykemtu.bridgeapi::sitecontent.section_legal',
+                'comment' => 'lang:veykemtu.bridgeapi::sitecontent.section_legal_comment',
+            ],
+            'legal_trade_name' => [
+                'label' => 'lang:veykemtu.bridgeapi::sitecontent.label_trade_name',
+                'type' => 'text',
+                'comment' => 'lang:veykemtu.bridgeapi::sitecontent.help_trade_name',
+            ],
+            'legal_form' => [
+                'label' => 'lang:veykemtu.bridgeapi::sitecontent.label_legal_form',
+                'type' => 'text',
+                'span' => 'left',
+                'placeholder' => 'Gerçek kişi (şahıs) işletmesi',
+            ],
+            'legal_payment_provider' => [
+                'label' => 'lang:veykemtu.bridgeapi::sitecontent.label_payment_provider',
+                'type' => 'text',
+                'span' => 'right',
+                'comment' => 'lang:veykemtu.bridgeapi::sitecontent.help_payment_provider',
+            ],
+            'legal_registered_address' => [
+                'label' => 'lang:veykemtu.bridgeapi::sitecontent.label_registered_address',
+                'type' => 'text',
+                'comment' => 'lang:veykemtu.bridgeapi::sitecontent.help_registered_address',
+            ],
+            'legal_tax_office' => [
+                'label' => 'lang:veykemtu.bridgeapi::sitecontent.label_tax_office',
+                'type' => 'text',
+                'span' => 'left',
+            ],
+            'legal_tax_number' => [
+                'label' => 'lang:veykemtu.bridgeapi::sitecontent.label_tax_number',
+                'type' => 'text',
+                'span' => 'right',
+            ],
+            'legal_mersis_no' => [
+                'label' => 'lang:veykemtu.bridgeapi::sitecontent.label_mersis',
+                'type' => 'text',
+                'span' => 'left',
+                'comment' => 'lang:veykemtu.bridgeapi::sitecontent.help_optional_registry',
+            ],
+            'legal_kep_address' => [
+                'label' => 'lang:veykemtu.bridgeapi::sitecontent.label_kep',
+                'type' => 'text',
+                'span' => 'right',
+                'comment' => 'lang:veykemtu.bridgeapi::sitecontent.help_optional_registry',
+            ],
+
             // ── Kurumsal ───────────────────────────────────────────────────
             'company_section' => [
                 'type' => 'section',
@@ -512,6 +563,20 @@ return [
             ['brand_short_name', 'lang:veykemtu.bridgeapi::sitecontent.label_brand_short_name', 'nullable|string|max:32'],
             ['contact_email', 'lang:veykemtu.bridgeapi::sitecontent.label_email', 'nullable|email|max:160'],
             ['address_map_embed_url', 'lang:veykemtu.bridgeapi::sitecontent.label_map', 'nullable|url|max:600'],
+            ['legal_trade_name', 'lang:veykemtu.bridgeapi::sitecontent.label_trade_name', 'nullable|string|max:200'],
+            ['legal_form', 'lang:veykemtu.bridgeapi::sitecontent.label_legal_form', 'nullable|string|max:80'],
+            ['legal_registered_address', 'lang:veykemtu.bridgeapi::sitecontent.label_registered_address', 'nullable|string|max:300'],
+            ['legal_tax_office', 'lang:veykemtu.bridgeapi::sitecontent.label_tax_office', 'nullable|string|max:80'],
+            /*
+             * VKN 10, TCKN 11 hane. Şahıs işletmelerinde vergi kimlik numarası
+             * yerine T.C. kimlik numarası kullanılabildiği için ikisi de kabul
+             * ediliyor; harf ya da boşluk kabul edilmiyor — yanlış yazılmış bir
+             * vergi numarası yasal metinde en kötü hatadır.
+             */
+            ['legal_tax_number', 'lang:veykemtu.bridgeapi::sitecontent.label_tax_number', 'nullable|digits_between:10,11'],
+            ['legal_mersis_no', 'lang:veykemtu.bridgeapi::sitecontent.label_mersis', 'nullable|digits:16'],
+            ['legal_kep_address', 'lang:veykemtu.bridgeapi::sitecontent.label_kep', 'nullable|email|max:160'],
+            ['legal_payment_provider', 'lang:veykemtu.bridgeapi::sitecontent.label_payment_provider', 'nullable|string|max:120'],
         ],
     ],
 

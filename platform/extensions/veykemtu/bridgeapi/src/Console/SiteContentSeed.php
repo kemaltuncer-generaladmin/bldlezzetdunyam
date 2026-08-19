@@ -48,6 +48,7 @@ final class SiteContentSeed
             SiteContent::KEY_BRAND => self::brand(),
             SiteContent::KEY_CONTACT => self::contact(),
             SiteContent::KEY_COMPANY => self::company(),
+            SiteContent::KEY_LEGAL => self::legal(),
             SiteContent::KEY_FAQ => self::faq(),
             SiteContent::KEY_SECTORS => self::sectors(),
             SiteContent::KEY_MENUS => self::menus(),
@@ -88,6 +89,41 @@ final class SiteContentSeed
             'address' => null,
             'working_hours' => [],
             'social' => [],
+        ];
+    }
+
+    /**
+     * İşletmenin yasal kimliği.
+     *
+     * Bu blok, dosyanın başındaki "uydurulmuş hiçbir değer yok" kuralının
+     * ISTISNASI DEĞİLDİR: buradaki değerler 2024 vergi levhasından
+     * (Gelir İdaresi Başkanlığı onay kodu WVVA0KN3E20) birebir alınmıştır.
+     * BLD, BBD ile aynı gerçek kişi işletmesi altında faaliyet gösterir.
+     *
+     * `mersis_no` ve `kep_address` `null`: işletme ticaret siciline kayıtlı
+     * bir tüzel kişi değil, gerçek kişi tacirdir; bu numaralar mevcut değildir
+     * ve Mesafeli Sözleşmeler Yönetmeliği bunları "varsa" kaydıyla ister.
+     *
+     * `payment_provider` `null`: kodda gerçek bir sanal POS entegrasyonu
+     * YOK — `veykemtu/payment` altında yalnız `CashPayment`, `OfflinePayment`
+     * ve `SimulatedPos` var (`docs/03-api-sozlesmesi.md` §"Faz 1 notu"). Kuveyt
+     * Türk sözleşmesi tamamlanıp gerçek geçit devreye girdiğinde panelden
+     * doldurulur; o ana kadar gizlilik metninde ödeme sağlayıcısı iddiası
+     * yapılmaz.
+     *
+     * @return array<string, mixed>
+     */
+    private static function legal(): array
+    {
+        return [
+            'trade_name' => 'Hasan Hüseyin Bardakcı',
+            'legal_form' => 'Gerçek kişi (şahıs) işletmesi',
+            'registered_address' => 'Parsana Mah. Kaletaş Cad. No: 102/A, Selçuklu / Konya',
+            'tax_office' => 'Meram',
+            'tax_number' => '1420702970',
+            'mersis_no' => null,
+            'kep_address' => null,
+            'payment_provider' => null,
         ];
     }
 

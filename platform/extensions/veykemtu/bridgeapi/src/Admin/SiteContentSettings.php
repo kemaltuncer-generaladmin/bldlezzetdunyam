@@ -64,6 +64,7 @@ class SiteContentSettings extends Model
         $brand = $this->arrayValue($rows->get(SiteContent::KEY_BRAND));
         $contact = $this->arrayValue($rows->get(SiteContent::KEY_CONTACT));
         $company = $this->arrayValue($rows->get(SiteContent::KEY_COMPANY));
+        $legal = $this->arrayValue($rows->get(SiteContent::KEY_LEGAL));
         $menus = $this->arrayValue($rows->get(SiteContent::KEY_MENUS));
         $quality = $this->arrayValue($rows->get(SiteContent::KEY_QUALITY));
 
@@ -98,6 +99,16 @@ class SiteContentSettings extends Model
             'company_values' => $company['values'] ?? [],
             'company_process_steps' => $company['process_steps'] ?? [],
             'company_differentiators' => $company['differentiators'] ?? [],
+
+            // Yasal kimlik
+            'legal_trade_name' => $legal['trade_name'] ?? '',
+            'legal_form' => $legal['legal_form'] ?? '',
+            'legal_registered_address' => $legal['registered_address'] ?? '',
+            'legal_tax_office' => $legal['tax_office'] ?? '',
+            'legal_tax_number' => $legal['tax_number'] ?? '',
+            'legal_mersis_no' => $legal['mersis_no'] ?? '',
+            'legal_kep_address' => $legal['kep_address'] ?? '',
+            'legal_payment_provider' => $legal['payment_provider'] ?? '',
 
             // Listeler
             'faq' => $this->arrayValue($rows->get(SiteContent::KEY_FAQ)),
@@ -151,6 +162,7 @@ class SiteContentSettings extends Model
         $this->writeBrand($data);
         $this->writeContact($data);
         $this->writeCompany($data);
+        $this->writeLegal($data);
 
         $this->put(SiteContent::KEY_FAQ, $this->rows($data['faq'] ?? []));
         $this->put(SiteContent::KEY_SECTORS, $this->rows($data['sectors'] ?? []));
@@ -222,6 +234,29 @@ class SiteContentSettings extends Model
             'values' => $this->rows($data['company_values'] ?? []),
             'process_steps' => $this->rows($data['company_process_steps'] ?? []),
             'differentiators' => $this->rows($data['company_differentiators'] ?? []),
+        ]);
+    }
+
+    /**
+     * İşletmenin yasal kimliği.
+     *
+     * Doldurulmamış alan boş dize değil `null` yazılır: site `null` alanı
+     * "Girilmesi gerekiyor" uyarısıyla gösteriyor, boş dizeyi ise doldurulmuş
+     * sayıp yanına hiçbir şey basmadan geçerdi — eksik bilgi görünmez olurdu.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function writeLegal(array $data): void
+    {
+        $this->put(SiteContent::KEY_LEGAL, [
+            'trade_name' => $this->nullIfBlank($data['legal_trade_name'] ?? null),
+            'legal_form' => $this->nullIfBlank($data['legal_form'] ?? null),
+            'registered_address' => $this->nullIfBlank($data['legal_registered_address'] ?? null),
+            'tax_office' => $this->nullIfBlank($data['legal_tax_office'] ?? null),
+            'tax_number' => $this->nullIfBlank($data['legal_tax_number'] ?? null),
+            'mersis_no' => $this->nullIfBlank($data['legal_mersis_no'] ?? null),
+            'kep_address' => $this->nullIfBlank($data['legal_kep_address'] ?? null),
+            'payment_provider' => $this->nullIfBlank($data['legal_payment_provider'] ?? null),
         ]);
     }
 
