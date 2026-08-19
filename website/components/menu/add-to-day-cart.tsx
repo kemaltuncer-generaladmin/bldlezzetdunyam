@@ -1,7 +1,7 @@
 'use client';
 
-import { useActionState, useEffect, useRef, useTransition } from 'react';
-import { Check, TriangleAlert } from 'lucide-react';
+import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
+import { Check, Minus, Plus, TriangleAlert } from 'lucide-react';
 import { addToCartAction } from '@/app/actions/cart';
 import { Button } from '@/components/ui/button';
 import { IDLE_CART_STATE } from '@/lib/action-state';
@@ -9,6 +9,14 @@ import { announceCartChanged } from '@/lib/cart-events';
 import { formatDayMonth, type BusinessDate } from '@/lib/business-date';
 import { DEFAULT_LOW_THRESHOLD } from '@/lib/stock-policy';
 import { cn } from '@/lib/utils';
+
+/**
+ * Bir sepet satırının azami adedi — `lib/cart.ts` içindeki `MAX_QUANTITY` ile
+ * aynı sayı. Orada dışa aktarılmıyor ve `cart-line-controls.tsx` de aynı
+ * sabiti kendi içinde taşıyor; ikisinden birini değiştiren, ötekini de
+ * değiştirmek zorunda.
+ */
+const LINE_MAX_QUANTITY = 99;
 
 type Props = {
   /** Ürün ya da menü paketi (`DailyMenu.package.menu_id`). */
@@ -74,6 +82,20 @@ export function AddToDayCart({
   const [state, formAction, pending] = useActionState(addToCartAction, IDLE_CART_STATE);
   const [confirming, startConfirm] = useTransition();
   const lastHandled = useRef(0);
+  /*
+   * KAÇ PORSİYON — sepete eklemeden ÖNCE seçiliyor.
+   *
+   * Sunucu eylemi `quantity` alanını zaten okuyordu (`app/actions/cart.ts`)
+   * ve gelmediğinde 1 uyguluyordu; eksik olan yalnızca alanı gönderen bir
+   * arayüzdü. On kişilik sipariş veren müşteri "Sepete ekle"ye on kez
+   * basıyor, her basış bir sunucu turu ediyordu.
+   *
+   * SEPETTEKİ SAYAÇTAN AYRI BİR ŞEY: oradaki (`cart-line-controls.tsx`)
+   * MUTLAK hedefi yollar ve sunucuya her tıklamada gider. Burası daha
+   * eklenmemiş bir satırın adedi, yani yalnız yerel bir sayı — ağa çıkmadan
+   * değişir ve tek istekte gönderilir.
+   */
+  const [quantity, setQuantity] = useState(1);
 
   /*
    * `router.refresh()` KALDIRILDI — sayfayı ikinci kez çizdiriyordu.
@@ -97,6 +119,12 @@ export function AddToDayCart({
     // hiçbir şey eklenemeyen istekte "güncellendi" demek yalan olur.
     if (state.status === 'limit' ? state.addedQuantity > 0 : state.status === 'ok') {
       announceCartChanged();
+      /*
+       * ADET BİRE DÖNÜYOR. Dönmeseydi, üç porsiyon ekleyen müşterinin bir
+       * sonraki kartında da "3" yazılı dururdu ve ikinci ekleme sessizce üç
+       * porsiyon olurdu — seçim bir kere yapılıp unutulan bir şeydir.
+       */
+      setQuantity(1);
     }
   }, [state]);
 
@@ -123,6 +151,29 @@ export function AddToDayCart({
   const blocked = disabled || soldOutForCart;
 
   /*
+   * Sayacın tavanı: o gün için EKLENEBİLİR KALAN ile sepet satırının azami
+   * adedi arasından dar olanı.
+   *
+   * Kalanla sınırlamak bilinçli: müşteriye beş seçtirip sunucuda ikiye
+   * kırpmak, "beş istedim iki geldi" cümlesini kaçınılmaz kılardı. Sunucu
+   * kırpmayı yine de yapıyor (`app/actions/cart.ts`) — ekran son sözü değil,
+   * ilk kapıyı tutuyor: stok bu sekmede dururken de değişebilir.
+   *
+   * `blocked` durumunda `remaining` sıfır olabilir; sayaç o hâlde hiç
+   * çizilmiyor ama alt sınır yine de 1 kalmalı ki hesap `0`a düşmesin.
+   */
+  const maxSelectable = Math.max(1, Math.min(remaining, LINE_MAX_QUANTITY));
+
+  /*
+   * Tavan daralırsa seçili adet ONUNLA BİRLİKTE iner: yönetici porsiyon
+   * sayısını düşürdüğünde ekranda "5" yazılı kalması, basıldığında kırpılan
+   * bir düğme bırakırdı.
+   */
+  useEffect(() => {
+    setQuantity((current) => Math.min(current, maxSelectable));
+  }, [maxSelectable]);
+
+  /*
    * Kapalı butonun sebebi ZORUNLU ve sıra bağlayıcı: gün kapalıysa stok
    * mesajı yanıltıcı olur ("tükendi" diyorsak müşteri yarın bekler, oysa
    * sorun kesim saati). Çağıranın sebebi her zaman kazanır.
@@ -135,17 +186,68 @@ export function AddToDayCart({
         <input type="hidden" name="menu_id" value={menuId} />
         <input type="hidden" name="service_date" value={serviceDate} />
         {children}
+        <input type="hidden" name="quantity" value={quantity} />
 
-        <Button
-          type="submit"
-          variant={variant}
-          size={size}
-          className="w-full"
-          disabled={blocked || busy}
-          disabledReason={busy ? 'Sepete ekleniyor.' : reason}
-        >
-          {busy ? 'Ekleniyor…' : blocked ? reason : label}
-        </Button>
+        {/*
+          SAYAÇ VE DÜĞME AYNI SATIRDA, dar ekranda alt alta. Sayaç sabit
+          genişlikte, düğme kalanı alıyor: "Sepete ekle" birincil eylem
+          olmaya devam etmeli, adet seçimi onun yanında duran bir ayar.
+
+          Sayaç KAPALI GÜNDE ÇİZİLMİYOR: tükenmiş bir kalemin adedini
+          seçtirmek, sonu olmayan bir etkileşim olurdu.
+        */}
+        <div className="flex flex-wrap items-center gap-2">
+          {!blocked && (
+            <div
+              className="flex items-center rounded-full border border-input"
+              role="group"
+              aria-label="Porsiyon adedi"
+            >
+              <button
+                type="button"
+                onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+                disabled={busy || quantity <= 1}
+                aria-label="Adedi azalt"
+                className="grid size-11 cursor-pointer place-items-center rounded-full text-foreground transition-colors duration-(--duration-fast) hover:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground"
+              >
+                <Minus strokeWidth={1.75} aria-hidden="true" className="size-4" />
+              </button>
+
+              {/*
+                Sayı `aria-live`: ekran okuyucu kullanıcısı düğmeye bastığında
+                değerin değiştiğini başka türlü duyamaz.
+              */}
+              <span
+                aria-live="polite"
+                data-testid="add-quantity"
+                className="min-w-8 px-1 text-center text-label bld-money"
+              >
+                {quantity}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setQuantity((current) => Math.min(maxSelectable, current + 1))}
+                disabled={busy || quantity >= maxSelectable}
+                aria-label="Adedi artır"
+                className="grid size-11 cursor-pointer place-items-center rounded-full text-foreground transition-colors duration-(--duration-fast) hover:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground"
+              >
+                <Plus strokeWidth={1.75} aria-hidden="true" className="size-4" />
+              </button>
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            variant={variant}
+            size={size}
+            className="min-w-40 flex-1"
+            disabled={blocked || busy}
+            disabledReason={busy ? 'Sepete ekleniyor.' : reason}
+          >
+            {busy ? 'Ekleniyor…' : blocked ? reason : label}
+          </Button>
+        </div>
       </form>
 
       {/*
