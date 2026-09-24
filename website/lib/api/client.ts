@@ -118,10 +118,10 @@ function toDetails(value: unknown): Record<string, unknown> | null {
 /**
  * Taze okumanın en fazla bekleyeceği süre.
  *
- * YALNIZCA `no-store` İSTEKLERE UYGULANIYOR. Bir `AbortSignal` vermek Next.js'in
- * Data Cache'ini devre dışı bırakabiliyor; ISR ile okunan yüzeylerde (ana sayfa,
- * kurumsal içerik) bunu göze alamayız — orada zaten önbellek var ve tıkanan bir
- * istek bir sonraki ziyaretçiyi bekletmiyor.
+ * Normal çalışma sırasında yalnızca `no-store` isteklere uygulanıyor. ISR
+ * isteklerinde sinyal kullanmıyoruz; derleme aşamasındaki revalidate GET'leri
+ * için ayrı, sınırlı bir istisna aşağıda tanımlı. Böylece üretim derlemesi API
+ * erişilemediğinde statik üretim zaman aşımını beklemeden fallback kullanabilir.
  *
  * Süre dolduğunda istek ağ hatası sayılıyor ve GET ise yeniden deneniyor.
  * Sınırsız beklemek, platform tıkandığında sitenin de onunla birlikte
@@ -129,6 +129,14 @@ function toDetails(value: unknown): Record<string, unknown> | null {
  * bütün istekler kuyruğa giriyordu.
  */
 const FRESH_TIMEOUT_MS = Number.parseInt(process.env.API_TIMEOUT_MS ?? '', 10) || 8000;
+
+/**
+ * Üretim derlemesinde statik sayfalar üretilirken revalidate istekleri de
+ * sınırlı beklemeli. API erişilemiyorsa çağıran `fetchSiteContent` yedek
+ * içeriğe döner; istek build worker'ını Next'in statik üretim zaman aşımına
+ * kadar kilitlemez. Çalışan sunucudaki ISR isteklerine sinyal eklenmez.
+ */
+const BUILD_REVALIDATE_TIMEOUT_MS = Math.min(FRESH_TIMEOUT_MS, 8000);
 
 /**
  * GET yeniden deneme aralıkları (ms). Dizi uzunluğu = ek deneme sayısı.
@@ -203,11 +211,17 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
 
   for (let attempt = 0; attempt < attempts; attempt++) {
     /*
-     * Zaman aşımı yalnız taze okumalarda; gerekçesi `FRESH_TIMEOUT_MS`'te.
-     * Çağıranın kendi sinyali varsa ikisi birleştiriliyor — biri iptal
-     * ederse istek düşüyor.
+     * Taze okumalarda ve yalnızca build sırasında revalidate okumalarında
+     * zaman aşımı uygulanır. Çağıranın kendi sinyali varsa ikisi birleştiriliyor.
      */
-    const deadline = directive.kind === 'no-store' ? AbortSignal.timeout(FRESH_TIMEOUT_MS) : null;
+    const isBuildRevalidate =
+      directive.kind === 'revalidate' && process.env.NEXT_PHASE === 'phase-production-build';
+    const deadline =
+      directive.kind === 'no-store'
+        ? AbortSignal.timeout(FRESH_TIMEOUT_MS)
+        : isBuildRevalidate
+          ? AbortSignal.timeout(BUILD_REVALIDATE_TIMEOUT_MS)
+          : null;
     const attemptSignal =
       deadline === null
         ? signal
